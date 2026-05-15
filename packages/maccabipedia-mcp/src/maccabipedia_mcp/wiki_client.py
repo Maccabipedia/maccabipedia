@@ -30,7 +30,7 @@ class WikiClient:
                 "message": f"MediaWiki API returned non-JSON response (Content-Type: {content_type})",
             }
         api_error = resp.json().get("error")
-        if api_error:
+        if api_error is not None:
             return {
                 "error": True,
                 "code": api_error.get("code", "api_error"),
