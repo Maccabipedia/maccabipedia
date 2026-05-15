@@ -104,3 +104,56 @@ def test_query_cargo_html_error(client):
     result = client.query_cargo(tables="Football_Games", fields="_pageName")
     assert result["error"] is True
     assert "non-JSON" in result["message"]
+
+
+@responses.activate
+def test_describe_cargo_table_unknown_table_surfaces_api_error(client):
+    responses.get(
+        API_URL,
+        json={"error": {"code": "db_error", "info": "Table Games not found."}},
+    )
+    result = client.describe_cargo_table("Games")
+    assert result == {
+        "error": True,
+        "code": "db_error",
+        "message": "Table Games not found.",
+    }
+
+
+@responses.activate
+def test_query_cargo_unknown_table_surfaces_api_error(client):
+    responses.get(
+        API_URL,
+        json={"error": {"code": "db_error", "info": "Table Games not found."}},
+    )
+    result = client.query_cargo(tables="Games", fields="_pageName")
+    assert result == {
+        "error": True,
+        "code": "db_error",
+        "message": "Table Games not found.",
+    }
+
+
+@responses.activate
+def test_list_cargo_tables_surfaces_api_error(client):
+    responses.get(
+        API_URL,
+        json={"error": {"code": "readapidenied", "info": "Read access denied."}},
+    )
+    result = client.list_cargo_tables()
+    assert result == {
+        "error": True,
+        "code": "readapidenied",
+        "message": "Read access denied.",
+    }
+
+
+@responses.activate
+def test_api_error_envelope_without_code_or_info_uses_fallback(client):
+    responses.get(API_URL, json={"error": {}})
+    result = client.describe_cargo_table("Football_Games")
+    assert result == {
+        "error": True,
+        "code": "api_error",
+        "message": "MediaWiki API returned an error",
+    }

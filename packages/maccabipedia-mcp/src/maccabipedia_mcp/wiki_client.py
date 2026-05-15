@@ -29,6 +29,13 @@ class WikiClient:
                 "code": "non_json",
                 "message": f"MediaWiki API returned non-JSON response (Content-Type: {content_type})",
             }
+        api_error = resp.json().get("error")
+        if api_error is not None:
+            return {
+                "error": True,
+                "code": api_error.get("code", "api_error"),
+                "message": api_error.get("info", "MediaWiki API returned an error"),
+            }
         return None
 
     # -- Cargo tools --
@@ -288,13 +295,6 @@ class WikiClient:
                 return json_err
 
             data = resp.json()
-            if "error" in data:
-                return {
-                    "error": True,
-                    "code": data["error"]["code"],
-                    "message": data["error"]["info"],
-                }
-
             query_data = data.get("query", {})
             total_hits = query_data.get("searchinfo", {}).get("totalhits", total_hits)
             page_hits = query_data.get("search", [])
