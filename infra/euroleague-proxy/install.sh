@@ -35,12 +35,35 @@ echo '[Service]' > /etc/systemd/system/tinyproxy.service.d/config.conf
 echo 'ExecStart=' >> /etc/systemd/system/tinyproxy.service.d/config.conf
 echo 'ExecStart=/usr/bin/tinyproxy -d -c /etc/tinyproxy/maccabipedia.conf' >> /etc/systemd/system/tinyproxy.service.d/config.conf
 
+# Auto-restart tinyproxy if it crashes while WSL stays up. Without this the
+# only recovery path is a full WSL reboot, since tinyproxy ships with no
+# Restart= directive.
+echo '[Service]' > /etc/systemd/system/tinyproxy.service.d/restart.conf
+echo 'Restart=on-failure' >> /etc/systemd/system/tinyproxy.service.d/restart.conf
+echo 'RestartSec=5s' >> /etc/systemd/system/tinyproxy.service.d/restart.conf
+
 mkdir -p /etc/systemd/system/tailscaled.service.d
 echo '[Unit]' > /etc/systemd/system/tailscaled.service.d/notify.conf
 echo 'OnFailure=notify-failure@%n.service' >> /etc/systemd/system/tailscaled.service.d/notify.conf
 
 systemctl daemon-reload
 systemctl enable --now tinyproxy tailscaled
+
+# Install the Windows-side WSL watchdog: a 5-minute scheduled task that runs
+# `wsl -d Ubuntu -e true`. When WSL is up this is a no-op; when WSL has
+# crashed it boots the distro, and tinyproxy + claude-mobile.service then
+# come up on their own. Closes the at-logon-only gap of WslEuroleagueProxy.
+if command -v wslpath >/dev/null 2>&1 && [ -x /mnt/c/Windows/System32/cmd.exe ]; then
+    WIN_USERPROFILE=$(/mnt/c/Windows/System32/cmd.exe /c 'echo %USERPROFILE%' 2>/dev/null | tr -d '\r\n')
+    WIN_PROFILE_WSL=$(wslpath "$WIN_USERPROFILE")
+    cp "$SCRIPT_DIR/wsl-watchdog.bat" "$WIN_PROFILE_WSL/wsl-watchdog.bat"
+    /mnt/c/Windows/System32/schtasks.exe /create \
+        /tn "WslWatchdog" \
+        /tr "$WIN_USERPROFILE\\wsl-watchdog.bat" \
+        /sc MINUTE /mo 5 /it /f
+else
+    echo "Skipping WslWatchdog install — not running inside WSL on a Windows host."
+fi
 
 echo ""
 echo "=== Done ==="
