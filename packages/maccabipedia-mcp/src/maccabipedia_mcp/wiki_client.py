@@ -295,13 +295,6 @@ class WikiClient:
                 return json_err
 
             data = resp.json()
-            if "error" in data:
-                return {
-                    "error": True,
-                    "code": data["error"]["code"],
-                    "message": data["error"]["info"],
-                }
-
             query_data = data.get("query", {})
             total_hits = query_data.get("searchinfo", {}).get("totalhits", total_hits)
             page_hits = query_data.get("search", [])
