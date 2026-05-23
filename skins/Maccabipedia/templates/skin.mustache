@@ -30,6 +30,7 @@
 
 				<div class="options-navigation-container">
 					{{#data-app-header.options-panel.edit}}
+					<span id="ca-edit" hidden></span>
 					<div class="dropdown-container">
 						<div class="dropdown-title">
 							<i class="fas fa-pencil-alt option-icon"></i>
@@ -114,12 +115,14 @@
 		</div>
 	</div>
 
-	<main>
+	<main id="content">
 		<a id="top"></a>
-		<div id="bodyContent" class="mw-body-content">
+		<div id="bodyContent">
 			{{#html-subtitle}}<div id="contentSub">{{{html-subtitle}}}</div>{{/html-subtitle}}
 			{{{html-user-message}}}
-			{{{html-body-content}}}
+			<div id="mw-content-text" class="mw-body-content">
+				{{{html-body-content}}}
+			</div>
 			{{{html-categories}}}
 			<div class="visualClear"></div>
 			{{{html-after-content}}}

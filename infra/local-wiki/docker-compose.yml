@@ -19,7 +19,9 @@ services:
       MW_DB_PASSWORD: devpass
       MW_DB_PREFIX: "MPMW_"
       MW_ADMIN_USER: maccabi
-      MW_ADMIN_PASSWORD: maccabi
+      # Must NOT be a substring of the username — MediaWiki's password policy
+      # rejects that, so install.php silently fails to set it and login breaks.
+      MW_ADMIN_PASSWORD: maccabi2026
       MW_SITE_NAME: "MaccabiPedia Dev"
       MW_SITE_SERVER: "http://localhost:8080"
       MW_SITE_LANG: "he"
