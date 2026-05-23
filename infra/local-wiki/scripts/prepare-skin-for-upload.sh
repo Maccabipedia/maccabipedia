@@ -10,7 +10,7 @@
 #     <base>/<UTC timestamp with ms>/{Metrolook,Maccabipedia}/...
 #
 # Default base: ~/maccabipedia_skins/
-# Override:     ./prepare-skin-for-upload.sh /mnt/c/Users/roee/Desktop/maccabipedia_skins
+# Override:     ./prepare-skin-for-upload.sh /path/to/output-base
 #               (use a /mnt/c/... base on WSL if you want the snapshots
 #               on the Windows desktop where FileZilla can see them)
 #
