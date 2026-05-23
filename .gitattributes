@@ -4,3 +4,9 @@
 *.toml text eol=lf
 *.md text eol=lf
 *.json text eol=lf
+
+# Vendored slick library — pinned byte-for-byte to prod (see
+# skins/Maccabipedia/resources/slick/README.md). Treat as binary so git never
+# EOL-normalizes it, which would diverge the bytes from the sha256 pins.
+skins/Maccabipedia/resources/slick/** -text
+skins/Maccabipedia/resources/slick/README.md text eol=lf
