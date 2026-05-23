@@ -140,7 +140,8 @@ $wgGroupPermissions['bot']['deletedhistory'] = true; // optional
 $wgAutoConfirmAge = 86400 * 14;   // 14 days
 $wgAutoConfirmCount = 3;
 
-$wgEmailConfirmToEdit = true;
+# $wgEmailConfirmToEdit — set in LocalSettings.env.*.php (true on prod, false
+# locally where email is disabled and no address can be confirmed).
 
 # Enable images lazy loading
 $wgNativeImageLazyLoading = true;

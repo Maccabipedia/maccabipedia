@@ -23,6 +23,9 @@ $wgArticlePath = '/$1';
 ## Email — disabled locally, no SMTP reachable.
 $wgEnableEmail = false;
 $wgEmailAuthentication = false;
+## No email system locally, so no address can be confirmed — don't gate editing
+## on it. Prod's LocalSettings.env.prod.php must set this TRUE to keep the gate.
+$wgEmailConfirmToEdit = false;
 $wgEmergencyContact = 'dev@localhost';
 $wgPasswordSender = 'dev@localhost';
 
