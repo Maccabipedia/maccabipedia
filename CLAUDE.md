@@ -86,3 +86,4 @@ Every tool call result stays in context forever. Keep all outputs small:
 - `.claude/maccabipedia_research_sources.md` — External data sources: rosters, match results, historical records, photos, video
 - `.claude/maccabistats_knowledge.md` — maccabistats Python package API reference
 - `.claude/maccabipedia_youtube_channel.md` — MaccabiPedia YouTube channel conventions + Google Drive backup layout (used by `restore_deleted_football_video`)
+- `.claude/skin_deployment.md` — How skins reach production: read-only prod pull → local snapshot → manual FileZilla upload; creds live in `infra/local-wiki/.env`, not the shell env
