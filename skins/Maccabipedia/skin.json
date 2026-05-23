@@ -46,8 +46,7 @@
 				"i18n-all-lists-margins": true,
 				"i18n-headings": true,
 				"elements": true,
-				"interface": true,
-				"logo": true
+				"interface": true
 			}
 		},
 		"skins.maccabipedia.styles": {

@@ -61,6 +61,10 @@ class SkinMaccabipedia extends SkinMustache {
 			. '/skins/Maccabipedia/assets/';
 		return [
 			'logo-url'         => Title::newMainPage()->getLocalURL(),
+			// The skin renders its own logo here, not core's mw-logo element, so
+			// the SkinModule `logo` feature stays OFF in skin.json — enabling it
+			// preloads an unused logo (the change-your-logo.svg placeholder absent
+			// $wgLogos) and the browser warns "preloaded but not used".
 			'logo-image-src'   => $skinAssetsBase . 'images/logo.png',
 			'primary-dropdowns' => $this->buildPrimaryDropdowns(),
 			'standalone-link'  => [
