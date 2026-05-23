@@ -4,7 +4,7 @@ function initMaccabipediaSpecificPageScripts($, $pageContainer) {
         'common-shirts-list-page-container': [initShirtsListPageScripts]
     }
 
-    if ($pageContainer) {
+    if ($pageContainer.length) {
         const pageContainerClasses = Array.from($pageContainer.get(0).classList)
 
         for (let pageContainerClass of pageContainerClasses) {
