@@ -77,7 +77,8 @@
 			],
 			"dependencies": [
 				"mediawiki.util",
-				"jquery"
+				"jquery",
+				"maccabipedia.customizations"
 			]
 		}
 	},
