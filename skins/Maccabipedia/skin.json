@@ -77,7 +77,19 @@
 			"dependencies": [
 				"mediawiki.util",
 				"jquery",
-				"maccabipedia.customizations"
+				"skins.maccabipedia.slick"
+			]
+		},
+		"skins.maccabipedia.slick": {
+			"scripts": [
+				"resources/slick/slick.min.js"
+			],
+			"styles": [
+				"resources/slick/slick.less",
+				"resources/slick/slick-theme.less"
+			],
+			"dependencies": [
+				"jquery"
 			]
 		}
 	},

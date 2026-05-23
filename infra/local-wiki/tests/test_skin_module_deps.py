@@ -1,18 +1,18 @@
 """Static regression guard for the Maccabipedia skin's ResourceLoader graph.
 
 The slider scripts (`scripts/sliders.js`) call `$.fn.slick()`, but the slick
-library is shipped by a *separate* module — `maccabipedia.customizations`,
-defined in `LocalSettings.shared.php` and injected on every page. If the JS
-module that ships the slider code does not declare a dependency on that
+library is shipped by a *separate* module — `skins.maccabipedia.slick`,
+defined in `skin.json`, which vendors slick under `resources/slick/`. If the
+JS module that ships the slider code does not declare a dependency on that
 module, ResourceLoader is free to execute the two in any order. The slider
 init then races slick registration and intermittently throws
 `slick is not a function`, leaving the main-page carousel flashing forever.
 
 This bit prod once (the Maccabipedia skin's JS bundle is light enough to win
-the race). The race is invisible locally — the local wiki doesn't even mount
-the prod `customizations/` dir — so a static invariant is the only thing that
-catches a regression before it ships. Not marked `integration`: reads JSON
-from disk, needs no live wiki.
+the race), back when slick came from the prod-only
+`maccabipedia.customizations` module. A static invariant catches a regression
+before it ships. Not marked `integration`: reads JSON from disk, needs no live
+wiki.
 """
 from __future__ import annotations
 
@@ -22,8 +22,8 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[3]
 SKIN_JSON = REPO_ROOT / "skins" / "Maccabipedia" / "skin.json"
 
-# The module name slick is registered under (see LocalSettings.shared.php).
-SLICK_PROVIDER = "maccabipedia.customizations"
+# The intra-skin module slick is registered under (see skins/Maccabipedia/skin.json).
+SLICK_PROVIDER = "skins.maccabipedia.slick"
 # The call that proves a script needs slick. Keyed on the symbol, not a
 # filename: slick is invoked from sliders.js *and* shirts-list.js, and new
 # call sites can appear in any script.
@@ -37,6 +37,10 @@ def test_modules_calling_slick_depend_on_provider() -> None:
     checked_any = False
     offenders = []
     for name, module in modules.items():
+        if name == SLICK_PROVIDER:
+            # The provider module *is* slick; its minified source contains
+            # ".slick(", but it obviously must not depend on itself.
+            continue
         slick_scripts = [
             script
             for script in module.get("scripts", [])
@@ -57,4 +61,20 @@ def test_modules_calling_slick_depend_on_provider() -> None:
         f"'{SLICK_PROVIDER}' (which provides slick). Without the dependency, "
         "ResourceLoader load order is a race and slick() intermittently throws "
         f"'slick is not a function'. Offenders: {offenders}"
+    )
+
+
+def test_slick_provider_module_ships_existing_files() -> None:
+    skin_dir = SKIN_JSON.parent
+    modules = json.loads(SKIN_JSON.read_text(encoding="utf-8"))["ResourceModules"]
+
+    assert SLICK_PROVIDER in modules, (
+        f"'{SLICK_PROVIDER}' is not defined in {SKIN_JSON}; the slider's "
+        "dependency points at a module that does not exist."
+    )
+    provider = modules[SLICK_PROVIDER]
+    referenced = provider.get("scripts", []) + provider.get("styles", [])
+    missing = [ref for ref in referenced if not (skin_dir / ref).is_file()]
+    assert not missing, (
+        f"'{SLICK_PROVIDER}' references files that are not on disk: {missing}"
     )
