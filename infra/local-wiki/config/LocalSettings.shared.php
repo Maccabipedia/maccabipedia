@@ -262,6 +262,18 @@ wfLoadExtension('WikiSEO'); // https://www.mediawiki.org/wiki/Extension:WikiSEO,
 $wgWikiSeoDefaultImage = 'File:Maccabipedia logo.png';
 $wgTwitterSiteHandle = '@maccabipedia';
 
+# Core logo. No skin actually uses it (Metrolook + Maccabipedia each render
+# their own app-header logo), but WikiSEO reads it for the schema.org
+# publisher logo in its JSON-LD — left unset it falls back to MediaWiki's
+# change-your-logo.svg placeholder. Point it at the same image as
+# $wgWikiSeoDefaultImage above: the uploaded File "Maccabipedia logo.png"
+# (e/e6 = MD5 of that filename; stable unless the File is renamed). We build
+# from $wgScriptPath, not $wgUploadPath — the latter is still false at
+# LocalSettings time (core resolves it later in Setup.php). NOTE: this image
+# lives on prod's wiki, so the URL 404s on the local replica; that's
+# harmless — it only affects SEO metadata, which dev never renders.
+$wgLogos = [ '1x' => "$wgScriptPath/images/e/e6/Maccabipedia_logo.png" ];
+
 // Welcome any new user with our default msg
 wfLoadExtension('NewUserMessage');  //https://www.mediawiki.org/wiki/Extension:NewUserMessage
 
