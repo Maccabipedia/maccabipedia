@@ -22,6 +22,15 @@ bash infra/local-wiki/scripts/deploy-skin.sh
   both skins**; the Maccabipedia skin ships none of its own. (The sync op name
   `maccabipedia-skin-assets` is misleading — it pulls Metrolook's dir.)
 - Scripts aren't executable → run with `bash`, not `./`.
+- **After uploading, the CSS won't change in your browser until you hard-refresh.**
+  ResourceLoader recompiles on the source change, but `load.php` style responses
+  are sent with `cache-control: max-age=86400, s-maxage=86400` and **no version
+  param in the URL** — so both the browser and the `nginx`/CDN layer keep serving
+  the old stylesheet for up to 24h. To verify a deploy: hard-refresh
+  (`Ctrl/Cmd+Shift+R`) or use a cache-buster, e.g.
+  `curl ".../load.php?...&skin=maccabipedia&cb=$(date +%s)" | grep <new-selector>`.
+  For *all* visitors to get it immediately, purge the CDN/`nginx` cache for the
+  `load.php` style responses (otherwise it clears as each client's cache expires).
 - `wfLoadSkin('Maccabipedia')` is already in prod LocalSettings — skip on
   re-uploads.
 - Prod smoke test:
