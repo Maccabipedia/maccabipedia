@@ -1,0 +1,208 @@
+// Slim Responsive Tabs — the CSS radio-hack tab engine.
+//
+// This is the show/hide engine for `.slim-tabs` blocks (hidden radio inputs +
+// labels + `:checked` sibling combinators). It was lost when `old/Stylesheet.less`
+// was dropped from this skin: the modern atoms/ files (games-list, records-list)
+// and the football/basketball profile overrides only style the *contents* of a
+// tab panel, never the toggle, so tabs rendered but could not switch.
+//
+// Restored verbatim from skins/Metrolook/customize/styles/old/Stylesheet.less
+// ("Slim Responsive Tabs" section). Supports up to 5 tabs per group.
+
+.slim-tabs {
+  position: relative;
+  min-width: 240px;
+}
+
+.slim-tabs input[name*="tab-control"] {
+  display: none;
+}
+
+.slim-tabs ul {
+  list-style: none !important;
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+  margin: 5px 1px 0 1px;
+  padding: 0;
+}
+
+.slim-tabs ul li {
+  box-sizing: border-box;
+  flex: 1;
+  width: 25%;
+  padding: 0 5px;
+  text-align: center;
+}
+
+.slim-tabs .content>div .tab-header {
+  font-weight: 600;
+}
+
+.slim-tabs ul li label {
+  display: block;
+  overflow: hidden;
+  padding: 5px auto;
+  color: #929daf;
+  text-overflow: ellipsis;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  transition: all 0.3s ease-in-out;
+}
+
+.slim-tabs .fa,
+.slim-tabs .fas,
+.slim-tabs .far {
+  padding: 6px;
+}
+
+.slim-tabs ul li label:hover,
+.slim-tabs ul li label:focus,
+.slim-tabs ul li label:active {
+  outline: 0;
+  color: #428bff;
+}
+
+.slim-tabs .content {
+  margin-top: 10px;
+}
+
+.slim-tabs .content>div {
+  display: none;
+  -webkit-animation-name: content;
+  animation-name: content;
+  -webkit-animation-direction: normal;
+  animation-direction: normal;
+  -webkit-animation-duration: 0.35s;
+  animation-duration: 0.35s;
+  -webkit-animation-timing-function: ease-in-out;
+  animation-timing-function: ease-in-out;
+  -webkit-animation-iteration-count: 1;
+  animation-iteration-count: 1;
+  line-height: 1.4;
+}
+
+.slim-tabs .content>div .tab-header {
+  display: none;
+  color: @blue;
+}
+
+.slim-tabs .content>div .tab-header::after {
+  content: "";
+  position: relative;
+  display: block;
+  width: 65px;
+  height: 3px;
+  margin: 4px 0;
+  right: 1px;
+  background-color: @blue;
+}
+
+.slim-tabs input[name*="tab-control"]:nth-of-type(1):checked~ul>li:nth-child(1)>label {
+  cursor: default;
+  color: #195da6;
+  /* #428BFF */
+  background-color: rgba(0, 0, 0, 0.09);
+}
+
+.slim-tabs input[name*="tab-control"]:nth-of-type(1):checked~.content>div:nth-child(1) {
+  display: block;
+}
+
+.slim-tabs input[name*="tab-control"]:nth-of-type(2):checked~ul>li:nth-child(2)>label {
+  cursor: default;
+  color: #195da6;
+  background-color: rgba(0, 0, 0, 0.09);
+}
+
+.slim-tabs input[name*="tab-control"]:nth-of-type(2):checked~.content>div:nth-child(2) {
+  display: block;
+}
+
+.slim-tabs input[name*="tab-control"]:nth-of-type(3):checked~ul>li:nth-child(3)>label {
+  cursor: default;
+  color: #195da6;
+  background-color: rgba(0, 0, 0, 0.09);
+}
+
+.slim-tabs input[name*="tab-control"]:nth-of-type(3):checked~.content>div:nth-child(3) {
+  display: block;
+}
+
+.slim-tabs input[name*="tab-control"]:nth-of-type(4):checked~ul>li:nth-child(4)>label {
+  cursor: default;
+  color: #195da6;
+  background-color: rgba(0, 0, 0, 0.09);
+}
+
+.slim-tabs input[name*="tab-control"]:nth-of-type(4):checked~.content>div:nth-child(4) {
+  display: block;
+}
+
+.slim-tabs input[name*="tab-control"]:nth-of-type(5):checked~ul>li:nth-child(5)>label {
+  cursor: default;
+  color: #195da6;
+  background-color: rgba(0, 0, 0, 0.09);
+}
+
+.slim-tabs input[name*="tab-control"]:nth-of-type(5):checked~.content>div:nth-child(5) {
+  display: block;
+}
+
+@-webkit-keyframes content {
+  from {
+    opacity: 0;
+    -webkit-transform: translateY(5%);
+    transform: translateY(5%);
+  }
+
+  to {
+    opacity: 1;
+    -webkit-transform: translateY(0%);
+    transform: translateY(0%);
+  }
+}
+
+@keyframes content {
+  from {
+    opacity: 0;
+    -webkit-transform: translateY(5%);
+    transform: translateY(5%);
+  }
+
+  to {
+    opacity: 1;
+    -webkit-transform: translateY(0%);
+    transform: translateY(0%);
+  }
+}
+
+.slim-tabs ul li label {
+  padding: 5px;
+  border-radius: 5px;
+}
+
+.slim-tabs label:hover {
+  background-color: rgba(0, 0, 0, 0.04);
+}
+
+.slim-tabs ul li label span {
+  display: none;
+}
+
+.slim-tabs .content {
+  margin-top: 10px;
+}
+
+.slim-tabs .content>div .tab-header {
+  display: block;
+}
