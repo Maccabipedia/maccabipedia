@@ -1,9 +1,9 @@
-"""End-to-end smoke tests for the new Maccabipedia skin (?useskin=maccabipedia).
+"""End-to-end smoke tests for the Maccabipedia skin, the default skin.
 
-Asserts the new skin renders the main page without PHP errors, emits the
+Asserts the skin renders the main page without PHP errors, emits the
 expected body class, mobile viewport, no firstHeading h1, search input
-text-field class, and the same menu links Metrolook does. Default skin is
-still Metrolook; Maccabipedia is opt-in for the soak window.
+text-field class, every menu link in MENU_LABELS, no prod-URL leakage,
+loadable logo + powered-by assets, and Title-encoded menu hrefs.
 
 `MENU_LABELS` and `PHP_ERROR_RE` come from `skin_test_constants.py`.
 """
@@ -12,6 +12,7 @@ from __future__ import annotations
 import re
 
 import pytest
+import requests
 
 from skin_test_constants import MENU_LABELS, PHP_ERROR_RE
 
@@ -204,8 +205,8 @@ def test_search_input_has_text_field_class(maccabipedia_anon_html: str) -> None:
 
 @pytest.mark.parametrize("label", MENU_LABELS)
 def test_menu_link_renders(maccabipedia_anon_html: str, label: str) -> None:
-    """Maccabipedia must emit every menu link Metrolook does — same data, same
-    contract. test_menu.py runs the same parametrize against Metrolook (default)."""
+    """Maccabipedia must emit every menu link in MENU_LABELS — the mirror of
+    SkinMaccabipedia::buildPrimaryDropdowns()."""
     assert f">{label}</a>" in maccabipedia_anon_html
 
 
@@ -213,3 +214,37 @@ def test_no_broken_dropdown_hrefs(maccabipedia_anon_html: str) -> None:
     """A dead link from pageUrl() degrades to href="#" — never intended."""
     broken = re.findall(r'<a href="#">', maccabipedia_anon_html)
     assert not broken, f"found {len(broken)} menu link(s) degraded to href=\"#\""
+
+
+def test_no_prod_url_leakage(maccabipedia_anon_html: str) -> None:
+    """No hrefs/text mentioning the production wiki should leak through the
+    local stack."""
+    assert "maccabipedia.co.il" not in maccabipedia_anon_html
+
+
+@pytest.mark.parametrize("asset", ["logo", "powered-by"])
+def test_static_asset_loads(maccabipedia_anon_html: str, asset: str) -> None:
+    """The skin's own logo (assets/images/logo.png) and the powered-by-MediaWiki
+    <img src> must be present and resolve to HTTP 200. Both are $wgServer-prefixed
+    absolute URLs (see SkinMaccabipedia::buildAppHeaderData/buildAppFooterData)."""
+    pattern = {
+        "logo": r'src="([^"]*logo\.png[^"]*)"',
+        "powered-by": r'src="([^"]*poweredby[^"]*)"',
+    }[asset]
+    match = re.search(pattern, maccabipedia_anon_html)
+    assert match, f"<img src> for {asset} not found in main page"
+    asset_url = match.group(1)
+    response = requests.get(asset_url, timeout=15)
+    assert response.status_code == 200, (
+        f"{asset} URL {asset_url} -> HTTP {response.status_code}"
+    )
+
+
+def test_menu_links_title_encoded(maccabipedia_anon_html: str) -> None:
+    """Menu hrefs come from Title->getLocalURL(), so they're fully URL-encoded:
+    no literal spaces, and Hebrew titles land on /%D7… paths (with
+    $wgArticlePath = "/$1" the local stack mirrors prod's pretty URLs)."""
+    literal_space = re.findall(r'href="[^"]* [^"]*"', maccabipedia_anon_html)
+    assert not literal_space, f"menu hrefs with literal spaces: {literal_space[:3]}"
+    encoded = re.findall(r'href="/%D7', maccabipedia_anon_html)
+    assert encoded, "expected at least one Title-encoded Hebrew menu link"

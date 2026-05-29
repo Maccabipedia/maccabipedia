@@ -1,8 +1,9 @@
 """Fixtures for the local-wiki integration suite.
 
 Hits the running docker stack (default http://localhost:8080) and exposes
-anonymous / admin / Maccabipedia-skin HTML bodies of the Hebrew main page.
-All fixtures are session-scoped so the suite makes minimal HTTP calls.
+anonymous / admin / regular-user Maccabipedia-skin HTML bodies of the
+Hebrew main page. All fixtures are session-scoped so the suite makes
+minimal HTTP calls.
 
 Shared constants (`MENU_LABELS`, `PHP_ERROR_RE`) live in
 `skin_test_constants.py` (a uniquely-named module that doesn't collide
@@ -42,16 +43,6 @@ def main_url(base_url: str) -> str:
     so the /index.php/ segment is gone.
     """
     return f"{base_url}/{quote(_MAIN_PAGE_TITLE)}"
-
-
-@pytest.fixture(scope="session")
-def anon_html(main_url: str) -> str:
-    """GET the main page with no cookies and return the response body."""
-    response = requests.get(main_url, timeout=15)
-    assert response.status_code == 200, (
-        f"Anonymous GET {main_url} returned HTTP {response.status_code}"
-    )
-    return response.text
 
 
 @pytest.fixture(scope="session")
@@ -143,22 +134,12 @@ def regular_session(base_url: str) -> requests.Session:
 
 
 @pytest.fixture(scope="session")
-def admin_html(admin_session: requests.Session, main_url: str) -> str:
-    """GET the main page with the admin session cookie and return the body."""
-    response = admin_session.get(main_url, timeout=15)
-    assert response.status_code == 200, (
-        f"Admin GET {main_url} returned HTTP {response.status_code}"
-    )
-    return response.text
-
-
-@pytest.fixture(scope="session")
 def maccabipedia_anon_html(main_url: str) -> str:
     """GET the main page with ?useskin=maccabipedia and return the body.
 
-    Default skin is still Metrolook; Maccabipedia is opt-in via this URL
-    parameter (or via Special:Preferences). Will become the default in a
-    follow-up PR after Maccabipedia is verified on prod.
+    Maccabipedia is the default skin, so the parameter is redundant here, but
+    we pass it explicitly to keep the fixture pinned to Maccabipedia even if
+    the default changes again.
     """
     response = requests.get(main_url, params={"useskin": "maccabipedia"}, timeout=15)
     assert response.status_code == 200, (
