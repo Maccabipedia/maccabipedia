@@ -361,9 +361,11 @@ def upload_games_to_maccabipedia(maccabi_games_to_add: MaccabiGamesStats):
 
     logging.info("Finished adding new games.")
 
-    # The main page shows the latest 5 games list, so purge it too
+    # The main page shows the latest 5 games list, and the players portal shows
+    # the top scorers/assisters leaderboards, so purge them too
     if all_pages_to_purge:
         all_pages_to_purge.add("עמוד ראשי")
+        all_pages_to_purge.add("פורטל שחקנים")
 
     # Batch purge all collected pages at the end
     if SHOULD_SAVE and SHOULD_PURGE_RELATED_PAGES:

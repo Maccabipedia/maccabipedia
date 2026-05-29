@@ -267,9 +267,11 @@ def create_or_update_volleyball_game_pages(games_to_add: List[VolleyballGame]):
 
     logging.info("Finished adding new games.")
 
-    # The main page shows the latest 5 games list, so purge it too
+    # The main page shows the latest 5 games list, and the players portal's
+    # volleyball tab shows the points/appearances record leaderboards, so purge them too
     if all_pages_to_purge:
         all_pages_to_purge.add("עמוד ראשי")
+        all_pages_to_purge.add("פורטל שחקנים")
 
     # Batch purge all collected pages at the end
     if SHOULD_SAVE and SHOULD_PURGE_RELATED_PAGES:
