@@ -46,7 +46,8 @@ jobs:
           HTTPS_PROXY: ${{ secrets.EUROLEAGUE_HTTPS_PROXY }}
         run: |
           uv run python -m maccabipediabot.basketball.crawl_euroleague \
-            --season latest --limit 1 --output /tmp/euroleague.json
+            --season latest --limit 1 --output /tmp/euroleague.json \
+            --unknown-teams-report /tmp/unknown_teams.json
 
       - name: Upload Euroleague games
         env:
@@ -57,11 +58,11 @@ jobs:
           uv run python -m maccabipediabot.basketball.gamesbot_basketball \
             --input /tmp/euroleague.json --skip-existing
 
-      # The basket.co.il crawl writes /tmp/unknown_teams.json (and exits non-zero)
-      # when it hits a team name missing from translations._TEAM_NAMES, which would
-      # otherwise leak the English name into the game page title. Its presence is the
-      # signal; its contents are the affected games. Notify the error channel so we add
-      # the mapping and re-run. CI-only by construction — locally the crawl just raises.
+      # Either crawl (basket.co.il / Euroleague) writes /tmp/unknown_teams.json and
+      # exits non-zero when it hits a team name missing from translations._TEAM_NAMES,
+      # which would otherwise leak the English name into the game page title. The file's
+      # presence is the signal; its contents are the affected games. Notify the error
+      # channel so we add the mapping and re-run. CI-only — locally the crawl just raises.
       - name: Detect unknown basketball team name
         if: failure()
         id: unknown_team
@@ -84,7 +85,7 @@ jobs:
           to: ${{ secrets.MACCABIPEDIA_ERRORS_TELEGRAM_TO }}
           token: ${{ secrets.MACCABIPEDIA_ERRORS_TELEGRAM_TOKEN }}
           message: |
-            🏀 Basketball upload failed: basket.co.il returned an unmapped team name.
+            🏀 Basketball upload failed: the crawl returned an unmapped team name.
             Add the EN→HE mapping to translations._TEAM_NAMES, then re-run.
             ${{ steps.unknown_team.outputs.detail }}
             Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}

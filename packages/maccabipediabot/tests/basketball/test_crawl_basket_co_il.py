@@ -7,6 +7,7 @@ import pytest
 from bs4 import BeautifulSoup
 
 from maccabipediabot.basketball.basketball_game import BasketballGame
+from maccabipediabot.basketball._crawler_utils import write_unknown_teams_report
 from maccabipediabot.basketball.crawl_basket_co_il import (
     UnknownTeamNameError,
     _parse_player_rows,
@@ -173,3 +174,14 @@ def test_discover_raises_on_untranslated_team_name(monkeypatch):
     assert exc_info.value.affected_games == [
         {"id": 7, "teams": ["Totally New Team"], "date": "01/01/2026"}
     ]
+
+
+def test_write_unknown_teams_report_round_trips(tmp_path):
+    """The report file is the Python<->CI contract; verify it's valid JSON with the
+    affected games, and a None path is a no-op (local runs don't write a report)."""
+    affected = [{"id": 7, "teams": ["Totally New Team"], "date": "01/01/2026"}]
+    report = tmp_path / "unknown_teams.json"
+    write_unknown_teams_report(report, affected)
+    assert json.loads(report.read_text(encoding="utf-8")) == affected
+
+    write_unknown_teams_report(None, affected)  # no path → no file, no error

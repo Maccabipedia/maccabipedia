@@ -4,9 +4,11 @@ from pathlib import Path
 
 import pytest
 
+from maccabipediabot.basketball._crawler_utils import UnknownTeamNameError
 from maccabipediabot.basketball.basketball_game import BasketballGame
 from maccabipediabot.basketball.crawl_euroleague import (
     MACCABI_TEAM_NAME_ENG,
+    _parse_team_results_entry,
     discover_games_from_html,
     extract_next_data,
     parse_game_page,
@@ -132,3 +134,19 @@ def test_discover_games_from_team_results_returns_finished_games_sorted_desc():
         assert "מכבי תל אביב" in (game.home_team_name, game.away_team_name)
     for earlier, later in zip(discovered[1:], discovered[:-1]):
         assert later.game_date >= earlier.game_date
+
+
+def test_parse_entry_raises_on_unmapped_team_name():
+    """A team name missing from _TEAM_NAMES would leak English into the page title;
+    discovery must raise with the affected game so CI can alert."""
+    result = {
+        "status": "result",
+        "date": "2026-01-15T18:05:00Z",
+        "url": "/en/euroleague/game-center/2025-26/maccabi-vs-new-club/E2025/20/",
+        "round": {"round": 20},
+        "home": {"name": MACCABI_TEAM_NAME_ENG, "score": 90},
+        "away": {"name": "Totally New Club", "score": 80},
+    }
+    with pytest.raises(UnknownTeamNameError) as exc_info:
+        _parse_team_results_entry(result)
+    assert exc_info.value.affected_games[0]["teams"] == ["Totally New Club"]

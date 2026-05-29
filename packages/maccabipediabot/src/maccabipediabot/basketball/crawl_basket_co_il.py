@@ -11,10 +11,16 @@ import requests
 from aiohttp import ClientSession
 from bs4 import BeautifulSoup, Tag
 
-from maccabipediabot.basketball._crawler_utils import season_from_date, to_int_or_none
+from maccabipediabot.basketball._crawler_utils import (
+    UnknownTeamNameError,
+    season_from_date,
+    to_int_or_none,
+    write_unknown_teams_report,
+)
 from maccabipediabot.basketball.basketball_game import BasketballGame, PlayerSummary
 from maccabipediabot.basketball.translations import (
     basket_co_il_competition_name,
+    is_known_team_name,
     normalize_player_name,
     team_name_to_hebrew,
 )
@@ -30,12 +36,6 @@ GAMES_ALL_FEED_URL = "https://basket.co.il/pbp/json/games_all.json"
 GAME_PAGE_URL_TEMPLATE = "https://basket.co.il/game-zone.asp?GameId={game_id}"
 MACCABI_TEAM_NAME_ENG = "Maccabi Tel-Aviv"
 MAX_CONNECTIONS = 100
-
-# A translated team name is pure Hebrew; leftover Latin letters mean the feed's
-# English name was missing from translations._TEAM_NAMES and passed through
-# untranslated (e.g. "Bnei Herzliya"). Catch it so we fail loudly instead of
-# silently uploading a game page titled with the English opponent name.
-_UNTRANSLATED_TEAM_NAME_RE = re.compile(r"[A-Za-z]")
 
 
 def parse_game_page(html: str, partial_game: BasketballGame) -> BasketballGame:
@@ -391,23 +391,6 @@ async def get_team_ids_for_all_seasons(session: ClientSession) -> dict[str, str]
         return seasons_to_team_ids
 
 
-class UnknownTeamNameError(RuntimeError):
-    """A basket.co.il feed team name was missing from translations._TEAM_NAMES.
-
-    Carries the affected games so the CLI can emit a machine-readable report
-    (for CI alerting) instead of callers scraping the human-readable message.
-    """
-
-    def __init__(self, affected_games: list[dict]):
-        self.affected_games = affected_games
-        super().__init__(
-            "basket.co.il discovery encountered team names missing from "
-            "translations._TEAM_NAMES; add the EN->HE mapping before re-running, "
-            "otherwise the game page would be titled with the English opponent name. "
-            f"Affected games: {affected_games}"
-        )
-
-
 def discover_games_latest_season(limit: int | None = None) -> list[BasketballGame]:
     """Fetch basket.co.il's current-season feed; return partial BasketballGame objects
     for Maccabi's finished games (per-game scrape fields filled later by parse_game_page)."""
@@ -451,24 +434,24 @@ def discover_games_latest_season(limit: int | None = None) -> list[BasketballGam
 
     discovered: list[BasketballGame] = []
     unknown_competition_games: list[dict] = []
-    untranslated_team_games: list[dict] = []
+    unmapped_team_games: list[dict] = []
     for game in finished:
         day, month, year = game["game_date_txt"].split("/")
         time_str = game.get("game_time") or "00:00"
         hour, minute = time_str.split(":") if ":" in time_str else ("0", "0")
         game_dt = datetime(int(year), int(month), int(day), int(hour), int(minute))
 
-        home_team = team_name_to_hebrew(game["team_name_eng_1"])
-        away_team = team_name_to_hebrew(game["team_name_eng_2"])
-
-        untranslated = [name for name in (home_team, away_team)
-                        if _UNTRANSLATED_TEAM_NAME_RE.search(name)]
-        if untranslated:
-            untranslated_team_games.append(
-                {"id": game.get("id"), "teams": untranslated,
+        raw_home, raw_away = game["team_name_eng_1"], game["team_name_eng_2"]
+        unmapped = [name for name in (raw_home, raw_away) if not is_known_team_name(name)]
+        if unmapped:
+            unmapped_team_games.append(
+                {"id": game.get("id"), "teams": unmapped,
                  "date": game.get("game_date_txt")}
             )
             continue
+
+        home_team = team_name_to_hebrew(raw_home)
+        away_team = team_name_to_hebrew(raw_away)
 
         competition = basket_co_il_competition_name(game["game_type"])
         if not competition:
@@ -494,8 +477,8 @@ def discover_games_latest_season(limit: int | None = None) -> list[BasketballGam
             "extend translations._BASKET_GAME_TYPE before re-running. "
             f"Affected games: {unknown_competition_games}"
         )
-    if untranslated_team_games:
-        raise UnknownTeamNameError(untranslated_team_games)
+    if unmapped_team_games:
+        raise UnknownTeamNameError(unmapped_team_games)
     return discovered
 
 
@@ -545,11 +528,7 @@ def main() -> None:
         else:
             games = asyncio.run(_run_all_seasons())
     except UnknownTeamNameError as error:
-        if args.unknown_teams_report:
-            args.unknown_teams_report.write_text(
-                json.dumps(error.affected_games, ensure_ascii=False, indent=2),
-                encoding="utf-8",
-            )
+        write_unknown_teams_report(args.unknown_teams_report, error.affected_games)
         raise
 
     write_pydantic_list_as_json(games, args.output)

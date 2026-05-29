@@ -453,6 +453,14 @@ def team_name_to_hebrew(name: str) -> str:
     return _TEAM_NAMES.get(name, name)
 
 
+def is_known_team_name(name: str) -> bool:
+    """True if `name` has an explicit EN->HE entry in _TEAM_NAMES.
+
+    Discovery uses this to reject feed names that team_name_to_hebrew() would
+    otherwise pass through untranslated, leaking the English name into a page title."""
+    return name in _TEAM_NAMES
+
+
 def person_name_to_hebrew(name: str) -> str:
     return _PERSON_NAMES.get(name, name)
 
