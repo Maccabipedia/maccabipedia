@@ -20,6 +20,7 @@ class TeamRename(NamedTuple):
 
 _TEAM_NAMES: dict[str, str] = {
     "Maccabi Tel-Aviv": "מכבי תל אביב",
+    "Bnei Herzliya": "בני הרצליה",
     "Hapoel Jerusalem": "הפועל ירושלים",
     "M. Rishon": "מכבי ראשון לציון",
     "Ness Ziona": "עירוני נס ציונה",
@@ -450,6 +451,14 @@ _JR_SUFFIX_RE = re.compile(r"\s+ג['׳]וניור\s*$")
 
 def team_name_to_hebrew(name: str) -> str:
     return _TEAM_NAMES.get(name, name)
+
+
+def is_known_team_name(name: str) -> bool:
+    """True if `name` has an explicit EN->HE entry in _TEAM_NAMES.
+
+    Discovery uses this to reject feed names that team_name_to_hebrew() would
+    otherwise pass through untranslated, leaking the English name into a page title."""
+    return name in _TEAM_NAMES
 
 
 def person_name_to_hebrew(name: str) -> str:

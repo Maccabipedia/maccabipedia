@@ -22,7 +22,8 @@ jobs:
       - name: Crawl basket.co.il (latest 1 game)
         run: |
           uv run python -m maccabipediabot.basketball.crawl_basket_co_il \
-            --season latest --limit 1 --output /tmp/basket.json
+            --season latest --limit 1 --output /tmp/basket.json \
+            --unknown-teams-report /tmp/unknown_teams_basket.json
 
       - name: Upload basket.co.il games
         env:
@@ -45,7 +46,8 @@ jobs:
           HTTPS_PROXY: ${{ secrets.EUROLEAGUE_HTTPS_PROXY }}
         run: |
           uv run python -m maccabipediabot.basketball.crawl_euroleague \
-            --season latest --limit 1 --output /tmp/euroleague.json
+            --season latest --limit 1 --output /tmp/euroleague.json \
+            --unknown-teams-report /tmp/unknown_teams_euroleague.json
 
       - name: Upload Euroleague games
         env:
@@ -55,3 +57,39 @@ jobs:
         run: |
           uv run python -m maccabipediabot.basketball.gamesbot_basketball \
             --input /tmp/euroleague.json --skip-existing
+
+      # Each crawl writes its own report file (and exits non-zero) when it hits a team
+      # name missing from translations._TEAM_NAMES, which would otherwise leak the
+      # English name into the game page title. Collect whichever reports exist — no
+      # shared path, no ordering assumption — and notify the error channel so we add the
+      # mapping and re-run. CI-only by construction: locally the crawl just raises.
+      - name: Detect unknown basketball team name
+        if: failure()
+        id: unknown_team
+        run: |
+          reports=""
+          for report in /tmp/unknown_teams_basket.json /tmp/unknown_teams_euroleague.json; do
+            [ -f "$report" ] && reports="$reports $report"
+          done
+          if [ -n "$reports" ]; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+            {
+              echo "detail<<TG_EOF"
+              cat $reports
+              echo "TG_EOF"
+            } >> "$GITHUB_OUTPUT"
+          else
+            echo "found=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Alert error channel about unknown team name
+        if: failure() && steps.unknown_team.outputs.found == 'true'
+        uses: appleboy/telegram-action@v1.0.1
+        with:
+          to: ${{ secrets.MACCABIPEDIA_ERRORS_TELEGRAM_TO }}
+          token: ${{ secrets.MACCABIPEDIA_ERRORS_TELEGRAM_TOKEN }}
+          message: |
+            🏀 Basketball upload failed: the crawl returned an unmapped team name.
+            Add the EN→HE mapping to translations._TEAM_NAMES, then re-run.
+            ${{ steps.unknown_team.outputs.detail }}
+            Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}

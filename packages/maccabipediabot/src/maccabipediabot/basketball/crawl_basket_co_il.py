@@ -11,10 +11,16 @@ import requests
 from aiohttp import ClientSession
 from bs4 import BeautifulSoup, Tag
 
-from maccabipediabot.basketball._crawler_utils import season_from_date, to_int_or_none
+from maccabipediabot.basketball._crawler_utils import (
+    UnknownTeamNameError,
+    season_from_date,
+    to_int_or_none,
+    write_unknown_teams_report,
+)
 from maccabipediabot.basketball.basketball_game import BasketballGame, PlayerSummary
 from maccabipediabot.basketball.translations import (
     basket_co_il_competition_name,
+    is_known_team_name,
     normalize_player_name,
     team_name_to_hebrew,
 )
@@ -428,14 +434,24 @@ def discover_games_latest_season(limit: int | None = None) -> list[BasketballGam
 
     discovered: list[BasketballGame] = []
     unknown_competition_games: list[dict] = []
+    unmapped_team_games: list[dict] = []
     for game in finished:
         day, month, year = game["game_date_txt"].split("/")
         time_str = game.get("game_time") or "00:00"
         hour, minute = time_str.split(":") if ":" in time_str else ("0", "0")
         game_dt = datetime(int(year), int(month), int(day), int(hour), int(minute))
 
-        home_team = team_name_to_hebrew(game["team_name_eng_1"])
-        away_team = team_name_to_hebrew(game["team_name_eng_2"])
+        raw_home, raw_away = game["team_name_eng_1"], game["team_name_eng_2"]
+        unmapped = [name for name in (raw_home, raw_away) if not is_known_team_name(name)]
+        if unmapped:
+            unmapped_team_games.append(
+                {"id": game.get("id"), "teams": unmapped,
+                 "date": game.get("game_date_txt")}
+            )
+            continue
+
+        home_team = team_name_to_hebrew(raw_home)
+        away_team = team_name_to_hebrew(raw_away)
 
         competition = basket_co_il_competition_name(game["game_type"])
         if not competition:
@@ -461,6 +477,8 @@ def discover_games_latest_season(limit: int | None = None) -> list[BasketballGam
             "extend translations._BASKET_GAME_TYPE before re-running. "
             f"Affected games: {unknown_competition_games}"
         )
+    if unmapped_team_games:
+        raise UnknownTeamNameError(unmapped_team_games)
     return discovered
 
 
@@ -499,12 +517,19 @@ def main() -> None:
     parser.add_argument("--limit", type=int, default=None,
                         help="Cap the number of most-recent games (latest mode only).")
     parser.add_argument("--output", type=Path, required=True, help="Path to write JSON output.")
+    parser.add_argument("--unknown-teams-report", type=Path, default=None,
+                        help="On unmapped team names, write the affected games as JSON here "
+                             "(consumed by CI to alert the error channel).")
     args = parser.parse_args()
 
-    if args.season == "latest":
-        games = _run_latest_season(args.limit)
-    else:
-        games = asyncio.run(_run_all_seasons())
+    try:
+        if args.season == "latest":
+            games = _run_latest_season(args.limit)
+        else:
+            games = asyncio.run(_run_all_seasons())
+    except UnknownTeamNameError as error:
+        write_unknown_teams_report(args.unknown_teams_report, error.affected_games)
+        raise
 
     write_pydantic_list_as_json(games, args.output)
 

@@ -15,12 +15,15 @@ import requests
 from bs4 import BeautifulSoup
 
 from maccabipediabot.basketball._crawler_utils import (
+    UnknownTeamNameError,
     season_from_date,
     to_int,
     to_int_or_none,
+    write_unknown_teams_report,
 )
 from maccabipediabot.basketball.basketball_game import BasketballGame, PlayerSummary
 from maccabipediabot.basketball.translations import (
+    is_known_team_name,
     person_name_to_hebrew,
     stadium_name_to_hebrew,
     team_name_to_hebrew,
@@ -245,6 +248,15 @@ def _parse_team_results_entry(result: dict) -> BasketballGame | None:
     if not home_name or not away_name:
         raise RuntimeError(f"Finished Euroleague game missing team name(s): {result!r}")
 
+    unmapped = [name for name in (home_name, away_name) if not is_known_team_name(name)]
+    if unmapped:
+        # Same leak as basket.co.il: an unmapped name would pass through
+        # team_name_to_hebrew() and title the page in English. Fail loudly with the
+        # affected game so CI can alert; foreign Euroleague clubs churn yearly.
+        raise UnknownTeamNameError(
+            [{"game": result.get("url"), "teams": unmapped, "date": date_str}]
+        )
+
     url_path = result.get("url") or ""
     if not url_path:
         raise RuntimeError(f"Finished Euroleague game missing URL: {result!r}")
@@ -276,9 +288,17 @@ def main() -> None:
     parser.add_argument("--season", choices=("latest",), default="latest")
     parser.add_argument("--limit", type=int, default=None)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--unknown-teams-report", type=Path, default=None,
+                        help="On unmapped team names, write the affected games as JSON here "
+                             "(consumed by CI to alert the error channel).")
     args = parser.parse_args()
 
-    games = _run_latest_season(args.limit)
+    try:
+        games = _run_latest_season(args.limit)
+    except UnknownTeamNameError as error:
+        write_unknown_teams_report(args.unknown_teams_report, error.affected_games)
+        raise
+
     write_pydantic_list_as_json(games, args.output)
 
 

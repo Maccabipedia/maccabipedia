@@ -7,7 +7,9 @@ import pytest
 from bs4 import BeautifulSoup
 
 from maccabipediabot.basketball.basketball_game import BasketballGame
+from maccabipediabot.basketball._crawler_utils import write_unknown_teams_report
 from maccabipediabot.basketball.crawl_basket_co_il import (
+    UnknownTeamNameError,
     _parse_player_rows,
     discover_games_latest_season,
     parse_game_page,
@@ -160,3 +162,26 @@ def test_discover_raises_on_unknown_game_type(monkeypatch):
     _stub_feed(monkeypatch, [_maccabi_game(id=1, game_type=999)])
     with pytest.raises(RuntimeError, match="unknown game_type"):
         discover_games_latest_season()
+
+
+def test_discover_raises_on_untranslated_team_name(monkeypatch):
+    """A team name missing from _TEAM_NAMES passes through as English; we must raise
+    rather than upload a game page titled with the English opponent name. The raised
+    error carries the affected games so CI can report them without scraping text."""
+    _stub_feed(monkeypatch, [_maccabi_game(id=7, team_name_eng_2="Totally New Team")])
+    with pytest.raises(UnknownTeamNameError) as exc_info:
+        discover_games_latest_season()
+    assert exc_info.value.affected_games == [
+        {"id": 7, "teams": ["Totally New Team"], "date": "01/01/2026"}
+    ]
+
+
+def test_write_unknown_teams_report_round_trips(tmp_path):
+    """The report file is the Python<->CI contract; verify it's valid JSON with the
+    affected games, and a None path is a no-op (local runs don't write a report)."""
+    affected = [{"id": 7, "teams": ["Totally New Team"], "date": "01/01/2026"}]
+    report = tmp_path / "unknown_teams.json"
+    write_unknown_teams_report(report, affected)
+    assert json.loads(report.read_text(encoding="utf-8")) == affected
+
+    write_unknown_teams_report(None, affected)  # no path → no file, no error
