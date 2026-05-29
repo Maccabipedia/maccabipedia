@@ -93,3 +93,18 @@ jobs:
             Add the EN→HE mapping to translations._TEAM_NAMES, then re-run.
             ${{ steps.unknown_team.outputs.detail }}
             Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+      # Any other failure (most often the Euroleague residential proxy / Tailscale being
+      # down, or a rate-limit) — ping the error channel so we notice proactively instead
+      # of only seeing a red run. Gated on found != 'true' so it doesn't double-fire with
+      # the unmapped-team alert above, which is more specific.
+      - name: Alert error channel on workflow failure
+        if: failure() && steps.unknown_team.outputs.found != 'true'
+        uses: appleboy/telegram-action@v1.0.1
+        with:
+          to: ${{ secrets.MACCABIPEDIA_ERRORS_TELEGRAM_TO }}
+          token: ${{ secrets.MACCABIPEDIA_ERRORS_TELEGRAM_TOKEN }}
+          message: |
+            🏀 Basketball uploader failed (not a team-mapping issue).
+            Most likely the Euroleague residential proxy / Tailscale is down, or a rate-limit.
+            Check the run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
