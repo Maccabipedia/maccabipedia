@@ -44,6 +44,10 @@ After uploading/updating a game, purge all related pages using a **batch purge**
 Filter maccabistats sentinel values before purging: skip `"Cant found coach"`, `"Cant found referee"`, etc.
 Only purge related pages if the game page was actually saved (not skipped).
 
+**Fixed (non-per-game) pages**, added to the set once when any game was saved (alongside the per-game pages), in both football and volleyball:
+- `עמוד ראשי` — main page, shows the latest-5-games list.
+- `פורטל שחקנים` — **unified multi-sport portal** (NOT football-only). Single page with `<tabber>` tabs כדורגל / כדורסל / כדורעף; each tab transcludes a category page (`{{:קטגוריה: שחקנים}}`, `{{:קטגוריה: שחקני כדורסל}}`, `{{:קטגוריה: שחקני כדורעף}}`) that renders Cargo leaderboards — football: top scorers/assisters; volleyball: `שיאני נקודות` + `שיאני הופעות`. These aggregate across all games, so they go stale on *every* upload regardless of roster. Purging the portal re-parses the transclusions and re-runs the embedded Cargo queries (PR #136). Basketball's tab is NOT refreshed — the basketball bot has no purge logic at all.
+
 ## 4. Date & Naming Conventions
 - Date format: `DD-MM-YYYY` (dashes) in page titles.
 - `בית חוץ` parameter: strictly `"בית"`, `"חוץ"`, or `"נייטרלי"`.
