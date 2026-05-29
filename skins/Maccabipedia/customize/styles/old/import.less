@@ -1,13 +1,15 @@
-// Legacy LESS-language deps the modern hierarchy still references:
-//   normalize.css         — base CSS reset
-//   variables.less        — defines @yellow used by layout/app-footer.less
-//   mediawiki.mixins-old  — defines mixins (background-image, etc.) the
-//                           modern hierarchy may transitively use
-//
-// All other Stylesheet.less / Portals.less / *.min.less / common / etc.
-// have been removed — they were duplicates of, or superseded by, rules in
-// customize/styles/{atoms,basic,layout,mixins,pages,variables}/.
-
 @import 'normalize.css';
 @import 'variables';
 @import 'mediawiki.mixins-old';
+
+
+@import 'common';
+@import 'flexBoxs.min';
+@import 'gamesPages.min';
+@import 'designBox.min';
+@import 'pagesNavigator.min';
+@import 'responsiveImage.min';
+@import 'Portals';
+@import 'newStyles';
+@import 'externalLinks';
+@import 'Stylesheet';

@@ -1,0 +1,1050 @@
+
+/* --- Top 10 Players Tables --- */
+/* Last updated by MaccabiPedia: 15/04/2018 */
+.Top10Row {
+  margin: 0 -5px;
+  padding: 0 5px;
+}
+
+.Top10RowName {
+  display: inline-block;
+}
+
+.Top10RowStat {
+  font-weight: 600;
+  color: @blue;
+  float: right;
+}
+
+.Top10Row:nth-child(odd) {
+  background: #dddddd;
+}
+
+/* End of Top 10 Players Tables */
+
+/* --- Page Navigation Template --- */
+/* Last updated by MaccabiPedia: 26/12/2017 */
+.PageNavigation {
+  display: flex;
+  margin-bottom: 5px;
+  padding: 3px;
+  text-align: center;
+  font-size: 1.25em;
+  color: @yellow;
+  background-color: @blue;
+  border: 1px solid @blue;
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.2), 0 3px 10px rgba(0, 0, 0, 0.19);
+}
+
+.PageNavigationText {
+  flex: 1 100%;
+}
+
+.PageNavigation p {
+  margin: 0;
+  padding: 0;
+}
+
+.PageNavigation a,
+.PageNavigation a:visited {
+  color: @yellow;
+}
+
+.PageNavigation a:hover {
+  color: white;
+}
+
+/* End of Page Navigation */
+
+/* --- Fixes --- */
+.references {
+  padding: 0 !important;
+  margin: 0 0 0 20px !important;
+}
+
+/* --- Editing Category Links box --- */
+/* Last updated by MaccabiPedia */
+#catlinks {
+  margin: 10px 0;
+  padding: 5px 10px;
+  background-color: #efefef;
+  border: 1px solid @blue;
+  border-radius: 0.5rem;
+}
+
+/* End of Category Links Box */
+
+/* --- Responsive Tabs (by MaccabiPedia) --- */
+/* Last updated by MaccabiPedia (09/02/2018) */
+.responsive-tabs {
+  position: relative;
+  margin: 0 0 10px 0;
+  padding: 5px;
+  padding-bottom: 10px;
+  box-shadow: 0 2.5px 5px rgba(0, 0, 0, 0.2), 0 5px 15px rgba(0, 0, 0, 0.15);
+  min-width: 240px;
+}
+
+.responsive-tabs input[name*="tab-control"] {
+  display: none;
+}
+
+.responsive-tabs ul {
+  list-style: none !important;
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+  padding: 0;
+}
+
+.responsive-tabs ul li {
+  box-sizing: border-box;
+  flex: 1;
+  width: 25%;
+  padding: 0 5px;
+  text-align: center;
+}
+
+.responsive-tabs .content>div .tab-header,
+.responsive-tabs ul li label {
+  font-weight: 600;
+  font-size: 18px;
+}
+
+.responsive-tabs ul li label {
+  display: block;
+  overflow: hidden;
+  padding: 5px auto;
+  color: #929daf;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  transition: all 0.3s ease-in-out;
+}
+
+.responsive-tabs .fa,
+.responsive-tabs .fas,
+.responsive-tabs .far {
+  padding: 6px;
+}
+
+.responsive-tabs ul li label:hover,
+.responsive-tabs ul li label:focus,
+.responsive-tabs ul li label:active {
+  outline: 0;
+  color: #428bff;
+}
+
+.responsive-tabs .slider {
+  position: relative;
+  width: 20%;
+  transition: all 0.35s cubic-bezier(0.38, 0.8, 0.32, 1.07);
+}
+
+.responsive-tabs .slider .indicator {
+  position: relative;
+  max-width: 100%;
+  height: 3px;
+  margin: 0;
+  background-color: @blue;
+  border-radius: 3px;
+}
+
+.responsive-tabs .content {
+  margin-top: 10px;
+}
+
+.responsive-tabs .content>div {
+  display: none;
+  -webkit-animation-name: content;
+  animation-name: content;
+  -webkit-animation-direction: normal;
+  animation-direction: normal;
+  -webkit-animation-duration: 0.35s;
+  animation-duration: 0.35s;
+  -webkit-animation-timing-function: ease-in-out;
+  animation-timing-function: ease-in-out;
+  -webkit-animation-iteration-count: 1;
+  animation-iteration-count: 1;
+  line-height: 1.4;
+}
+
+.responsive-tabs .content>div .tab-header {
+  display: none;
+  color: @blue;
+}
+
+.responsive-tabs .content>div .tab-header::after {
+  content: "";
+  position: relative;
+  display: block;
+  width: 65px;
+  height: 3px;
+  margin: 4px 0;
+  right: 1px;
+  background-color: @blue;
+}
+
+.responsive-tabs input[name*="tab-control"]:nth-of-type(1):checked~ul>li:nth-child(1)>label {
+  cursor: default;
+  color: @blue;
+}
+
+@media (max-width: 750px) {
+  .responsive-tabs input[name*="tab-control"]:nth-of-type(1):checked~ul>li:nth-child(1)>label {
+    background-color: #ffdd00;
+  }
+}
+
+.responsive-tabs input[name*="tab-control"]:nth-of-type(1):checked~.slider {
+  -webkit-transform: translateX(0%);
+  transform: translateX(0%);
+}
+
+.responsive-tabs input[name*="tab-control"]:nth-of-type(1):checked~.content>div:nth-child(1) {
+  display: block;
+}
+
+.responsive-tabs input[name*="tab-control"]:nth-of-type(2):checked~ul>li:nth-child(2)>label {
+  cursor: default;
+  color: @blue;
+}
+
+@media (max-width: 750px) {
+  .responsive-tabs input[name*="tab-control"]:nth-of-type(2):checked~ul>li:nth-child(2)>label {
+    background-color: #ffdd00;
+  }
+}
+
+.responsive-tabs input[name*="tab-control"]:nth-of-type(2):checked~.slider {
+  -webkit-transform: translateX(100%);
+  transform: translateX(100%);
+}
+
+.responsive-tabs input[name*="tab-control"]:nth-of-type(2):checked~.content>div:nth-child(2) {
+  display: block;
+}
+
+.responsive-tabs input[name*="tab-control"]:nth-of-type(3):checked~ul>li:nth-child(3)>label {
+  cursor: default;
+  color: @blue;
+}
+
+@media (max-width: 750px) {
+  .responsive-tabs input[name*="tab-control"]:nth-of-type(3):checked~ul>li:nth-child(3)>label {
+    background-color: #ffdd00;
+  }
+}
+
+.responsive-tabs input[name*="tab-control"]:nth-of-type(3):checked~.slider {
+  -webkit-transform: translateX(200%);
+  transform: translateX(200%);
+}
+
+.responsive-tabs input[name*="tab-control"]:nth-of-type(3):checked~.content>div:nth-child(3) {
+  display: block;
+}
+
+.responsive-tabs input[name*="tab-control"]:nth-of-type(4):checked~ul>li:nth-child(4)>label {
+  cursor: default;
+  color: @blue;
+}
+
+@media (max-width: 750px) {
+  .responsive-tabs input[name*="tab-control"]:nth-of-type(4):checked~ul>li:nth-child(4)>label {
+    background-color: #ffdd00;
+  }
+}
+
+.responsive-tabs input[name*="tab-control"]:nth-of-type(4):checked~.slider {
+  -webkit-transform: translateX(300%);
+  transform: translateX(300%);
+}
+
+.responsive-tabs input[name*="tab-control"]:nth-of-type(4):checked~.content>div:nth-child(4) {
+  display: block;
+}
+
+.responsive-tabs input[name*="tab-control"]:nth-of-type(5):checked~ul>li:nth-child(5)>label {
+  cursor: default;
+  color: @blue;
+}
+
+@media (max-width: 750px) {
+  .responsive-tabs input[name*="tab-control"]:nth-of-type(5):checked~ul>li:nth-child(5)>label {
+    background-color: #ffdd00;
+  }
+}
+
+.responsive-tabs input[name*="tab-control"]:nth-of-type(5):checked~.slider {
+  -webkit-transform: translateX(400%);
+  transform: translateX(400%);
+}
+
+.responsive-tabs input[name*="tab-control"]:nth-of-type(5):checked~.content>div:nth-child(5) {
+  display: block;
+}
+
+@-webkit-keyframes content {
+  from {
+    opacity: 0;
+    -webkit-transform: translateY(5%);
+    transform: translateY(5%);
+  }
+
+  to {
+    opacity: 1;
+    -webkit-transform: translateY(0%);
+    transform: translateY(0%);
+  }
+}
+
+@keyframes content {
+  from {
+    opacity: 0;
+    -webkit-transform: translateY(5%);
+    transform: translateY(5%);
+  }
+
+  to {
+    opacity: 1;
+    -webkit-transform: translateY(0%);
+    transform: translateY(0%);
+  }
+}
+
+@media (max-width: 750px) {
+  .responsive-tabs ul li label {
+    padding: 5px;
+    border-radius: 5px;
+  }
+
+  .responsive-tabs label:hover {
+    background-color: #ffdd00aa;
+  }
+
+  .responsive-tabs ul li label span {
+    display: none;
+  }
+
+  .responsive-tabs .slider {
+    display: none;
+  }
+
+  .responsive-tabs .content {
+    margin-top: 10px;
+  }
+
+  .responsive-tabs .content>div .tab-header {
+    display: block;
+  }
+}
+
+/* End of Responsive Tabs */
+
+/* *** ------------------------------------ === ------------------------------------ *** */
+
+/* --- Responsive Tabs 4 (by MaccabiPedia) --- */
+/* Last updated by MaccabiPedia (31/08/2019) */
+.responsive-tabs4 {
+  position: relative;
+  margin: 0 0 10px 0;
+  padding: 5px;
+  padding-bottom: 10px;
+  box-shadow: 0 2.5px 5px rgba(0, 0, 0, 0.2), 0 5px 15px rgba(0, 0, 0, 0.15);
+  min-width: 240px;
+}
+
+.responsive-tabs4 input[name*="tab-control"] {
+  display: none;
+}
+
+.responsive-tabs4 ul {
+  list-style: none !important;
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+  padding: 0;
+}
+
+.responsive-tabs4 ul li {
+  box-sizing: border-box;
+  flex: 1;
+  width: 25%;
+  padding: 0 5px;
+  text-align: center;
+}
+
+.responsive-tabs4 .content>div .tab-header,
+.responsive-tabs4 ul li label {
+  font-weight: 600;
+  font-size: 18px;
+}
+
+.responsive-tabs4 ul li label {
+  display: block;
+  overflow: hidden;
+  padding: 5px auto;
+  color: #929daf;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  transition: all 0.3s ease-in-out;
+}
+
+.responsive-tabs .fa,
+.responsive-tabs4 .fas,
+.responsive-tabs4 .far {
+  padding: 6px;
+}
+
+.responsive-tabs4 ul li label:hover,
+.responsive-tabs4 ul li label:focus,
+.responsive-tabs4 ul li label:active {
+  outline: 0;
+  color: #428bff;
+}
+
+.responsive-tabs4 .slider {
+  position: relative;
+  width: 25%;
+  transition: all 0.35s cubic-bezier(0.38, 0.8, 0.32, 1.07);
+}
+
+.responsive-tabs4 .slider .indicator {
+  position: relative;
+  max-width: 100%;
+  height: 3px;
+  margin: 0;
+  background-color: @blue;
+  border-radius: 3px;
+}
+
+.responsive-tabs4 .content {
+  margin-top: 10px;
+}
+
+.responsive-tabs4 .content>div {
+  display: none;
+  -webkit-animation-name: content;
+  animation-name: content;
+  -webkit-animation-direction: normal;
+  animation-direction: normal;
+  -webkit-animation-duration: 0.35s;
+  animation-duration: 0.35s;
+  -webkit-animation-timing-function: ease-in-out;
+  animation-timing-function: ease-in-out;
+  -webkit-animation-iteration-count: 1;
+  animation-iteration-count: 1;
+  line-height: 1.4;
+}
+
+.responsive-tabs4 .content>div .tab-header {
+  display: none;
+  color: @blue;
+}
+
+.responsive-tabs4 .content>div .tab-header::after {
+  content: "";
+  position: relative;
+  display: block;
+  width: 65px;
+  height: 3px;
+  margin: 4px 0;
+  right: 1px;
+  background-color: @blue;
+}
+
+.responsive-tabs4 input[name*="tab-control"]:nth-of-type(1):checked~ul>li:nth-child(1)>label {
+  cursor: default;
+  color: @blue;
+}
+
+@media (max-width: 750px) {
+  .responsive-tabs4 input[name*="tab-control"]:nth-of-type(1):checked~ul>li:nth-child(1)>label {
+    background-color: rgba(0, 0, 0, 0.09);
+  }
+}
+
+.responsive-tabs4 input[name*="tab-control"]:nth-of-type(1):checked~.slider {
+  -webkit-transform: translateX(0%);
+  transform: translateX(0%);
+}
+
+.responsive-tabs4 input[name*="tab-control"]:nth-of-type(1):checked~.content>div:nth-child(1) {
+  display: block;
+}
+
+.responsive-tabs4 input[name*="tab-control"]:nth-of-type(2):checked~ul>li:nth-child(2)>label {
+  cursor: default;
+  color: @blue;
+}
+
+@media (max-width: 750px) {
+  .responsive-tabs4 input[name*="tab-control"]:nth-of-type(2):checked~ul>li:nth-child(2)>label {
+    background-color: rgba(0, 0, 0, 0.09);
+  }
+}
+
+.responsive-tabs4 input[name*="tab-control"]:nth-of-type(2):checked~.slider {
+  -webkit-transform: translateX(100%);
+  transform: translateX(100%);
+}
+
+.responsive-tabs4 input[name*="tab-control"]:nth-of-type(2):checked~.content>div:nth-child(2) {
+  display: block;
+}
+
+.responsive-tabs4 input[name*="tab-control"]:nth-of-type(3):checked~ul>li:nth-child(3)>label {
+  cursor: default;
+  color: @blue;
+}
+
+@media (max-width: 750px) {
+  .responsive-tabs4 input[name*="tab-control"]:nth-of-type(3):checked~ul>li:nth-child(3)>label {
+    background-color: rgba(0, 0, 0, 0.09);
+  }
+}
+
+.responsive-tabs4 input[name*="tab-control"]:nth-of-type(3):checked~.slider {
+  -webkit-transform: translateX(200%);
+  transform: translateX(200%);
+}
+
+.responsive-tabs4 input[name*="tab-control"]:nth-of-type(3):checked~.content>div:nth-child(3) {
+  display: block;
+}
+
+.responsive-tabs4 input[name*="tab-control"]:nth-of-type(4):checked~ul>li:nth-child(4)>label {
+  cursor: default;
+  color: @blue;
+}
+
+@media (max-width: 750px) {
+  .responsive-tabs4 input[name*="tab-control"]:nth-of-type(4):checked~ul>li:nth-child(4)>label {
+    background-color: rgba(0, 0, 0, 0.09);
+  }
+}
+
+.responsive-tabs4 input[name*="tab-control"]:nth-of-type(4):checked~.slider {
+  -webkit-transform: translateX(300%);
+  transform: translateX(300%);
+}
+
+.responsive-tabs4 input[name*="tab-control"]:nth-of-type(4):checked~.content>div:nth-child(4) {
+  display: block;
+}
+
+@-webkit-keyframes content {
+  from {
+    opacity: 0;
+    -webkit-transform: translateY(5%);
+    transform: translateY(5%);
+  }
+
+  to {
+    opacity: 1;
+    -webkit-transform: translateY(0%);
+    transform: translateY(0%);
+  }
+}
+
+@keyframes content {
+  from {
+    opacity: 0;
+    -webkit-transform: translateY(5%);
+    transform: translateY(5%);
+  }
+
+  to {
+    opacity: 1;
+    -webkit-transform: translateY(0%);
+    transform: translateY(0%);
+  }
+}
+
+@media (max-width: 750px) {
+  .responsive-tabs4 ul li label {
+    padding: 5px;
+    border-radius: 5px;
+  }
+
+  .responsive-tabs4 label:hover {
+    background-color: rgba(0, 0, 0, 0.04);
+  }
+
+  .responsive-tabs4 ul li label span {
+    display: none;
+  }
+
+  .responsive-tabs4 .slider {
+    display: none;
+  }
+
+  .responsive-tabs4 .content {
+    margin-top: 10px;
+  }
+
+  .responsive-tabs4 .content>div .tab-header {
+    display: block;
+  }
+}
+
+/* End of Responsive Tabs 4 */
+
+/* --- Slim Responsive Tabs (by MaccabiPedia) --- */
+/* Last updated by MaccabiPedia (08/04/2018) */
+.slim-tabs {
+  position: relative;
+  min-width: 240px;
+}
+
+.slim-tabs input[name*="tab-control"] {
+  display: none;
+}
+
+.slim-tabs ul {
+  list-style: none !important;
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+  margin: 5px 1px 0 1px;
+  padding: 0;
+}
+
+.slim-tabs ul li {
+  box-sizing: border-box;
+  flex: 1;
+  width: 25%;
+  padding: 0 5px;
+  text-align: center;
+}
+
+.slim-tabs .content>div .tab-header {
+  font-weight: 600;
+}
+
+.slim-tabs ul li label {
+  display: block;
+  overflow: hidden;
+  padding: 5px auto;
+  color: #929daf;
+  text-overflow: ellipsis;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  transition: all 0.3s ease-in-out;
+}
+
+.slim-tabs .fa,
+.slim-tabs .fas,
+.slim-tabs .far {
+  padding: 6px;
+}
+
+.slim-tabs ul li label:hover,
+.slim-tabs ul li label:focus,
+.slim-tabs ul li label:active {
+  outline: 0;
+  color: #428bff;
+}
+
+.slim-tabs .content {
+  margin-top: 10px;
+}
+
+.slim-tabs .content>div {
+  display: none;
+  -webkit-animation-name: content;
+  animation-name: content;
+  -webkit-animation-direction: normal;
+  animation-direction: normal;
+  -webkit-animation-duration: 0.35s;
+  animation-duration: 0.35s;
+  -webkit-animation-timing-function: ease-in-out;
+  animation-timing-function: ease-in-out;
+  -webkit-animation-iteration-count: 1;
+  animation-iteration-count: 1;
+  line-height: 1.4;
+}
+
+.slim-tabs .content>div .tab-header {
+  display: none;
+  color: @blue;
+}
+
+.slim-tabs .content>div .tab-header::after {
+  content: "";
+  position: relative;
+  display: block;
+  width: 65px;
+  height: 3px;
+  margin: 4px 0;
+  right: 1px;
+  background-color: @blue;
+}
+
+.slim-tabs input[name*="tab-control"]:nth-of-type(1):checked~ul>li:nth-child(1)>label {
+  cursor: default;
+  color: #195da6;
+  /* #428BFF */
+  background-color: rgba(0, 0, 0, 0.09);
+}
+
+.slim-tabs input[name*="tab-control"]:nth-of-type(1):checked~.content>div:nth-child(1) {
+  display: block;
+}
+
+.slim-tabs input[name*="tab-control"]:nth-of-type(2):checked~ul>li:nth-child(2)>label {
+  cursor: default;
+  color: #195da6;
+  background-color: rgba(0, 0, 0, 0.09);
+}
+
+.slim-tabs input[name*="tab-control"]:nth-of-type(2):checked~.content>div:nth-child(2) {
+  display: block;
+}
+
+.slim-tabs input[name*="tab-control"]:nth-of-type(3):checked~ul>li:nth-child(3)>label {
+  cursor: default;
+  color: #195da6;
+  background-color: rgba(0, 0, 0, 0.09);
+}
+
+.slim-tabs input[name*="tab-control"]:nth-of-type(3):checked~.content>div:nth-child(3) {
+  display: block;
+}
+
+.slim-tabs input[name*="tab-control"]:nth-of-type(4):checked~ul>li:nth-child(4)>label {
+  cursor: default;
+  color: #195da6;
+  background-color: rgba(0, 0, 0, 0.09);
+}
+
+.slim-tabs input[name*="tab-control"]:nth-of-type(4):checked~.content>div:nth-child(4) {
+  display: block;
+}
+
+.slim-tabs input[name*="tab-control"]:nth-of-type(5):checked~ul>li:nth-child(5)>label {
+  cursor: default;
+  color: #195da6;
+  background-color: rgba(0, 0, 0, 0.09);
+}
+
+.slim-tabs input[name*="tab-control"]:nth-of-type(5):checked~.content>div:nth-child(5) {
+  display: block;
+}
+
+@-webkit-keyframes content {
+  from {
+    opacity: 0;
+    -webkit-transform: translateY(5%);
+    transform: translateY(5%);
+  }
+
+  to {
+    opacity: 1;
+    -webkit-transform: translateY(0%);
+    transform: translateY(0%);
+  }
+}
+
+@keyframes content {
+  from {
+    opacity: 0;
+    -webkit-transform: translateY(5%);
+    transform: translateY(5%);
+  }
+
+  to {
+    opacity: 1;
+    -webkit-transform: translateY(0%);
+    transform: translateY(0%);
+  }
+}
+
+.slim-tabs ul li label {
+  padding: 5px;
+  border-radius: 5px;
+}
+
+.slim-tabs label:hover {
+  background-color: rgba(0, 0, 0, 0.04);
+}
+
+.slim-tabs ul li label span {
+  display: none;
+}
+
+.slim-tabs .content {
+  margin-top: 10px;
+}
+
+.slim-tabs .content>div .tab-header {
+  display: block;
+}
+
+/* End of Slim Responsive Tabs */
+
+/* --- Personal Profile Template --- */
+/* Last updated by MaccabiPedia: 05/11/2017 */
+.ppContainer {
+  display: flex;
+  flex-wrap: wrap;
+  margin-bottom: 5px;
+  border: 1px solid @blue;
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.2), 0 3px 10px rgba(0, 0, 0, 0.19);
+}
+
+.ppContainer p {
+  margin: 0;
+}
+
+.ppFrame {
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.ppColumn {
+  flex: 1;
+  background-color: @gray-light;
+}
+
+.ppFrame .ppColumn:first-child {
+  min-width: 30%;
+}
+
+.ppFrame .ppColumn.stats {
+  min-width: 40%;
+}
+
+#ppPicture {
+  width: 100%;
+  max-width: 300px;
+  background-color: @blue;
+}
+
+#ppPicture img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.ppColumnTitle {
+  padding-left: 10px;
+  font-size: 130%;
+  font-weight: 600;
+  letter-spacing: 1.3px;
+  color: @blue;
+  background-color: @yellow;
+}
+
+.ppColumnText {
+  padding: 0 0 5px 5px;
+}
+
+.ppColumnRow {
+  width: 100%;
+  padding: 5px;
+  text-align: justify;
+  background-color: #dfdfdf;
+}
+
+/* Responsive for Mobile */
+@media (max-width: 950px) {
+
+  .ppContainer,
+  .ppFrame {
+    flex-direction: column;
+  }
+
+  #ppPicture {
+    max-width: none;
+  }
+
+  .ppColumnRow {
+    width: auto;
+  }
+}
+
+/* End of Personal Profile Template */
+
+/* --- Responsive Image WikiMedia --- */
+
+@media (max-width: 800px) {
+  .wmResImage {
+    width: 100% !important;
+    height: auto;
+  }
+}
+
+/* End of Responsive Image WikiMedia */
+
+
+
+.tbFrame h1 {
+  margin: 0 !important;
+  font-size: 100% !important;
+  line-height: 1.28;
+  font-weight: 500;
+  border-bottom: none;
+}
+
+.tbFrame h2 {
+  margin: 0 !important;
+  font-size: 128% !important;
+  line-height: 1.6 !important;
+  font-weight: 600;
+  border-bottom: none;
+}
+
+.tbFrame h3 {
+  margin: 0 !important;
+  font-size: 116% !important;
+  line-height: 1.6 !important;
+  font-weight: 600;
+  border-bottom: none;
+}
+
+.tbFrame h4 {
+  margin: 0 !important;
+  font-size: 108% !important;
+  line-height: 1.6 !important;
+  font-weight: 600;
+  border-bottom: none;
+}
+
+/* End of TOC */
+
+.tbFrame {
+  margin: 10px 0;
+  border: 1px solid @blue;
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.2), 0 3px 10px rgba(0, 0, 0, 0.19);
+}
+
+.tbTitle {
+  padding: 2px 2px 2px 10px;
+  text-align: left;
+  font-size: 1.2em;
+}
+
+.tbFrame:nth-child(odd) .tbTitleRegular,
+.tbTitleBlue {
+  background-color: @blue;
+
+  h1 {
+    color: #fff;
+  }
+}
+
+.tbFrame:nth-child(odd) .tbTitleRegular a,
+.tbFrame:nth-child(odd) .tbTitleRegular a:hover,
+.tbFrame:nth-child(odd) .tbTitleRegular a:active,
+.tbTitleBlue a,
+.tbTitleBlue a:hover,
+.tbTitleBlue a:active {
+  color: @yellow;
+  text-decoration: none;
+}
+
+.tbFrame:nth-child(even) .tbTitleRegular,
+.tbTitleYellow {
+  background-color: @yellow;
+
+  h1 {
+    color: @blue;
+  }
+}
+
+.tbFrame:nth-child(even) .tbTitleRegular a,
+.tbFrame:nth-child(even) .tbTitleRegular a:hover,
+.tbFrame:nth-child(even) .tbTitleRegular a:active,
+.tbTitleYellow a,
+.tbTitleYellow a:hover,
+.tbTitleYellow a:active {
+  color: @blue;
+  text-decoration: none;
+}
+
+.tbText {
+  padding: 5px 10px;
+  overflow: auto;
+  text-align: justify;
+  background-color: @gray-light;
+}
+
+@media (min-width: 48em) {
+  .tbTitle {
+    padding-left: 60px;
+    font-size: 1.5em;
+  }
+
+  /*@noflip*/
+  .tbFrame:nth-child(odd) .tbTitleRegular,
+  .tbTitleBlue {
+    background-image: url("https://maccabipedia.co.il/images/TextBox/tbTitleLeftSigns.png"),
+      url("https://maccabipedia.co.il/images/TextBox/tbTitleSymbol.png"),
+      url("https://maccabipedia.co.il/images/TextBox/tbTitleBG.jpg");
+    background-repeat: no-repeat, no-repeat, repeat;
+    background-position: left, right;
+    color: white;
+  }
+
+  .tbFrame:nth-child(odd) .tbTitleRegular a,
+  .tbFrame:nth-child(odd) .tbTitleRegular a:hover,
+  .tbFrame:nth-child(odd) .tbTitleRegular a:active,
+  .tbTitleBlue a,
+  .tbTitleBlue a:hover,
+  .tbTitleBlue a:active {
+    color: white;
+    text-decoration: none;
+  }
+
+  /*@noflip*/
+  .tbFrame:nth-child(even) .tbTitleRegular,
+  .tbTitleYellow {
+    background-image: url("https://maccabipedia.co.il/images/TextBox/tbTitleLeftSignsYellow.png"),
+      url("https://maccabipedia.co.il/images/TextBox/tbTitleSymbol.png"),
+      url("https://maccabipedia.co.il/images/TextBox/tbTitleBGYellow.jpg");
+    background-repeat: no-repeat, no-repeat, repeat;
+    background-position: left, right;
+    color: @blue;
+  }
+
+  .tbFrame:nth-child(even) .tbTitleRegular a,
+  .tbFrame:nth-child(even) .tbTitleRegular a:hover,
+  .tbFrame:nth-child(even) .tbTitleRegular a:active,
+  .tbTitleYellow a,
+  .tbTitleYellow a:hover,
+  .tbTitleYellow a:active {
+    color: @blue;
+    text-decoration: none;
+  }
+}
+
+/* End of Text Box */

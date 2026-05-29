@@ -1,0 +1,64 @@
+
+/**************************************************
+
+        Templates guides (for games pages)
+    Date: 01/12/2020
+    Made by: MaccabiPedia
+
+**************************************************/
+.nmpTemplatesGuideFlexContainer{
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+}
+
+.nmpTemplatesGuideFlexBoxs{
+    flex-basis: 32%;
+    padding: 0 0.5rem;
+}
+
+.nmpTemplatesGuideFlexBoxs h3{
+    padding-top: 0;
+}
+
+.nmpTemplatesGuideFlexBoxs:nth-child(odd){
+    background-color: @gray-dark;
+}
+
+    /**************************************************
+        TEMPLATES GUIDES adjustments
+        For: mobiles
+    **************************************************/
+@media (max-width: 75rem) {
+
+    .nmpTemplatesGuideFlexContainer{
+        display: block;
+    }
+
+}
+
+
+
+/**************************************************
+
+        Quote template (for showing quotes)
+    Date: 26/10/2020
+    Made by: MaccabiPedia
+
+**************************************************/
+    // Quote container
+.nmpQuotationContainer{
+    font-weight: 600;
+    text-align: center;
+    width: 100%;
+}
+
+    // Quotation marks & quote text
+.nmpQuotationMarksAndQuote{
+    font-size: 1.2rem;
+    margin: 0 5px;
+}
+
+.nmpQuotationMarksAndQuote i{
+    color: @blue;
+}

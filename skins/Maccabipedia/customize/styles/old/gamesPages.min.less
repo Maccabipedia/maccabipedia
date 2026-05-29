@@ -1,0 +1,73 @@
+/**************************************************
+
+        Games catalog (for games pages)
+    Date: 01/12/2020
+    Made by: MaccabiPedia
+
+**************************************************/
+// Inside page navigator
+.nmpGamesCatalogGamesInsideNavigatorLinksContainer {
+    display: inline-block;
+    padding-right: 0.5rem;
+}
+
+.nmpGamesCatalogGamesInsideNavigatorLinksContainer:before {
+    content: '\2022\00a0\00a0';
+}
+
+// Game detalis container
+.nmpGamesCatalogGamesDetailContainer {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+}
+
+.nmpGamesCatalogGamesDetailText {
+    flex-basis: 33%;
+}
+
+// Squads and coaches
+.nmpGamesCatalogCoachIcon {
+    color: @blue;
+    margin-left: 5px;
+}
+
+.nmpGamesCatalogSquadRowContainer {
+    display: block;
+    margin: 0 -8px;
+    padding: 0 5px;
+}
+
+div.nmpGamesCatalogSquadRowContainer:nth-of-type(2n+1) {
+    background-color: @gray-dark;
+}
+
+.nmpGamesCatalogSquadName,
+.nmpGamesCatalogSquadEvent {
+    display: inline-block;
+}
+
+// Flex boxs images
+.nmpGamesCatalogFlexBoxImgs {
+    height: auto;
+    max-height: 300px;
+    width: auto;
+    max-width: 400px;
+}
+
+/**************************************************
+            GAMES CATALOG adjustments
+            For: mobiles
+        **************************************************/
+@media (max-width: 48rem) {
+
+    .nmpGamesCatalogGamesDetailText {
+        flex-basis: 100%;
+    }
+
+    .nmpGamesCatalogFlexBoxImgs {
+        height: auto;
+        max-width: 100%;
+    }
+
+}

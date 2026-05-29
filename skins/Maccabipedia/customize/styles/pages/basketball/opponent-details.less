@@ -1,0 +1,17 @@
+.opponent-details-page-container.basketball {
+    .players-records-container {
+        .viewport-wide-start-from(@viewport-regular; {
+                grid-template-columns: repeat(3, 1fr);
+            });
+    }
+
+    .all-games-list-section {
+
+        .table-header,
+        .table-content .table-row {
+            .viewport-wide-start-from(@viewport-large; {
+                    grid-template-columns: 10rem 4rem 1fr 10rem repeat(2, 8rem) 6rem 4rem;
+                });
+        }
+    }
+}
