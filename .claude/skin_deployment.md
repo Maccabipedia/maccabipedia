@@ -8,9 +8,8 @@ The build is **fully local** — the skin vendors its own banner assets under
 permission is needed to run it.
 
 ```bash
-# Assemble the upload snapshot (local; default skin is maccabipedia).
-bash infra/local-wiki/scripts/deploy-skin.sh                       # maccabipedia
-bash infra/local-wiki/scripts/deploy-skin.sh --skin=maccabipedia
+# Assemble the upload snapshot (local). Optional arg: a custom output base.
+bash infra/local-wiki/scripts/deploy-skin.sh
 
 # → snapshot at ~/maccabipedia_skins/<ts>/Maccabipedia/
 # FileZilla: upload <snapshot>/Maccabipedia/ → /public_html/skins/Maccabipedia/
