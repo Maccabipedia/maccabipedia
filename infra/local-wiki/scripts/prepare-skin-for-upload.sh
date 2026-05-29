@@ -15,19 +15,15 @@
 #               on the Windows desktop where FileZilla can see them)
 #
 # Skin selection (flag is positional-friendly — order doesn't matter):
-#     --skin=both          (default) — both Metrolook and Maccabipedia
-#     --skin=metrolook     just the legacy skin
-#     --skin=maccabipedia  just the new skin
+#     --skin=maccabipedia  (default) — the Maccabipedia skin
+#     --skin=metrolook     the legacy skin (deprecated)
+#     --skin=both          both
 #
 # What goes into each skin's snapshot directory:
-#   <repo-root>/skins/<Name>/                        — tracked source
-#   <repo-root>/infra/local-wiki/synced/skins/Metrolook/assets/
-#                                                    — binary banners (~5.9 MB),
-#                                                      last pulled from prod via
-#                                                      sync-from-prod.sh. Both
-#                                                      skins share this asset
-#                                                      directory until prod's
-#                                                      directory is renamed.
+#   <repo-root>/skins/<Name>/   — tracked source, including its vendored
+#                                 assets/ (each skin ships its own; there is
+#                                 NO prod pull). A skin with an empty assets/
+#                                 cannot be packaged.
 #
 # Local-only artefacts stripped per snapshot:
 #   - .gitkeep (assets/ mountpoint marker)
@@ -43,11 +39,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LOCAL_WIKI_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 REPO_ROOT="$(cd "${LOCAL_WIKI_DIR}/../.." && pwd)"
 
-SOURCE_ASSETS="${LOCAL_WIKI_DIR}/synced/skins/Metrolook/assets"
-
 DEFAULT_BASE="${HOME}/maccabipedia_skins"
 BASE=""
-SKIN_SELECTION="both"
+SKIN_SELECTION="maccabipedia"
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -69,13 +63,6 @@ while [ $# -gt 0 ]; do
 done
 
 BASE="${BASE:-$DEFAULT_BASE}"
-
-if [ ! -d "$SOURCE_ASSETS" ] || [ -z "$(ls -A "$SOURCE_ASSETS" 2>/dev/null)" ]; then
-    echo "ERROR: binary skin assets not found or empty at:" >&2
-    echo "  $SOURCE_ASSETS" >&2
-    echo "  Run \`./scripts/sync-from-prod.sh maccabipedia-skin-assets\` first." >&2
-    exit 1
-fi
 
 case "$BASE" in
     "$REPO_ROOT"|"$REPO_ROOT"/*)
@@ -109,7 +96,6 @@ mkdir -p "$SNAPSHOT_DIR"
 
 echo "==> assembling skin upload snapshot"
 echo "    skins:    ${skins[*]}"
-echo "    assets:   $SOURCE_ASSETS"
 echo "    snapshot: $SNAPSHOT_DIR"
 
 for skin in "${skins[@]}"; do
@@ -124,12 +110,14 @@ for skin in "${skins[@]}"; do
     # Strip git-only directives that have no purpose on prod.
     rm -f "$out/assets/.gitkeep" "$out/.gitattributes"
 
-    # Replace the (possibly empty) tracked assets/ directory with the real
-    # binary banners. Both skins share the same assets directory on disk
-    # — synced/skins/Metrolook/assets/ — until prod's source is renamed.
-    rm -rf "$out/assets"
-    mkdir -p "$out/assets"
-    cp -a "$SOURCE_ASSETS/." "$out/assets/"
+    # The skin must ship its own assets (vendored under skins/<Name>/assets/).
+    # There is no prod pull — an empty assets/ means the skin can't be packaged.
+    if [ -z "$(find "$out/assets" -type f 2>/dev/null | head -1)" ]; then
+        echo "ERROR: skin '$skin' ships no assets under skins/$skin/assets/." >&2
+        echo "  Vendor its banner assets there before packaging it." >&2
+        exit 1
+    fi
+    echo "    $skin: using vendored assets (skins/$skin/assets)"
 done
 
 echo
