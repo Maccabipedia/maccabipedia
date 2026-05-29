@@ -391,6 +391,23 @@ async def get_team_ids_for_all_seasons(session: ClientSession) -> dict[str, str]
         return seasons_to_team_ids
 
 
+class UnknownTeamNameError(RuntimeError):
+    """A basket.co.il feed team name was missing from translations._TEAM_NAMES.
+
+    Carries the affected games so the CLI can emit a machine-readable report
+    (for CI alerting) instead of callers scraping the human-readable message.
+    """
+
+    def __init__(self, affected_games: list[dict]):
+        self.affected_games = affected_games
+        super().__init__(
+            "basket.co.il discovery encountered team names missing from "
+            "translations._TEAM_NAMES; add the EN->HE mapping before re-running, "
+            "otherwise the game page would be titled with the English opponent name. "
+            f"Affected games: {affected_games}"
+        )
+
+
 def discover_games_latest_season(limit: int | None = None) -> list[BasketballGame]:
     """Fetch basket.co.il's current-season feed; return partial BasketballGame objects
     for Maccabi's finished games (per-game scrape fields filled later by parse_game_page)."""
@@ -478,12 +495,7 @@ def discover_games_latest_season(limit: int | None = None) -> list[BasketballGam
             f"Affected games: {unknown_competition_games}"
         )
     if untranslated_team_games:
-        raise RuntimeError(
-            "basket.co.il discovery encountered team names missing from "
-            "translations._TEAM_NAMES; add the EN->HE mapping before re-running, "
-            "otherwise the game page would be titled with the English opponent name. "
-            f"Affected games: {untranslated_team_games}"
-        )
+        raise UnknownTeamNameError(untranslated_team_games)
     return discovered
 
 
@@ -522,12 +534,23 @@ def main() -> None:
     parser.add_argument("--limit", type=int, default=None,
                         help="Cap the number of most-recent games (latest mode only).")
     parser.add_argument("--output", type=Path, required=True, help="Path to write JSON output.")
+    parser.add_argument("--unknown-teams-report", type=Path, default=None,
+                        help="On unmapped team names, write the affected games as JSON here "
+                             "(consumed by CI to alert the error channel).")
     args = parser.parse_args()
 
-    if args.season == "latest":
-        games = _run_latest_season(args.limit)
-    else:
-        games = asyncio.run(_run_all_seasons())
+    try:
+        if args.season == "latest":
+            games = _run_latest_season(args.limit)
+        else:
+            games = asyncio.run(_run_all_seasons())
+    except UnknownTeamNameError as error:
+        if args.unknown_teams_report:
+            args.unknown_teams_report.write_text(
+                json.dumps(error.affected_games, ensure_ascii=False, indent=2),
+                encoding="utf-8",
+            )
+        raise
 
     write_pydantic_list_as_json(games, args.output)
 

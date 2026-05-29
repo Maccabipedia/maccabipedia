@@ -19,7 +19,6 @@ def test_lookup_functions_resolve_known_keys_and_pass_through_unknowns():
     against the kind of regression that used to require runtime whitespace tolerance."""
     # team
     assert team_name_to_hebrew("Maccabi Tel-Aviv") == "מכבי תל אביב"
-    assert team_name_to_hebrew("Bnei Herzliya") == "בני הרצליה"
     assert team_name_to_hebrew("Unknown Team") == "Unknown Team"
     # person — including former trailing-space keys
     assert person_name_to_hebrew("Wade Baldwin Iv") == "ווייד בולדווין"

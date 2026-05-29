@@ -8,6 +8,7 @@ from bs4 import BeautifulSoup
 
 from maccabipediabot.basketball.basketball_game import BasketballGame
 from maccabipediabot.basketball.crawl_basket_co_il import (
+    UnknownTeamNameError,
     _parse_player_rows,
     discover_games_latest_season,
     parse_game_page,
@@ -164,7 +165,11 @@ def test_discover_raises_on_unknown_game_type(monkeypatch):
 
 def test_discover_raises_on_untranslated_team_name(monkeypatch):
     """A team name missing from _TEAM_NAMES passes through as English; we must raise
-    rather than upload a game page titled with the English opponent name."""
-    _stub_feed(monkeypatch, [_maccabi_game(id=1, team_name_eng_2="Totally New Team")])
-    with pytest.raises(RuntimeError, match="missing from"):
+    rather than upload a game page titled with the English opponent name. The raised
+    error carries the affected games so CI can report them without scraping text."""
+    _stub_feed(monkeypatch, [_maccabi_game(id=7, team_name_eng_2="Totally New Team")])
+    with pytest.raises(UnknownTeamNameError) as exc_info:
         discover_games_latest_season()
+    assert exc_info.value.affected_games == [
+        {"id": 7, "teams": ["Totally New Team"], "date": "01/01/2026"}
+    ]
