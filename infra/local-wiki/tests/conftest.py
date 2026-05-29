@@ -209,10 +209,10 @@ def maccabipedia_talk_page_html(base_url: str) -> str:
 
 
 @pytest.fixture(scope="session")
-def maccabipedia_oldid_html(main_url: str, base_url: str) -> str:
-    """Main page at ?oldid=<old_revision>&useskin=maccabipedia. Asserts
-    edit/history hrefs preserve the oldid parameter (Metrolook regression
-    test from test_menu.py — same contract on the new skin)."""
+def maccabipedia_oldid_html(main_url: str) -> tuple[str, str]:
+    """Main page at ?oldid=<old_revision>&useskin=maccabipedia, returned as
+    (html, oldid) so the regression test can assert that exact revision id is
+    preserved in the edit/history action hrefs on the new skin."""
     history = requests.get(main_url, params={"action": "history", "useskin": "maccabipedia"}, timeout=15)
     assert history.status_code == 200
     oldid_match = re.search(r"oldid=(\d+)", history.text)
@@ -221,4 +221,4 @@ def maccabipedia_oldid_html(main_url: str, base_url: str) -> str:
     oldid = oldid_match.group(1)
     response = requests.get(main_url, params={"useskin": "maccabipedia", "oldid": oldid}, timeout=15)
     assert response.status_code == 200
-    return response.text
+    return response.text, oldid

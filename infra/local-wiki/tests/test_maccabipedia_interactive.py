@@ -1,7 +1,7 @@
 """Playwright-driven interaction tests for the Maccabipedia skin.
 
-The pytest tests in test_maccabipedia_scaffold.py and test_menu.py only
-inspect rendered HTML strings. Things they cannot catch:
+The pytest tests in test_maccabipedia_scaffold.py only inspect rendered
+HTML strings. Things they cannot catch:
   - Hover-to-open dropdown menus (the .dropdown-content max-height
     transition fires on .dropdown-container:hover)
   - Mobile menu toggle (`.mobile-side-menu-trigger` click)

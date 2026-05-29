@@ -177,21 +177,22 @@ def test_talk_page_emits_subject_back_link(maccabipedia_talk_page_html: str) -> 
 
 
 def test_oldid_preserved_in_action_urls_on_maccabipedia(
-    maccabipedia_oldid_html: str,
+    maccabipedia_oldid_html: tuple[str, str],
 ) -> None:
-    """Viewing ?oldid=N on Maccabipedia must keep that oldid in edit/history
-    action hrefs so editing/historying while viewing an old revision keeps
-    targeting that revision (parity with Metrolook test_menu's coverage)."""
+    """Viewing ?oldid=N on Maccabipedia must keep that exact oldid in
+    edit/history action hrefs, so editing/historying while viewing an old
+    revision keeps targeting that revision."""
+    html, oldid = maccabipedia_oldid_html
     edit_re = re.compile(
-        r'href="[^"]*action=edit[^"]*oldid=\d+'
-        r'|href="[^"]*oldid=\d+[^"]*action=edit'
+        rf'href="[^"]*action=edit[^"]*oldid={oldid}'
+        rf'|href="[^"]*oldid={oldid}[^"]*action=edit'
     )
     history_re = re.compile(
-        r'href="[^"]*action=history[^"]*oldid=\d+'
-        r'|href="[^"]*oldid=\d+[^"]*action=history'
+        rf'href="[^"]*action=history[^"]*oldid={oldid}'
+        rf'|href="[^"]*oldid={oldid}[^"]*action=history'
     )
-    assert edit_re.search(maccabipedia_oldid_html), "oldid dropped from edit href"
-    assert history_re.search(maccabipedia_oldid_html), "oldid dropped from history href"
+    assert edit_re.search(html), f"oldid {oldid} dropped from edit href"
+    assert history_re.search(html), f"oldid {oldid} dropped from history href"
 
 
 def test_search_input_has_text_field_class(maccabipedia_anon_html: str) -> None:
@@ -226,7 +227,11 @@ def test_no_prod_url_leakage(maccabipedia_anon_html: str) -> None:
 def test_static_asset_loads(maccabipedia_anon_html: str, asset: str) -> None:
     """The skin's own logo (assets/images/logo.png) and the powered-by-MediaWiki
     <img src> must be present and resolve to HTTP 200. Both are $wgServer-prefixed
-    absolute URLs (see SkinMaccabipedia::buildAppHeaderData/buildAppFooterData)."""
+    absolute URLs (see SkinMaccabipedia::buildAppHeaderData/buildAppFooterData).
+
+    The logo is served from the synced banner assets (docker-compose mounts
+    synced/skins/Metrolook/assets into the skin's assets/), so this test
+    presupposes `sync-from-prod.sh maccabipedia-skin-assets` has run."""
     pattern = {
         "logo": r'src="([^"]*logo\.png[^"]*)"',
         "powered-by": r'src="([^"]*poweredby[^"]*)"',

@@ -7,11 +7,11 @@
  * (`getTemplateData()` and helpers), set the body class + viewport, and
  * delegate everything else to MW core.
  *
- * Visual parity with Metrolook (during Phases 2–3) is delivered by reusing
- * the legacy skin's `skins.metrolook.styles` / `skins.metrolook.interface`
- * / `skins.metrolook.js` ResourceLoader modules. Phase 4 cutover will move
- * the LESS/JS source into `skins/Maccabipedia/`, rename the modules, and
- * delete `skins/Metrolook/`.
+ * This is the default skin. Its LESS/JS source lives under
+ * `skins/Maccabipedia/` (own `skins.maccabipedia.*` ResourceLoader modules,
+ * no runtime dependency on Metrolook). The legacy Metrolook skin stays
+ * vendored at `skins/Metrolook/` as an opt-in fallback and is no longer
+ * maintained.
  *
  * @file
  * @ingroup Skins
