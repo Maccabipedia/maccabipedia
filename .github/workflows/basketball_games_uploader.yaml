@@ -21,8 +21,9 @@ jobs:
 
       - name: Crawl basket.co.il (latest 1 game)
         run: |
+          set -o pipefail
           uv run python -m maccabipediabot.basketball.crawl_basket_co_il \
-            --season latest --limit 1 --output /tmp/basket.json
+            --season latest --limit 1 --output /tmp/basket.json 2>&1 | tee /tmp/basket_crawl.log
 
       - name: Upload basket.co.il games
         env:
@@ -55,3 +56,34 @@ jobs:
         run: |
           uv run python -m maccabipediabot.basketball.gamesbot_basketball \
             --input /tmp/euroleague.json --skip-existing
+
+      # The basket.co.il crawl raises when it hits a team name missing from
+      # translations._TEAM_NAMES (would otherwise leak the English name into the
+      # game page title). Notify the error channel so we add the mapping and re-run.
+      # CI-only by construction — locally the crawl just prints the traceback.
+      - name: Detect unknown basketball team name
+        if: failure()
+        id: unknown_team
+        run: |
+          if [ -f /tmp/basket_crawl.log ] && grep -q "team names missing from" /tmp/basket_crawl.log; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+            {
+              echo "detail<<TG_EOF"
+              grep "Affected games" /tmp/basket_crawl.log | tail -1
+              echo "TG_EOF"
+            } >> "$GITHUB_OUTPUT"
+          else
+            echo "found=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Alert error channel about unknown team name
+        if: failure() && steps.unknown_team.outputs.found == 'true'
+        uses: appleboy/telegram-action@v1.0.1
+        with:
+          to: ${{ secrets.MACCABIPEDIA_ERRORS_TELEGRAM_TO }}
+          token: ${{ secrets.MACCABIPEDIA_ERRORS_TELEGRAM_TOKEN }}
+          message: |
+            🏀 Basketball upload failed: basket.co.il returned an unmapped team name.
+            Add the EN→HE mapping to translations._TEAM_NAMES, then re-run.
+            ${{ steps.unknown_team.outputs.detail }}
+            Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
