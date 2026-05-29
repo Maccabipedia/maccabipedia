@@ -31,6 +31,12 @@ GAME_PAGE_URL_TEMPLATE = "https://basket.co.il/game-zone.asp?GameId={game_id}"
 MACCABI_TEAM_NAME_ENG = "Maccabi Tel-Aviv"
 MAX_CONNECTIONS = 100
 
+# A translated team name is pure Hebrew; leftover Latin letters mean the feed's
+# English name was missing from translations._TEAM_NAMES and passed through
+# untranslated (e.g. "Bnei Herzliya"). Catch it so we fail loudly instead of
+# silently uploading a game page titled with the English opponent name.
+_UNTRANSLATED_TEAM_NAME_RE = re.compile(r"[A-Za-z]")
+
 
 def parse_game_page(html: str, partial_game: BasketballGame) -> BasketballGame:
     """Enrich a partially-built BasketballGame (from discovery) with per-game data.
@@ -428,6 +434,7 @@ def discover_games_latest_season(limit: int | None = None) -> list[BasketballGam
 
     discovered: list[BasketballGame] = []
     unknown_competition_games: list[dict] = []
+    untranslated_team_games: list[dict] = []
     for game in finished:
         day, month, year = game["game_date_txt"].split("/")
         time_str = game.get("game_time") or "00:00"
@@ -436,6 +443,15 @@ def discover_games_latest_season(limit: int | None = None) -> list[BasketballGam
 
         home_team = team_name_to_hebrew(game["team_name_eng_1"])
         away_team = team_name_to_hebrew(game["team_name_eng_2"])
+
+        untranslated = [name for name in (home_team, away_team)
+                        if _UNTRANSLATED_TEAM_NAME_RE.search(name)]
+        if untranslated:
+            untranslated_team_games.append(
+                {"id": game.get("id"), "teams": untranslated,
+                 "date": game.get("game_date_txt")}
+            )
+            continue
 
         competition = basket_co_il_competition_name(game["game_type"])
         if not competition:
@@ -460,6 +476,13 @@ def discover_games_latest_season(limit: int | None = None) -> list[BasketballGam
             "basket.co.il discovery encountered games with unknown game_type codes; "
             "extend translations._BASKET_GAME_TYPE before re-running. "
             f"Affected games: {unknown_competition_games}"
+        )
+    if untranslated_team_games:
+        raise RuntimeError(
+            "basket.co.il discovery encountered team names missing from "
+            "translations._TEAM_NAMES; add the EN->HE mapping before re-running, "
+            "otherwise the game page would be titled with the English opponent name. "
+            f"Affected games: {untranslated_team_games}"
         )
     return discovered
 

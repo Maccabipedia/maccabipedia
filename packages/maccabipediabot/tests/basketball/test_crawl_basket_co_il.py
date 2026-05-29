@@ -160,3 +160,11 @@ def test_discover_raises_on_unknown_game_type(monkeypatch):
     _stub_feed(monkeypatch, [_maccabi_game(id=1, game_type=999)])
     with pytest.raises(RuntimeError, match="unknown game_type"):
         discover_games_latest_season()
+
+
+def test_discover_raises_on_untranslated_team_name(monkeypatch):
+    """A team name missing from _TEAM_NAMES passes through as English; we must raise
+    rather than upload a game page titled with the English opponent name."""
+    _stub_feed(monkeypatch, [_maccabi_game(id=1, team_name_eng_2="Totally New Team")])
+    with pytest.raises(RuntimeError, match="missing from"):
+        discover_games_latest_season()

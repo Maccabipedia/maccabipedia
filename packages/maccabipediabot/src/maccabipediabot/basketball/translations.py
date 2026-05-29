@@ -20,6 +20,7 @@ class TeamRename(NamedTuple):
 
 _TEAM_NAMES: dict[str, str] = {
     "Maccabi Tel-Aviv": "מכבי תל אביב",
+    "Bnei Herzliya": "בני הרצליה",
     "Hapoel Jerusalem": "הפועל ירושלים",
     "M. Rishon": "מכבי ראשון לציון",
     "Ness Ziona": "עירוני נס ציונה",
