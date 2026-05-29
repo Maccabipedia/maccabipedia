@@ -21,14 +21,3 @@ def test_update_last_game_skips_when_no_calendar_event():
         main.update_last_game('http://example.com/season', 'calendar-id')
 
     update_existing_event.assert_not_called()
-
-
-def test_update_last_game_skips_when_no_game_on_site():
-    """The site has no last game to read; update_last_game must skip, not raise."""
-    with patch.object(main, 'fetch_games_from_maccabi_tlv_site', return_value=[]), \
-            patch.object(main, 'fetch_games_from_calendar') as fetch_games_from_calendar, \
-            patch.object(main, 'update_existing_event') as update_existing_event:
-        main.update_last_game('http://example.com/season', 'calendar-id')
-
-    fetch_games_from_calendar.assert_not_called()
-    update_existing_event.assert_not_called()

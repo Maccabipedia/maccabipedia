@@ -120,12 +120,7 @@ def update_last_game(url: str, calendar_id: str) -> None:
     """
 
     _logger.info("--- Updating Last Game: ---")
-
-    last_games = fetch_games_from_maccabi_tlv_site(url, to_update_last_game=True)
-    if not last_games:
-        _logger.info("No last game found on the maccabi-tlv site; skipping last-game update.")
-        return
-    last_game = last_games[0]
+    last_game = fetch_games_from_maccabi_tlv_site(url, to_update_last_game=True)[0]
 
     # At the end of a season the last played game has no event at/after it in the
     # calendar, so this query comes back empty. Skip rather than index into [].
