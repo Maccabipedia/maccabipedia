@@ -7,11 +7,15 @@ rule written `url(images/search-rtl.svg)` makes the RTL page request
 author never sees on an LTR dev setup). This bit the skin twice: the
 main-page search icon and the external-link icon.
 
-This guard scans the skin's LESS for *repo-local* image refs (`url(images/…)`)
-and asserts that both the referenced file and its CSSJanus-flipped counterpart
-exist. The `assets/` dir is intentionally skipped — it's gitignored and
-FTP-synced from prod, so those files aren't present in a checkout. Not marked
-`integration`: reads files from disk, needs no live wiki.
+This guard scans the skin's LESS for image refs and asserts the files exist
+(and that their CSSJanus-flipped ltr/rtl counterpart exists too). It covers
+two ref styles:
+  * repo-local `url(images/…)` — relative to the skin dir; and
+  * vendored assets `url(/skins/Maccabipedia/assets/…)` — these now live in the
+    repo (vendored in PR #142). They used to be FTP-synced from prod and absent
+    from a checkout, so this dir was skipped; that's no longer true.
+
+Not marked `integration`: reads files from disk, needs no live wiki.
 """
 from __future__ import annotations
 
@@ -49,3 +53,59 @@ def test_local_image_refs_are_cssjanus_safe() -> None:
                 )
 
     assert not problems, "CSSJanus-unsafe image refs:\n" + "\n".join(problems)
+
+
+# Absolute refs into the skin's own vendored assets, e.g.
+# `url("/skins/Maccabipedia/assets/images/players/list-banner.png")`. The
+# captured group is the path relative to the skin dir (`assets/...`).
+ASSET_IMAGE_URL_RE = re.compile(
+    rf"""url\(\s*['"]?/skins/{re.escape(SKIN_DIR.name)}/(assets/[^)'"\s]+)['"]?\s*\)"""
+)
+
+# Refs the LESS points at but whose file doesn't exist yet. Each entry MUST cite
+# a tracking ticket and be removed once fixed — never add a silent exception.
+KNOWN_MISSING_ASSET_REFS = {
+    # Generic shirt-list page banner — never existed (silent 404 on prod too).
+    # Tracking: Trello #576 (https://trello.com/c/GlKFMSwO). Remove this entry
+    # once the ref is fixed (point at an existing banner or vendor the file).
+    "assets/images/shirts/list-banner.png",
+}
+
+
+def test_skin_asset_image_refs_exist() -> None:
+    """Every `/skins/<Skin>/assets/...` image the LESS references must exist.
+
+    Assets are vendored in the repo since PR #142, so a missing one is a silent
+    404 we can catch statically (the same class of bug the local-image guard
+    above catches for `images/` refs).
+    """
+    problems = []
+    for less_file in SKIN_DIR.rglob("*.less"):
+        for match in ASSET_IMAGE_URL_RE.finditer(less_file.read_text(encoding="utf-8")):
+            ref = match.group(1)  # e.g. assets/images/shirts/list-banner.png
+            if ref in KNOWN_MISSING_ASSET_REFS:
+                continue
+            where = f"{less_file.relative_to(SKIN_DIR)}: url(/skins/{SKIN_DIR.name}/{ref})"
+
+            if not (SKIN_DIR / ref).exists():
+                problems.append(f"{where} -> referenced asset is missing")
+
+            flipped = _cssjanus_flip(ref)
+            if flipped != ref and not (SKIN_DIR / flipped).exists():
+                problems.append(
+                    f"{where} -> CSSJanus requests '{flipped}' on the opposite "
+                    "text direction, but that asset is missing (silent 404)"
+                )
+
+    assert not problems, "Missing skin asset refs:\n" + "\n".join(problems)
+
+
+def test_known_missing_asset_refs_are_still_missing() -> None:
+    """Keep KNOWN_MISSING_ASSET_REFS from going stale: if a listed file now
+    exists, the exception is obsolete and must be deleted so the guard above
+    covers it for real."""
+    resurfaced = sorted(r for r in KNOWN_MISSING_ASSET_REFS if (SKIN_DIR / r).exists())
+    assert not resurfaced, (
+        "These are listed as known-missing but now exist — drop them from "
+        f"KNOWN_MISSING_ASSET_REFS so the guard enforces them: {resurfaced}"
+    )
