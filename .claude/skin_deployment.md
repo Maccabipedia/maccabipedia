@@ -1,26 +1,27 @@
 # MaccabiPedia Skin Deployment
 
-No automated push. One command prepares a ready-to-upload snapshot; the upload
-itself is manual via FileZilla.
+No automated push. One command assembles a ready-to-upload snapshot from the
+repo; the upload itself is manual via FileZilla.
+
+The build is **fully local** — the skin vendors its own banner assets under
+`skins/Maccabipedia/assets/`, so there is no prod pull and no special
+permission is needed to run it.
 
 ```bash
-# Build the upload snapshot for both skins (read-only; FTP creds auto-load
-# from infra/local-wiki/.env). Run with no args — the defaults cover the
-# common case (both skins, ~/maccabipedia_skins base).
+# Assemble the upload snapshot (local). Optional arg: a custom output base.
 bash infra/local-wiki/scripts/deploy-skin.sh
 
-# → snapshot at ~/maccabipedia_skins/<ts>/{Maccabipedia,Metrolook}/
-# FileZilla: upload <snapshot>/<skin>/ → /public_html/skins/<skin>/
+# → snapshot at ~/maccabipedia_skins/<ts>/Maccabipedia/
+# FileZilla: upload <snapshot>/Maccabipedia/ → /public_html/skins/Maccabipedia/
 # using the atomic-rename pattern the script prints.
 ```
 
 ## Notes (not surfaced by the scripts)
 
-- FTP creds live in `infra/local-wiki/.env`, **not the shell env** — an empty
-  `$MACCABIPEDIA_FTP_*` does not mean creds are missing.
-- Banner assets come from prod's `skins/Metrolook/assets` and are **shared by
-  both skins**; the Maccabipedia skin ships none of its own. (The sync op name
-  `maccabipedia-skin-assets` is misleading — it pulls Metrolook's dir.)
+- **Assets are vendored** in the repo under `skins/Maccabipedia/assets/` (binary,
+  protected by the skin's `.gitattributes` `-text`). The deploy packages those
+  directly — it no longer pulls from prod. (Historically they were shared from
+  Metrolook's `assets/` dir; that coupling is gone.)
 - Scripts aren't executable → run with `bash`, not `./`.
 - **After uploading, the CSS won't change in your browser until you hard-refresh.**
   ResourceLoader recompiles on the source change, but `load.php` style responses
