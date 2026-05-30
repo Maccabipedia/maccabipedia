@@ -70,6 +70,13 @@ Any PR touching `packages/maccabistats/` must also include, before the PR is cre
 2. **Changelog entry** — prepend a new entry to `packages/maccabistats/CHANGELOG.md` with the new version and a short description
 3. **Commit both** on the feature branch (e.g. `bump: maccabistats 2.61`)
 
+### Skin Version Bump (skins/Maccabipedia/ PRs only)
+
+Any PR changing `skins/Maccabipedia/` must bump `"version"` in
+`skins/Maccabipedia/skin.json`. The `skin_version_bump` CI check enforces this
+on PRs. MediaWiki surfaces the version on `Special:Version`, so the bump is how
+the `deploy-skin` skill verifies prod actually received the new skin.
+
 ## 6. Context Window Hygiene
 
 Every tool call result stays in context forever. Keep all outputs small:
@@ -86,4 +93,4 @@ Every tool call result stays in context forever. Keep all outputs small:
 - `.claude/maccabipedia_research_sources.md` — External data sources: rosters, match results, historical records, photos, video
 - `.claude/maccabistats_knowledge.md` — maccabistats Python package API reference
 - `.claude/maccabipedia_youtube_channel.md` — MaccabiPedia YouTube channel conventions + Google Drive backup layout (used by `restore_deleted_football_video`)
-- `.claude/skin_deployment.md` — How skins reach production: read-only prod pull → local snapshot → manual FileZilla upload; creds live in `infra/local-wiki/.env`, not the shell env
+- Prod deploys → the `deploy-skin` and `deploy-localsettings` skills (`.claude/skills/`). Skin = `skins/Maccabipedia/` via snapshot + manual FileZilla upload; LocalSettings = `infra/local-wiki/config/LocalSettings.shared.php` only (never `env.prod.php`). FTP creds in `infra/local-wiki/.env`.
