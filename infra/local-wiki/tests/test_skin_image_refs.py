@@ -100,12 +100,29 @@ def test_skin_asset_image_refs_exist() -> None:
     assert not problems, "Missing skin asset refs:\n" + "\n".join(problems)
 
 
-def test_known_missing_asset_refs_are_still_missing() -> None:
-    """Keep KNOWN_MISSING_ASSET_REFS from going stale: if a listed file now
-    exists, the exception is obsolete and must be deleted so the guard above
-    covers it for real."""
-    resurfaced = sorted(r for r in KNOWN_MISSING_ASSET_REFS if (SKIN_DIR / r).exists())
-    assert not resurfaced, (
-        "These are listed as known-missing but now exist — drop them from "
-        f"KNOWN_MISSING_ASSET_REFS so the guard enforces them: {resurfaced}"
+def _referenced_asset_refs() -> set[str]:
+    """Every `assets/...` ref the skin's LESS currently points at."""
+    refs: set[str] = set()
+    for less_file in SKIN_DIR.rglob("*.less"):
+        text = less_file.read_text(encoding="utf-8")
+        refs.update(m.group(1) for m in ASSET_IMAGE_URL_RE.finditer(text))
+    return refs
+
+
+def test_known_missing_asset_refs_stay_honest() -> None:
+    """Stop KNOWN_MISSING_ASSET_REFS from rotting. An entry is only legitimate
+    while it's BOTH still referenced by some LESS AND still absent on disk.
+    Once the ref is fixed — whether by adding the file OR by re-pointing the
+    LESS at an existing asset — the entry is obsolete and must be deleted so
+    the guard above enforces it for real."""
+    referenced = _referenced_asset_refs()
+    obsolete = []
+    for ref in sorted(KNOWN_MISSING_ASSET_REFS):
+        if (SKIN_DIR / ref).exists():
+            obsolete.append(f"{ref} (file now exists)")
+        elif ref not in referenced:
+            obsolete.append(f"{ref} (no longer referenced by any LESS)")
+    assert not obsolete, (
+        "Obsolete KNOWN_MISSING_ASSET_REFS entries — delete them so the guard "
+        "enforces them:\n  " + "\n  ".join(obsolete)
     )
