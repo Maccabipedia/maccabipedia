@@ -121,7 +121,14 @@ def update_last_game(url: str, calendar_id: str) -> None:
 
     _logger.info("--- Updating Last Game: ---")
     last_game = fetch_games_from_maccabi_tlv_site(url, to_update_last_game=True)[0]
-    last_event = fetch_games_from_calendar(calendar_id, last_game['start']['dateTime'] + '+02:00', 1)[0]
+
+    # At the end of a season the last played game has no event at/after it in the
+    # calendar, so this query comes back empty. Skip rather than index into [].
+    last_events = fetch_games_from_calendar(calendar_id, last_game['start']['dateTime'] + '+02:00', 1)
+    if not last_events:
+        _logger.info("No matching calendar event at/after the last game; skipping last-game update.")
+        return
+    last_event = last_events[0]
 
     if 'extendedProperties' in last_game and 'extendedProperties' in last_event:
         if last_game['extendedProperties']['shared']['url'] == last_event['extendedProperties']['shared']['url']:

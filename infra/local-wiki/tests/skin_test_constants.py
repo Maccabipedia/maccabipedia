@@ -14,11 +14,9 @@ from __future__ import annotations
 import re
 
 
-# Mirror of the menu definitions in `SkinMaccabipedia::buildPrimaryDropdowns()`
-# (and the legacy `skins/Metrolook/customize/includes/{app-header,app-footer}.php`
-# until Phase 4). Adding, removing, or renaming a menu link must be a
-# coordinated change in both PHP and this list — the duplication between
-# PHP and tests is the point.
+# Mirror of the menu definitions in `SkinMaccabipedia::buildPrimaryDropdowns()`.
+# Adding, removing, or renaming a menu link must be a coordinated change in
+# both PHP and this list — the duplication between PHP and tests is the point.
 MENU_LABELS = (
     # מכבי תל אביב dropdown
     "ההיסטוריה", "עונות", "מתקנים", "מפעלים", "מדים", "תארים",

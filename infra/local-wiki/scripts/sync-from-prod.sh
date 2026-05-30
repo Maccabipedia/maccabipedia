@@ -39,10 +39,12 @@
 #                              -d` and `./scripts/seed-content.sh` afterwards.
 #   maccabipedia-skin-assets — mirror <root>/skins/Metrolook/assets/
 #                              → synced/skins/Metrolook/assets/
-#                              (binary banners only; the skin source itself
-#                              — our maccabipedia fork of Metrolook — is
-#                              vendored at <repo-root>/skins/Metrolook/ and
-#                              is NOT pulled by this script).
+#                              (binary banners only, shared by both skins;
+#                              the skin sources themselves — the default
+#                              Maccabipedia skin at <repo-root>/skins/Maccabipedia/
+#                              and the legacy Metrolook fallback at
+#                              <repo-root>/skins/Metrolook/ — are NOT pulled
+#                              by this script).
 #   extensions               — mirror <root>/extensions/ → synced/extensions/
 #   favicon                  — fetch  <root>/favicon.ico → synced/favicon.ico
 #   localsettings            — fetch  <root>/LocalSettings.php
