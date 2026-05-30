@@ -118,7 +118,10 @@ echo
 echo "  Simpler pattern (overwrite in place):"
 echo "    Drag the CONTENTS of $out into /public_html/skins/$SKIN/"
 echo
-echo "  wfLoadSkin('$SKIN') is already in prod LocalSettings — skip on re-uploads."
+echo "  Ensure prod's LocalSettings.php loads the skin and sets it as default:"
+echo "      wfLoadSkin('$SKIN');"
+echo "      \$wgDefaultSkin = '$SKIN';"
+echo "  Metrolook stays loaded as an opt-in fallback (?useskin=metrolook)."
 echo
 echo "  Smoke test against prod:"
 echo "    MACCABIPEDIA_LOCAL_URL=https://www.maccabipedia.co.il \\"
