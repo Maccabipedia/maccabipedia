@@ -1,7 +1,7 @@
 """Playwright-driven interaction tests for the Maccabipedia skin.
 
-The pytest tests in test_maccabipedia_scaffold.py and test_menu.py only
-inspect rendered HTML strings. Things they cannot catch:
+The pytest tests in test_maccabipedia_scaffold.py only inspect rendered
+HTML strings. Things they cannot catch:
   - Hover-to-open dropdown menus (the .dropdown-content max-height
     transition fires on .dropdown-container:hover)
   - Mobile menu toggle (`.mobile-side-menu-trigger` click)
@@ -24,8 +24,10 @@ from playwright.sync_api import sync_playwright  # noqa: E402
 
 pytestmark = pytest.mark.integration
 
+# Maccabipedia is the default skin, so no ?useskin override — these exercise
+# the real default experience.
 LOCAL = "http://localhost:8080"
-HOME_URL = f"{LOCAL}/%D7%A2%D7%9E%D7%95%D7%93_%D7%A8%D7%90%D7%A9%D7%99?useskin=maccabipedia"
+HOME_URL = f"{LOCAL}/%D7%A2%D7%9E%D7%95%D7%93_%D7%A8%D7%90%D7%A9%D7%99"
 WIDE_VIEWPORT = {"width": 1440, "height": 900}
 
 

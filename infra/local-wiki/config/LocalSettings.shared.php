@@ -148,11 +148,11 @@ $wgNativeImageLazyLoading = true;
 
 ## Default skin: you can change the default skin. Use the internal symbolic
 ## names, ie 'vector', 'monobook':
-$wgDefaultSkin = "Metrolook";
+$wgDefaultSkin = "Maccabipedia";
 
-# Enabled skins. Maccabipedia is loaded as an opt-in option (selectable
-# via ?useskin=maccabipedia or via Special:Preferences); default stays
-# Metrolook until the new skin is verified.
+# Enabled skins. Maccabipedia is the default; Metrolook stays loaded as an
+# opt-in fallback (selectable via ?useskin=metrolook or via
+# Special:Preferences, and for users who already chose it).
 wfLoadSkin('Metrolook');
 wfLoadSkin('Maccabipedia');
 

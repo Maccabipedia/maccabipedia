@@ -172,11 +172,11 @@ echo "  Simpler pattern (overwrite in place, repeat per skin):"
 echo "    Drag the CONTENTS of $SNAPSHOT_DIR/<skin> into /public_html/skins/<skin>/"
 echo
 if [[ " ${skins[*]} " == *" Maccabipedia "* ]]; then
-    echo "  After uploading Maccabipedia for the first time, also update"
-    echo "  prod's LocalSettings.php — add (keep \$wgDefaultSkin unchanged):"
+    echo "  Make sure prod's LocalSettings.php loads the skin and sets it"
+    echo "  as the default:"
     echo "      wfLoadSkin('Maccabipedia');"
-    echo "  Maccabipedia is then opt-in via ?useskin=maccabipedia and"
-    echo "  Special:Preferences. Flip the default in a follow-up after soak."
+    echo "      \$wgDefaultSkin = 'Maccabipedia';"
+    echo "  Metrolook stays loaded as an opt-in fallback (?useskin=metrolook)."
     echo
 fi
 echo "  Smoke test against prod:"

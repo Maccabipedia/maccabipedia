@@ -1,11 +1,11 @@
 # Local MaccabiPedia (Docker)
 
 Runs a local MediaWiki 1.39.11 + PHP 7.4 + MariaDB mirror of the production
-MaccabiPedia site. MediaWiki itself is built into the image. The
-MaccabiPedia skin — our heavily-customized fork of the upstream Metrolook
-skin — is vendored at `<repo-root>/skins/Metrolook/` (the directory keeps
-the upstream name so MediaWiki's skin loader resolves it without extra
-config). Only the skin's binary banner `assets/` and the prod extensions
+MaccabiPedia site. MediaWiki itself is built into the image. The default
+MaccabiPedia skin is the `SkinMustache`-based skin vendored at
+`<repo-root>/skins/Maccabipedia/`; the legacy fallback skin is vendored at
+`<repo-root>/skins/Metrolook/` and supplies the shared binary banner
+`assets/`. Only those binary banner `assets/` and the prod extensions
 are pulled from the FTP server into `synced/`. Site-wide config lives in
 `config/LocalSettings.shared.php` which ships byte-equivalent to prod.
 Dev-only values (DB host, URL, fake secrets) are in
