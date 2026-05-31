@@ -27,6 +27,8 @@ def purge_pages(
 
     Returns the number of unique pages submitted for purging.
     """
+    # Dedup + sort here (not just relying on purgepages' own set()) so the
+    # chunk boundaries below are deterministic and the returned count is accurate.
     titles = sorted({page if isinstance(page, str) else page.title() for page in pages})
     if not titles:
         return 0

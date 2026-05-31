@@ -55,6 +55,16 @@ def test_chunks_respect_chunk_size():
     assert [len(titles) for titles, _ in site.calls] == [50, 50, 20]
 
 
+def test_returns_full_count_when_purgepages_reports_false():
+    # purgepages returns False when a title wasn't purged/link-updated (usually
+    # because it doesn't exist yet) — the helper should still report every
+    # submitted title and must not raise.
+    site = StubSite(return_value=False)
+    submitted = purge_pages(site, ["אבי כהן", "ערן זהבי"])
+    assert submitted == 2
+    assert len(site.calls) == 1
+
+
 def test_dry_run_submits_nothing():
     site = StubSite()
     submitted = purge_pages(site, ["אבי כהן", "ערן זהבי"], dry_run=True)
