@@ -24,27 +24,33 @@ If behind master → rebase/merge `origin/master` before deploying.
 
 ## 2. Version check (fail-fast)
 
-Compare the live prod skin version against the repo's:
+Compare the live prod skin version against the repo's. On `Special:Version`
+the skin is listed under its **display name `Maccabipedia`** (from
+`namemsg`/`skinname-maccabipedia`), not the manifest name `MaccabipediaSkin`:
 
 ```bash
 jq -r '.version' skins/Maccabipedia/skin.json
 curl -fsS -A "$MACCABIPEDIA_UA_SCRIPT" \
   "https://www.maccabipedia.co.il/index.php/Special:Version" \
-  | grep -iA2 'MaccabipediaSkin'
+  | grep -iEA2 '>Maccabipedia<'
 ```
 
 The repo version should be **greater** than the live version. If they are
 **equal**, warn: either nothing changed or you forgot to bump (the
 `skin_version_bump` CI check enforces a bump on PRs). Do not hard-fail here.
+**If `curl` returns empty**, the prod edge is blocking the automated request
+(known behaviour) — open `Special:Version` in a browser and read the
+`Maccabipedia` skin version manually. This step is best-effort, not a gate.
 
 ## 3. Static guard tests
 
 ```bash
-uv run pytest infra/local-wiki/tests -m "not integration"
+uv run pytest infra/local-wiki/tests
 ```
 
-These need no wiki: LESS comment balance, CSSJanus image refs, slick module
-dep, vendored-slick sha256, VE DOM hooks.
+`pyproject.toml` sets `addopts = "-m 'not integration'"`, so a bare run already
+excludes integration tests. These need no wiki: LESS comment balance, CSSJanus
+image refs, slick module dep, vendored-slick sha256, VE DOM hooks.
 
 ## 4. Local integration — ALL THREE categories must run
 
@@ -52,15 +58,17 @@ Ensure the local wiki is up, then run HTTP + browser integration:
 
 ```bash
 docker compose -f infra/local-wiki/docker-compose.yml up -d
-uv run --with playwright pytest infra/local-wiki/tests -m integration -v
+uv run --with playwright pytest infra/local-wiki/tests -m integration -rs
 ```
 
 - `--with playwright` is **required** — `test_maccabipedia_interactive.py`
   (browser test: hover dropdowns, mobile menu) does `importorskip("playwright")`
   and silently skips without it.
-- **A skipped browser test counts as FAILURE.** Confirm the interactive tests
-  report PASSED, not SKIPPED. If they skipped, install the browser
-  (`uv run --with playwright playwright install chromium`) and re-run.
+- **A skipped browser test counts as FAILURE.** Mechanical check: the `-rs`
+  summary must report **`0 skipped`** (no `s` markers). Any `SKIPPED` on
+  `test_maccabipedia_interactive` means playwright/chromium is missing — install
+  it (`uv run --with playwright playwright install chromium`) and re-run. Do
+  **not** proceed to build while that test is skipped.
 - If the wiki cannot serve (fresh machine, never set up), that is one-time
   bootstrap — see `infra/local-wiki/README.md` — **stop**, it is not part of
   this deploy.
@@ -79,9 +87,15 @@ On WSL, pass a `/mnt/c/...` base so FileZilla on Windows can see it.
 Claude does **not** write to prod. Give the user the atomic-rename steps:
 
 1. Upload `<snapshot>/Maccabipedia/` to `/public_html/skins/Maccabipedia_new/`.
-2. On the server: rename `Maccabipedia` → `Maccabipedia_old`.
-3. On the server: rename `Maccabipedia_new` → `Maccabipedia`.
-4. Smoke-test (step 7), then delete `Maccabipedia_old` later.
+2. **Verify the upload completed** before swapping — the rename is atomic for
+   code but not for a half-finished transfer. Confirm a late/large asset landed,
+   e.g. `Maccabipedia_new/assets/images/logo.png` exists with the expected size,
+   and that `skin.json` is present. Do not swap on a partial upload.
+3. On the server: rename `Maccabipedia` → `Maccabipedia_old`.
+4. On the server: rename `Maccabipedia_new` → `Maccabipedia`.
+5. Smoke-test (step 7). If it regresses, swap back (`Maccabipedia` →
+   `Maccabipedia_new`, `Maccabipedia_old` → `Maccabipedia`). Delete
+   `Maccabipedia_old` only once the new skin is confirmed good.
 
 `wfLoadSkin('Maccabipedia')` and `$wgDefaultSkin = 'Maccabipedia'` are config —
 they live in LocalSettings, not the skin upload (see the `deploy-localsettings`
@@ -93,10 +107,11 @@ skill if the skin-default flip is still pending on prod).
 MACCABIPEDIA_LOCAL_URL=https://www.maccabipedia.co.il \
   uv run pytest -m integration infra/local-wiki/tests/test_maccabipedia_scaffold.py
 curl -fsS -A "$MACCABIPEDIA_UA_SCRIPT" \
-  "https://www.maccabipedia.co.il/index.php/Special:Version" | grep -iA2 'MaccabipediaSkin'
+  "https://www.maccabipedia.co.il/index.php/Special:Version" | grep -iEA2 '>Maccabipedia<'
 ```
 
-- Confirm `Special:Version` now shows the **new** skin version.
+- Confirm `Special:Version` now shows the **new** skin version (listed under
+  display name `Maccabipedia`). If `curl` returns empty, check it in a browser.
 - **CSS may look stale for up to 24h.** `load.php` style responses are sent
   `cache-control: max-age=86400` with no version param, so browser + CDN keep
   the old stylesheet. To verify immediately, hard-refresh (Ctrl/Cmd+Shift+R) or

@@ -44,18 +44,15 @@ curl -fsS "http://localhost:8080/index.php/%D7%A2%D7%9E%D7%95%D7%93_%D7%A8%D7%90
 A white-screen / fatal ⇒ the change is broken; fix before upload. Confirm the
 intended config change actually took effect on the local page.
 
-## 4. Optional drift-check
+## 4. No reliable prod drift-check — rely on master + backup
 
-`shared.php` has no version marker, so optionally confirm the server is not
-ahead of master before overwriting:
-
-```bash
-bash infra/local-wiki/scripts/sync-from-prod.sh localsettings
-diff infra/local-wiki/synced/<pulled-shared.php> infra/local-wiki/config/LocalSettings.shared.php
-```
-
-Worth doing the first time (prod may be behind master on the skin-default flip).
-Needs FTP creds in `infra/local-wiki/.env`.
+There is **no clean way to diff the server's `shared.php`**: the
+`sync-from-prod.sh localsettings` op pulls the prod **stub** `LocalSettings.php`
+(into `synced/LocalSettings.prod-snapshot.php`), not `shared.php`. So do not try
+to diff against prod. Instead trust the source-of-truth model — you are on
+latest master (step 1) — and rely on the `.bak` rollback in step 5 if prod
+misbehaves. (If a verified prod baseline is ever needed, add a `shared` mode to
+`sync-from-prod.sh` first.)
 
 ## 5. STOP — hand off the manual FileZilla upload
 
