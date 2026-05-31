@@ -21,27 +21,32 @@ bash infra/local-wiki/scripts/check-on-latest-master.sh
 
 Non-zero ⇒ stop: commit/merge to master (dirty) or rebase (behind) first.
 
-## 2. Lint (in the prod-matching PHP runtime)
+## 2. Lint (in the prod-matching PHP 7.4 runtime)
 
-The local Docker container is `php:7.4.33` — the **same PHP as prod** — so lint
-inside it, not with the host's `php` (which is 8.x and would miss 7.4
-incompatibilities):
+The wiki image is `php:7.4.33` — the **same PHP as prod** — so lint with it, not
+the host `php` (8.x, which misses 7.4 incompatibilities). Use a disposable
+container that mounts this worktree's config, so it does not depend on the
+running container's mount state:
 
 ```bash
-docker compose -f infra/local-wiki/docker-compose.yml up -d
-docker compose -f infra/local-wiki/docker-compose.yml exec -T mediawiki \
-  php -l /mw-config/LocalSettings.shared.php
+docker run --rm --entrypoint php \
+  -v "$(pwd)/infra/local-wiki/config:/cfg:ro" \
+  local-wiki-mediawiki -l /cfg/LocalSettings.shared.php
 ```
 
-(`./config` is mounted read-only at `/mw-config` in the container.)
+(If the `local-wiki-mediawiki` image is missing, build it first:
+`docker compose -f infra/local-wiki/docker-compose.yml build`.)
 
 ## 3. Local verify (required)
 
 The Docker wiki loads `env.local + shared.php`. Restart it and confirm the main
-page still renders (a fatal returns HTTP 500, which the validator catches by
-status — a body grep would miss it):
+page still renders. `validate-site-ok.sh` catches a fatal **whichever way it
+surfaces** — HTTP 500 (prod-style, `display_errors` off) or HTTP 200 with an
+error in the body (local dev, `display_errors` on); a status-only check would
+miss the latter:
 
 ```bash
+docker compose -f infra/local-wiki/docker-compose.yml up -d
 docker compose -f infra/local-wiki/docker-compose.yml restart mediawiki
 bash infra/local-wiki/scripts/validate-site-ok.sh \
   "http://localhost:8080/index.php/%D7%A2%D7%9E%D7%95%D7%93_%D7%A8%D7%90%D7%A9%D7%99"

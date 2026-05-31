@@ -3,10 +3,13 @@
 # validate-site-ok.sh — confirm a wiki URL renders OK. Used by the deploy skills
 # for the local-verify and prod-smoke steps.
 #
-# A MediaWiki fatal (e.g. a syntax error in LocalSettings) returns HTTP 500 with
-# display_errors OFF on prod — so the body may contain NO "fatal" text. The
-# reliable signal is therefore the HTTP STATUS, not a body grep; body markers are
-# a secondary check for errors that still return 200.
+# A MediaWiki fatal surfaces TWO different ways depending on display_errors, so
+# both signals are needed (verified by inducing a real LocalSettings break):
+#   - prod (display_errors OFF): HTTP 500, body may have NO error text -> STATUS
+#     catches it.
+#   - local dev (display_errors ON): HTTP 200 with "Fatal error"/"Warning" in the
+#     body -> the BODY GREP catches it (status alone would miss it).
+# Neither check is secondary.
 #
 # Usage: bash validate-site-ok.sh <url> [user-agent]
 #   <url>         page to fetch
@@ -41,8 +44,11 @@ if [ "$status" != "200" ]; then
     exit 1
 fi
 
-if grep -qiE 'MWException|Fatal error|Parse error|Uncaught (Error|Exception)' "$body"; then
-    echo "BROKEN: $URL is HTTP 200 but the body contains a PHP error marker." >&2
+# Match PHP's *rendered* error HTML (display_errors on) and MediaWiki's own
+# exception page — NOT the bare string "Fatal error", which legitimately appears
+# inside page JS and would false-positive on a healthy wiki.
+if grep -qiE '<b>(Fatal error|Parse error)</b>|MWException|MediaWiki internal error' "$body"; then
+    echo "BROKEN: $URL is HTTP 200 but the body contains a rendered PHP/MediaWiki error." >&2
     exit 1
 fi
 
