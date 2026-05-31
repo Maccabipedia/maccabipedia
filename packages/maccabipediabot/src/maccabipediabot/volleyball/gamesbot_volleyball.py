@@ -10,6 +10,7 @@ from maccabipediabot.common.logging_setup import setup_logging
 from maccabipediabot.common.page_names import build_volleyball_game_page_name
 from maccabipediabot.common.paths import volleyball_root
 from maccabipediabot.common.prettify_games_pages import prettify_game_page_main_template
+from maccabipediabot.common.wiki_purge import purge_pages
 from maccabipediabot.volleyball.volleyball_game import VolleyballGame
 
 import pywikibot as pw
@@ -198,31 +199,6 @@ def collect_related_pages_from_game(game: VolleyballGame) -> set[str]:
     return pages_to_purge
 
 
-def purge_pages_batch(pages_to_purge: set[str]) -> None:
-    """Purge a batch of pages efficiently."""
-    if not pages_to_purge:
-        return
-
-    logging.info(f"Purging {len(pages_to_purge)} unique related pages...")
-    results = {"purged": 0, "skipped": 0, "failed": 0}
-
-    for page_name in sorted(pages_to_purge):
-        try:
-            page = pw.Page(site, page_name)
-            if page.exists():
-                logging.debug(f"Purging: {page_name}")
-                page.purge(forcelinkupdate=True)
-                results["purged"] += 1
-            else:
-                logging.debug(f"Page doesn't exist, skipping: {page_name}")
-                results["skipped"] += 1
-        except Exception as e:
-            logging.warning(f"Failed to purge {page_name}: {e}")
-            results["failed"] += 1
-
-    logging.info(f"Purge complete: {results['purged']} purged, {results['skipped']} skipped, {results['failed']} failed")
-
-
 def create_or_update_game_page(volleyball_game: VolleyballGame, overwrite_existing_pages: bool = True):
     logging.info(f"create_or_update_game_page : {volleyball_game}")
 
@@ -275,7 +251,7 @@ def create_or_update_volleyball_game_pages(games_to_add: List[VolleyballGame]):
 
     # Batch purge all collected pages at the end
     if SHOULD_SAVE and SHOULD_PURGE_RELATED_PAGES:
-        purge_pages_batch(all_pages_to_purge)
+        purge_pages(site, all_pages_to_purge)
 
     logging.info("Finished handling existing games.")
 

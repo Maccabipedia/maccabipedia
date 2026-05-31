@@ -4,6 +4,7 @@ from datetime import timedelta
 from typing import List
 
 from maccabipediabot.common.wiki_login import get_site
+from maccabipediabot.common.wiki_purge import purge_pages
 
 
 import mwparserfromhell
@@ -319,31 +320,6 @@ def collect_related_pages_from_game(game) -> set[str]:
     return pages_to_purge
 
 
-def purge_pages_batch(pages_to_purge: set[str]) -> None:
-    """Purge a batch of pages efficiently."""
-    if not pages_to_purge:
-        return
-
-    logging.info(f"Purging {len(pages_to_purge)} unique related pages...")
-    results = {"purged": 0, "skipped": 0, "failed": 0}
-
-    for page_name in sorted(pages_to_purge):
-        try:
-            page = pw.Page(site, page_name)
-            if page.exists():
-                logging.debug(f"Purging: {page_name}")
-                page.purge(forcelinkupdate=True)
-                results["purged"] += 1
-            else:
-                logging.debug(f"Page doesn't exist, skipping: {page_name}")
-                results["skipped"] += 1
-        except Exception as e:
-            logging.warning(f"Failed to purge {page_name}: {e}")
-            results["failed"] += 1
-
-    logging.info(f"Purge complete: {results['purged']} purged, {results['skipped']} skipped, {results['failed']} failed")
-
-
 def upload_games_to_maccabipedia(maccabi_games_to_add: MaccabiGamesStats):
     logging.info("")  # Empty line
 
@@ -369,7 +345,7 @@ def upload_games_to_maccabipedia(maccabi_games_to_add: MaccabiGamesStats):
 
     # Batch purge all collected pages at the end
     if SHOULD_SAVE and SHOULD_PURGE_RELATED_PAGES:
-        purge_pages_batch(all_pages_to_purge)
+        purge_pages(site, all_pages_to_purge)
 
     if SHOULD_CHECK_FOR_UPDATE_IN_EXISTING_PAGES:
         logging.info("Now handling existing games:")
@@ -382,7 +358,7 @@ def upload_games_to_maccabipedia(maccabi_games_to_add: MaccabiGamesStats):
 
         # Purge again if we updated existing games
         if SHOULD_SAVE and SHOULD_PURGE_RELATED_PAGES:
-            purge_pages_batch(all_pages_to_purge)
+            purge_pages(site, all_pages_to_purge)
     else:
         logging.info("Don't check for updates in existing pages")
 
