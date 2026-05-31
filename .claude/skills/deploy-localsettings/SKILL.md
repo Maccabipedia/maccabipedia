@@ -1,6 +1,6 @@
 ---
 name: deploy-localsettings
-description: Use when deploying a site-config change to the Maccabipedia production wiki — editing infra/local-wiki/config/LocalSettings.shared.php to enable an extension, change a setting, or flip $wgDefaultSkin. Lints + verifies the change locally, then hands off the MANUAL FileZilla upload of shared.php ONLY (never env.prod.php or the stub). Never writes to prod itself.
+description: Use when deploying any change to infra/local-wiki/config/LocalSettings.shared.php (site-wide MediaWiki config) to the Maccabipedia production wiki. Lints + verifies the change locally, then hands off the MANUAL FileZilla upload of shared.php ONLY (never env.prod.php or the stub). Never writes to prod itself.
 ---
 
 # Deploy LocalSettings (shared.php) to production
@@ -16,45 +16,41 @@ Run these in order. Stop and report on any failure.
 ## 1. Sync gate — ship master, not a dirty tree
 
 ```bash
-git fetch origin
-git status --porcelain                       # must be EMPTY
-git rev-list --count HEAD..origin/master     # must be 0 (not behind)
+bash infra/local-wiki/scripts/check-on-latest-master.sh
 ```
 
-## 2. Lint
+Non-zero ⇒ stop: commit/merge to master (dirty) or rebase (behind) first.
 
-```bash
-php -l infra/local-wiki/config/LocalSettings.shared.php
-```
+## 2. Lint (in the prod-matching PHP runtime)
 
-Local PHP is 8.3 but prod is **PHP 7.4** — lint catches syntax errors, not
-7.4-incompatible 8.x syntax. Keep `shared.php` plain config.
-
-## 3. Local verify (required)
-
-The Docker wiki loads `env.local + shared.php`. Restart it and confirm no fatal:
+The local Docker container is `php:7.4.33` — the **same PHP as prod** — so lint
+inside it, not with the host's `php` (which is 8.x and would miss 7.4
+incompatibilities):
 
 ```bash
 docker compose -f infra/local-wiki/docker-compose.yml up -d
-docker compose -f infra/local-wiki/docker-compose.yml restart mediawiki
-curl -fsS "http://localhost:8080/index.php/%D7%A2%D7%9E%D7%95%D7%93_%D7%A8%D7%90%D7%A9%D7%99" \
-  | grep -qiE 'fatal|exception|MWException' && echo "FATAL — fix before upload" || echo "renders OK"
+docker compose -f infra/local-wiki/docker-compose.yml exec -T mediawiki \
+  php -l /mw-config/LocalSettings.shared.php
 ```
 
-A white-screen / fatal ⇒ the change is broken; fix before upload. Confirm the
-intended config change actually took effect on the local page.
+(`./config` is mounted read-only at `/mw-config` in the container.)
 
-## 4. No reliable prod drift-check — rely on master + backup
+## 3. Local verify (required)
 
-There is **no clean way to diff the server's `shared.php`**: the
-`sync-from-prod.sh localsettings` op pulls the prod **stub** `LocalSettings.php`
-(into `synced/LocalSettings.prod-snapshot.php`), not `shared.php`. So do not try
-to diff against prod. Instead trust the source-of-truth model — you are on
-latest master (step 1) — and rely on the `.bak` rollback in step 5 if prod
-misbehaves. (If a verified prod baseline is ever needed, add a `shared` mode to
-`sync-from-prod.sh` first.)
+The Docker wiki loads `env.local + shared.php`. Restart it and confirm the main
+page still renders (a fatal returns HTTP 500, which the validator catches by
+status — a body grep would miss it):
 
-## 5. STOP — hand off the manual FileZilla upload
+```bash
+docker compose -f infra/local-wiki/docker-compose.yml restart mediawiki
+bash infra/local-wiki/scripts/validate-site-ok.sh \
+  "http://localhost:8080/index.php/%D7%A2%D7%9E%D7%95%D7%93_%D7%A8%D7%90%D7%A9%D7%99"
+```
+
+Non-zero ⇒ the change is broken; fix before upload. Also confirm the intended
+config change actually took effect on the local page.
+
+## 4. STOP — hand off the manual FileZilla upload
 
 Claude does **not** write to prod. Upload `LocalSettings.shared.php` **only**:
 
@@ -65,12 +61,14 @@ Claude does **not** write to prod. Upload `LocalSettings.shared.php` **only**:
 3. **NEVER** upload or overwrite `LocalSettings.env.prod.php` (secrets) or the
    stub `LocalSettings.php` unless that specific file changed.
 
-## 6. Smoke test prod
+## 5. Smoke test prod
 
 ```bash
-curl -fsS -A "$MACCABIPEDIA_UA_SCRIPT" "https://www.maccabipedia.co.il/" \
-  | grep -qiE 'fatal|exception|MWException' && echo "PROD FATAL — restore .bak" || echo "prod OK"
+bash infra/local-wiki/scripts/validate-site-ok.sh \
+  "https://www.maccabipedia.co.il/" "$MACCABIPEDIA_UA_SCRIPT"
 ```
 
-Confirm no fatal and the config change is live. If it fatals, restore the
-`.bak-<ts>` file on the server immediately.
+Exit codes: **1** = HTTP 500 / error marker ⇒ real prod fatal, **restore the
+`.bak-<ts>` immediately**; **2** = unreachable ⇒ edge blocking automation
+(expected here), confirm in a browser; **0** = OK. Then confirm the config
+change is actually live.

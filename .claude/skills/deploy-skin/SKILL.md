@@ -14,33 +14,27 @@ Run these in order. Stop and report on any failure.
 ## 1. Sync gate — ship master, not a dirty tree
 
 ```bash
-git fetch origin
-git status --porcelain                       # must be EMPTY (clean tree)
-git rev-list --count HEAD..origin/master     # must be 0 (not behind master)
+bash infra/local-wiki/scripts/check-on-latest-master.sh
 ```
 
-If the tree is dirty → commit/merge to master via the normal PR flow first.
-If behind master → rebase/merge `origin/master` before deploying.
+Non-zero ⇒ stop: commit/merge to master via the normal PR flow (dirty tree) or
+rebase/merge `origin/master` (behind) before deploying.
 
-## 2. Version check (fail-fast)
-
-Compare the live prod skin version against the repo's. On `Special:Version`
-the skin is listed under its **display name `Maccabipedia`** (from
-`namemsg`/`skinname-maccabipedia`), not the manifest name `MaccabipediaSkin`:
+## 2. Version check — gate when readable, warn when blocked
 
 ```bash
-jq -r '.version' skins/Maccabipedia/skin.json
-curl -fsS -A "$MACCABIPEDIA_UA_SCRIPT" \
-  "https://www.maccabipedia.co.il/index.php/Special:Version" \
-  | grep -iEA2 '>Maccabipedia<'
+bash infra/local-wiki/scripts/check-prod-skin-version.sh
 ```
 
-The repo version should be **greater** than the live version. If they are
-**equal**, warn: either nothing changed or you forgot to bump (the
-`skin_version_bump` CI check enforces a bump on PRs). Do not hard-fail here.
-**If `curl` returns empty**, the prod edge is blocking the automated request
-(known behaviour) — open `Special:Version` in a browser and read the
-`Maccabipedia` skin version manually. This step is best-effort, not a gate.
+Compares the repo `skin.json` version against the live one on `Special:Version`
+(listed under display name `Maccabipedia`, from `namemsg`):
+
+- **Exit 1 (gate)** — prod is readable and the repo version is **not** strictly
+  newer (equal ⇒ nothing to deploy or you forgot to bump; the
+  `skin_version_bump` CI check enforces a bump on PRs). Stop and investigate.
+- **Exit 0** — repo is strictly newer (proceed), **or** prod was unreadable
+  (edge block) and the script warned. If it warned, confirm the live version in
+  a browser before continuing.
 
 ## 3. Static guard tests
 
@@ -66,9 +60,9 @@ uv run --with playwright pytest infra/local-wiki/tests -m integration -rs
   and silently skips without it.
 - **A skipped browser test counts as FAILURE.** Mechanical check: the `-rs`
   summary must report **`0 skipped`** (no `s` markers). Any `SKIPPED` on
-  `test_maccabipedia_interactive` means playwright/chromium is missing — install
-  it (`uv run --with playwright playwright install chromium`) and re-run. Do
-  **not** proceed to build while that test is skipped.
+  `test_maccabipedia_interactive` means chromium is missing — run the one-time
+  setup `bash infra/local-wiki/scripts/install-playwright-browser.sh` and re-run.
+  Do **not** proceed to build while that test is skipped.
 - If the wiki cannot serve (fresh machine, never set up), that is one-time
   bootstrap — see `infra/local-wiki/README.md` — **stop**, it is not part of
   this deploy.
@@ -104,14 +98,17 @@ skill if the skin-default flip is still pending on prod).
 ## 7. Post-upload verification (only after the user confirms the upload)
 
 ```bash
+bash infra/local-wiki/scripts/validate-site-ok.sh \
+  "https://www.maccabipedia.co.il/" "$MACCABIPEDIA_UA_SCRIPT"
 MACCABIPEDIA_LOCAL_URL=https://www.maccabipedia.co.il \
   uv run pytest -m integration infra/local-wiki/tests/test_maccabipedia_scaffold.py
-curl -fsS -A "$MACCABIPEDIA_UA_SCRIPT" \
-  "https://www.maccabipedia.co.il/index.php/Special:Version" | grep -iEA2 '>Maccabipedia<'
 ```
 
-- Confirm `Special:Version` now shows the **new** skin version (listed under
-  display name `Maccabipedia`). If `curl` returns empty, check it in a browser.
+- `validate-site-ok.sh` exit codes: **1** = HTTP 500 / error marker ⇒ real prod
+  fatal, treat as a failed deploy; **2** = unreachable ⇒ the edge is blocking
+  automation (expected here), confirm in a browser instead; **0** = OK.
+- Confirm `Special:Version` (browser) now shows the **new** skin version, listed
+  under display name `Maccabipedia`.
 - **CSS may look stale for up to 24h.** `load.php` style responses are sent
   `cache-control: max-age=86400` with no version param, so browser + CDN keep
   the old stylesheet. To verify immediately, hard-refresh (Ctrl/Cmd+Shift+R) or
