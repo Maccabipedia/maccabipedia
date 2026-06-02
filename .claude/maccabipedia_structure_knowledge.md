@@ -161,6 +161,20 @@ Multiple players are joined with `,\n` (comma + newline). Both `|שחקנים מ
 - `זריקות/קליעות שתי נק` — free throw attempts/made (confusingly named "two-point throws")
 - `פאולים טכני` — optional, omit entirely if zero
 
+## 10b. Basketball Competition Codes & Playoff Naming (basket.co.il)
+
+The `games_all.json` feed tags each game with a numeric `game_type`, mapped in `translations._BASKET_GAME_TYPE`:
+
+| `game_type` | Competition (`מפעל`) |
+|---|---|
+| `5` | `ליגת העל` (regular season) |
+| `16` | `ליגת העל` (championship **playoffs** — round lives in `שלב במפעל`, not in `מפעל`) |
+| `34` | `הסופרקאפ הישראלי` |
+
+Unmapped `game_type` codes raise `RuntimeError` in `discover_games_latest_season` (intentional — don't silently lose a competition). When a new code appears (e.g. a future cup), add it to `_BASKET_GAME_TYPE`.
+
+**Playoff games:** `מפעל=ליגת העל` with the round in `שלב במפעל`, e.g. `רבע גמר - משחק 1`, `חצי גמר - משחק 2`, `גמר - משחק 3`. The page title uses only the competition: `כדורסל:DD-MM-YYYY מכבי תל אביב נגד <יריבה> - ליגת העל`. basket.co.il's raw header label (`- רבע הגמר משחק מספר N`) is normalized to this convention by `crawl_basket_co_il._normalize_fixture`.
+
 ## 11. Volleyball Player Stats (`|שחקנים מכבי=` / `|שחקנים יריבה=`)
 
 Volleyball game pages use template `משחק כדורעף`. Player data is a `::` delimited row per player:
