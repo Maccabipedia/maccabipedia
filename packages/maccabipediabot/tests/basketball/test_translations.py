@@ -41,6 +41,7 @@ def test_normalize_player_name_strips_trailing_junior_suffix():
 
 @pytest.mark.parametrize("code, expected", [
     (5, "ליגת העל"),
+    (16, "ליגת העל"),          # ליגת העל playoff stage (round lives in the fixture)
     (34, "הסופרקאפ הישראלי"),
     (999, None),
 ])

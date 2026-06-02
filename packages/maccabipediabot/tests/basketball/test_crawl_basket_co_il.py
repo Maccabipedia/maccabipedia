@@ -10,6 +10,8 @@ from maccabipediabot.basketball.basketball_game import BasketballGame
 from maccabipediabot.basketball._crawler_utils import write_unknown_teams_report
 from maccabipediabot.basketball.crawl_basket_co_il import (
     UnknownTeamNameError,
+    _normalize_fixture,
+    _parse_header,
     _parse_player_rows,
     discover_games_latest_season,
     parse_game_page,
@@ -95,6 +97,35 @@ def test_parse_player_rows_preserves_jersey_number(cell0, expected_number):
     players = _parse_player_rows(table)
     assert len(players) == 1
     assert players[0].number == expected_number
+
+
+@pytest.mark.parametrize("raw, expected", [
+    # basket.co.il playoff legs -> wiki convention "<round> - משחק N"
+    ("- רבע הגמר משחק מספר 1", "רבע גמר - משחק 1"),
+    ("- חצי הגמר משחק מספר 2", "חצי גמר - משחק 2"),
+    ("- הגמר משחק מספר 3", "גמר - משחק 3"),
+    # regular season and anything unrecognised pass through untouched
+    ("מחזור 26", "מחזור 26"),
+    ("", ""),
+])
+def test_normalize_fixture(raw, expected):
+    assert _normalize_fixture(raw) == expected
+
+
+def _header_html(h4_inner: str) -> str:
+    """Minimal #wrap_inner_3 carrying just the h4 fixture line."""
+    return (f'<div id="wrap_inner_3"><h4 class="he">{h4_inner}</h4>'
+            f'<h5>אולם, עיר</h5><h6></h6></div>')
+
+
+@pytest.mark.parametrize("h4_inner, expected_fixture", [
+    # mirrors the real basket.co.il h4: text "ליגת <logo> סל <fixture>"
+    ('ליגת <img src="x"/> סל מחזור 26', "מחזור 26"),
+    ('ליגת <img src="x"/> סל - רבע הגמר משחק מספר 1', "רבע גמר - משחק 1"),
+])
+def test_parse_header_normalizes_playoff_fixture(h4_inner, expected_fixture):
+    soup = BeautifulSoup(_header_html(h4_inner), "html.parser")
+    assert _parse_header(soup)["fixture"] == expected_fixture
 
 
 def test_parse_game_page_raises_when_header_missing():
