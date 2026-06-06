@@ -29,11 +29,12 @@ URL="${1:?usage: validate-site-ok.sh <url>}"
 body="$(mktemp)"
 trap 'rm -f "$body"' EXIT
 
-# Deliberately NOT using curl -f: we want the body + status even on HTTP 500 so
-# we can tell a fatal (500) apart from an unreachable host (no response). curl's
-# -w already prints "000" when there is no response, so `|| true` (not an extra
-# echo) keeps set -e happy without doubling the status.
-status="$(curl -sS -o "$body" -w '%{http_code}' "$URL" 2>/dev/null || true)"
+# -L follows redirects: the wiki root 301-redirects to the main article, so we
+# want the FINAL status/body, not the 301. Deliberately NOT using curl -f: we
+# want the body + status even on HTTP 500 so we can tell a fatal (500) apart from
+# an unreachable host (no response). curl's -w already prints "000" when there is
+# no response, so `|| true` (not an extra echo) keeps set -e happy.
+status="$(curl -sSL -o "$body" -w '%{http_code}' "$URL" 2>/dev/null || true)"
 status="${status:-000}"
 
 if [ "$status" = "000" ]; then
