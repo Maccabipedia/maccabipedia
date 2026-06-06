@@ -163,15 +163,14 @@ Multiple players are joined with `,\n` (comma + newline). Both `|שחקנים מ
 
 ## 10b. Basketball Competition Codes & Playoff Naming (basket.co.il)
 
-The `games_all.json` feed tags each game with a numeric `game_type`, mapped in `translations._BASKET_GAME_TYPE`:
+The `games_all.json` feed tags each game with a numeric `game_type`. Only **stable, single-meaning** codes are mapped in `translations._BASKET_GAME_TYPE`:
 
 | `game_type` | Competition (`מפעל`) |
 |---|---|
 | `5` | `ליגת העל` (regular season) |
-| `16` | `ליגת העל` (championship **playoffs** — round lives in `שלב במפעל`, not in `מפעל`) |
 | `34` | `הסופרקאפ הישראלי` |
 
-Unmapped `game_type` codes raise `RuntimeError` in `discover_games_latest_season` (intentional — don't silently lose a competition). When a new code appears (e.g. a future cup), add it to `_BASKET_GAME_TYPE`.
+**Playoffs are NOT keyed off the code.** Each playoff round gets its own `game_type` (observed: `16`=רבע גמר, `26`=חצי גמר, the final is yet another), so enumerating them is whack-a-mole. Instead, when a code isn't in the map, `discover_games_latest_season` recovers the competition from the **game page header** via `crawl_basket_co_il._competition_from_game_page`: the top-league h4 reads `ליגת <sponsor logo> סל …`, so once the logo `<img>` is dropped the tokens `ליגת סל` sit adjacent → `ליגת העל`. This positively identifies the top division across every round while excluding cups (`גביע … סל`) and the second tier (`ליגת לאומית בכדורסל`), and handles all current and future ליגת העל playoff rounds with no code maintenance. Only if both the code is unmapped **and** the header is unrecognised (e.g. a brand-new cup) does discovery raise — preserving the fail-loud-don't-silently-lose-a-competition guarantee at the competition level. To support a genuinely new competition (a cup), extend `_competition_from_game_page` (or add a stable code to `_BASKET_GAME_TYPE`).
 
 **Playoff games:** `מפעל=ליגת העל` with the round in `שלב במפעל`, e.g. `רבע גמר - משחק 1`, `חצי גמר - משחק 2`, `גמר - משחק 3`. The page title uses only the competition: `כדורסל:DD-MM-YYYY מכבי תל אביב נגד <יריבה> - ליגת העל`. basket.co.il's raw header label (`- רבע הגמר משחק מספר N`) is normalized to this convention by `crawl_basket_co_il._normalize_fixture`.
 
