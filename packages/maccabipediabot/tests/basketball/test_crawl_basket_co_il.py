@@ -10,6 +10,9 @@ from maccabipediabot.basketball.basketball_game import BasketballGame
 from maccabipediabot.basketball._crawler_utils import write_unknown_teams_report
 from maccabipediabot.basketball.crawl_basket_co_il import (
     UnknownTeamNameError,
+    _competition_from_game_page,
+    _normalize_fixture,
+    _parse_header,
     _parse_player_rows,
     discover_games_latest_season,
     parse_game_page,
@@ -97,6 +100,41 @@ def test_parse_player_rows_preserves_jersey_number(cell0, expected_number):
     assert players[0].number == expected_number
 
 
+@pytest.mark.parametrize("raw, expected", [
+    # basket.co.il playoff legs -> wiki convention "<round> - משחק N".
+    # Wording varies by round: QF "רבע הגמר", SF "סדרת חצי גמר", final "סדרת הגמר";
+    # number is sometimes "משחק מספר N", sometimes "משחק N".
+    ("- רבע הגמר משחק מספר 1", "רבע גמר - משחק 1"),
+    ("- סדרת חצי גמר משחק מספר 2", "חצי גמר - משחק 2"),
+    ("- סדרת הגמר משחק מספר 3", "גמר - משחק 3"),
+    ("- הגמר משחק 4", "גמר - משחק 4"),
+    # regular season and anything unrecognised pass through untouched
+    ("מחזור 26", "מחזור 26"),
+    ("גמר", "גמר"),                          # round without a game number -> unchanged
+    ("פלייאאוט משחק מספר 1", "פלייאאוט משחק מספר 1"),  # numbered leg, no recognised round -> unchanged (not guessed as final)
+    ("", ""),
+])
+def test_normalize_fixture(raw, expected):
+    assert _normalize_fixture(raw) == expected
+
+
+def _header_html(h4_inner: str) -> str:
+    """Minimal #wrap_inner_3 carrying just the h4 fixture line."""
+    return (f'<div id="wrap_inner_3"><h4 class="he">{h4_inner}</h4>'
+            f'<h5>אולם, עיר</h5><h6></h6></div>')
+
+
+@pytest.mark.parametrize("h4_inner, expected_fixture", [
+    # mirrors the real basket.co.il h4: text "ליגת <logo> סל <fixture>"
+    ('ליגת <img src="x"/> סל מחזור 26', "מחזור 26"),
+    ('ליגת <img src="x"/> סל - רבע הגמר משחק מספר 1', "רבע גמר - משחק 1"),
+    ('ליגת <img src="x"/> סל - סדרת חצי גמר משחק מספר 1', "חצי גמר - משחק 1"),
+])
+def test_parse_header_normalizes_playoff_fixture(h4_inner, expected_fixture):
+    soup = BeautifulSoup(_header_html(h4_inner), "html.parser")
+    assert _parse_header(soup)["fixture"] == expected_fixture
+
+
 def test_parse_game_page_raises_when_header_missing():
     with pytest.raises(RuntimeError, match="#wrap_inner_3"):
         parse_game_page("<html><body>maintenance page</body></html>", _partial_game())
@@ -124,15 +162,30 @@ def test_parse_game_page_raises_when_box_score_tables_missing():
 # Discovery (synthetic feed via monkeypatched requests.get)
 # ---------------------------------------------------------------------------
 
-def _stub_feed(monkeypatch, games: list[dict]) -> None:
-    payload = [{"games": games}]
+def _stub_feed(monkeypatch, games: list[dict], game_page_html: str = "<html></html>") -> None:
+    """Route requests.get: the games_all feed URL returns the JSON payload; any
+    game-zone page URL returns `game_page_html` (used by the unknown-game_type
+    competition fallback)."""
+    feed_bytes = json.dumps([{"games": games}]).encode("utf-8")
+
     class _Resp:
-        status_code = 200
-        headers = {"Content-Type": "text/html"}
-        content = json.dumps(payload).encode("utf-8")
-        text = "stub"
+        def __init__(self, *, content=b"", text=""):
+            self.status_code = 200
+            self.headers = {"Content-Type": "text/html"}
+            self.content = content
+            self.text = text
+            self.encoding = "utf-8"
+
+        def raise_for_status(self):
+            pass
+
+    def _fake_get(url, *args, **kwargs):
+        if "games_all" in url:
+            return _Resp(content=feed_bytes)
+        return _Resp(text=game_page_html)
+
     from maccabipediabot.basketball import crawl_basket_co_il
-    monkeypatch.setattr(crawl_basket_co_il.requests, "get", lambda *a, **kw: _Resp())
+    monkeypatch.setattr(crawl_basket_co_il.requests, "get", _fake_get)
 
 
 def _maccabi_game(**overrides) -> dict:
@@ -157,10 +210,44 @@ def test_discover_filters_score_edge_cases(monkeypatch):
     assert surviving_ids == {2, 3}
 
 
-def test_discover_raises_on_unknown_game_type(monkeypatch):
-    """Unknown game_type codes must raise so we don't silently lose a competition."""
-    _stub_feed(monkeypatch, [_maccabi_game(id=1, game_type=999)])
-    with pytest.raises(RuntimeError, match="unknown game_type"):
+@pytest.mark.parametrize("h4_inner, expected", [
+    ("ליגת סל מחזור 26", "ליגת העל"),                 # regular season
+    ("ליגת סל - סדרת חצי גמר משחק מספר 1", "ליגת העל"),  # any playoff round
+    # real header has the sponsor logo as an <img> between "ליגת" and "סל"
+    ('ליגת <img src="x"/> סל - רבע הגמר משחק מספר 1', "ליגת העל"),
+    ("גביע ווינר סל - רבע גמר", None),                # a cup -> unrecognised, fail loud
+    ("ליגת לאומית בכדורסל - מחזור 5", None),          # 2nd-tier league must NOT match top league
+    ("", None),
+])
+def test_competition_from_game_page(h4_inner, expected):
+    html = f'<div id="wrap_inner_3"><h4 class="he">{h4_inner}</h4></div>'
+    assert _competition_from_game_page(html) == expected
+
+
+def test_discover_does_not_fetch_page_for_stable_code(monkeypatch):
+    """Regular-season games (code 5) resolve from the map and must NOT fetch the
+    game page — a garbage page that would yield no competition proves the short-circuit."""
+    _stub_feed(monkeypatch, [_maccabi_game(id=1, game_type=5)],
+               game_page_html="<html>not a league header</html>")
+    discovered = discover_games_latest_season()
+    assert [g.competition for g in discovered] == ["ליגת העל"]
+
+
+def test_discover_derives_competition_from_page_for_unknown_game_type(monkeypatch):
+    """A playoff round has its own game_type code (not in _BASKET_GAME_TYPE); the
+    competition is recovered from the game page header rather than failing."""
+    league_page = '<div id="wrap_inner_3"><h4>ליגת סל - סדרת חצי גמר משחק מספר 1</h4></div>'
+    _stub_feed(monkeypatch, [_maccabi_game(id=1, game_type=26)], game_page_html=league_page)
+    discovered = discover_games_latest_season()
+    assert [g.competition for g in discovered] == ["ליגת העל"]
+
+
+def test_discover_raises_when_competition_unresolvable(monkeypatch):
+    """Unknown game_type AND a page header we don't recognise (e.g. a brand-new
+    competition) must raise so we don't silently lose it."""
+    _stub_feed(monkeypatch, [_maccabi_game(id=1, game_type=999)],
+               game_page_html="<html>maintenance</html>")
+    with pytest.raises(RuntimeError, match="could not resolve competition"):
         discover_games_latest_season()
 
 
