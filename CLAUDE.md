@@ -85,7 +85,7 @@ Every tool call result stays in context forever. Keep all outputs small:
 - **Subagent results**: any Agent call should write its output to `.claude/tmp/` and return a brief summary — not the full analysis inline.
 - **Write vs Edit**: never use Write to modify an existing file — Edit sends only the diff. Only use Write for new files, and avoid writing files larger than ~100 lines in one shot; break them up.
 - **Bash outputs**: if a script produces more than ~50 lines, redirect verbose output to a temp file and print only the final result.
-- **Trello MCP**: never call `get_cards_by_list_id` — it returns full JSON for every card (~40K chars). Use `get_card` on specific card IDs only.
+- **Trello reads vs writes**: writes use the MCP (`add_card`, `add_comment`, `move_card`, …); reads use the `.claude/scripts/trello_*.py` helpers, never the MCP read tools. MCP output can't be redirected to a file, so `get_cards_by_list_id`/`get_card` dump full card JSON (~40K chars) straight into context. The scripts save full JSON to `.claude/tmp/` and print a trimmed view. See `.claude/trello.md`.
 - **Knowledge files** (`.claude/*.md`): never Read the whole file. Use Grep to find the relevant section, then Read only those lines.
 
 ## 7. Reference Files
@@ -94,3 +94,4 @@ Every tool call result stays in context forever. Keep all outputs small:
 - `.claude/maccabistats_knowledge.md` — maccabistats Python package API reference
 - `.claude/maccabipedia_youtube_channel.md` — MaccabiPedia YouTube channel conventions + Google Drive backup layout (used by `restore_deleted_football_video`)
 - Prod deploys → the `deploy-skin` and `deploy-localsettings` skills (`.claude/skills/`). Skin = `skins/Maccabipedia/` via snapshot + manual FileZilla upload; LocalSettings = `infra/local-wiki/config/LocalSettings.shared.php` only (never `env.prod.php`). FTP creds in `infra/local-wiki/.env`.
+- `.claude/trello.md` — Trello convention: reads via `.claude/scripts/trello_*.py` (save full JSON to tmp, print trimmed), writes via the MCP; why; how to find list/board IDs
