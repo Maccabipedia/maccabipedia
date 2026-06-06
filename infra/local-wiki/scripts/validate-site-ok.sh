@@ -11,18 +11,20 @@
 #     body -> the BODY GREP catches it (status alone would miss it).
 # Neither check is secondary.
 #
-# Usage: bash validate-site-ok.sh <url> [user-agent]
-#   <url>         page to fetch
-#   [user-agent]  optional UA; prod's edge blocks bare requests, so for prod pass
-#                 "$MACCABIPEDIA_UA_SCRIPT"
+# Usage: bash validate-site-ok.sh <url>
+#   <url>  page to fetch
+#
+# No User-Agent is set: curl's default UA already satisfies MediaWiki's UA
+# policy, and prod's edge block is IP-based (a custom UA does not bypass it), so
+# passing $MACCABIPEDIA_UA_SCRIPT here added nothing. That env var is for
+# pywikibot/API bot calls, not for reading public pages.
 #
 # Exit: 0 = OK (HTTP 200, no error markers)
 #       1 = rendered but broken (non-200, or 200 with a PHP error marker)
 #       2 = unreachable (no response — network down or edge block)
 set -euo pipefail
 
-URL="${1:?usage: validate-site-ok.sh <url> [user-agent]}"
-UA="${2:-}"
+URL="${1:?usage: validate-site-ok.sh <url>}"
 
 body="$(mktemp)"
 trap 'rm -f "$body"' EXIT
@@ -31,7 +33,7 @@ trap 'rm -f "$body"' EXIT
 # we can tell a fatal (500) apart from an unreachable host (no response). curl's
 # -w already prints "000" when there is no response, so `|| true` (not an extra
 # echo) keeps set -e happy without doubling the status.
-status="$(curl -sS ${UA:+-A "$UA"} -o "$body" -w '%{http_code}' "$URL" 2>/dev/null || true)"
+status="$(curl -sS -o "$body" -w '%{http_code}' "$URL" 2>/dev/null || true)"
 status="${status:-000}"
 
 if [ "$status" = "000" ]; then

@@ -39,21 +39,25 @@ docker run --rm --entrypoint php \
 
 ## 3. Local verify (required)
 
-The Docker wiki loads `env.local + shared.php`. Restart it and confirm the main
-page still renders. `validate-site-ok.sh` catches a fatal **whichever way it
-surfaces** — HTTP 500 (prod-style, `display_errors` off) or HTTP 200 with an
-error in the body (local dev, `display_errors` on); a status-only check would
-miss the latter:
+Restart the wiki so it reloads the config, then confirm the site renders.
+`validate-site-ok.sh` catches a fatal **whichever way it surfaces** — HTTP 500
+(prod-style, `display_errors` off) or HTTP 200 with an error in the body (local
+dev, `display_errors` on); a status-only check would miss the latter. Hit the
+root (same path style as prod — no `index.php`):
 
 ```bash
 docker compose -f infra/local-wiki/docker-compose.yml up -d
 docker compose -f infra/local-wiki/docker-compose.yml restart mediawiki
-bash infra/local-wiki/scripts/validate-site-ok.sh \
-  "http://localhost:8080/index.php/%D7%A2%D7%9E%D7%95%D7%93_%D7%A8%D7%90%D7%A9%D7%99"
+bash infra/local-wiki/scripts/validate-site-ok.sh "http://localhost:8080/"
 ```
 
-Non-zero ⇒ the change is broken; fix before upload. Also confirm the intended
-config change actually took effect on the local page.
+Non-zero ⇒ the change broke the site; fix before upload.
+
+**A loading main page only proves there is no site-wide fatal — it is not the
+whole check.** Also verify the *specific* change took effect, which is
+change-dependent, e.g.: a skin/`$wgDefaultSkin` flip → the new skin renders; an
+extension enable → its `Special:` page loads and `Special:Version` lists it; a
+permission/setting change → exercise the exact behavior it governs.
 
 ## 4. STOP — hand off the manual FileZilla upload
 
@@ -69,8 +73,7 @@ Claude does **not** write to prod. Upload `LocalSettings.shared.php` **only**:
 ## 5. Smoke test prod
 
 ```bash
-bash infra/local-wiki/scripts/validate-site-ok.sh \
-  "https://www.maccabipedia.co.il/" "$MACCABIPEDIA_UA_SCRIPT"
+bash infra/local-wiki/scripts/validate-site-ok.sh "https://www.maccabipedia.co.il/"
 ```
 
 Exit codes: **1** = HTTP 500 / error marker ⇒ real prod fatal, **restore the

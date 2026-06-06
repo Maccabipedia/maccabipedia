@@ -98,8 +98,7 @@ skill if the skin-default flip is still pending on prod).
 ## 7. Post-upload verification (only after the user confirms the upload)
 
 ```bash
-bash infra/local-wiki/scripts/validate-site-ok.sh \
-  "https://www.maccabipedia.co.il/" "$MACCABIPEDIA_UA_SCRIPT"
+bash infra/local-wiki/scripts/validate-site-ok.sh "https://www.maccabipedia.co.il/"
 MACCABIPEDIA_LOCAL_URL=https://www.maccabipedia.co.il \
   uv run pytest -m integration infra/local-wiki/tests/test_maccabipedia_scaffold.py
 ```

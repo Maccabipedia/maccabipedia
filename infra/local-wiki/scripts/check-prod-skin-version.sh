@@ -12,7 +12,8 @@
 #   - prod unreadable (edge block / unparseable)         -> exit 0 (warn only)
 #
 # Usage: bash check-prod-skin-version.sh
-#   Reads UA from $MACCABIPEDIA_UA_SCRIPT (prod edge blocks bare requests).
+#   No UA needed: curl's default UA satisfies MediaWiki's UA policy, and prod's
+#   edge block (when it triggers) is IP-based, not UA-based.
 set -euo pipefail
 
 SKIN_JSON="skins/Maccabipedia/skin.json"
@@ -20,7 +21,7 @@ URL="https://www.maccabipedia.co.il/index.php/Special:Version"
 
 repo_version="$(jq -r '.version' "$SKIN_JSON")"
 
-html="$(curl -sS -A "${MACCABIPEDIA_UA_SCRIPT:-}" "$URL" 2>/dev/null || true)"
+html="$(curl -sS "$URL" 2>/dev/null || true)"
 if [ -z "$html" ]; then
     echo "WARN: could not read $URL (empty response — prod edge likely blocking automation)."
     echo "      Verify the live skin version in a browser. Repo version: $repo_version. Proceeding."
