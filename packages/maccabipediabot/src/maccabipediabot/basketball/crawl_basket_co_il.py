@@ -38,6 +38,27 @@ MACCABI_TEAM_NAME_ENG = "Maccabi Tel-Aviv"
 MAX_CONNECTIONS = 100
 
 
+# basket.co.il labels a playoff leg "- רבע הגמר משחק מספר 1"; the wiki convention
+# (see existing ליגת העל playoff pages) is "רבע גמר - משחק 1".
+_PLAYOFF_ROUND_NAMES = {
+    "רבע ה": "רבע גמר",
+    "חצי ה": "חצי גמר",
+    "ה": "גמר",
+}
+_PLAYOFF_FIXTURE_RE = re.compile(
+    r"^-?\s*(רבע ה|חצי ה|ה)גמר\s+משחק מספר\s+(\d+)\s*$"
+)
+
+
+def _normalize_fixture(fixture: str) -> str:
+    """Map a basket.co.il playoff leg to the wiki convention "<round> - משחק N".
+    Regular-season "מחזור N" (and any unrecognised label) is returned unchanged."""
+    match = _PLAYOFF_FIXTURE_RE.match(fixture)
+    if not match:
+        return fixture
+    return f"{_PLAYOFF_ROUND_NAMES[match.group(1)]} - משחק {match.group(2)}"
+
+
 def parse_game_page(html: str, partial_game: BasketballGame) -> BasketballGame:
     """Enrich a partially-built BasketballGame (from discovery) with per-game data.
 
@@ -97,7 +118,7 @@ def _parse_header(soup: BeautifulSoup) -> dict:
         if img and img.next_sibling:
             sibling_text = (img.next_sibling.get_text() if hasattr(img.next_sibling, "get_text")
                             else str(img.next_sibling))
-            fixture = sibling_text.strip().replace("סל", "").strip()
+            fixture = _normalize_fixture(sibling_text.strip().replace("סל", "").strip())
 
     h5 = container.select_one("h5")
     stadium = ""

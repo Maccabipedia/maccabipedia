@@ -441,6 +441,7 @@ _PLAYER_NAME_NORMALIZE: dict[str, str] = {
 
 _BASKET_GAME_TYPE: dict[int, str] = {
     5: "ליגת העל",
+    16: "ליגת העל",          # ליגת העל playoff; the round (רבע גמר וכו') lives in the fixture
     34: "הסופרקאפ הישראלי",
 }
 
