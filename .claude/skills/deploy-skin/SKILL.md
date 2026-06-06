@@ -36,6 +36,12 @@ Compares the repo `skin.json` version against the live one on `Special:Version`
   (edge block) and the script warned. If it warned, confirm the live version in
   a browser before continuing.
 
+**The bump is also your only witness that the deploy landed.** `Special:Version`
+is how step 7 confirms prod is serving the new bytes. If you skip the bump,
+step 7 degrades to "the site still works" — it cannot prove your change is
+live (and a change with no visible effect, e.g. a LESS comment that
+ResourceLoader minifies away, leaves nothing to check at all). Do not skip it.
+
 ## 3. Static guard tests
 
 ```bash
@@ -79,6 +85,12 @@ Never pipe this command to `/dev/null` or summarize it away; print the literal
 `Local snapshot: …/Maccabipedia` line. On WSL, pass a `/mnt/c/...` base so
 FileZilla on Windows can see it.
 
+**The snapshot is your WORKING TREE (`cp -a`), not a git archive** — whatever is
+on disk ships, including uncommitted/untracked edits. That is precisely why
+step 1 gates on clean + on-master: skip it and you can upload bytes that exist
+in no commit, leaving no record of what prod is running. Deploy committed,
+merged state — not a dirty tree.
+
 ## 6. STOP — hand off the manual FileZilla upload
 
 Claude does **not** write to prod. Give the user the atomic-rename steps:
@@ -110,7 +122,10 @@ MACCABIPEDIA_LOCAL_URL=https://www.maccabipedia.co.il \
   fatal, treat as a failed deploy; **2** = unreachable ⇒ the edge is blocking
   automation (expected here), confirm in a browser instead; **0** = OK.
 - Confirm `Special:Version` (browser) now shows the **new** skin version, listed
-  under display name `Maccabipedia`.
+  under display name `Maccabipedia`. **This is the positive proof the swap took.**
+  Without a version bump there is nothing to witness here — you can only conclude
+  "prod still works," not "my bytes are live." State that limitation honestly
+  rather than implying the deploy is confirmed.
 - **CSS may look stale for up to 24h.** `load.php` style responses are sent
   `cache-control: max-age=86400` with no version param, so browser + CDN keep
   the old stylesheet. To verify immediately, hard-refresh (Ctrl/Cmd+Shift+R) or
