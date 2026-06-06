@@ -38,25 +38,42 @@ MACCABI_TEAM_NAME_ENG = "Maccabi Tel-Aviv"
 MAX_CONNECTIONS = 100
 
 
-# basket.co.il labels a playoff leg "- רבע הגמר משחק מספר 1"; the wiki convention
-# (see existing ליגת העל playoff pages) is "רבע גמר - משחק 1".
-_PLAYOFF_ROUND_NAMES = {
-    "רבע ה": "רבע גמר",
-    "חצי ה": "חצי גמר",
-    "ה": "גמר",
-}
-_PLAYOFF_FIXTURE_RE = re.compile(
-    r"^-?\s*(רבע ה|חצי ה|ה)גמר\s+משחק מספר\s+(\d+)\s*$"
-)
+# basket.co.il labels a playoff leg with varying wording per round — e.g.
+# "- רבע הגמר משחק מספר 1" (QF), "- סדרת חצי גמר משחק מספר 1" (SF),
+# "- סדרת הגמר משחק 1" (final). The wiki convention is "<round> - משחק N"
+# (see existing ליגת העל playoff pages). We classify the round by keyword and
+# rebuild the label, so new phrasings ("סדרת", with/without ה, "מספר") still map.
+_PLAYOFF_GAME_NUMBER_RE = re.compile(r"משחק(?:\s+מספר)?\s+(\d+)")
+
+
+def _competition_from_game_page(html: str) -> str | None:
+    """Recover the competition from a game-zone page header when the feed's
+    game_type code isn't mapped (e.g. a playoff round, which gets a fresh code
+    each stage). The league header reads "ליגת ... סל ..." across every round;
+    cups read "גביע ...". Returns the canonical competition, or None if the
+    header names a competition we don't recognise (caller then fails loud)."""
+    soup = BeautifulSoup(html, "html.parser")
+    header = soup.select_one("#wrap_inner_3 h4")
+    h4_text = header.get_text(" ", strip=True) if header else ""
+    if "ליגת" in h4_text and "סל" in h4_text:
+        return "ליגת העל"
+    return None
 
 
 def _normalize_fixture(fixture: str) -> str:
     """Map a basket.co.il playoff leg to the wiki convention "<round> - משחק N".
-    Regular-season "מחזור N" (and any unrecognised label) is returned unchanged."""
-    match = _PLAYOFF_FIXTURE_RE.match(fixture)
-    if not match:
+    Only legs that name a round (...גמר) *and* a game number are rewritten;
+    regular-season "מחזור N" and anything else are returned unchanged."""
+    number_match = _PLAYOFF_GAME_NUMBER_RE.search(fixture)
+    if "גמר" not in fixture or number_match is None:
         return fixture
-    return f"{_PLAYOFF_ROUND_NAMES[match.group(1)]} - משחק {match.group(2)}"
+    if "רבע" in fixture:
+        round_name = "רבע גמר"
+    elif "חצי" in fixture:
+        round_name = "חצי גמר"
+    else:
+        round_name = "גמר"
+    return f"{round_name} - משחק {number_match.group(1)}"
 
 
 def parse_game_page(html: str, partial_game: BasketballGame) -> BasketballGame:
@@ -474,7 +491,11 @@ def discover_games_latest_season(limit: int | None = None) -> list[BasketballGam
         home_team = team_name_to_hebrew(raw_home)
         away_team = team_name_to_hebrew(raw_away)
 
-        competition = basket_co_il_competition_name(game["game_type"])
+        game_page_url = GAME_PAGE_URL_TEMPLATE.format(game_id=game["id"])
+        # Stable codes resolve from the map; playoff rounds (each a different code)
+        # fall back to the competition named in the game page header.
+        competition = (basket_co_il_competition_name(game["game_type"])
+                       or _competition_from_game_page(fetch_game_html(game_page_url)))
         if not competition:
             unknown_competition_games.append(
                 {"id": game.get("id"), "game_type": game.get("game_type"),
@@ -490,13 +511,14 @@ def discover_games_latest_season(limit: int | None = None) -> list[BasketballGam
             game_date=game_dt,
             home_team_score=int(game["score_team1"]),
             away_team_score=int(game["score_team2"]),
-            game_url=[GAME_PAGE_URL_TEMPLATE.format(game_id=game["id"])],
+            game_url=[game_page_url],
         ))
     if unknown_competition_games:
         raise RuntimeError(
-            "basket.co.il discovery encountered games with unknown game_type codes; "
-            "extend translations._BASKET_GAME_TYPE before re-running. "
-            f"Affected games: {unknown_competition_games}"
+            "basket.co.il discovery could not resolve competition for some games "
+            "(unknown game_type and unrecognised page header). Extend "
+            "translations._BASKET_GAME_TYPE or _competition_from_game_page before "
+            f"re-running. Affected games: {unknown_competition_games}"
         )
     if unmapped_team_games:
         raise UnknownTeamNameError(unmapped_team_games)
