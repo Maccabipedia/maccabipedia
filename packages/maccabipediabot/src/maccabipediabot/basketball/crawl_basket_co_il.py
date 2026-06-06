@@ -49,13 +49,15 @@ _PLAYOFF_GAME_NUMBER_RE = re.compile(r"משחק(?:\s+מספר)?\s+(\d+)")
 def _competition_from_game_page(html: str) -> str | None:
     """Recover the competition from a game-zone page header when the feed's
     game_type code isn't mapped (e.g. a playoff round, which gets a fresh code
-    each stage). The league header reads "ליגת ... סל ..." across every round;
-    cups read "גביע ...". Returns the canonical competition, or None if the
-    header names a competition we don't recognise (caller then fails loud)."""
+    each stage). The top-league header reads "ליגת <sponsor logo> סל ..." — once
+    the logo <img> is dropped, the tokens "ליגת סל" sit adjacent, which positively
+    identifies the top division across every round and excludes both cups
+    ("גביע ... סל") and the second tier ("ליגת לאומית בכדורסל"). Anything else
+    returns None so the caller fails loud rather than mislabeling a page."""
     soup = BeautifulSoup(html, "html.parser")
     header = soup.select_one("#wrap_inner_3 h4")
-    h4_text = header.get_text(" ", strip=True) if header else ""
-    if "ליגת" in h4_text and "סל" in h4_text:
+    h4_text = re.sub(r"\s+", " ", header.get_text(" ", strip=True)) if header else ""
+    if "ליגת סל" in h4_text:
         return "ליגת העל"
     return None
 
@@ -72,6 +74,8 @@ def _normalize_fixture(fixture: str) -> str:
     elif "חצי" in fixture:
         round_name = "חצי גמר"
     else:
+        # ליגת העל playoffs are an 8-team bracket: רבע גמר -> חצי גמר -> גמר.
+        # Any other ...גמר leg is the final.
         round_name = "גמר"
     return f"{round_name} - משחק {number_match.group(1)}"
 
