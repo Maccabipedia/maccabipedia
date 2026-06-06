@@ -210,19 +210,17 @@ def test_discover_filters_score_edge_cases(monkeypatch):
     assert surviving_ids == {2, 3}
 
 
-_SITE = "מנהלת ליגת העל בכדורסל | כדורסל ישראלי"   # constant title prefix (note: contains "ליגת העל")
-
-
-@pytest.mark.parametrize("title, expected", [
-    (f"{_SITE} | ליגת Winner סל, מחזור 26: מכבי ת\"א נגד בני הרצליה", "ליגת העל"),       # regular
-    (f"{_SITE} | ליגת Winner סל - רבע הגמר, משחק מספר 1: מכבי ת\"א נגד הפועל ב\"ש", "ליגת העל"),  # playoff
-    (f"{_SITE} | גביע ווינר סל - רבע גמר: ...", None),     # a cup -> fail loud
-    (f"{_SITE} | ליגה לאומית בכדורסל, מחזור 5: ...", None),  # 2nd tier -> fail loud
-    (_SITE, None),                                          # site name alone ("ליגת העל") must NOT match
+@pytest.mark.parametrize("h4_inner, expected", [
+    ("ליגת סל מחזור 26", "ליגת העל"),                 # regular season
+    ("ליגת סל - סדרת חצי גמר משחק מספר 1", "ליגת העל"),  # any playoff round
+    # real header has the sponsor logo as an <img> between "ליגת" and "סל"
+    ('ליגת <img src="x"/> סל - רבע הגמר משחק מספר 1', "ליגת העל"),
+    ("גביע ווינר סל - רבע גמר", None),                # a cup -> unrecognised, fail loud
+    ("ליגת לאומית בכדורסל - מחזור 5", None),          # 2nd-tier league must NOT match top league
     ("", None),
 ])
-def test_competition_from_game_page(title, expected):
-    html = f"<html><head><title>{title}</title></head><body></body></html>"
+def test_competition_from_game_page(h4_inner, expected):
+    html = f'<div id="wrap_inner_3"><h4 class="he">{h4_inner}</h4></div>'
     assert _competition_from_game_page(html) == expected
 
 
@@ -238,7 +236,7 @@ def test_discover_does_not_fetch_page_for_stable_code(monkeypatch):
 def test_discover_derives_competition_from_page_for_unknown_game_type(monkeypatch):
     """A playoff round has its own game_type code (not in _BASKET_GAME_TYPE); the
     competition is recovered from the game page header rather than failing."""
-    league_page = "<html><head><title>מנהלת ליגת העל בכדורסל | ליגת Winner סל - סדרת חצי גמר, משחק מספר 1</title></head></html>"
+    league_page = '<div id="wrap_inner_3"><h4>ליגת סל - סדרת חצי גמר משחק מספר 1</h4></div>'
     _stub_feed(monkeypatch, [_maccabi_game(id=1, game_type=26)], game_page_html=league_page)
     discovered = discover_games_latest_season()
     assert [g.competition for g in discovered] == ["ליגת העל"]

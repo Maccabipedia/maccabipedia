@@ -56,18 +56,17 @@ _PLAYOFF_ROUND_NAMES = {
 
 
 def _competition_from_game_page(html: str) -> str | None:
-    """Recover the competition from a game-zone page when the feed's game_type
-    code isn't mapped (e.g. a playoff round, which gets a fresh code each stage).
-    The page <title> carries the full competition name — COMPETITION_NAME
-    ("ליגת Winner סל") for every top-league round — whereas cups ("גביע ...") and
-    the second tier ("ליגה לאומית") carry a different name. Matching the full name
-    (not a substring) cleanly identifies the top division; anything else returns
-    None so the caller fails loud rather than mislabeling a page.
-    Note: the h4 header can't be used — its sponsor name is a logo <img>, so its
-    text is only "ליגת ... סל" without the "Winner" that disambiguates the tier."""
+    """Recover the competition from a game-zone page header when the feed's
+    game_type code isn't mapped (e.g. a playoff round, which gets a fresh code
+    each stage). The top-league header reads "ליגת <sponsor logo> סל ..." — once
+    the logo <img> is dropped, the tokens "ליגת סל" sit adjacent, which positively
+    identifies the top division across every round and excludes both cups
+    ("גביע ... סל") and the second tier ("ליגת לאומית בכדורסל"). Anything else
+    returns None so the caller fails loud rather than mislabeling a page."""
     soup = BeautifulSoup(html, "html.parser")
-    title = soup.title.get_text(" ", strip=True) if soup.title else ""
-    if COMPETITION_NAME in title:
+    header = soup.select_one("#wrap_inner_3 h4")
+    h4_text = re.sub(r"\s+", " ", header.get_text(" ", strip=True)) if header else ""
+    if "ליגת סל" in h4_text:
         return "ליגת העל"
     return None
 
