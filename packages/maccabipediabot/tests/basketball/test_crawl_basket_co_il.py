@@ -110,7 +110,8 @@ def test_parse_player_rows_preserves_jersey_number(cell0, expected_number):
     ("- הגמר משחק 4", "גמר - משחק 4"),
     # regular season and anything unrecognised pass through untouched
     ("מחזור 26", "מחזור 26"),
-    ("גמר", "גמר"),          # playoff round without a game number -> unchanged
+    ("גמר", "גמר"),                          # round without a game number -> unchanged
+    ("פלייאאוט משחק מספר 1", "פלייאאוט משחק מספר 1"),  # numbered leg, no recognised round -> unchanged (not guessed as final)
     ("", ""),
 ])
 def test_normalize_fixture(raw, expected):

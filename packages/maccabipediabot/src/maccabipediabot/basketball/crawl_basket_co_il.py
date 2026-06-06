@@ -64,19 +64,20 @@ def _competition_from_game_page(html: str) -> str | None:
 
 def _normalize_fixture(fixture: str) -> str:
     """Map a basket.co.il playoff leg to the wiki convention "<round> - משחק N".
-    Only legs that name a round (...גמר) *and* a game number are rewritten;
-    regular-season "מחזור N" and anything else are returned unchanged."""
+    Each ליגת העל playoff round is matched explicitly (רבע גמר -> חצי גמר -> גמר);
+    legs with a game number but no recognised round, and regular-season "מחזור N",
+    are returned unchanged rather than guessed at."""
     number_match = _PLAYOFF_GAME_NUMBER_RE.search(fixture)
-    if "גמר" not in fixture or number_match is None:
+    if number_match is None:
         return fixture
     if "רבע" in fixture:
         round_name = "רבע גמר"
     elif "חצי" in fixture:
         round_name = "חצי גמר"
-    else:
-        # ליגת העל playoffs are an 8-team bracket: רבע גמר -> חצי גמר -> גמר.
-        # Any other ...גמר leg is the final.
+    elif "גמר" in fixture:        # the final — no רבע/חצי qualifier
         round_name = "גמר"
+    else:
+        return fixture
     return f"{round_name} - משחק {number_match.group(1)}"
 
 
