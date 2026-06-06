@@ -1,0 +1,15 @@
+name: Skin version bump
+
+on:
+  pull_request:
+    branches: [master]
+
+jobs:
+  version-bump:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Require skin.json version bump when the skin changes
+        run: bash infra/local-wiki/scripts/check-skin-version-bump.sh "origin/${{ github.base_ref }}"
