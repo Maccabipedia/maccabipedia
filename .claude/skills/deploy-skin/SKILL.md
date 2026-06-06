@@ -73,8 +73,11 @@ uv run --with playwright pytest infra/local-wiki/tests -m integration -rs
 bash infra/local-wiki/scripts/deploy-skin.sh
 ```
 
-Report the snapshot path it prints (`~/maccabipedia_skins/<ts>/Maccabipedia/`).
-On WSL, pass a `/mnt/c/...` base so FileZilla on Windows can see it.
+**Always surface the full snapshot path prominently as this step's output** —
+it is the artifact the user drags into FileZilla, so it must be unmissable.
+Never pipe this command to `/dev/null` or summarize it away; print the literal
+`Local snapshot: …/Maccabipedia` line. On WSL, pass a `/mnt/c/...` base so
+FileZilla on Windows can see it.
 
 ## 6. STOP — hand off the manual FileZilla upload
 
