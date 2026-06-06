@@ -7,10 +7,35 @@ from typing import List, Optional
 import bs4
 import requests
 from bs4 import BeautifulSoup
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 from maccabipediabot.calendar.calendar_operations import Event
 
 _logger = logging.getLogger(__name__)
+
+# MaccabiPedia occasionally serves a transient 415 from an openresty proxy (the normal server is nginx),
+# seen around ~19:00 UTC and enough to crash the scheduled football calendar workflow. Retry across those
+# blips instead of failing the daily job. Mirrors maccabistats' MaccabiPediaCargoChunksCrawler session.
+_RETRYABLE_STATUSES = (408, 415, 429, 500, 502, 503, 504)
+
+
+def _build_session() -> requests.Session:
+    session = requests.Session()
+    retry = Retry(
+        total=5,
+        backoff_factor=2,
+        status_forcelist=_RETRYABLE_STATUSES,
+        allowed_methods=frozenset(["GET"]),
+        raise_on_status=False,
+    )
+    adapter = HTTPAdapter(max_retries=retry)
+    session.mount("http://", adapter)
+    session.mount("https://", adapter)
+    return session
+
+
+_session = _build_session()
 
 
 def get_channel(x: str) -> str:
@@ -125,7 +150,7 @@ def handle_game(game: bs4.element.Tag) -> Event:
 
     official_game_page = game.find('a', href=True)['href']
     # Connect to the URL
-    response = requests.get(official_game_page)
+    response = _session.get(official_game_page)
 
     # Parse HTML and save to BeautifulSoup object
     soup = BeautifulSoup(response.text, 'html.parser')
@@ -160,7 +185,7 @@ def handle_game(game: bs4.element.Tag) -> Event:
     result = get_result(game.find("div", {"class": "holder split"}))
 
     # Get link to game page at maccabipedia
-    response = requests.get(
+    response = _session.get(
         f"https://www.maccabipedia.co.il/index.php?title=Special:CargoExport&format=json&tables=Football_Games&fields=_pageName&where=Football_Games.Date='{game_date.date()}'")
     response.raise_for_status()
     page_name = json.loads(response.text)
@@ -209,7 +234,7 @@ def fetch_games_from_maccabi_tlv_site(url: str, to_update_last_game: Optional[bo
     """
 
     # Connect to the URL
-    response = requests.get(url)
+    response = _session.get(url)
 
     # Parse HTML and save to BeautifulSoup object
     soup = BeautifulSoup(response.text, 'html.parser')
