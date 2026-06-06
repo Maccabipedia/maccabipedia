@@ -51,13 +51,11 @@ docker compose -f infra/local-wiki/docker-compose.yml restart mediawiki
 bash infra/local-wiki/scripts/validate-site-ok.sh "http://localhost:8080/"
 ```
 
-Non-zero ⇒ the change broke the site; fix before upload.
-
-**A loading main page only proves there is no site-wide fatal — it is not the
-whole check.** Also verify the *specific* change took effect, which is
-change-dependent, e.g.: a skin/`$wgDefaultSkin` flip → the new skin renders; an
-extension enable → its `Special:` page loads and `Special:Version` lists it; a
-permission/setting change → exercise the exact behavior it governs.
+Non-zero ⇒ the change broke the site; fix before upload. `shared.php` is
+site-level config, so "the site loads without a fatal" is the smoke we need —
+no skin/rendering test suite here. If your change is something you can eyeball
+(e.g. a `$wgDefaultSkin` flip or an extension's `Special:` page), confirm it
+took effect too.
 
 ## 4. STOP — hand off the manual FileZilla upload
 
