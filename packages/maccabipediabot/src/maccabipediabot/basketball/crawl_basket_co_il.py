@@ -41,9 +41,18 @@ MAX_CONNECTIONS = 100
 # basket.co.il labels a playoff leg with varying wording per round — e.g.
 # "- רבע הגמר משחק מספר 1" (QF), "- סדרת חצי גמר משחק מספר 1" (SF),
 # "- סדרת הגמר משחק 1" (final). The wiki convention is "<round> - משחק N"
-# (see existing ליגת העל playoff pages). We classify the round by keyword and
-# rebuild the label, so new phrasings ("סדרת", with/without ה, "מספר") still map.
+# (see existing ליגת העל playoff pages). We strip the noise ("- ", "סדרת",
+# the game-number tail) and look the remaining round label up by its FULL name —
+# accepting the observed ה / no-ה variants — rather than substring-matching.
 _PLAYOFF_GAME_NUMBER_RE = re.compile(r"משחק(?:\s+מספר)?\s+(\d+)")
+_PLAYOFF_ROUND_NAMES = {
+    "רבע הגמר": "רבע גמר",
+    "רבע גמר": "רבע גמר",
+    "חצי הגמר": "חצי גמר",
+    "חצי גמר": "חצי גמר",
+    "הגמר": "גמר",
+    "גמר": "גמר",
+}
 
 
 def _competition_from_game_page(html: str) -> str | None:
@@ -65,19 +74,16 @@ def _competition_from_game_page(html: str) -> str | None:
 
 def _normalize_fixture(fixture: str) -> str:
     """Map a basket.co.il playoff leg to the wiki convention "<round> - משחק N".
-    Each ליגת העל playoff round is matched explicitly (רבע גמר -> חצי גמר -> גמר);
-    legs with a game number but no recognised round, and regular-season "מחזור N",
-    are returned unchanged rather than guessed at."""
+    The round label (the text before "משחק N", with "- " and "סדרת" stripped) is
+    looked up by its full name in _PLAYOFF_ROUND_NAMES; regular-season "מחזור N"
+    and any unrecognised label are returned unchanged rather than guessed at."""
     number_match = _PLAYOFF_GAME_NUMBER_RE.search(fixture)
     if number_match is None:
         return fixture
-    if "רבע" in fixture:
-        round_name = "רבע גמר"
-    elif "חצי" in fixture:
-        round_name = "חצי גמר"
-    elif "גמר" in fixture:        # the final — no רבע/חצי qualifier
-        round_name = "גמר"
-    else:
+    round_label = fixture[:number_match.start()].replace("-", " ").replace("סדרת", " ")
+    round_label = re.sub(r"\s+", " ", round_label).strip()
+    round_name = _PLAYOFF_ROUND_NAMES.get(round_label)
+    if round_name is None:
         return fixture
     return f"{round_name} - משחק {number_match.group(1)}"
 
