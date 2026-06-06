@@ -9,6 +9,7 @@ redirected to a file. A curl can. So every read here saves the full JSON to
 """
 import json
 import pathlib
+import urllib.error
 import urllib.parse
 import urllib.request
 
@@ -29,8 +30,21 @@ def trello_get(path, extra_params=None):
     if extra_params:
         params.update(extra_params)
     url = f"https://api.trello.com/1/{path}?{urllib.parse.urlencode(params)}"
-    with urllib.request.urlopen(url, timeout=30) as response:
-        return json.load(response)
+    try:
+        with urllib.request.urlopen(url, timeout=30) as response:
+            content_type = response.headers.get("Content-Type", "")
+            body = response.read()
+    except urllib.error.HTTPError as error:
+        # error.url / error.filename carry the secret-bearing URL (key+token);
+        # never surface them — report only the status and the safe path.
+        raise RuntimeError(
+            f"Trello GET /{path} failed: HTTP {error.code} {error.reason}"
+        ) from None
+    if "application/json" not in content_type:
+        raise RuntimeError(
+            f"Trello GET /{path} returned non-JSON ({content_type or 'unknown'})"
+        )
+    return json.loads(body)
 
 
 def save_full(name, data):
@@ -42,4 +56,6 @@ def save_full(name, data):
 
 
 def format_labels(card):
-    return ", ".join(label["name"] for label in card.get("labels", []) if label["name"])
+    return ", ".join(
+        label.get("name") for label in card.get("labels", []) if label.get("name")
+    )
