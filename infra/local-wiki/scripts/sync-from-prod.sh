@@ -11,8 +11,7 @@
 #   - Credentials come from env vars; never hardcoded, never logged.
 #   - Every invocation appends a timestamped line to SYNC_LOG.
 #
-# Required for FTP-based ops (maccabipedia-skin-assets, extensions,
-# logo-assets, localsettings, versions):
+# Required for FTP-based ops (favicon, logo-assets, localsettings, versions):
 #   MACCABIPEDIA_FTP_HOST        — FTP hostname (e.g. ftp.maccabipedia.co.il)
 #   MACCABIPEDIA_FTP_USER        — FTP username
 #   MACCABIPEDIA_FTP_PASS        — FTP password
@@ -31,21 +30,14 @@
 #   ./sync-from-prod.sh <op> [args...]
 #
 # Allowed <op> values:
-#   bootstrap                — run every FTP+HTTP pull needed for first-time
-#                              local dev setup: maccabipedia-skin-assets +
-#                              extensions + favicon + site-scripts + pages
-#                              (using scripts/content-manifests/starter.manifest).
-#                              Doesn't touch docker — run `docker compose up
-#                              -d` and `./scripts/seed-content.sh` afterwards.
-#   maccabipedia-skin-assets — mirror <root>/skins/Metrolook/assets/
-#                              → synced/skins/Metrolook/assets/
-#                              (binary banners only, shared by both skins;
-#                              the skin sources themselves — the default
-#                              Maccabipedia skin at <repo-root>/skins/Maccabipedia/
-#                              and the legacy Metrolook fallback at
-#                              <repo-root>/skins/Metrolook/ — are NOT pulled
-#                              by this script).
-#   extensions               — mirror <root>/extensions/ → synced/extensions/
+#   bootstrap                — pull the optional CONTENT for local dev setup:
+#                              favicon + site-scripts + pages (using
+#                              scripts/content-manifests/starter.manifest).
+#                              NOT needed to render the skin — extensions are
+#                              baked into the Docker image and the skin's assets
+#                              are vendored in the repo. Doesn't touch docker —
+#                              run `docker compose up -d --build` and
+#                              `./scripts/seed-content.sh` afterwards.
 #   favicon                  — fetch  <root>/favicon.ico → synced/favicon.ico
 #   localsettings            — fetch  <root>/LocalSettings.php
 #                              → synced/LocalSettings.prod-snapshot.php
@@ -291,15 +283,13 @@ shift
 
 case "$op" in
     bootstrap)
-        op_mirror_dir "skins/Metrolook/assets" "skins/Metrolook/assets"
-        op_mirror_dir "extensions"             "extensions"
+        # Extensions are baked into the Docker image and the skin's assets are
+        # vendored in the repo, so bootstrap pulls CONTENT only (optional —
+        # the wiki renders the skin without it).
         op_favicon
         op_site_scripts
         op_pages "${SCRIPT_DIR}/content-manifests/starter.manifest"
         ;;
-    maccabipedia-skin-assets)
-        op_mirror_dir "skins/Metrolook/assets" "skins/Metrolook/assets" ;;
-    extensions)    op_mirror_dir "extensions"        "extensions" ;;
     favicon)       op_favicon ;;
     logo-assets)   op_mirror_dir "resources/assets"  "resources/assets" ;;
     localsettings) op_localsettings ;;
