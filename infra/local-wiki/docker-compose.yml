@@ -28,15 +28,13 @@ services:
     volumes:
       - mw_config:/generated
       - mw_images:/var/www/html/images
+      # Skin sources come from the repo. The Maccabipedia skin's binary assets
+      # are vendored under skins/Maccabipedia/assets/ (PR #142) and ride in via
+      # this mount. Extensions are baked into the image (see Dockerfile +
+      # extensions.lock) — nothing is fetched from prod, so a fresh worktree
+      # boots with `docker compose up -d --build` and no sync-from-prod.
       - ../../skins/Maccabipedia:/var/www/html/skins/Maccabipedia:ro
-      # Binary assets (logo, banners, etc.) are still gitignored and
-      # FTP-synced from prod's filesystem. Both skins read them from the
-      # same on-disk path; remap the same source into both container paths.
-      - ./synced/skins/Metrolook/assets:/var/www/html/skins/Maccabipedia/assets:ro
       - ../../skins/Metrolook:/var/www/html/skins/Metrolook:ro
-      - ./synced/skins/Metrolook/assets:/var/www/html/skins/Metrolook/assets:ro
-      - ./synced/extensions:/var/www/html/extensions:ro
-      - ./synced/favicon.ico:/var/www/html/favicon.ico:ro
       - ./config:/mw-config:ro
       - ./config/htaccess:/var/www/html/.htaccess:ro
       - ./config/apache-allow-override.conf:/etc/apache2/conf-enabled/zz-mw-allow-override.conf:ro
