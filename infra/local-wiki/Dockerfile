@@ -5,6 +5,7 @@ ENV MW_VERSION=1.39.11 \
     DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
+        git \
         libicu-dev \
         libpng-dev \
         libjpeg-dev \
@@ -33,6 +34,19 @@ RUN curl -fSL "https://releases.wikimedia.org/mediawiki/1.39/mediawiki-${MW_VERS
     && tar -xzf /tmp/mediawiki.tar.gz --strip-components=1 -C /var/www/html \
     && rm /tmp/mediawiki.tar.gz \
     && chown -R www-data:www-data /var/www/html
+
+# Third-party extensions are NOT bundled with MediaWiki 1.39 core. Fetch them at
+# build time from public sources pinned to exact commits in extensions.lock
+# (pattern borrowed from Canasta's RecommendedRevisions). They live in the image
+# layer — never synced from prod, never committed to our repo. Loading the real
+# LocalSettings.shared.php verbatim (the deploy-localsettings witness) requires
+# every one of these present.
+COPY scripts/fetch-extensions.sh /usr/local/bin/fetch-extensions.sh
+COPY extensions.lock /tmp/extensions.lock
+RUN chmod +x /usr/local/bin/fetch-extensions.sh \
+    && /usr/local/bin/fetch-extensions.sh /tmp/extensions.lock /var/www/html/extensions \
+    && chown -R www-data:www-data /var/www/html/extensions \
+    && rm /tmp/extensions.lock
 
 WORKDIR /var/www/html
 
