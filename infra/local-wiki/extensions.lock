@@ -1,0 +1,34 @@
+# Pinned third-party MediaWiki extensions for the local-wiki Docker image.
+# Columns (tab-separated): name <TAB> repo <TAB> ref <TAB> commit
+#   ref    = symbolic branch/tag used to (re)resolve the pin
+#   commit = exact SHA cloned at build time (run scripts/resolve-extension-pins.sh to fill/bump)
+# None of these are bundled in MediaWiki 1.39 core. Do not hand-edit the commit
+# column; run the resolver. Add a new row here when shared.php loads a new ext.
+NumberFormat	https://github.com/wikimedia/mediawiki-extensions-NumberFormat	REL1_39	892c945b131b2f393736eb6419ec4c8d1a778489
+Loops	https://github.com/wikimedia/mediawiki-extensions-Loops	REL1_39	00e0c9e35ec13fe5f629ccb7f4d23c5f28033d34
+Arrays	https://github.com/wikimedia/mediawiki-extensions-Arrays	REL1_39	db98019fe6049d5fcff7d7c6f62e02023dbf5eb6
+AdminLinks	https://github.com/wikimedia/mediawiki-extensions-AdminLinks	REL1_39	b60e6ac6a9fe54d0bc25719454489aef393d5133
+AutoCreateCategoryPages	https://github.com/wikimedia/mediawiki-extensions-AutoCreateCategoryPages	REL1_39	70c71b817aa4e4c83f537919745d1aec8cbbb421
+MixedNamespaceSearchSuggestions	https://gerrit.wikimedia.org/r/mediawiki/extensions/MixedNamespaceSearchSuggestions	REL1_39	048ae5c61393039ed440ae3b75cfdbd100cd8d98
+DynamicPageList3	https://github.com/Universal-Omega/DynamicPageList3	REL1_39	eea36a87d84e51f3c949c4d9e8fb38794a2eecb2
+EmbedVideo	https://github.com/StarCitizenWiki/mediawiki-extensions-EmbedVideo	REL1_39	c018dad4c3397d495f9b4bae2506fb14459162fe
+LinkSuggest	https://github.com/wikimedia/mediawiki-extensions-LinkSuggest	REL1_39	d9bcb2458389fe4874b9eadc9fbe964fa7612034
+SimpleBatchUpload	https://github.com/ProfessionalWiki/SimpleBatchUpload	3.0.0	ebf06af8a583fb9af338fc90ba03b7b62c1795b6
+Variables	https://github.com/wikimedia/mediawiki-extensions-Variables	REL1_39	3efd415ccdcd1607d54ff771103a1b23333e9245
+TemplateSandbox	https://github.com/wikimedia/mediawiki-extensions-TemplateSandbox	REL1_39	fc1143264ec8a683ec10eb348a697bab5c2a31b4
+DebugTemplates	https://github.com/wikimedia/mediawiki-extensions-DebugTemplates	REL1_39	e1f0ffa24ad9f2299167cbd1af10adde989b93ed
+LastUserLogin	https://github.com/wikimedia/mediawiki-extensions-LastUserLogin	REL1_39	c115fb916617ad32a22011fb39fbba9f806547c1
+JSBreadCrumbs	https://github.com/wikimedia/mediawiki-extensions-JSBreadCrumbs	REL1_39	8ccb1bd54130392add7e0b04399c1fc8ddf57a68
+WikiSEO	https://github.com/wikimedia/mediawiki-extensions-WikiSEO	REL1_39	b204ec4c66f773265495c658484e288d109f4486
+NewUserMessage	https://github.com/wikimedia/mediawiki-extensions-NewUserMessage	REL1_39	b09e92c71646c2547879f1a7b96699761101d982
+ReplaceSet	https://github.com/wikimedia/mediawiki-extensions-ReplaceSet	REL1_39	8e4ece690f5d6f3356c72d440a1a28a3e4752440
+PageForms	https://github.com/wikimedia/mediawiki-extensions-PageForms	REL1_39	d564963afaa96175936257a079ab36b5705f01c4
+Maintenance	https://github.com/wikimedia/mediawiki-extensions-Maintenance	REL1_39	079c1f5325516a9e325c7cf79b5cad3eb9103c5f
+SecureHTML	https://github.com/wikimedia/mediawiki-extensions-SecureHTML	REL1_39	f6903f2d23f74c0f270ad5f3810ffb94867cbda1
+UserFunctions	https://github.com/wikimedia/mediawiki-extensions-UserFunctions	REL1_39	155f75bcf6dbb555493a95acb7701f092ebd866f
+Cargo	https://github.com/wikimedia/mediawiki-extensions-Cargo	REL1_39	7c494c983943a44908577dcda1254128aedb5bf4
+CodeMirror	https://github.com/wikimedia/mediawiki-extensions-CodeMirror	REL1_39	6db41acfa9116eef8ed1029bef25898a46a299d1
+ContactPage	https://github.com/wikimedia/mediawiki-extensions-ContactPage	REL1_39	e23cffcbf50c46031571d894bccd60195470622a
+TabberNeue	https://github.com/StarCitizenTools/mediawiki-extensions-TabberNeue	REL1_39	4432a1a90f830d7b7686aba06e7eac0ee44219e2
+GTag	https://github.com/SkizNet/mediawiki-GTag	master	82eca956070491360bc863bd229470b326b37739
+RegexFunctions	https://github.com/wikimedia/mediawiki-extensions-RegexFunctions	REL1_39	4d10081afbf44919706ae3da6b64e257ec937b5d
