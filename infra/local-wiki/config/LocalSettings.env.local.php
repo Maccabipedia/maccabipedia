@@ -46,7 +46,14 @@ $wgSecretKey = 'dev-secret-not-a-real-key-local-only';
 $wgUpgradeKey = 'dev-upgrade-key-local-only';
 
 ## Logging — no files written (no /MyLogs dir in the container). Errors
-## surface on Apache's stderr, which docker compose captures.
+## surface on Apache's stderr, which docker compose captures. Route PHP
+## notices/warnings to the log, NOT the response body: a notice emitted while
+## LocalSettings loads (e.g. an extension's deprecated-entry-point wfWarn) would
+## otherwise print before headers are sent and break every page with "headers
+## already sent". This matches prod (display_errors off); MediaWiki still renders
+## its own rich exception pages via $wgShowExceptionDetails below.
+ini_set('display_errors', '0');
+ini_set('log_errors', '1');
 $wgDBerrorLog = false;
 $wgDebugLogGroups = [];
 $wgResourceLoaderDebug = true;
