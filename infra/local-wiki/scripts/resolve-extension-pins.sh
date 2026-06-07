@@ -15,7 +15,13 @@ while IFS= read -r line || [ -n "$line" ]; do
     name="$(printf '%s' "$line" | cut -f1)"
     repo="$(printf '%s' "$line" | cut -f2)"
     ref="$(printf '%s' "$line" | cut -f3)"
-    sha="$(git ls-remote "$repo" "$ref" | awk 'NR==1{print $1}')"
+    if printf '%s' "$ref" | grep -qiE '^[0-9a-f]{40}$'; then
+        # ref is already a full commit SHA (e.g. a pin to a commit that isn't a
+        # branch/tag tip — used when REL1_39's tip drops something we need).
+        sha="$ref"
+    else
+        sha="$(git ls-remote "$repo" "$ref" | awk 'NR==1{print $1}')"
+    fi
     if [ -z "$sha" ]; then
         echo "ERROR: could not resolve $name ($repo @ $ref)" >&2
         exit 1
