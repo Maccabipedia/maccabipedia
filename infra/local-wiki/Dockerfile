@@ -41,6 +41,9 @@ RUN curl -fSL "https://releases.wikimedia.org/mediawiki/1.39/mediawiki-${MW_VERS
 # layer — never synced from prod, never committed to our repo. Loading the real
 # LocalSettings.shared.php verbatim (the deploy-localsettings witness) requires
 # every one of these present.
+# Editing extensions.lock (or the fetcher) busts this COPY layer and re-runs the
+# clone — exactly what we want when a pin changes; an unrelated rebuild reuses
+# the cached layer.
 COPY scripts/fetch-extensions.sh /usr/local/bin/fetch-extensions.sh
 COPY extensions.lock /tmp/extensions.lock
 RUN chmod +x /usr/local/bin/fetch-extensions.sh \

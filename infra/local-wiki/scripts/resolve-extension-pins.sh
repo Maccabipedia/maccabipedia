@@ -12,15 +12,20 @@ while IFS= read -r line || [ -n "$line" ]; do
     case "$line" in
         ''|\#*) printf '%s\n' "$line" >> "$tmp"; continue ;;
     esac
-    name="$(printf '%s' "$line" | cut -f1)"
-    repo="$(printf '%s' "$line" | cut -f2)"
-    ref="$(printf '%s' "$line" | cut -f3)"
+    IFS=$'\t' read -r name repo ref _ <<< "$line"
     if printf '%s' "$ref" | grep -qiE '^[0-9a-f]{40}$'; then
         # ref is already a full commit SHA (e.g. a pin to a commit that isn't a
         # branch/tag tip — used when REL1_39's tip drops something we need).
         sha="$ref"
     else
-        sha="$(git ls-remote "$repo" "$ref" | awk 'NR==1{print $1}')"
+        # Resolve against a branch first, then a tag, qualifying the namespace so
+        # we never match an unrelated ref. For annotated tags, prefer the peeled
+        # commit (^{}) over the tag object.
+        sha="$(git ls-remote "$repo" "refs/heads/$ref" | awk 'NR==1{print $1}')"
+        if [ -z "$sha" ]; then
+            sha="$(git ls-remote "$repo" "refs/tags/$ref^{}" | awk 'NR==1{print $1}')"
+            [ -z "$sha" ] && sha="$(git ls-remote "$repo" "refs/tags/$ref" | awk 'NR==1{print $1}')"
+        fi
     fi
     if [ -z "$sha" ]; then
         echo "ERROR: could not resolve $name ($repo @ $ref)" >&2

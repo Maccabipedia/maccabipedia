@@ -238,9 +238,9 @@ def test_static_asset_loads(
     <img src> must be present and resolve to HTTP 200. Both are $wgServer-prefixed
     absolute URLs (see SkinMaccabipedia::buildAppHeaderData/buildAppFooterData).
 
-    The logo is served from the synced banner assets (docker-compose mounts
-    synced/skins/Metrolook/assets into the skin's assets/), so this test
-    presupposes `sync-from-prod.sh maccabipedia-skin-assets` has run."""
+    The logo is served from the skin's own vendored assets/ (skins/Maccabipedia/
+    assets/, in the repo and mounted into the container), so no prod sync is
+    needed."""
     pattern = {
         "logo": r'src="([^"]*logo\.png[^"]*)"',
         "powered-by": r'src="([^"]*poweredby[^"]*)"',

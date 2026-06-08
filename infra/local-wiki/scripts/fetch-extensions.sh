@@ -21,8 +21,24 @@ while IFS=$'\t' read -r name repo ref commit || [ -n "$name" ]; do
     fi
     target="$DEST/$name"
     echo "==> $name @ $commit ($repo)"
-    git clone --quiet "$repo" "$target"
-    git -C "$target" checkout --quiet "$commit"
+    # Shallow-fetch just the pinned commit — far cheaper than a full clone of
+    # repos with large histories (Cargo, PageForms). Some servers (e.g. gerrit)
+    # disallow fetching an arbitrary SHA; fall back to a full clone for those.
+    git init --quiet "$target"
+    git -C "$target" remote add origin "$repo"
+    if git -C "$target" fetch --quiet --depth 1 origin "$commit" 2>/dev/null; then
+        git -C "$target" checkout --quiet FETCH_HEAD
+    else
+        rm -rf "$target"
+        git clone --quiet "$repo" "$target"
+        git -C "$target" checkout --quiet "$commit"
+    fi
+    # Assert we landed on the exact pin before discarding git metadata.
+    got="$(git -C "$target" rev-parse HEAD)"
+    if [ "$got" != "$commit" ]; then
+        echo "ERROR: $name checked out $got, expected $commit" >&2
+        exit 1
+    fi
     rm -rf "$target/.git"
 done < "$MANIFEST"
 
