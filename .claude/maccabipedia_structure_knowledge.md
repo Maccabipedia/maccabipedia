@@ -61,6 +61,20 @@ Prefer Cargo over scraping wiki text.
   - `action=cargoquery` (API) — rejects field aliases starting with `_`. Must alias: `_pageName=pageName`. The MCP server handles this automatically.
 - **MCP server:** Use `mcp__maccabipedia__query_cargo` — it uses `action=cargoquery` and auto-aliases underscore fields so callers can just write `_pageName`.
 
+### The `Team` integer in player-event tables
+
+The per-player event tables store `Team` as an **Integer** (not a Hebrew string), written by each sport's `#cargo_store` template — the bot never writes the numeric value. Maccabi is `1` in all sports, but the opponent value differs:
+
+| Sport | Table | Maccabi | Opponent |
+|---|---|---|---|
+| Football | `Games_Events` | `1` | `0` |
+| Basketball | `Basketball_Player_Game_Events_Summary` | `1` | `0` |
+| Volleyball | `Volleyball_Players_Game_Events` | `1` | **`2`** |
+
+Why volleyball differs: the storing template `תבנית:משחק כדורעף/הזנת אירועי שחקנים` hardcodes `|Team={{#תנאי: {{{האם יריבה|}}} |2 |1}}`, while football's `תבנית:קטלוג משחקים/הזנת אירועי משחק לטבלת אירועי משחק` maps the wikitext tokens `מכבי→1` / `יריבה→0`. The encodings were authored independently and never unified.
+
+All stats consumer templates filter Maccabi rows with `Team=1`, so the mismatch is latent — it only matters for queries that target **opponent** rows explicitly (football/basketball `Team=0`, volleyball `Team=2`). Note a player can have rows on both sides of the same table from stints at other clubs (e.g. ערן זהבי has opponent-row events from his הפועל ת"א years).
+
 ## 6. Redirects
 Hebrew redirect syntax: `#הפניה [[Target_Page_Name]]`
 - Basketball seasons: canonical = `כדורסל:עונת YYYY/YY`, redirect from `כדורסל:YYYY/YY`.
