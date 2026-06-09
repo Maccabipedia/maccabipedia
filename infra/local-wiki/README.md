@@ -3,49 +3,51 @@
 Runs a local MediaWiki 1.39.11 + PHP 7.4 + MariaDB mirror of the production
 MaccabiPedia site. MediaWiki itself is built into the image. The default
 MaccabiPedia skin is the `SkinMustache`-based skin vendored at
-`<repo-root>/skins/Maccabipedia/`; the legacy fallback skin is vendored at
-`<repo-root>/skins/Metrolook/` and supplies the shared binary banner
-`assets/`. Only those binary banner `assets/` and the prod extensions
-are pulled from the FTP server into `synced/`. Site-wide config lives in
+`<repo-root>/skins/Maccabipedia/` (its binary banner `assets/` are vendored
+too); the legacy fallback skin is vendored at `<repo-root>/skins/Metrolook/`.
+The prod third-party extensions are baked into the Docker image at build time
+from `extensions.json` (SHA-pinned), so nothing is pulled from prod to render
+the skin. Site-wide config lives in
 `config/LocalSettings.shared.php` which ships byte-equivalent to prod.
 Dev-only values (DB host, URL, fake secrets) are in
 `config/LocalSettings.env.local.php` — prod has its own `.env.prod.php`.
 
 ## Prerequisites
 
-- **Linux / WSL (Ubuntu/Debian):** run `./scripts/setup-host.sh` once. It
-  installs `docker.io`, `docker-compose-v2`, and `lftp`, starts the docker
-  daemon, and adds you to the `docker` group. Open a new shell (or
-  `newgrp docker`) so `docker` works without sudo afterwards.
+- **Linux / WSL (Ubuntu/Debian):** run `bash scripts/setup-host.sh` once. It
+  installs `docker.io` and `docker-compose-v2`, starts the docker daemon, and
+  adds you to the `docker` group. Open a new shell (or `newgrp docker`) so
+  `docker` works without sudo afterwards.
 - **macOS / Windows:** install Docker Desktop manually (with WSL 2
-  integration on Windows). `lftp` is needed for the prod-sync script and
-  can be installed via Homebrew / Scoop.
+  integration on Windows).
 
 ## First-time setup
 
 ```bash
 cd infra/local-wiki
-./scripts/setup-host.sh               # docker + lftp + group membership
+bash scripts/setup-host.sh            # docker + group membership
 
-# FTP credentials (file is gitignored)
-cp .env.example .env
-chmod 600 .env                        # fill in host/user/pass/remote-root
-
-# Pull what isn't vendored: extensions + skin assets + Common.css/js +
-# sample pages. ~few minutes.
-./scripts/sync-from-prod.sh bootstrap
-
-# Bring up the stack (first build takes a few minutes)
+# Bring up a full, skin-rendering wiki. Extensions are baked into the image
+# from extensions.json; the skin + its assets come from the repo. No prod fetch.
+# (First build takes a few minutes — it downloads the pinned extensions.)
 docker compose up -d --build
-
-# Import every pulled XML dump (starter pages + MediaWiki:Common.{css,js})
-./scripts/seed-content.sh
 ```
 
-Open http://localhost:8080 — you'll see the `מכביפדיה` site with the
-MaccabiPedia skin, prod's extension set, and the seeded pages rendering.
+Open http://localhost:8080 — the `מכביפדיה` site renders with the MaccabiPedia
+skin and prod's extension set, no sync required.
 
-Admin user: `maccabi` / `maccabi` (from `docker-compose.yml`; local-only).
+Admin user: `maccabi` / `maccabi2026` (from `docker-compose.yml`; local-only).
+
+### Optional: seed sample content (no credentials)
+
+The wiki renders the skin without this. Seed it only when you want real pages /
+`MediaWiki:Common.{css,js}` locally. Pages are fetched over plain HTTP
+(`Special:Export`) from the public site — no credentials needed.
+
+```bash
+uv run python scripts/download_pages_from_prod.py bootstrap   # site-scripts + sample pages
+bash scripts/seed-content.sh                                   # import the downloaded XML dumps
+```
 
 ## Adjusting the seed set
 
@@ -54,8 +56,8 @@ Pages pulled by `bootstrap` are listed in
 title per line, `#` for comments), then:
 
 ```bash
-./scripts/sync-from-prod.sh pages scripts/content-manifests/starter.manifest
-./scripts/seed-content.sh starter
+uv run python scripts/download_pages_from_prod.py pages scripts/content-manifests/starter.manifest
+bash scripts/seed-content.sh starter
 ```
 
 Now browse e.g. `http://localhost:8080/index.php/ערן_זהבי`.
@@ -75,7 +77,21 @@ docker compose down -v       # wipe DB + images + install marker
 
 - `Dockerfile` — `FROM php:7.4.33-apache-bullseye`, installs MW 1.39.11 +
   PHP extensions (intl, gd, mysqli, zip, mbstring, calendar, opcache, apcu
-  pinned to 5.1.24). All versions pinned for reproducibility.
+  pinned to 5.1.24), then downloads the SHA-pinned third-party extensions from
+  `extensions.json` into the image (`fetch-extensions.sh`). All versions
+  pinned for reproducibility.
+- `extensions.json` — SHA-pinned manifest of the third-party extensions
+  `LocalSettings.shared.php` loads that aren't bundled in MW 1.39 core
+  (each entry: `name`, `repo`, `ref`, `commit`, optional `note`). Baked into
+  the image at build time; never synced from prod, never committed as code.
+- `scripts/fetch-extensions.sh` — build-time downloader (bash: runs inside the
+  image, which has curl+jq but no Python). Downloads each manifest entry's
+  pinned `commit` as an HTTPS tarball (GitHub `…/archive/<sha>.tar.gz` or gerrit
+  gitiles `…/+archive/<sha>.tar.gz`) and extracts it — no git in the image.
+- `scripts/resolve_extension_pins.py` — host-side re-pin/bump tool: edit an
+  entry's `ref` (branch/tag/SHA), run `uv run python scripts/resolve_extension_pins.py`,
+  and the `commit` is refreshed via `git ls-remote` (uses the dev host's git;
+  the image itself has none).
 - `docker-compose.yml` — `mediawiki` (built locally) + `mariadb:10.11`.
   Named volumes: `mw_db`, `mw_images`, `mw_config` (first-boot marker).
   Mediawiki healthcheck polls `http://localhost/`.
@@ -94,16 +110,22 @@ docker compose down -v       # wipe DB + images + install marker
     namespaces, hooks, Cargo, ContactPage, TabberNeue, …). Byte-equivalent
     to prod's `LocalSettings.shared.php`; prod uploads this file manually
     when it changes.
+  `config/` also holds the **webroot static files** mounted individually into
+  the container root: `htaccess` → `/var/www/html/.htaccess` and `favicon.ico`
+  → `/var/www/html/favicon.ico` (a site-wide asset `$wgFavicon` points at — not
+  a skin asset), plus `apache-allow-override.conf` for Apache.
 - `scripts/setup-host.sh` — one-shot host-prereq installer (docker,
-  compose, lftp). Idempotent.
-- `scripts/sync-from-prod.sh` — named-op wrapper around `lftp` (+ `curl`
-  for HTTP). Download-only. See `.env.example` for env vars.
-  Ops: `bootstrap`, `maccabipedia-skin-assets`, `extensions`, `favicon`,
-  `logo-assets`, `localsettings`, `versions`, `site-scripts`,
-  `pages <manifest>`.
-  The skin source is vendored at `<repo-root>/skins/Metrolook/` and is
-  NOT touched by this script — only the binary banners under
-  `skins/Metrolook/assets/` are pulled from prod.
+  compose). Idempotent.
+- `scripts/download_pages_from_prod.py` — downloads wiki PAGES from the public
+  prod site over HTTP (`requests` + `Special:Export`) into `downloaded-pages/`.
+  Host-side (`uv run python …`), read-only, no credentials. Ops: `bootstrap`,
+  `site-scripts`, `pages <manifest>`. Optional — not needed to render the skin
+  (extensions are
+  baked into the image; the skin's assets are vendored under
+  `skins/Maccabipedia/assets/`; the favicon is a vendored webroot file at
+  `config/favicon.ico`). Use it only to seed real content. The skin sources are
+  vendored at `<repo-root>/skins/Maccabipedia/` and `<repo-root>/skins/Metrolook/`
+  and are NOT touched by this script.
   `site-scripts` pulls `MediaWiki:Common.css` + `MediaWiki:Common.js` (the
   site-wide CSS/JS that back the `site.styles` bundle, CanvasJS hooks, and
   the fanzine form); kept separate from `starter.manifest` because they're

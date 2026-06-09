@@ -22,11 +22,12 @@ import requests
 # MediaWiki canonicalises spaces to underscores in titles before percent-encoding,
 # so we mirror that here (otherwise the URL hits a 404 instead of the article).
 _MAIN_PAGE_TITLE = "עמוד_ראשי"
-_ADMIN_USERNAME = "admin"
-_ADMIN_PASSWORD = "devadminpass"  # see infra/local-wiki/docker-compose.yml
+# Admin = the account install.php creates (MW_ADMIN_USER/PASSWORD in
+# docker-compose.yml). The regular user is created on every boot by entrypoint.sh.
+_ADMIN_USERNAME = "maccabi"
+_ADMIN_PASSWORD = "maccabi2026"
 _REGULAR_USERNAME = "regular"
-_REGULAR_PASSWORD = "regularpass"  # created via:
-# docker exec local-wiki-mediawiki-1 php maintenance/createAndPromote.php regular regularpass --force
+_REGULAR_PASSWORD = "regularpass"
 
 
 @pytest.fixture(scope="session")
@@ -95,10 +96,9 @@ def admin_session(base_url: str) -> requests.Session:
 def regular_session(base_url: str) -> requests.Session:
     """A logged-in session for a non-admin user.
 
-    The user 'regular' / 'regularpass' is created by:
-        docker exec local-wiki-mediawiki-1 php /var/www/html/maintenance/createAndPromote.php regular regularpass --force
-    Skips cleanly if the account doesn't exist yet — run that command once
-    when bootstrapping the local stack.
+    The user 'regular' / 'regularpass' is created automatically on every boot
+    by entrypoint.sh (createAndPromote.php --force). Skips cleanly if login
+    fails — e.g. against a stack started from an older image.
     """
     session = requests.Session()
     api_url = f"{base_url}/api.php"

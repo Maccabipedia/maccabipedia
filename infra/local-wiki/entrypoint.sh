@@ -66,4 +66,10 @@ fi
 echo "[entrypoint] Running maintenance/update.php --quick"
 php maintenance/update.php --quick
 
+# Dev/test fixture: a non-admin account so the test suite (and manual testing)
+# can exercise the regular-user view. --force is idempotent: creates it, or just
+# resets the password if it already exists in the persisted DB.
+echo "[entrypoint] Ensuring regular test user exists"
+php maintenance/createAndPromote.php "${MW_REGULAR_USER:-regular}" "${MW_REGULAR_PASSWORD:-regularpass}" --force
+
 exec "$@"

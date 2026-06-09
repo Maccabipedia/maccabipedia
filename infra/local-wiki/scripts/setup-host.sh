@@ -3,7 +3,7 @@
 # Install host prerequisites for the local MaccabiPedia docker stack on a
 # fresh Ubuntu / Debian / WSL Ubuntu machine. Idempotent — safe to re-run.
 #
-# Installs: docker.io, docker-compose-v2, lftp. Adds the invoking user to
+# Installs: docker.io, docker-compose-v2. Adds the invoking user to
 # the `docker` group. Starts and enables the docker daemon.
 #
 # macOS / Windows: use Docker Desktop (with WSL 2 integration on Windows)
@@ -21,12 +21,11 @@ if [ "$(id -u)" -eq 0 ]; then
     exit 1
 fi
 
-echo "==> Installing docker.io, docker-compose-v2, lftp"
+echo "==> Installing docker.io, docker-compose-v2"
 sudo apt-get update
 sudo apt-get install -y --no-install-recommends \
     docker.io \
-    docker-compose-v2 \
-    lftp
+    docker-compose-v2
 
 echo "==> Ensuring docker daemon is enabled and running"
 sudo systemctl enable --now docker
@@ -46,4 +45,3 @@ echo
 echo "Host prerequisites installed. Versions:"
 docker --version
 docker compose version
-lftp --version | head -n 1

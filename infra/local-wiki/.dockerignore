@@ -1,0 +1,8 @@
+# Keep the build context small and secret-free. The image build only needs the
+# Dockerfile, entrypoint.sh, scripts/fetch-extensions.sh and extensions.json.
+.env
+.env.*
+downloaded-pages/
+tests/
+README.md
+*.log
