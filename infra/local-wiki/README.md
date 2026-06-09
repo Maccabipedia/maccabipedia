@@ -6,7 +6,7 @@ MaccabiPedia skin is the `SkinMustache`-based skin vendored at
 `<repo-root>/skins/Maccabipedia/` (its binary banner `assets/` are vendored
 too); the legacy fallback skin is vendored at `<repo-root>/skins/Metrolook/`.
 The prod third-party extensions are baked into the Docker image at build time
-from `extensions.lock` (SHA-pinned), so nothing is pulled from prod to render
+from `extensions.json` (SHA-pinned), so nothing is pulled from prod to render
 the skin. Site-wide config lives in
 `config/LocalSettings.shared.php` which ships byte-equivalent to prod.
 Dev-only values (DB host, URL, fake secrets) are in
@@ -29,7 +29,7 @@ cd infra/local-wiki
 ./scripts/setup-host.sh               # docker + lftp + group membership
 
 # Bring up a full, skin-rendering wiki. Extensions are baked into the image
-# from extensions.lock; the skin + its assets come from the repo. No prod fetch.
+# from extensions.json; the skin + its assets come from the repo. No prod fetch.
 # (First build takes a few minutes — it clones the pinned extensions.)
 docker compose up -d --build
 ```
@@ -79,16 +79,18 @@ docker compose down -v       # wipe DB + images + install marker
 - `Dockerfile` — `FROM php:7.4.33-apache-bullseye`, installs MW 1.39.11 +
   PHP extensions (intl, gd, mysqli, zip, mbstring, calendar, opcache, apcu
   pinned to 5.1.24), then clones the SHA-pinned third-party extensions from
-  `extensions.lock` into the image (`fetch-extensions.sh`). All versions
+  `extensions.json` into the image (`fetch-extensions.sh`). All versions
   pinned for reproducibility.
-- `extensions.lock` — SHA-pinned manifest of the third-party extensions
+- `extensions.json` — SHA-pinned manifest of the third-party extensions
   `LocalSettings.shared.php` loads that aren't bundled in MW 1.39 core
-  (`name <TAB> repo <TAB> ref <TAB> commit`). Baked into the image at build
-  time; never synced from prod, never committed as code.
-- `scripts/fetch-extensions.sh` — build-time cloner: clones each manifest
-  entry at its pinned `commit`, then strips `.git` to keep the image lean.
-- `scripts/resolve-extension-pins.sh` — re-pin/bump tool: edit a row's `ref`
-  (branch/tag), run it, and the `commit` SHA is refreshed via `git ls-remote`.
+  (each entry: `name`, `repo`, `ref`, `commit`, optional `note`). Baked into
+  the image at build time; never synced from prod, never committed as code.
+- `scripts/fetch-extensions.sh` — build-time cloner (bash: runs inside the
+  image, which has git+jq but no Python). Clones each manifest entry at its
+  pinned `commit`, then strips `.git` to keep the image lean.
+- `scripts/resolve_extension_pins.py` — host-side re-pin/bump tool: edit an
+  entry's `ref` (branch/tag/SHA), run `uv run python scripts/resolve_extension_pins.py`,
+  and the `commit` is refreshed via `git ls-remote`.
 - `docker-compose.yml` — `mediawiki` (built locally) + `mariadb:10.11`.
   Named volumes: `mw_db`, `mw_images`, `mw_config` (first-boot marker).
   Mediawiki healthcheck polls `http://localhost/`.

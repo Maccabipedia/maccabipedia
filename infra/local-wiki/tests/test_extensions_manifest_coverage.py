@@ -1,21 +1,22 @@
 """Guard: every extension loaded by LocalSettings.shared.php must be either
-bundled in MediaWiki 1.39 core or pinned in extensions.lock — otherwise the
+bundled in MediaWiki 1.39 core or pinned in extensions.json — otherwise the
 local Docker wiki fatals at boot (the extension dir won't exist in the image).
 
 Pure static test: reads two files, hits no network and no docker.
 """
 from __future__ import annotations
 
+import json
 import re
 from pathlib import Path
 
 _LOCAL_WIKI = Path(__file__).resolve().parents[1]
 _SHARED = _LOCAL_WIKI / "config" / "LocalSettings.shared.php"
-_LOCK = _LOCAL_WIKI / "extensions.lock"
+_MANIFEST = _LOCAL_WIKI / "extensions.json"
 _DOCKERFILE = _LOCAL_WIKI / "Dockerfile"
 
 # Bundled with the MediaWiki 1.39 core tarball (from mediawiki@REL1_39/.gitmodules).
-# These ship in the image already, so they need no entry in extensions.lock.
+# These ship in the image already, so they need no entry in extensions.json.
 # Tied to MW 1.39 — test_bundled_set_tracks_dockerfile_version fails loudly if
 # the image's MW_VERSION moves off 1.39, prompting a re-derive from .gitmodules.
 _BUNDLED_1_39 = {
@@ -48,21 +49,16 @@ def _loaded_extensions() -> set[str]:
     return names
 
 
-def _locked_extensions() -> set[str]:
-    names: set[str] = set()
-    for raw_line in _LOCK.read_text(encoding="utf-8").splitlines():
-        line = raw_line.strip()
-        if not line or line.startswith("#"):
-            continue
-        names.add(line.split("\t", 1)[0])
-    return names
+def _pinned_extensions() -> set[str]:
+    data = json.loads(_MANIFEST.read_text(encoding="utf-8"))
+    return {ext["name"] for ext in data["extensions"]}
 
 
 def test_every_loaded_extension_is_bundled_or_pinned() -> None:
-    missing = _loaded_extensions() - _BUNDLED_1_39 - _locked_extensions()
+    missing = _loaded_extensions() - _BUNDLED_1_39 - _pinned_extensions()
     assert not missing, (
         "extensions loaded in LocalSettings.shared.php but neither bundled in "
-        f"1.39 nor pinned in extensions.lock: {sorted(missing)}"
+        f"1.39 nor pinned in extensions.json: {sorted(missing)}"
     )
 
 
