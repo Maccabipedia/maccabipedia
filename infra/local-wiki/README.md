@@ -14,7 +14,7 @@ Dev-only values (DB host, URL, fake secrets) are in
 
 ## Prerequisites
 
-- **Linux / WSL (Ubuntu/Debian):** run `./scripts/setup-host.sh` once. It
+- **Linux / WSL (Ubuntu/Debian):** run `bash scripts/setup-host.sh` once. It
   installs `docker.io` and `docker-compose-v2`, starts the docker daemon, and
   adds you to the `docker` group. Open a new shell (or `newgrp docker`) so
   `docker` works without sudo afterwards.
@@ -25,7 +25,7 @@ Dev-only values (DB host, URL, fake secrets) are in
 
 ```bash
 cd infra/local-wiki
-./scripts/setup-host.sh               # docker + group membership
+bash scripts/setup-host.sh            # docker + group membership
 
 # Bring up a full, skin-rendering wiki. Extensions are baked into the image
 # from extensions.json; the skin + its assets come from the repo. No prod fetch.
@@ -46,7 +46,7 @@ The wiki renders the skin without this. Seed it only when you want real pages /
 
 ```bash
 uv run python scripts/download_pages_from_prod.py bootstrap   # site-scripts + sample pages
-./scripts/seed-content.sh                                      # import the downloaded XML dumps
+bash scripts/seed-content.sh                                   # import the downloaded XML dumps
 ```
 
 ## Adjusting the seed set
@@ -57,7 +57,7 @@ title per line, `#` for comments), then:
 
 ```bash
 uv run python scripts/download_pages_from_prod.py pages scripts/content-manifests/starter.manifest
-./scripts/seed-content.sh starter
+bash scripts/seed-content.sh starter
 ```
 
 Now browse e.g. `http://localhost:8080/index.php/ערן_זהבי`.

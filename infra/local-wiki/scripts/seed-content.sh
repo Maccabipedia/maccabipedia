@@ -8,8 +8,8 @@
 #     `uv run python scripts/download_pages_from_prod.py pages <manifest>`.
 #
 # Usage:
-#   ./seed-content.sh                  # imports every XML in downloaded-pages/
-#   ./seed-content.sh <stem>           # imports only downloaded-pages/<stem>.xml
+#   bash seed-content.sh               # imports every XML in downloaded-pages/
+#   bash seed-content.sh <stem>        # imports only downloaded-pages/<stem>.xml
 #
 # After import, runs maintenance/runJobs.php so deferred parser updates
 # (link tables, Cargo stores, category memberships) land before you browse.
