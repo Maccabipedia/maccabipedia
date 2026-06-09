@@ -439,6 +439,10 @@ _PLAYER_NAME_NORMALIZE: dict[str, str] = {
     "גבריאל ''איפה'' לונדברג": "איפה לונדברג",
 }
 
+# Only stable, single-meaning game_type codes live here. ליגת העל playoffs are
+# deliberately absent: each round (רבע גמר/חצי גמר/גמר) has its own code, so the
+# crawler resolves those from the game page header instead of this map
+# (crawl_basket_co_il._competition_from_game_page).
 _BASKET_GAME_TYPE: dict[int, str] = {
     5: "ליגת העל",
     34: "הסופרקאפ הישראלי",

@@ -1,0 +1,33 @@
+{
+  "_comment": "Pinned third-party MediaWiki extensions baked into the local-wiki Docker image at build time (scripts/fetch-extensions.sh). None are bundled in MW 1.39 core. To add/bump: set 'ref' (a branch, tag, or full commit SHA for off-tip pins) and run 'uv run python scripts/resolve_extension_pins.py' to refresh 'commit'. Add an entry whenever LocalSettings.shared.php starts loading a new extension.",
+  "extensions": [
+    { "name": "NumberFormat", "repo": "https://github.com/wikimedia/mediawiki-extensions-NumberFormat", "ref": "REL1_39", "commit": "892c945b131b2f393736eb6419ec4c8d1a778489" },
+    { "name": "Loops", "repo": "https://github.com/wikimedia/mediawiki-extensions-Loops", "ref": "REL1_39", "commit": "00e0c9e35ec13fe5f629ccb7f4d23c5f28033d34" },
+    { "name": "Arrays", "repo": "https://github.com/wikimedia/mediawiki-extensions-Arrays", "ref": "REL1_39", "commit": "db98019fe6049d5fcff7d7c6f62e02023dbf5eb6" },
+    { "name": "AdminLinks", "repo": "https://github.com/wikimedia/mediawiki-extensions-AdminLinks", "ref": "REL1_39", "commit": "b60e6ac6a9fe54d0bc25719454489aef393d5133" },
+    { "name": "AutoCreateCategoryPages", "repo": "https://github.com/wikimedia/mediawiki-extensions-AutoCreateCategoryPages", "ref": "REL1_39", "commit": "70c71b817aa4e4c83f537919745d1aec8cbbb421" },
+    { "name": "MixedNamespaceSearchSuggestions", "repo": "https://gerrit.wikimedia.org/r/mediawiki/extensions/MixedNamespaceSearchSuggestions", "ref": "REL1_39", "commit": "048ae5c61393039ed440ae3b75cfdbd100cd8d98", "note": "Archived; gerrit only (no GitHub mirror)." },
+    { "name": "DynamicPageList3", "repo": "https://github.com/Universal-Omega/DynamicPageList3", "ref": "REL1_39", "commit": "eea36a87d84e51f3c949c4d9e8fb38794a2eecb2" },
+    { "name": "EmbedVideo", "repo": "https://github.com/StarCitizenWiki/mediawiki-extensions-EmbedVideo", "ref": "v3.2.8", "commit": "9ee8052eda2fe0799a8c347bd6b1951defa60693", "note": "v3.3.0+ and the REL1_39 tip require PHP >= 8.0; v3.2.8 is the last release supporting our PHP 7.4 (MW >= 1.37)." },
+    { "name": "LinkSuggest", "repo": "https://github.com/wikimedia/mediawiki-extensions-LinkSuggest", "ref": "REL1_39", "commit": "d9bcb2458389fe4874b9eadc9fbe964fa7612034" },
+    { "name": "SimpleBatchUpload", "repo": "https://github.com/ProfessionalWiki/SimpleBatchUpload", "ref": "2.0.1", "commit": "1e53b5b50e7fbc6c96c749bfdf3b807f62836c30", "note": "3.0.0 requires MW >= 1.43; 2.0.1 targets MW >= 1.35 and parses clean on PHP 7.4." },
+    { "name": "Variables", "repo": "https://github.com/wikimedia/mediawiki-extensions-Variables", "ref": "REL1_39", "commit": "3efd415ccdcd1607d54ff771103a1b23333e9245" },
+    { "name": "TemplateSandbox", "repo": "https://github.com/wikimedia/mediawiki-extensions-TemplateSandbox", "ref": "REL1_39", "commit": "fc1143264ec8a683ec10eb348a697bab5c2a31b4" },
+    { "name": "DebugTemplates", "repo": "https://github.com/wikimedia/mediawiki-extensions-DebugTemplates", "ref": "REL1_39", "commit": "e1f0ffa24ad9f2299167cbd1af10adde989b93ed" },
+    { "name": "LastUserLogin", "repo": "https://github.com/wikimedia/mediawiki-extensions-LastUserLogin", "ref": "REL1_39", "commit": "c115fb916617ad32a22011fb39fbba9f806547c1" },
+    { "name": "JSBreadCrumbs", "repo": "https://github.com/wikimedia/mediawiki-extensions-JSBreadCrumbs", "ref": "REL1_39", "commit": "8ccb1bd54130392add7e0b04399c1fc8ddf57a68" },
+    { "name": "WikiSEO", "repo": "https://github.com/wikimedia/mediawiki-extensions-WikiSEO", "ref": "REL1_39", "commit": "b204ec4c66f773265495c658484e288d109f4486" },
+    { "name": "NewUserMessage", "repo": "https://github.com/wikimedia/mediawiki-extensions-NewUserMessage", "ref": "REL1_39", "commit": "b09e92c71646c2547879f1a7b96699761101d982" },
+    { "name": "ReplaceSet", "repo": "https://github.com/wikimedia/mediawiki-extensions-ReplaceSet", "ref": "REL1_39", "commit": "8e4ece690f5d6f3356c72d440a1a28a3e4752440" },
+    { "name": "PageForms", "repo": "https://github.com/wikimedia/mediawiki-extensions-PageForms", "ref": "REL1_39", "commit": "d564963afaa96175936257a079ab36b5705f01c4" },
+    { "name": "Maintenance", "repo": "https://github.com/wikimedia/mediawiki-extensions-Maintenance", "ref": "REL1_39", "commit": "079c1f5325516a9e325c7cf79b5cad3eb9103c5f" },
+    { "name": "SecureHTML", "repo": "https://github.com/wikimedia/mediawiki-extensions-SecureHTML", "ref": "REL1_39", "commit": "f6903f2d23f74c0f270ad5f3810ffb94867cbda1" },
+    { "name": "UserFunctions", "repo": "https://github.com/wikimedia/mediawiki-extensions-UserFunctions", "ref": "2b5bebf473c00f228944e9725f22737086c1f4da", "commit": "2b5bebf473c00f228944e9725f22737086c1f4da", "note": "shared.php loads this via require_once .../UserFunctions.php, but REL1_39's tip dropped that legacy entry point (commit cf2e97b). Pin its parent — the last commit shipping UserFunctions.php (a wfLoadExtension shim). ref is a commit, not a branch." },
+    { "name": "Cargo", "repo": "https://github.com/wikimedia/mediawiki-extensions-Cargo", "ref": "REL1_39", "commit": "7c494c983943a44908577dcda1254128aedb5bf4" },
+    { "name": "CodeMirror", "repo": "https://github.com/wikimedia/mediawiki-extensions-CodeMirror", "ref": "REL1_39", "commit": "6db41acfa9116eef8ed1029bef25898a46a299d1" },
+    { "name": "ContactPage", "repo": "https://github.com/wikimedia/mediawiki-extensions-ContactPage", "ref": "REL1_39", "commit": "e23cffcbf50c46031571d894bccd60195470622a" },
+    { "name": "TabberNeue", "repo": "https://github.com/StarCitizenTools/mediawiki-extensions-TabberNeue", "ref": "REL1_39", "commit": "4432a1a90f830d7b7686aba06e7eac0ee44219e2" },
+    { "name": "GTag", "repo": "https://github.com/SkizNet/mediawiki-GTag", "ref": "442e2bc1e5ae3eb714547bb15f1e72c0335de261", "commit": "442e2bc1e5ae3eb714547bb15f1e72c0335de261", "note": "master was bumped to require MW >= 1.43 (commit 81ba560); no release tags, so pin v1.4.0 (commit 442e2bc, MW >= 1.39). ref is a commit." },
+    { "name": "RegexFunctions", "repo": "https://github.com/wikimedia/mediawiki-extensions-RegexFunctions", "ref": "REL1_39", "commit": "4d10081afbf44919706ae3da6b64e257ec937b5d" }
+  ]
+}

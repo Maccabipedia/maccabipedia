@@ -10,6 +10,7 @@ loadable logo + powered-by assets, and Title-encoded menu hrefs.
 from __future__ import annotations
 
 import re
+from urllib.parse import urljoin, urlparse
 
 import pytest
 import requests
@@ -217,28 +218,38 @@ def test_no_broken_dropdown_hrefs(maccabipedia_anon_html: str) -> None:
     assert not broken, f"found {len(broken)} menu link(s) degraded to href=\"#\""
 
 
-def test_no_prod_url_leakage(maccabipedia_anon_html: str) -> None:
+def test_no_prod_url_leakage(base_url: str, maccabipedia_anon_html: str) -> None:
     """No hrefs/text mentioning the production wiki should leak through the
-    local stack."""
+    local stack.
+
+    This is a *local-mirror* invariant (catch hardcoded prod URLs in dev). When
+    the suite is pointed at prod itself the page legitimately contains its own
+    domain, so the assertion is meaningless there — skip it."""
+    if "maccabipedia.co.il" in urlparse(base_url).netloc:
+        pytest.skip("target host is the prod wiki; prod-URL-leakage check is local-only")
     assert "maccabipedia.co.il" not in maccabipedia_anon_html
 
 
 @pytest.mark.parametrize("asset", ["logo", "powered-by"])
-def test_static_asset_loads(maccabipedia_anon_html: str, asset: str) -> None:
+def test_static_asset_loads(
+    base_url: str, maccabipedia_anon_html: str, asset: str
+) -> None:
     """The skin's own logo (assets/images/logo.png) and the powered-by-MediaWiki
     <img src> must be present and resolve to HTTP 200. Both are $wgServer-prefixed
     absolute URLs (see SkinMaccabipedia::buildAppHeaderData/buildAppFooterData).
 
-    The logo is served from the synced banner assets (docker-compose mounts
-    synced/skins/Metrolook/assets into the skin's assets/), so this test
-    presupposes `sync-from-prod.sh maccabipedia-skin-assets` has run."""
+    The logo is served from the skin's own vendored assets/ (skins/Maccabipedia/
+    assets/, in the repo and mounted into the container), so no prod sync is
+    needed."""
     pattern = {
         "logo": r'src="([^"]*logo\.png[^"]*)"',
         "powered-by": r'src="([^"]*poweredby[^"]*)"',
     }[asset]
     match = re.search(pattern, maccabipedia_anon_html)
     assert match, f"<img src> for {asset} not found in main page"
-    asset_url = match.group(1)
+    # Prod serves protocol-relative `//host/...` src; browsers resolve it but
+    # `requests` rejects it with MissingSchema. urljoin borrows the page scheme.
+    asset_url = urljoin(base_url, match.group(1))
     response = requests.get(asset_url, timeout=15)
     assert response.status_code == 200, (
         f"{asset} URL {asset_url} -> HTTP {response.status_code}"

@@ -61,6 +61,20 @@ Prefer Cargo over scraping wiki text.
   - `action=cargoquery` (API) — rejects field aliases starting with `_`. Must alias: `_pageName=pageName`. The MCP server handles this automatically.
 - **MCP server:** Use `mcp__maccabipedia__query_cargo` — it uses `action=cargoquery` and auto-aliases underscore fields so callers can just write `_pageName`.
 
+### The `Team` integer in player-event tables
+
+The per-player event tables store `Team` as an **Integer** (not a Hebrew string), written by each sport's `#cargo_store` template — the bot never writes the numeric value. Maccabi is `1` in all sports, but the opponent value differs:
+
+| Sport | Table | Maccabi | Opponent |
+|---|---|---|---|
+| Football | `Games_Events` | `1` | `0` |
+| Basketball | `Basketball_Player_Game_Events_Summary` | `1` | `0` |
+| Volleyball | `Volleyball_Players_Game_Events` | `1` | **`2`** |
+
+Why volleyball differs: the storing template `תבנית:משחק כדורעף/הזנת אירועי שחקנים` hardcodes `|Team={{#תנאי: {{{האם יריבה|}}} |2 |1}}`, while football's `תבנית:קטלוג משחקים/הזנת אירועי משחק לטבלת אירועי משחק` maps the wikitext tokens `מכבי→1` / `יריבה→0`. The encodings were authored independently and never unified.
+
+All stats consumer templates filter Maccabi rows with `Team=1`, so the mismatch is latent — it only matters for queries that target **opponent** rows explicitly (football/basketball `Team=0`, volleyball `Team=2`). Note a player can have rows on both sides of the same table from stints at other clubs (e.g. ערן זהבי has opponent-row events from his הפועל ת"א years).
+
 ## 6. Redirects
 Hebrew redirect syntax: `#הפניה [[Target_Page_Name]]`
 - Basketball seasons: canonical = `כדורסל:עונת YYYY/YY`, redirect from `כדורסל:YYYY/YY`.
@@ -160,6 +174,19 @@ Multiple players are joined with `,\n` (comma + newline). Both `|שחקנים מ
 - `נק` — total points scored, or empty if the player scored 0 / data unavailable
 - `זריקות/קליעות שתי נק` — free throw attempts/made (confusingly named "two-point throws")
 - `פאולים טכני` — optional, omit entirely if zero
+
+## 10b. Basketball Competition Codes & Playoff Naming (basket.co.il)
+
+The `games_all.json` feed tags each game with a numeric `game_type`. Only **stable, single-meaning** codes are mapped in `translations._BASKET_GAME_TYPE`:
+
+| `game_type` | Competition (`מפעל`) |
+|---|---|
+| `5` | `ליגת העל` (regular season) |
+| `34` | `הסופרקאפ הישראלי` |
+
+**Playoffs are NOT keyed off the code.** Each playoff round gets its own `game_type` (observed: `16`=רבע גמר, `26`=חצי גמר, the final is yet another), so enumerating them is whack-a-mole. Instead, when a code isn't in the map, `discover_games_latest_season` recovers the competition from the **game page header** via `crawl_basket_co_il._competition_from_game_page`: the top-league h4 reads `ליגת <sponsor logo> סל …`, so once the logo `<img>` is dropped the tokens `ליגת סל` sit adjacent → `ליגת העל`. This positively identifies the top division across every round while excluding cups (`גביע … סל`) and the second tier (`ליגת לאומית בכדורסל`), and handles all current and future ליגת העל playoff rounds with no code maintenance. Only if both the code is unmapped **and** the header is unrecognised (e.g. a brand-new cup) does discovery raise — preserving the fail-loud-don't-silently-lose-a-competition guarantee at the competition level. To support a genuinely new competition (a cup), extend `_competition_from_game_page` (or add a stable code to `_BASKET_GAME_TYPE`).
+
+**Playoff games:** `מפעל=ליגת העל` with the round in `שלב במפעל`, e.g. `רבע גמר - משחק 1`, `חצי גמר - משחק 2`, `גמר - משחק 3`. The page title uses only the competition: `כדורסל:DD-MM-YYYY מכבי תל אביב נגד <יריבה> - ליגת העל`. basket.co.il's raw header label (`- רבע הגמר משחק מספר N`) is normalized to this convention by `crawl_basket_co_il._normalize_fixture`.
 
 ## 11. Volleyball Player Stats (`|שחקנים מכבי=` / `|שחקנים יריבה=`)
 
