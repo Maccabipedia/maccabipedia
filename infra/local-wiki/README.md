@@ -109,15 +109,20 @@ docker compose down -v       # wipe DB + images + install marker
     namespaces, hooks, Cargo, ContactPage, TabberNeue, …). Byte-equivalent
     to prod's `LocalSettings.shared.php`; prod uploads this file manually
     when it changes.
+  `config/` also holds the **webroot static files** mounted individually into
+  the container root: `htaccess` → `/var/www/html/.htaccess` and `favicon.ico`
+  → `/var/www/html/favicon.ico` (a site-wide asset `$wgFavicon` points at — not
+  a skin asset), plus `apache-allow-override.conf` for Apache.
 - `scripts/setup-host.sh` — one-shot host-prereq installer (docker,
   compose, lftp). Idempotent.
 - `scripts/sync-from-prod.sh` — named-op wrapper around `lftp` (+ `curl`
   for HTTP). Download-only. See `.env.example` for env vars.
   Ops: `bootstrap`, `versions`, `site-scripts`, `pages <manifest>`. Optional now
   — not needed to render the skin (extensions are baked into the image; the
-  skin's assets and the favicon are vendored). Use it only to seed Cargo/content.
-  The skin sources are vendored at `<repo-root>/skins/Maccabipedia/` and
-  `<repo-root>/skins/Metrolook/` and are NOT touched by this script.
+  skin's assets are vendored under `skins/Maccabipedia/assets/`; the favicon is a
+  vendored webroot file at `config/favicon.ico`). Use it only to seed
+  Cargo/content. The skin sources are vendored at `<repo-root>/skins/Maccabipedia/`
+  and `<repo-root>/skins/Metrolook/` and are NOT touched by this script.
   `site-scripts` pulls `MediaWiki:Common.css` + `MediaWiki:Common.js` (the
   site-wide CSS/JS that back the `site.styles` bundle, CanvasJS hooks, and
   the fanzine form); kept separate from `starter.manifest` because they're
