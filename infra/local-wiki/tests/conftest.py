@@ -96,10 +96,9 @@ def admin_session(base_url: str) -> requests.Session:
 def regular_session(base_url: str) -> requests.Session:
     """A logged-in session for a non-admin user.
 
-    The user 'regular' / 'regularpass' is created by:
-        docker exec local-wiki-mediawiki-1 php /var/www/html/maintenance/createAndPromote.php regular regularpass --force
-    Skips cleanly if the account doesn't exist yet — run that command once
-    when bootstrapping the local stack.
+    The user 'regular' / 'regularpass' is created automatically on every boot
+    by entrypoint.sh (createAndPromote.php --force). Skips cleanly if login
+    fails — e.g. against a stack started from an older image.
     """
     session = requests.Session()
     api_url = f"{base_url}/api.php"

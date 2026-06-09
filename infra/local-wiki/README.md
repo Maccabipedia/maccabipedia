@@ -36,7 +36,7 @@ docker compose up -d --build
 Open http://localhost:8080 — the `מכביפדיה` site renders with the MaccabiPedia
 skin and prod's extension set, no sync required.
 
-Admin user: `maccabi` / `maccabi` (from `docker-compose.yml`; local-only).
+Admin user: `maccabi` / `maccabi2026` (from `docker-compose.yml`; local-only).
 
 ### Optional: seed sample content (no credentials)
 

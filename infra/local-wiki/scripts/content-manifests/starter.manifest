@@ -9,7 +9,7 @@
 #
 # Edit freely — expand coverage as you need it. After changing, re-run:
 #   uv run python scripts/download_pages_from_prod.py pages scripts/content-manifests/starter.manifest
-#   ./scripts/seed-content.sh starter
+#   bash scripts/seed-content.sh starter
 
 # --- core ---
 עמוד ראשי

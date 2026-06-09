@@ -3,7 +3,7 @@
 (Special:Export) into infra/local-wiki/downloaded-pages/, for optionally seeding
 real content into the local wiki. NOT needed to render or verify the skin —
 extensions are baked into the Docker image and the skin's assets (incl. favicon)
-are vendored in the repo. Import the result with ./seed-content.sh.
+are vendored in the repo. Import the result with `bash scripts/seed-content.sh`.
 
 Runs on the host (no credentials; read-only — only fetches page XML):
   uv run python scripts/download_pages_from_prod.py <op> [args]
