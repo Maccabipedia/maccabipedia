@@ -65,3 +65,16 @@ $wgSecureHTMLSecrets = [
 
 ## Google Analytics — empty id disables tracking from dev.
 $wgGTagAnalyticsId = '';
+
+## Images — resolve files from production on demand (XML imports carry no
+## files). Local MW fetches originals + thumbnails via prod's api.php;
+## nothing is stored permanently. Dev-only: prod must never get a foreign
+## repo pointing at itself.
+$wgForeignFileRepos[] = [
+	'class' => ForeignAPIRepo::class,
+	'name' => 'maccabipediaprod',
+	'apibase' => 'https://www.maccabipedia.co.il/api.php',
+	'hashLevels' => 2,
+	'fetchDescription' => false,
+	'apiThumbCacheExpiry' => 86400,
+];

@@ -60,9 +60,39 @@ title per line, `#` for comments), then:
 
 Now browse e.g. `http://localhost:8080/index.php/ערן_זהבי`.
 
-**Limitation**: Cargo data tables aren't populated — `Special:Export`
-returns page wikitext only. Full Cargo-table parity needs a real DB dump
-(see "Follow-ups").
+**Cargo note**: `Special:Export` returns page wikitext only, and
+`#cargo_store` writes only into tables that already exist — so after
+importing pages, create + populate the local Cargo tables once:
+
+```bash
+docker exec local-wiki-mediawiki-1 php extensions/Cargo/maintenance/cargoRecreateData.php
+```
+
+## Seeding a full season (any sport)
+
+Derive every page a season needs (games, players, opponents, stadiums,
+uniforms, premiere songs for football) straight from prod Cargo, then import:
+
+```bash
+uv run python scripts/generate_season_manifest.py football 2024/25
+./scripts/sync-from-prod.sh pages scripts/content-manifests/season-football-2024-25.manifest
+./scripts/seed-content.sh season-football-2024-25
+docker exec local-wiki-mediawiki-1 php extensions/Cargo/maintenance/cargoRecreateData.php
+```
+
+Sports: `football`, `basketball`, `volleyball`. Committed manifests cover
+the most recent championship season of each (football 2024/25,
+basketball 2023/24, volleyball 2024/25).
+
+Cargo rows for the imported pages are regenerated locally from their
+wikitext — no DB dump involved. Season-scoped queries (season page,
+"games this season") are complete; career/all-time queries only see the
+imported seasons.
+
+Skin menu targets live in `content-manifests/menu-targets.manifest`
+(static — update when the skin menu changes). Images are not part of XML
+dumps; the local stack resolves them from prod on demand via
+`$wgForeignFileRepos` in `LocalSettings.env.local.php`.
 
 ## Tear down
 

@@ -36,6 +36,8 @@ MANIFEST
 #  before PyInstaller builds the exe, so as to inject date/other infos into it.
 *.manifest
 *.spec
+# Local-wiki seed manifests are content, not PyInstaller artifacts.
+!infra/local-wiki/scripts/content-manifests/*.manifest
 
 # Installer logs
 pip-log.txt
