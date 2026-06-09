@@ -11,7 +11,7 @@
 #   - Credentials come from env vars; never hardcoded, never logged.
 #   - Every invocation appends a timestamped line to SYNC_LOG.
 #
-# Required for FTP-based ops (favicon, logo-assets, localsettings, versions):
+# Required for FTP-based ops (versions):
 #   MACCABIPEDIA_FTP_HOST        — FTP hostname (e.g. ftp.maccabipedia.co.il)
 #   MACCABIPEDIA_FTP_USER        — FTP username
 #   MACCABIPEDIA_FTP_PASS        — FTP password
@@ -31,20 +31,13 @@
 #
 # Allowed <op> values:
 #   bootstrap                — pull the optional CONTENT for local dev setup:
-#                              favicon + site-scripts + pages (using
+#                              site-scripts + pages (using
 #                              scripts/content-manifests/starter.manifest).
 #                              NOT needed to render the skin — extensions are
 #                              baked into the Docker image and the skin's assets
-#                              are vendored in the repo. Doesn't touch docker —
-#                              run `docker compose up -d --build` and
-#                              `./scripts/seed-content.sh` afterwards.
-#   favicon                  — fetch  <root>/favicon.ico → synced/favicon.ico
-#   localsettings            — fetch  <root>/LocalSettings.php
-#                              → synced/LocalSettings.prod-snapshot.php
-#                              (diagnostic only — not needed for boot)
-#   logo-assets              — mirror <root>/resources/assets/
-#                              → synced/resources/assets/
-#                              (diagnostic only — not mounted by the dev stack)
+#                              (incl. favicon) are vendored in the repo. Doesn't
+#                              touch docker — run `docker compose up -d --build`
+#                              and `./scripts/seed-content.sh` afterwards.
 #   versions                 — list remote directory names under the webroot
 #                              for audit (no downloads; prints listing only)
 #   site-scripts             — pull MediaWiki:Common.css + MediaWiki:Common.js
@@ -133,45 +126,6 @@ run_lftp() {
     lftp -u "${MACCABIPEDIA_FTP_USER},${MACCABIPEDIA_FTP_PASS}" \
          "${MACCABIPEDIA_FTP_HOST}" \
          -e "set cmd:fail-exit yes; ${tls_line} set net:max-retries 3; set net:timeout 20; ${script}; bye"
-}
-
-op_mirror_dir() {
-    require_env MACCABIPEDIA_FTP_HOST MACCABIPEDIA_FTP_USER MACCABIPEDIA_FTP_PASS MACCABIPEDIA_FTP_REMOTE_ROOT
-    local remote_sub="$1"
-    local local_sub="$2"
-    local remote="${MACCABIPEDIA_FTP_REMOTE_ROOT%/}/${remote_sub}"
-    local local_dir="${SYNCED_DIR}/${local_sub}"
-
-    mkdir -p "$local_dir"
-    echo "==> lftp mirror  ${remote}  ->  ${local_dir}"
-    # Drop --only-missing: we want upstream file updates picked up on re-sync.
-    # lftp still compares size/mtime and skips unchanged files, so a re-sync
-    # after no prod changes is fast without leaving stale content behind.
-    run_lftp "mirror --verbose --parallel=4 '${remote}' '${local_dir}'"
-    log_event "mirror" "${remote}" "${local_dir}"
-}
-
-op_localsettings() {
-    require_env MACCABIPEDIA_FTP_HOST MACCABIPEDIA_FTP_USER MACCABIPEDIA_FTP_PASS MACCABIPEDIA_FTP_REMOTE_ROOT
-    local remote="${MACCABIPEDIA_FTP_REMOTE_ROOT%/}/LocalSettings.php"
-    local local_file="${SYNCED_DIR}/LocalSettings.prod-snapshot.php"
-
-    mkdir -p "${SYNCED_DIR}"
-    echo "==> lftp get  ${remote}  ->  ${local_file}"
-    run_lftp "get '${remote}' -o '${local_file}'"
-    log_event "get" "${remote}" "${local_file}"
-    echo "   snapshot saved. Scrub secrets before committing anything derived from it."
-}
-
-op_favicon() {
-    require_env MACCABIPEDIA_FTP_HOST MACCABIPEDIA_FTP_USER MACCABIPEDIA_FTP_PASS MACCABIPEDIA_FTP_REMOTE_ROOT
-    local remote="${MACCABIPEDIA_FTP_REMOTE_ROOT%/}/favicon.ico"
-    local local_file="${SYNCED_DIR}/favicon.ico"
-
-    mkdir -p "${SYNCED_DIR}"
-    echo "==> lftp get  ${remote}  ->  ${local_file}"
-    run_lftp "get '${remote}' -o '${local_file}'"
-    log_event "get" "${remote}" "${local_file}"
 }
 
 op_versions() {
@@ -286,13 +240,9 @@ case "$op" in
         # Extensions are baked into the Docker image and the skin's assets are
         # vendored in the repo, so bootstrap pulls CONTENT only (optional —
         # the wiki renders the skin without it).
-        op_favicon
         op_site_scripts
         op_pages "${SCRIPT_DIR}/content-manifests/starter.manifest"
         ;;
-    favicon)       op_favicon ;;
-    logo-assets)   op_mirror_dir "resources/assets"  "resources/assets" ;;
-    localsettings) op_localsettings ;;
     versions)      op_versions ;;
     site-scripts)  op_site_scripts ;;
     pages)         op_pages "$@" ;;

@@ -31,12 +31,13 @@ services:
       # Skin sources come from the repo. The Maccabipedia skin's binary assets
       # are vendored under skins/Maccabipedia/assets/ (PR #142) and ride in via
       # this mount. Extensions are baked into the image (see Dockerfile +
-      # extensions.lock) — nothing is fetched from prod, so a fresh worktree
+      # extensions.json) — nothing is fetched from prod, so a fresh worktree
       # boots with `docker compose up -d --build` and no sync-from-prod.
       - ../../skins/Maccabipedia:/var/www/html/skins/Maccabipedia:ro
       - ../../skins/Metrolook:/var/www/html/skins/Metrolook:ro
       - ./config:/mw-config:ro
       - ./config/htaccess:/var/www/html/.htaccess:ro
+      - ./config/favicon.ico:/var/www/html/favicon.ico:ro
       - ./config/apache-allow-override.conf:/etc/apache2/conf-enabled/zz-mw-allow-override.conf:ro
 
   mariadb:

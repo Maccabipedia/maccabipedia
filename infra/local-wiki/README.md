@@ -46,7 +46,7 @@ The wiki renders the skin without this. Seed it only when you want real pages /
 
 ```bash
 cp .env.example .env && chmod 600 .env   # fill in host/user/pass/remote-root
-./scripts/sync-from-prod.sh bootstrap    # favicon + site-scripts + sample pages
+./scripts/sync-from-prod.sh bootstrap    # site-scripts + sample pages
 ./scripts/seed-content.sh                # import the pulled XML dumps
 ```
 
@@ -113,12 +113,11 @@ docker compose down -v       # wipe DB + images + install marker
   compose, lftp). Idempotent.
 - `scripts/sync-from-prod.sh` — named-op wrapper around `lftp` (+ `curl`
   for HTTP). Download-only. See `.env.example` for env vars.
-  Ops: `bootstrap`, `favicon`, `logo-assets`, `localsettings`, `versions`,
-  `site-scripts`, `pages <manifest>`. Optional now — not needed to render the
-  skin (extensions are baked into the image; the skin's assets are vendored).
-  Use it only to seed Cargo/content. The skin sources are vendored at
-  `<repo-root>/skins/Maccabipedia/` and `<repo-root>/skins/Metrolook/` and are
-  NOT touched by this script.
+  Ops: `bootstrap`, `versions`, `site-scripts`, `pages <manifest>`. Optional now
+  — not needed to render the skin (extensions are baked into the image; the
+  skin's assets and the favicon are vendored). Use it only to seed Cargo/content.
+  The skin sources are vendored at `<repo-root>/skins/Maccabipedia/` and
+  `<repo-root>/skins/Metrolook/` and are NOT touched by this script.
   `site-scripts` pulls `MediaWiki:Common.css` + `MediaWiki:Common.js` (the
   site-wide CSS/JS that back the `site.styles` bundle, CanvasJS hooks, and
   the fanzine form); kept separate from `starter.manifest` because they're
