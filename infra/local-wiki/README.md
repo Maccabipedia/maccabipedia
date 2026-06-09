@@ -15,18 +15,17 @@ Dev-only values (DB host, URL, fake secrets) are in
 ## Prerequisites
 
 - **Linux / WSL (Ubuntu/Debian):** run `./scripts/setup-host.sh` once. It
-  installs `docker.io`, `docker-compose-v2`, and `lftp`, starts the docker
-  daemon, and adds you to the `docker` group. Open a new shell (or
-  `newgrp docker`) so `docker` works without sudo afterwards.
+  installs `docker.io` and `docker-compose-v2`, starts the docker daemon, and
+  adds you to the `docker` group. Open a new shell (or `newgrp docker`) so
+  `docker` works without sudo afterwards.
 - **macOS / Windows:** install Docker Desktop manually (with WSL 2
-  integration on Windows). `lftp` is needed for the prod-sync script and
-  can be installed via Homebrew / Scoop.
+  integration on Windows).
 
 ## First-time setup
 
 ```bash
 cd infra/local-wiki
-./scripts/setup-host.sh               # docker + lftp + group membership
+./scripts/setup-host.sh               # docker + group membership
 
 # Bring up a full, skin-rendering wiki. Extensions are baked into the image
 # from extensions.json; the skin + its assets come from the repo. No prod fetch.
@@ -42,12 +41,12 @@ Admin user: `maccabi` / `maccabi` (from `docker-compose.yml`; local-only).
 ### Optional: seed sample content (needs FTP creds)
 
 The wiki renders the skin without this. Seed it only when you want real pages /
-`MediaWiki:Common.{css,js}` locally.
+`MediaWiki:Common.{css,js}` locally. Pages are fetched over plain HTTP
+(`Special:Export`) from the public site — no credentials needed.
 
 ```bash
-cp .env.example .env && chmod 600 .env   # fill in host/user/pass/remote-root
-./scripts/sync-from-prod.sh bootstrap    # site-scripts + sample pages
-./scripts/seed-content.sh                # import the pulled XML dumps
+./scripts/download-pages-from-prod.sh bootstrap   # site-scripts + sample pages
+./scripts/seed-content.sh                          # import the downloaded XML dumps
 ```
 
 ## Adjusting the seed set
@@ -57,7 +56,7 @@ Pages pulled by `bootstrap` are listed in
 title per line, `#` for comments), then:
 
 ```bash
-./scripts/sync-from-prod.sh pages scripts/content-manifests/starter.manifest
+./scripts/download-pages-from-prod.sh pages scripts/content-manifests/starter.manifest
 ./scripts/seed-content.sh starter
 ```
 
@@ -114,15 +113,16 @@ docker compose down -v       # wipe DB + images + install marker
   → `/var/www/html/favicon.ico` (a site-wide asset `$wgFavicon` points at — not
   a skin asset), plus `apache-allow-override.conf` for Apache.
 - `scripts/setup-host.sh` — one-shot host-prereq installer (docker,
-  compose, lftp). Idempotent.
-- `scripts/sync-from-prod.sh` — named-op wrapper around `lftp` (+ `curl`
-  for HTTP). Download-only. See `.env.example` for env vars.
-  Ops: `bootstrap`, `versions`, `site-scripts`, `pages <manifest>`. Optional now
-  — not needed to render the skin (extensions are baked into the image; the
-  skin's assets are vendored under `skins/Maccabipedia/assets/`; the favicon is a
-  vendored webroot file at `config/favicon.ico`). Use it only to seed
-  Cargo/content. The skin sources are vendored at `<repo-root>/skins/Maccabipedia/`
-  and `<repo-root>/skins/Metrolook/` and are NOT touched by this script.
+  compose). Idempotent.
+- `scripts/download-pages-from-prod.sh` — downloads wiki PAGES from the public
+  prod site over HTTP (`curl` + `Special:Export`) into `downloaded-pages/`.
+  Read-only, no credentials. Ops: `bootstrap`, `site-scripts`,
+  `pages <manifest>`. Optional — not needed to render the skin (extensions are
+  baked into the image; the skin's assets are vendored under
+  `skins/Maccabipedia/assets/`; the favicon is a vendored webroot file at
+  `config/favicon.ico`). Use it only to seed real content. The skin sources are
+  vendored at `<repo-root>/skins/Maccabipedia/` and `<repo-root>/skins/Metrolook/`
+  and are NOT touched by this script.
   `site-scripts` pulls `MediaWiki:Common.css` + `MediaWiki:Common.js` (the
   site-wide CSS/JS that back the `site.styles` bundle, CanvasJS hooks, and
   the fanzine form); kept separate from `starter.manifest` because they're

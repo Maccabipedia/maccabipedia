@@ -4,12 +4,12 @@
 #
 # Expects:
 #   - The stack is up: `docker compose -f <dir>/docker-compose.yml ps`
-#   - An XML dump exists at synced/pages/<stem>.xml — pull one with
-#     `./sync-from-prod.sh pages <manifest>`.
+#   - An XML dump exists at downloaded-pages/<stem>.xml — download one with
+#     `./download-pages-from-prod.sh pages <manifest>`.
 #
 # Usage:
-#   ./seed-content.sh                  # imports every XML in synced/pages/
-#   ./seed-content.sh <stem>           # imports only synced/pages/<stem>.xml
+#   ./seed-content.sh                  # imports every XML in downloaded-pages/
+#   ./seed-content.sh <stem>           # imports only downloaded-pages/<stem>.xml
 #
 # After import, runs maintenance/runJobs.php so deferred parser updates
 # (link tables, Cargo stores, category memberships) land before you browse.
@@ -18,7 +18,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LOCAL_WIKI_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
-PAGES_DIR="${LOCAL_WIKI_DIR}/synced/pages"
+PAGES_DIR="${LOCAL_WIKI_DIR}/downloaded-pages"
 COMPOSE_FILE="${LOCAL_WIKI_DIR}/docker-compose.yml"
 SERVICE="mediawiki"
 
@@ -47,9 +47,9 @@ if ! compose_exec -T "$SERVICE" true >/dev/null 2>&1; then
 fi
 
 if [ ! -d "$PAGES_DIR" ]; then
-    echo "ERROR: no synced pages dir at $PAGES_DIR" >&2
-    echo "       Pull some pages first:" >&2
-    echo "         ./sync-from-prod.sh pages <manifest>" >&2
+    echo "ERROR: no downloaded pages dir at $PAGES_DIR" >&2
+    echo "       Download some pages first:" >&2
+    echo "         ./download-pages-from-prod.sh pages <manifest>" >&2
     exit 1
 fi
 

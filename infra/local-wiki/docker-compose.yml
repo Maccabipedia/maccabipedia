@@ -32,7 +32,7 @@ services:
       # are vendored under skins/Maccabipedia/assets/ (PR #142) and ride in via
       # this mount. Extensions are baked into the image (see Dockerfile +
       # extensions.json) — nothing is fetched from prod, so a fresh worktree
-      # boots with `docker compose up -d --build` and no sync-from-prod.
+      # boots with `docker compose up -d --build` and no prod fetch.
       - ../../skins/Maccabipedia:/var/www/html/skins/Maccabipedia:ro
       - ../../skins/Metrolook:/var/www/html/skins/Metrolook:ro
       - ./config:/mw-config:ro
