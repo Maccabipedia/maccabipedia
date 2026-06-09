@@ -18,6 +18,7 @@ Optional env: MACCABIPEDIA_WEB_URL  (default: https://www.maccabipedia.co.il)
 from __future__ import annotations
 
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -54,8 +55,10 @@ def _export(stem: str, titles: list[str]) -> None:
     response.raise_for_status()
 
     # Special:Export returns MediaWiki XML on success; an HTML error page won't
-    # carry the <mediawiki root element near the top.
-    if "<mediawiki" not in response.text[:512]:
+    # carry the <mediawiki root element near the top. Anchor the match to
+    # "<mediawiki" + whitespace so an HTML page that merely mentions the word
+    # can't slip through.
+    if not re.search(r"<mediawiki\s", response.text[:512]):
         sys.exit("ERROR: response is not a MediaWiki XML dump — check the site / titles")
 
     out_file.write_text(response.text, encoding="utf-8")
