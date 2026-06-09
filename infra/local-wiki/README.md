@@ -29,7 +29,7 @@ cd infra/local-wiki
 
 # Bring up a full, skin-rendering wiki. Extensions are baked into the image
 # from extensions.json; the skin + its assets come from the repo. No prod fetch.
-# (First build takes a few minutes — it clones the pinned extensions.)
+# (First build takes a few minutes — it downloads the pinned extensions.)
 docker compose up -d --build
 ```
 
@@ -38,15 +38,15 @@ skin and prod's extension set, no sync required.
 
 Admin user: `maccabi` / `maccabi` (from `docker-compose.yml`; local-only).
 
-### Optional: seed sample content (needs FTP creds)
+### Optional: seed sample content (no credentials)
 
 The wiki renders the skin without this. Seed it only when you want real pages /
 `MediaWiki:Common.{css,js}` locally. Pages are fetched over plain HTTP
 (`Special:Export`) from the public site — no credentials needed.
 
 ```bash
-./scripts/download-pages-from-prod.sh bootstrap   # site-scripts + sample pages
-./scripts/seed-content.sh                          # import the downloaded XML dumps
+uv run python scripts/download_pages_from_prod.py bootstrap   # site-scripts + sample pages
+./scripts/seed-content.sh                                      # import the downloaded XML dumps
 ```
 
 ## Adjusting the seed set
@@ -56,7 +56,7 @@ Pages pulled by `bootstrap` are listed in
 title per line, `#` for comments), then:
 
 ```bash
-./scripts/download-pages-from-prod.sh pages scripts/content-manifests/starter.manifest
+uv run python scripts/download_pages_from_prod.py pages scripts/content-manifests/starter.manifest
 ./scripts/seed-content.sh starter
 ```
 
@@ -77,19 +77,21 @@ docker compose down -v       # wipe DB + images + install marker
 
 - `Dockerfile` — `FROM php:7.4.33-apache-bullseye`, installs MW 1.39.11 +
   PHP extensions (intl, gd, mysqli, zip, mbstring, calendar, opcache, apcu
-  pinned to 5.1.24), then clones the SHA-pinned third-party extensions from
+  pinned to 5.1.24), then downloads the SHA-pinned third-party extensions from
   `extensions.json` into the image (`fetch-extensions.sh`). All versions
   pinned for reproducibility.
 - `extensions.json` — SHA-pinned manifest of the third-party extensions
   `LocalSettings.shared.php` loads that aren't bundled in MW 1.39 core
   (each entry: `name`, `repo`, `ref`, `commit`, optional `note`). Baked into
   the image at build time; never synced from prod, never committed as code.
-- `scripts/fetch-extensions.sh` — build-time cloner (bash: runs inside the
-  image, which has git+jq but no Python). Clones each manifest entry at its
-  pinned `commit`, then strips `.git` to keep the image lean.
+- `scripts/fetch-extensions.sh` — build-time downloader (bash: runs inside the
+  image, which has curl+jq but no Python). Downloads each manifest entry's
+  pinned `commit` as an HTTPS tarball (GitHub `…/archive/<sha>.tar.gz` or gerrit
+  gitiles `…/+archive/<sha>.tar.gz`) and extracts it — no git in the image.
 - `scripts/resolve_extension_pins.py` — host-side re-pin/bump tool: edit an
   entry's `ref` (branch/tag/SHA), run `uv run python scripts/resolve_extension_pins.py`,
-  and the `commit` is refreshed via `git ls-remote`.
+  and the `commit` is refreshed via `git ls-remote` (uses the dev host's git;
+  the image itself has none).
 - `docker-compose.yml` — `mediawiki` (built locally) + `mariadb:10.11`.
   Named volumes: `mw_db`, `mw_images`, `mw_config` (first-boot marker).
   Mediawiki healthcheck polls `http://localhost/`.
@@ -114,10 +116,11 @@ docker compose down -v       # wipe DB + images + install marker
   a skin asset), plus `apache-allow-override.conf` for Apache.
 - `scripts/setup-host.sh` — one-shot host-prereq installer (docker,
   compose). Idempotent.
-- `scripts/download-pages-from-prod.sh` — downloads wiki PAGES from the public
-  prod site over HTTP (`curl` + `Special:Export`) into `downloaded-pages/`.
-  Read-only, no credentials. Ops: `bootstrap`, `site-scripts`,
-  `pages <manifest>`. Optional — not needed to render the skin (extensions are
+- `scripts/download_pages_from_prod.py` — downloads wiki PAGES from the public
+  prod site over HTTP (`requests` + `Special:Export`) into `downloaded-pages/`.
+  Host-side (`uv run python …`), read-only, no credentials. Ops: `bootstrap`,
+  `site-scripts`, `pages <manifest>`. Optional — not needed to render the skin
+  (extensions are
   baked into the image; the skin's assets are vendored under
   `skins/Maccabipedia/assets/`; the favicon is a vendored webroot file at
   `config/favicon.ico`). Use it only to seed real content. The skin sources are

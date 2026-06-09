@@ -8,7 +8,7 @@
 # so you get realistic infobox/Cargo rendering even from a small manifest.
 #
 # Edit freely — expand coverage as you need it. After changing, re-run:
-#   ./scripts/download-pages-from-prod.sh pages scripts/content-manifests/starter.manifest
+#   uv run python scripts/download_pages_from_prod.py pages scripts/content-manifests/starter.manifest
 #   ./scripts/seed-content.sh starter
 
 # --- core ---

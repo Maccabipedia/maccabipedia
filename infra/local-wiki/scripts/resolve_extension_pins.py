@@ -4,8 +4,9 @@
 Run on the host to create or bump pins:  uv run python scripts/resolve_extension_pins.py
 Reads and rewrites extensions.json in place, preserving order and notes. Network required.
 
-(The build-time cloner, fetch-extensions.sh, is bash because it runs inside the
-php:7.4-apache image, which has no Python — this resolver runs on the dev host.)
+(The build-time fetcher, fetch-extensions.sh, is bash because it runs inside the
+php:7.4-apache image, which has no Python; it downloads commit tarballs over
+HTTPS. This resolver runs on the dev host, where git + Python are available.)
 """
 from __future__ import annotations
 

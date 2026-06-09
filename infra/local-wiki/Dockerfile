@@ -5,7 +5,6 @@ ENV MW_VERSION=1.39.11 \
     DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        git \
         jq \
         libicu-dev \
         libpng-dev \
@@ -43,7 +42,7 @@ RUN curl -fSL "https://releases.wikimedia.org/mediawiki/1.39/mediawiki-${MW_VERS
 # LocalSettings.shared.php verbatim (the deploy-localsettings witness) requires
 # every one of these present.
 # Editing extensions.json (or the fetcher) busts this COPY layer and re-runs the
-# clone — exactly what we want when a pin changes; an unrelated rebuild reuses
+# download — exactly what we want when a pin changes; an unrelated rebuild reuses
 # the cached layer.
 COPY scripts/fetch-extensions.sh /usr/local/bin/fetch-extensions.sh
 COPY extensions.json /tmp/extensions.json

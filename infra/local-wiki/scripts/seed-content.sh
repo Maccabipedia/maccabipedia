@@ -5,7 +5,7 @@
 # Expects:
 #   - The stack is up: `docker compose -f <dir>/docker-compose.yml ps`
 #   - An XML dump exists at downloaded-pages/<stem>.xml — download one with
-#     `./download-pages-from-prod.sh pages <manifest>`.
+#     `uv run python scripts/download_pages_from_prod.py pages <manifest>`.
 #
 # Usage:
 #   ./seed-content.sh                  # imports every XML in downloaded-pages/
@@ -49,7 +49,7 @@ fi
 if [ ! -d "$PAGES_DIR" ]; then
     echo "ERROR: no downloaded pages dir at $PAGES_DIR" >&2
     echo "       Download some pages first:" >&2
-    echo "         ./download-pages-from-prod.sh pages <manifest>" >&2
+    echo "         uv run python scripts/download_pages_from_prod.py pages <manifest>" >&2
     exit 1
 fi
 
