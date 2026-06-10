@@ -82,10 +82,13 @@ for xml in "${xml_files[@]}"; do
         < "$xml"
 done
 
+# MW_DISABLE_FOREIGN_IMAGES: rebuilding links re-parses every page; image
+# lookups are HTTP round-trips to prod and ~90% of parse wall time, and the
+# link tables don't need them (file references are recorded either way).
 echo "==> rebuildall.php (link tables, search index)"
-compose_exec "$SERVICE" php maintenance/rebuildall.php
+compose_exec -e MW_DISABLE_FOREIGN_IMAGES=1 "$SERVICE" php maintenance/rebuildall.php
 
 echo "==> runJobs.php (flush deferred work)"
-compose_exec "$SERVICE" php maintenance/runJobs.php --maxjobs 2000
+compose_exec -e MW_DISABLE_FOREIGN_IMAGES=1 "$SERVICE" php maintenance/runJobs.php --maxjobs 2000
 
 echo "done — imported ${#xml_files[@]} dump file(s). Reload http://localhost:8080 to see the content."

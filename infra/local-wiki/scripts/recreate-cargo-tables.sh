@@ -17,6 +17,7 @@
 #   bash recreate-cargo-tables.sh                  # every table declared locally
 #   bash recreate-cargo-tables.sh <table>...       # only the named tables
 #   bash recreate-cargo-tables.sh --populate-only  # skip (re)creating tables
+#   bash recreate-cargo-tables.sh --create-only    # skip the populate pass
 #
 # Populate runs CARGO_POPULATE_WORKERS parallel workers (default 8).
 
@@ -51,8 +52,12 @@ if ! compose_exec -T mediawiki true >/dev/null 2>&1; then
 fi
 
 POPULATE_ONLY=0
+CREATE_ONLY=0
 if [ "${1:-}" = "--populate-only" ]; then
     POPULATE_ONLY=1
+    shift
+elif [ "${1:-}" = "--create-only" ]; then
+    CREATE_ONLY=1
     shift
 fi
 
@@ -86,6 +91,11 @@ if [ "$POPULATE_ONLY" -eq 0 ]; then
     done
 fi
 
+if [ "$CREATE_ONLY" -eq 1 ]; then
+    echo "done — ${#tables[@]} Cargo table(s) created (populate skipped)."
+    exit 0
+fi
+
 # cargoRecreateData.php only re-parses pages that transclude the declaring /
 # attached templates — on MaccabiPedia most #cargo_store calls live in plain
 # content templates, so the tables come out of the loop above EMPTY. Replay
@@ -98,10 +108,12 @@ $DOCKER compose -f "$COMPOSE_FILE" cp \
 
 # MW_DISABLE_FOREIGN_IMAGES: image lookups are HTTP round-trips to prod and
 # ~90% of page-parse wall time, while #cargo_store needs none of them.
+WORKER_LOG_DIR="$(mktemp -d /tmp/cargo-populate.XXXXXX)"
 declare -a worker_pids=()
 for (( worker=0; worker<WORKERS; worker++ )); do
     compose_exec -T -e MW_DISABLE_FOREIGN_IMAGES=1 mediawiki \
-        php maintenance/populateLocalCargoData.php --shards "$WORKERS" --shard "$worker" &
+        php maintenance/populateLocalCargoData.php --shards "$WORKERS" --shard "$worker" \
+        2>&1 | tee "${WORKER_LOG_DIR}/w${worker}.log" &
     worker_pids+=($!)
 done
 
@@ -109,9 +121,24 @@ populate_status=0
 for pid in "${worker_pids[@]}"; do
     wait "$pid" || populate_status=1
 done
+
 if [ "$populate_status" -ne 0 ]; then
-    echo "ERROR: one or more populate workers failed — check the output above." >&2
-    exit 1
+    # A page can exhaust its retries when two workers race on the same
+    # table's unlocked MAX(_ID)+1 allocation. Nothing else writes now, so a
+    # serial second pass converges deterministically.
+    mapfile -t failed_titles < <(
+        sed -nE 's/.*\] (.*) — ERROR after [0-9]+ attempts.*/\1/p' "${WORKER_LOG_DIR}"/w*.log | sort -u
+    )
+    if [ ${#failed_titles[@]} -eq 0 ]; then
+        echo "ERROR: a populate worker failed but no failed pages were parsed from its log — check ${WORKER_LOG_DIR}." >&2
+        exit 1
+    fi
+    echo "==> re-storing ${#failed_titles[@]} race-failed page(s) serially"
+    for title in "${failed_titles[@]}"; do
+        compose_exec -T -e MW_DISABLE_FOREIGN_IMAGES=1 mediawiki \
+            php maintenance/populateLocalCargoData.php --title "$title"
+    done
 fi
+rm -rf "$WORKER_LOG_DIR"
 
 echo "done — Cargo tables populated."
