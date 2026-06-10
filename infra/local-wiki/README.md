@@ -85,6 +85,11 @@ to prod and ~90% of parse time, and storing needs none of them); the full
 wiki populates in ~2 minutes. Re-run after seeding more content with
 `bash scripts/recreate-cargo-tables.sh --populate-only`.
 
+When iterating, don't tear down with `-v`: a plain `docker compose down`
+keeps the DB, so the next `up -d` skips the install and you only re-seed
+what changed. Multiple manifests can be passed to one
+`download_pages_from_prod.py pages` call — they download concurrently.
+
 ## Seeding a full season (any sport)
 
 Derive every page a season needs (games, players, opponents, stadiums,

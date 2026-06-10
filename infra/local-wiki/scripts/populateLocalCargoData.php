@@ -112,6 +112,23 @@ class PopulateLocalCargoData extends Maintenance {
 			}
 			$contentText = ContentHandler::getContentText( $content );
 
+			// Game pages store dozens of per-event rows, each allocated via
+			// Cargo's unlocked MAX(_ID)+1 — two workers on same-sport game
+			// pages collide near-certainly. Serialize ONLY those through a
+			// per-sport advisory lock; everything else stores 1-2 rows and
+			// the retry below absorbs the rare clash.
+			$lockKey = null;
+			if ( strpos( $prefixedTitle, 'משחק:' ) === 0 ) {
+				$lockKey = 'cargo-populate-football-games';
+			} elseif ( preg_match( '/^כדורסל:\d{2}-/u', $prefixedTitle ) ) {
+				$lockKey = 'cargo-populate-basketball-games';
+			} elseif ( preg_match( '/^כדורעף:\d{2}-/u', $prefixedTitle ) ) {
+				$lockKey = 'cargo-populate-volleyball-games';
+			}
+			if ( $lockKey !== null ) {
+				$dbw->lock( $lockKey, __METHOD__, 120 );
+			}
+
 			// Same sequence as CargoHooks::onPageSaveComplete: drop the
 			// page's old rows, then re-parse so #cargo_store re-adds them.
 			// Retried because parallel workers can race on Cargo's
@@ -147,6 +164,10 @@ class PopulateLocalCargoData extends Maintenance {
 					$this->output( "$label [$processed/$total] $prefixedTitle — retrying (attempt $attempts): "
 						. $exception->getMessage() . "\n" );
 				}
+			}
+
+			if ( $lockKey !== null ) {
+				$dbw->unlock( $lockKey, __METHOD__ );
 			}
 
 			// cargo_pages records which tables this page just stored into.

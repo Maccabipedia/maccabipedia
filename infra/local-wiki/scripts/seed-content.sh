@@ -74,7 +74,7 @@ if [ ${#xml_files[@]} -eq 0 ]; then
 fi
 
 for xml in "${xml_files[@]}"; do
-    echo "==> importDump.php  <  ${xml}"
+    echo "[$(date +%H:%M:%S)] ==> importDump.php  <  ${xml}"
     # Drop --quiet so per-page import errors are visible rather than hidden
     # behind a uniformly-successful exit code.
     compose_exec -T "$SERVICE" \
@@ -82,13 +82,44 @@ for xml in "${xml_files[@]}"; do
         < "$xml"
 done
 
-# MW_DISABLE_FOREIGN_IMAGES: rebuilding links re-parses every page; image
-# lookups are HTTP round-trips to prod and ~90% of parse wall time, and the
-# link tables don't need them (file references are recorded either way).
-echo "==> rebuildall.php (link tables, search index)"
-compose_exec -e MW_DISABLE_FOREIGN_IMAGES=1 "$SERVICE" php maintenance/rebuildall.php
+# Link rebuild re-parses every page, so two speedups apply:
+#  - MW_DISABLE_FOREIGN_IMAGES: image lookups are HTTP round-trips to prod
+#    and ~90% of parse wall time; link tables don't need them (file
+#    references are recorded either way).
+#  - refreshLinks.php is single-threaded — run one worker per page-id range
+#    instead of rebuildall.php's serial pass (links rows are per-page, so
+#    ranges can't conflict). rebuildall's other two stages (text index,
+#    recent changes) run after, they're cheap.
+REBUILD_WORKERS="${SEED_REBUILD_WORKERS:-8}"
+max_page_id=$(compose_exec -T mariadb mysql -N -u root -p"${MYSQL_ROOT_PASSWORD:-devroot}" \
+    "${MW_DB_NAME:-maccabipedia}" \
+    -e "SELECT COALESCE(MAX(page_id), 0) FROM ${MW_DB_PREFIX:-MPMW_}page" | tr -d '[:space:]')
+echo "[$(date +%H:%M:%S)] ==> refreshLinks.php (${REBUILD_WORKERS} workers over page ids 1..${max_page_id})"
+range_size=$(( (max_page_id + REBUILD_WORKERS - 1) / REBUILD_WORKERS ))
+declare -a rebuild_pids=()
+for (( worker=0; worker<REBUILD_WORKERS; worker++ )); do
+    range_start=$(( worker * range_size + 1 ))
+    range_end=$(( (worker + 1) * range_size ))
+    compose_exec -T -e MW_DISABLE_FOREIGN_IMAGES=1 "$SERVICE" \
+        php maintenance/refreshLinks.php "$range_start" --e "$range_end" &
+    rebuild_pids+=($!)
+done
+rebuild_status=0
+for pid in "${rebuild_pids[@]}"; do
+    wait "$pid" || rebuild_status=1
+done
+if [ "$rebuild_status" -ne 0 ]; then
+    echo "ERROR: a refreshLinks worker failed — check the output above." >&2
+    exit 1
+fi
 
-echo "==> runJobs.php (flush deferred work)"
+echo "[$(date +%H:%M:%S)] ==> rebuildtextindex.php (search index)"
+compose_exec -T "$SERVICE" php maintenance/rebuildtextindex.php
+
+echo "[$(date +%H:%M:%S)] ==> rebuildrecentchanges.php"
+compose_exec -T "$SERVICE" php maintenance/rebuildrecentchanges.php
+
+echo "[$(date +%H:%M:%S)] ==> runJobs.php (flush deferred work)"
 compose_exec -e MW_DISABLE_FOREIGN_IMAGES=1 "$SERVICE" php maintenance/runJobs.php --maxjobs 2000
 
 echo "done — imported ${#xml_files[@]} dump file(s). Reload http://localhost:8080 to see the content."

@@ -11,7 +11,8 @@ Runs on the host (no credentials; read-only — only fetches page XML):
 Ops:
   bootstrap            site-scripts + pages (scripts/content-manifests/starter.manifest)
   site-scripts         MediaWiki:Common.css + MediaWiki:Common.js
-  pages <manifest>     every title in <manifest> (one per line; blank / '#' ignored)
+  pages <manifest>...  every title in each <manifest> (one per line; blank / '#'
+                       ignored); multiple manifests download concurrently
 
 Optional env: MACCABIPEDIA_WEB_URL  (default: https://www.maccabipedia.co.il)
 """
@@ -20,6 +21,7 @@ from __future__ import annotations
 import os
 import re
 import sys
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from urllib.parse import quote
 
@@ -137,8 +139,16 @@ def main() -> None:
         if len(sys.argv) < 3:
             sys.exit("ERROR: 'pages' op requires a manifest path\n"
                      "  e.g. ... pages scripts/content-manifests/starter.manifest")
-        manifest = Path(sys.argv[2])
-        _export(manifest.stem, _titles_from_manifest(manifest))
+        manifests = [Path(arg) for arg in sys.argv[2:]]
+        # The wait is prod generating each export, not bandwidth — fetch
+        # manifests concurrently, capped politely at 3 in-flight.
+        with ThreadPoolExecutor(max_workers=3) as pool:
+            jobs = [
+                pool.submit(_export, manifest.stem, _titles_from_manifest(manifest))
+                for manifest in manifests
+            ]
+            for job in jobs:
+                job.result()
     elif op == "bootstrap":
         _export("site-scripts", _SITE_SCRIPT_TITLES)
         _export(_STARTER_MANIFEST.stem, _titles_from_manifest(_STARTER_MANIFEST))

@@ -61,38 +61,20 @@ elif [ "${1:-}" = "--create-only" ]; then
     shift
 fi
 
-declare -a tables=()
-if [ $# -gt 0 ]; then
-    tables=("$@")
-else
-    # Every Cargo table declared by an imported template.
-    while IFS= read -r table; do
-        [ -n "$table" ] && tables+=("$table")
-    done < <(compose_exec -T mariadb mysql -N -u root -p"${MYSQL_ROOT_PASSWORD:-devroot}" \
-        "${MW_DB_NAME:-maccabipedia}" \
-        -e "SELECT DISTINCT pp_value FROM ${MW_DB_PREFIX:-MPMW_}page_props WHERE pp_propname='CargoTableName' ORDER BY pp_value")
-fi
-
-if [ ${#tables[@]} -eq 0 ]; then
-    echo "ERROR: no Cargo tables declared locally. Import the declaration" >&2
-    echo "       templates first:" >&2
-    echo "         uv run python scripts/download_pages_from_prod.py pages scripts/content-manifests/cargo-declarations.manifest" >&2
-    echo "         bash scripts/seed-content.sh cargo-declarations" >&2
-    exit 1
-fi
-
 if [ "$POPULATE_ONLY" -eq 0 ]; then
-    echo "==> recreating ${#tables[@]} Cargo table(s)"
-    for table in "${tables[@]}"; do
-        echo "    - ${table}"
-        # --quiet also skips the interactive 5s "hit Ctrl-C" grace sleep.
-        compose_exec -T mediawiki \
-            php extensions/Cargo/maintenance/cargoRecreateData.php --table "$table" --quiet
-    done
+    echo "==> recreating Cargo tables (single batched process)"
+    $DOCKER compose -f "$COMPOSE_FILE" cp \
+        "${SCRIPT_DIR}/createLocalCargoTables.php" mediawiki:/var/www/html/maintenance/createLocalCargoTables.php
+    if [ $# -gt 0 ]; then
+        table_list=$(IFS=,; echo "$*")
+        compose_exec -T mediawiki php maintenance/createLocalCargoTables.php --tables "$table_list"
+    else
+        compose_exec -T mediawiki php maintenance/createLocalCargoTables.php
+    fi
 fi
 
 if [ "$CREATE_ONLY" -eq 1 ]; then
-    echo "done — ${#tables[@]} Cargo table(s) created (populate skipped)."
+    echo "done — Cargo tables created (populate skipped)."
     exit 0
 fi
 
