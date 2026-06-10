@@ -79,11 +79,16 @@ $wgGTagAnalyticsId = '';
 ## files). Local MW fetches originals + thumbnails via prod's api.php;
 ## nothing is stored permanently. Dev-only: prod must never get a foreign
 ## repo pointing at itself.
-$wgForeignFileRepos[] = [
-	'class' => ForeignAPIRepo::class,
-	'name' => 'maccabipediaprod',
-	'apibase' => 'https://www.maccabipedia.co.il/api.php',
-	'hashLevels' => 2,
-	'fetchDescription' => false,
-	'apiThumbCacheExpiry' => 86400,
-];
+## Each lookup is an HTTP round-trip to prod, which dominates page-parse
+## time in bulk maintenance runs — those can opt out per-process with
+## MW_DISABLE_FOREIGN_IMAGES=1 (images render as redlinks there anyway).
+if ( !getenv( 'MW_DISABLE_FOREIGN_IMAGES' ) ) {
+	$wgForeignFileRepos[] = [
+		'class' => ForeignAPIRepo::class,
+		'name' => 'maccabipediaprod',
+		'apibase' => 'https://www.maccabipedia.co.il/api.php',
+		'hashLevels' => 2,
+		'fetchDescription' => false,
+		'apiThumbCacheExpiry' => 86400,
+	];
+}

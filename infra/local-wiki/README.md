@@ -62,13 +62,28 @@ bash scripts/seed-content.sh starter
 
 Now browse e.g. `http://localhost:8080/index.php/ערן_זהבי`.
 
-**Cargo note**: `Special:Export` returns page wikitext only, and
-`#cargo_store` writes only into tables that already exist — so after
-importing pages, create + populate the local Cargo tables once:
+**Cargo note**: `Special:Export` returns page wikitext only — Cargo rows are
+regenerated locally from the wikitext. Two catches: the declaring templates
+(`תבנית:טבלאות מידע/…`) are never transcluded by content pages so the season
+exports miss them, and `importDump.php` never fires the page-save hooks that
+run `#cargo_store`. So after importing pages, import the declarations and
+rebuild the tables once:
 
 ```bash
-docker exec local-wiki-mediawiki-1 php extensions/Cargo/maintenance/cargoRecreateData.php
+uv run python scripts/download_pages_from_prod.py pages scripts/content-manifests/cargo-declarations.manifest
+bash scripts/seed-content.sh cargo-declarations
+bash scripts/recreate-cargo-tables.sh
 ```
+
+`recreate-cargo-tables.sh` creates every declared table and then replays the
+page-save Cargo store for every page (`populateLocalCargoData.php`) — Cargo's
+own `cargoRecreateData.php` only re-parses pages transcluding the declaring
+templates, which on MaccabiPedia store almost nothing. The populate runs 8
+parallel workers (override with `CARGO_POPULATE_WORKERS`) with prod-image
+lookups disabled (`MW_DISABLE_FOREIGN_IMAGES=1` — they are HTTP round-trips
+to prod and ~90% of parse time, and storing needs none of them); the full
+wiki populates in ~2 minutes. Re-run after seeding more content with
+`bash scripts/recreate-cargo-tables.sh --populate-only`.
 
 ## Seeding a full season (any sport)
 
@@ -77,9 +92,9 @@ uniforms, premiere songs for football) straight from prod Cargo, then import:
 
 ```bash
 uv run python scripts/generate_season_manifest.py football 2024/25
-./scripts/sync-from-prod.sh pages scripts/content-manifests/season-football-2024-25.manifest
-./scripts/seed-content.sh season-football-2024-25
-docker exec local-wiki-mediawiki-1 php extensions/Cargo/maintenance/cargoRecreateData.php
+uv run python scripts/download_pages_from_prod.py pages scripts/content-manifests/season-football-2024-25.manifest
+bash scripts/seed-content.sh season-football-2024-25
+bash scripts/recreate-cargo-tables.sh
 ```
 
 Sports: `football`, `basketball`, `volleyball`. Committed manifests cover

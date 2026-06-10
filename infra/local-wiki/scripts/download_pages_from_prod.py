@@ -21,6 +21,7 @@ import os
 import re
 import sys
 from pathlib import Path
+from urllib.parse import quote
 
 import requests
 
@@ -32,13 +33,51 @@ _BASE_URL = os.environ.get("MACCABIPEDIA_WEB_URL", "https://www.maccabipedia.co.
 _SITE_SCRIPT_TITLES = ["MediaWiki:Common.css", "MediaWiki:Common.js"]
 
 
-def _export(stem: str, titles: list[str]) -> None:
-    titles = [title for title in titles if title.strip()]
-    if not titles:
-        sys.exit("ERROR: no page titles to export")
-    _DOWNLOAD_DIR.mkdir(parents=True, exist_ok=True)
-    out_file = _DOWNLOAD_DIR / f"{stem}.xml"
+# URL-encoded byte budget for the `pages` param of one export GET. Apache's
+# default request-line limit is ~8K; leave headroom for the host, path and the
+# other query params. Hebrew titles inflate ~3x when percent-encoded, so a
+# season manifest (~170 titles) needs several chunks.
+_PAGES_PARAM_BUDGET = 6000
 
+
+def chunk_titles(titles: list[str], budget: int = _PAGES_PARAM_BUDGET) -> list[list[str]]:
+    """Split titles into batches whose URL-encoded `pages` value fits `budget`."""
+    chunks: list[list[str]] = []
+    current: list[str] = []
+    current_len = 0
+    for title in titles:
+        encoded_len = len(quote(title)) + len(quote("\n"))
+        if current and current_len + encoded_len > budget:
+            chunks.append(current)
+            current = []
+            current_len = 0
+        current.append(title)
+        current_len += encoded_len
+    if current:
+        chunks.append(current)
+    return chunks
+
+
+def merge_export_dumps(dumps: list[str]) -> str:
+    """Merge several Special:Export XML dumps into one importable document.
+
+    Keeps the first dump's <mediawiki> envelope (header + siteinfo) and splices
+    the <page> elements of the rest in before its closing tag.
+    """
+    first = dumps[0]
+    closing_index = first.rindex("</mediawiki>")
+    parts = [first[:closing_index]]
+    for dump in dumps[1:]:
+        if "<page>" not in dump:
+            continue  # every title in this chunk was missing on prod
+        pages_start = dump.index("<page>")
+        pages_end = dump.rindex("</page>") + len("</page>")
+        parts.append(dump[pages_start:pages_end] + "\n")
+    parts.append(first[closing_index:])
+    return "".join(parts)
+
+
+def _export_chunk(titles: list[str]) -> str:
     # GET (not POST): prod's edge layer rejects the POST export form; GET with
     # the same params works. curonly=1 = current revision only; templates=1 also
     # pulls templates the pages reference.
@@ -49,7 +88,6 @@ def _export(stem: str, titles: list[str]) -> None:
         "templates": "1",
         "action": "submit",
     }
-    print(f"==> GET {_BASE_URL}/index.php?title=Special:Export  ({len(titles)} titles) -> {out_file}")
     # Generous timeout: templates=1 exports can take a while on a big page set.
     response = requests.get(f"{_BASE_URL}/index.php", params=params, timeout=120)
     response.raise_for_status()
@@ -60,8 +98,24 @@ def _export(stem: str, titles: list[str]) -> None:
     # can't slip through.
     if not re.search(r"<mediawiki\s", response.text[:512]):
         sys.exit("ERROR: response is not a MediaWiki XML dump — check the site / titles")
+    return response.text
 
-    out_file.write_text(response.text, encoding="utf-8")
+
+def _export(stem: str, titles: list[str]) -> None:
+    titles = [title for title in titles if title.strip()]
+    if not titles:
+        sys.exit("ERROR: no page titles to export")
+    _DOWNLOAD_DIR.mkdir(parents=True, exist_ok=True)
+    out_file = _DOWNLOAD_DIR / f"{stem}.xml"
+
+    chunks = chunk_titles(titles)
+    print(
+        f"==> GET {_BASE_URL}/index.php?title=Special:Export  "
+        f"({len(titles)} titles in {len(chunks)} request(s)) -> {out_file}"
+    )
+    dumps = [_export_chunk(chunk) for chunk in chunks]
+
+    out_file.write_text(merge_export_dumps(dumps), encoding="utf-8")
     print(f"    OK — {out_file.stat().st_size} bytes")
 
 
