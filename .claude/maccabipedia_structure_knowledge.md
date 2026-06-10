@@ -75,6 +75,12 @@ Why volleyball differs: the storing template `תבנית:משחק כדורעף/�
 
 All stats consumer templates filter Maccabi rows with `Team=1`, so the mismatch is latent — it only matters for queries that target **opponent** rows explicitly (football/basketball `Team=0`, volleyball `Team=2`). Note a player can have rows on both sides of the same table from stints at other clubs (e.g. ערן זהבי has opponent-row events from his הפועל ת"א years).
 
+### Where Cargo declarations and stores live (template layout)
+
+- Every `#cargo_declare` lives on a dedicated template under `תבנית:טבלאות מידע/<table name in Hebrew>` (e.g. `תבנית:טבלאות מידע/משחקי כדורגל` declares `Football_Games`). These are **never transcluded by content pages**. Enumerate them via `api.php?action=query&list=pageswithprop&pwppropname=CargoTableName` (64 tables as of June 2026).
+- Only **2** templates use `#cargo_attach`, both basketball (`משחק כדורסל/שמירת משחק לקארגו`, `…/שמירת נתוני שחקנים/שמירת שחקן`). Enumerate via `pwppropname=CargoAttachedTable`.
+- Everything else stores via `#cargo_store` directly inside the content templates (e.g. `תבנית:קטלוג משחקים` stores `Football_Games`, `Games_Events`, `Games_Referees`, `Games_Videos`, `Football_Games_Uniforms` inline). Consequence: Cargo's "recreate data" tooling (which re-parses only pages transcluding declaring/attached templates) rebuilds almost nothing on this wiki — rows exist because they're written at page-save time. The mapping tables (`Days_In_Week`, `מיפוי…`) are stored by parsing the declaring template page itself.
+
 ## 6. Redirects
 Hebrew redirect syntax: `#הפניה [[Target_Page_Name]]`
 - Basketball seasons: canonical = `כדורסל:עונת YYYY/YY`, redirect from `כדורסל:YYYY/YY`.
