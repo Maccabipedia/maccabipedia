@@ -1,15 +1,17 @@
 """Unit tests for the season manifest generator (stubbed Cargo fetcher)."""
-from generate_season_manifest import collect_season_titles
+from generate_season_manifest import collect_season_titles, expand_with_redirects
 
 # Stub fetcher: maps (tables, where) → canned CargoExport rows, real-name fixtures.
 _CANNED = {
     ("Football_Games", 'Season="2024/25"'): [
         {"_pageName": "משחק:31-08-2024 מכבי תל אביב נגד הפועל תל אביב - ליגת העל",
          "Opponent": "הפועל תל אביב", "Stadium": "אצטדיון בלומפילד",
-         "CoachMaccabi": "ז'ארקו לאזטיץ'", "Competition": "ליגת העל"},
+         "CoachMaccabi": "ז'ארקו לאזטיץ'", "Competition": "ליגת העל",
+         "Refs": "אוראל גרינפלד"},
         {"_pageName": "משחק:07-12-2024 מכבי תל אביב נגד מכבי חיפה - ליגת העל",
          "Opponent": "מכבי חיפה", "Stadium": "אצטדיון בלומפילד",
-         "CoachMaccabi": "Cant found coach", "Competition": "ליגת העל"},
+         "CoachMaccabi": "Cant found coach", "Competition": "ליגת העל",
+         "Refs": "Cant found referee"},
         # Cargo stores quotes HTML-entity-encoded (the wiki-wide &quot; quirk).
         {"_pageName": "משחק:03-02-2025 מכבי תל אביב נגד בית&quot;ר ירושלים - ליגת העל",
          "Opponent": "בית&quot;ר ירושלים", "Stadium": "אצטדיון בלומפילד",
@@ -53,6 +55,9 @@ def test_football_collects_all_page_kinds():
     assert "מדי בית 2024/25" in titles
     assert "שיר: קדימה מכבי" in titles
     assert "ז'ארקו לאזטיץ'" in titles
+    assert "כדורגל:אוראל גרינפלד (שופט)" in titles   # referee page, prefixed+suffixed
+    assert "מכבי תל אביב" in titles                  # the club page itself
+    assert "Cant found referee" not in str(titles)
 
 
 def test_basketball_titles_get_sport_prefix():
@@ -78,3 +83,28 @@ def test_html_entities_unescaped_to_canonical_titles():
     assert 'בית"ר ירושלים' in titles
     assert 'משחק:03-02-2025 מכבי תל אביב נגד בית"ר ירושלים - ליגת העל' in titles
     assert not any("&quot;" in title for title in titles)
+
+
+def test_expand_with_redirects_adds_targets_and_sources():
+    def stub_api(params):
+        assert params["action"] == "query"
+        return {
+            "query": {
+                # ביתר ירושלים (quote-stripped Cargo value) IS a redirect.
+                "redirects": [{"from": "ביתר ירושלים", "to": 'בית"ר ירושלים'}],
+                "pages": {
+                    "5986": {
+                        "title": "מכבי תל אביב",
+                        # short forms redirect TO the club page
+                        "redirects": [{"title": 'מכבי ת"א'}, {"title": "מכבי תא"}],
+                    },
+                },
+            },
+        }
+
+    titles = expand_with_redirects(["ביתר ירושלים", "מכבי תל אביב"], api=stub_api)
+
+    assert 'בית"ר ירושלים' in titles      # redirect target added
+    assert 'מכבי ת"א' in titles           # redirect source added
+    assert titles[:2] == ["ביתר ירושלים", "מכבי תל אביב"]  # originals kept first
+    assert len(titles) == len(set(titles))

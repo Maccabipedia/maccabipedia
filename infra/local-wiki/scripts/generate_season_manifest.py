@@ -26,6 +26,7 @@ from pathlib import Path
 import requests
 
 CARGO_EXPORT = "https://www.maccabipedia.co.il/index.php"
+API_ENDPOINT = "https://www.maccabipedia.co.il/api.php"
 # maccabistats placeholder values that must not become page titles.
 SENTINELS = {"Cant found coach", "Cant found referee", "Cant found stadium", ""}
 LIMIT = 2000
@@ -36,9 +37,11 @@ class SportConfig:
     games_table: str
     events_table: str       # per-player rows; Team=1 is Maccabi in all three sports
     prefix: str             # namespace prefix for players/coaches/opponents/competitions/season
-    stadium_prefix: str     # stadiums: football+volleyball main-ns, basketball prefixed
+    stadium_format: str     # stadium page title per sport, '{}' = the Cargo Stadium value
     uniforms_table: str
     include_songs: bool     # Songs table is club-wide; pulled once, with football
+    referee_format: str = ""   # main-referee page title; '' = referees have no pages
+    extra_titles: tuple = ()   # static per-sport pages every season links (e.g. the club page)
 
 
 SPORTS = {
@@ -46,15 +49,17 @@ SPORTS = {
         games_table="Football_Games",
         events_table="Games_Events",
         prefix="",
-        stadium_prefix="",
+        stadium_format="{}",
         uniforms_table="Football_Uniforms",
         include_songs=True,
+        referee_format="כדורגל:{} (שופט)",
+        extra_titles=("מכבי תל אביב",),
     ),
     "basketball": SportConfig(
         games_table="Basketball_Games",
         events_table="Basketball_Player_Game_Events_Summary",
         prefix="כדורסל:",
-        stadium_prefix="כדורסל:",
+        stadium_format="כדורסל:{}",
         uniforms_table="Basketball_Uniforms",
         include_songs=False,
     ),
@@ -62,9 +67,10 @@ SPORTS = {
         games_table="Volleyball_Games",
         events_table="Volleyball_Players_Game_Events",
         prefix="כדורעף:",
-        stadium_prefix="",  # volleyball stadium pages live in main ns (mostly absent; export skips)
+        stadium_format="כדורעף:{} (אולם)",
         uniforms_table="Volleyball_Uniforms",
         include_songs=False,
+        extra_titles=("כדורעף:מכבי תל אביב",),
     ),
 }
 
@@ -101,9 +107,12 @@ def _clean(values, prefix=""):
 def collect_season_titles(sport, season, fetch=cargo_fetch):
     """Return a deduped, ordered list of page titles covering one sport's season."""
     config = SPORTS[sport]
+    game_fields = "_pageName,Opponent,Stadium,CoachMaccabi,Competition"
+    if config.referee_format:
+        game_fields += ",Refs"  # only Football_Games has a main-referee field
     games = fetch(
         config.games_table,
-        "_pageName,Opponent,Stadium,CoachMaccabi,Competition",
+        game_fields,
         f'Season="{season}"',
     )
     players = fetch(
@@ -120,9 +129,14 @@ def collect_season_titles(sport, season, fetch=cargo_fetch):
     titles += _clean((row["PlayerName"] for row in players), config.prefix)
     titles += _clean((row["CoachMaccabi"] for row in games), config.prefix)
     titles += _clean((row["Opponent"] for row in games), config.prefix)
-    titles += _clean((row["Stadium"] for row in games), config.stadium_prefix)
+    titles += [config.stadium_format.format(value)
+               for value in _clean(row["Stadium"] for row in games)]
     titles += _clean((row["Competition"] for row in games), config.prefix)
+    if config.referee_format:
+        titles += [config.referee_format.format(value)
+                   for value in _clean(row.get("Refs") for row in games)]
     titles.append(f"{config.prefix}עונת {season}")
+    titles += list(config.extra_titles)
     titles += _clean(row["_pageName"] for row in uniforms)
     if config.include_songs:
         songs = fetch("Songs", "_pageName", f'PremiereSeason="{season}"')
@@ -131,13 +145,58 @@ def collect_season_titles(sport, season, fetch=cargo_fetch):
     return list(dict.fromkeys(titles))  # dedupe, keep order
 
 
+def api_get(params):
+    # POST, not GET: a 50-title batch overflows the request-line limit (414).
+    # Prod's edge only rejects POST on the Special:Export form; api.php POSTs
+    # are the normal bot path.
+    response = requests.post(API_ENDPOINT, data={"format": "json", **params}, timeout=60)
+    response.raise_for_status()
+    return response.json()
+
+
+def expand_with_redirects(titles, api=api_get):
+    """Append redirect pages so the seeded wiki keeps short-form links blue.
+
+    Two directions, both needed:
+    - a collected title may itself BE a redirect (Cargo stores quote-stripped
+      opponent names like ביתר ירושלים) — without its TARGET only the
+      redirect imports and following it 404s;
+    - redirects pointing AT a collected title (מכבי ת"א → מכבי תל אביב)
+      make the free-text short-form links all over game summaries resolve.
+
+    Follows API continuation — rdlimit=max caps a request at 500 redirect
+    sources across the whole batch, which a batch of club/player pages can
+    plausibly exceed.
+    """
+    expanded = list(titles)
+    for start in range(0, len(titles), 50):
+        batch = titles[start:start + 50]
+        params = {
+            "action": "query",
+            "redirects": 1,
+            "prop": "redirects",
+            "rdlimit": "max",
+            "titles": "|".join(batch),
+        }
+        while True:
+            data = api(params)
+            query = data.get("query", {})
+            expanded += [redirect["to"] for redirect in query.get("redirects", [])]
+            for page in query.get("pages", {}).values():
+                expanded += [redirect["title"] for redirect in page.get("redirects", [])]
+            if "continue" not in data:
+                break
+            params = {**params, **data["continue"]}
+    return list(dict.fromkeys(expanded))
+
+
 def main():
     parser = argparse.ArgumentParser(description="Generate a season manifest for the local wiki")
     parser.add_argument("sport", choices=sorted(SPORTS))
     parser.add_argument("season", help='season as on the wiki, e.g. "2024/25"')
     args = parser.parse_args()
 
-    titles = collect_season_titles(args.sport, args.season)
+    titles = expand_with_redirects(collect_season_titles(args.sport, args.season))
     stem = f"season-{args.sport}-" + args.season.replace("/", "-")
     out_path = Path(__file__).parent / "content-manifests" / f"{stem}.manifest"
     header = (
