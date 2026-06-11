@@ -90,11 +90,13 @@ $DOCKER compose -f "$COMPOSE_FILE" cp \
 
 # MW_DISABLE_FOREIGN_IMAGES: image lookups are HTTP round-trips to prod and
 # ~90% of page-parse wall time, while #cargo_store needs none of them.
+# MW_MAINTENANCE_CACHE=accel + apc.enable_cli: in-process APCu so message and
+# title lookups stop hitting the DB on every parse (dev web stays uncached).
 WORKER_LOG_DIR="$(mktemp -d /tmp/cargo-populate.XXXXXX)"
 declare -a worker_pids=()
 for (( worker=0; worker<WORKERS; worker++ )); do
-    compose_exec -T -e MW_DISABLE_FOREIGN_IMAGES=1 mediawiki \
-        php maintenance/populateLocalCargoData.php --shards "$WORKERS" --shard "$worker" \
+    compose_exec -T -e MW_DISABLE_FOREIGN_IMAGES=1 -e MW_MAINTENANCE_CACHE=accel mediawiki \
+        php -d apc.enable_cli=1 maintenance/populateLocalCargoData.php --shards "$WORKERS" --shard "$worker" \
         2>&1 | tee "${WORKER_LOG_DIR}/w${worker}.log" &
     worker_pids+=($!)
 done
@@ -117,8 +119,8 @@ if [ "$populate_status" -ne 0 ]; then
     fi
     echo "==> re-storing ${#failed_titles[@]} race-failed page(s) serially"
     for title in "${failed_titles[@]}"; do
-        compose_exec -T -e MW_DISABLE_FOREIGN_IMAGES=1 mediawiki \
-            php maintenance/populateLocalCargoData.php --title "$title"
+        compose_exec -T -e MW_DISABLE_FOREIGN_IMAGES=1 -e MW_MAINTENANCE_CACHE=accel mediawiki \
+            php -d apc.enable_cli=1 maintenance/populateLocalCargoData.php --title "$title"
     done
 fi
 rm -rf "$WORKER_LOG_DIR"

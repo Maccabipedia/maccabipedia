@@ -61,13 +61,7 @@ class PopulateLocalCargoData extends Maintenance {
 			}
 			$pageIDs = [ $onlyTitle->getArticleID() ];
 		} else {
-			$pageIDs = $dbr->selectFieldValues(
-				'page',
-				'page_id',
-				[ 'page_is_redirect' => 0 ],
-				__METHOD__,
-				[ 'ORDER BY' => 'page_id' ]
-			);
+			$pageIDs = $this->findPagesThatCanStore( $dbr );
 		}
 		$shards = max( 1, (int)$this->getOption( 'shards', 1 ) );
 		$shard = (int)$this->getOption( 'shard', 0 );
@@ -182,6 +176,69 @@ class PopulateLocalCargoData extends Maintenance {
 		if ( $failed > 0 ) {
 			$this->fatalError( "$label $failed page(s) failed to store" );
 		}
+	}
+
+	/**
+	 * Only pages whose parse can reach a #cargo_store call need a save
+	 * replay: pages whose own wikitext contains one, plus pages that
+	 * transclude a template that does. Everything else (~60% of the wiki)
+	 * provably stores nothing — skipping them more than halves the run.
+	 * Requires the link tables to be rebuilt first (seed-content.sh does).
+	 */
+	private function findPagesThatCanStore( $dbr ) {
+		$page = $dbr->tableName( 'page' );
+		$revision = $dbr->tableName( 'revision' );
+		$slots = $dbr->tableName( 'slots' );
+		$content = $dbr->tableName( 'content' );
+		$text = $dbr->tableName( 'text' );
+
+		// Pages whose latest revision text mentions cargo_store. The LIKE is
+		// permissive (docs mentioning it match too) — false positives just
+		// cost one parse that stores nothing.
+		$storePages = [];
+		$storeTemplateTitles = [];
+		$result = $dbr->query(
+			"SELECT p.page_id, p.page_namespace, p.page_title
+			FROM $page p
+			JOIN $revision r ON r.rev_page = p.page_id AND p.page_latest = r.rev_id
+			JOIN $slots s ON s.slot_revision_id = r.rev_id
+			JOIN $content c ON c.content_id = s.slot_content_id
+			JOIN $text t ON t.old_id = CAST(SUBSTRING(c.content_address, 4) AS UNSIGNED)
+			WHERE p.page_is_redirect = 0 AND t.old_text LIKE '%cargo_store%'",
+			__METHOD__
+		);
+		foreach ( $result as $row ) {
+			$storePages[] = (int)$row->page_id;
+			if ( (int)$row->page_namespace === NS_TEMPLATE ) {
+				$storeTemplateTitles[] = $row->page_title;
+			}
+		}
+
+		// Pages transcluding any store-bearing template (templatelinks is
+		// flattened, so indirect transclusion through wrapper templates is
+		// covered).
+		$transcluders = [];
+		if ( $storeTemplateTitles ) {
+			$transcluders = $dbr->selectFieldValues(
+				[ 'templatelinks', 'linktarget', 'page' ],
+				'DISTINCT tl_from',
+				[
+					'lt_namespace' => NS_TEMPLATE,
+					'lt_title' => $storeTemplateTitles,
+					'page_is_redirect' => 0,
+				],
+				__METHOD__,
+				[],
+				[
+					'linktarget' => [ 'JOIN', 'lt_id = tl_target_id' ],
+					'page' => [ 'JOIN', 'page_id = tl_from' ],
+				]
+			);
+		}
+
+		$pageIDs = array_map( 'intval', array_unique( array_merge( $storePages, $transcluders ) ) );
+		sort( $pageIDs );
+		return $pageIDs;
 	}
 
 }

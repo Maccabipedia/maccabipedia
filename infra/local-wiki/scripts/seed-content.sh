@@ -100,8 +100,8 @@ declare -a rebuild_pids=()
 for (( worker=0; worker<REBUILD_WORKERS; worker++ )); do
     range_start=$(( worker * range_size + 1 ))
     range_end=$(( (worker + 1) * range_size ))
-    compose_exec -T -e MW_DISABLE_FOREIGN_IMAGES=1 "$SERVICE" \
-        php maintenance/refreshLinks.php "$range_start" --e "$range_end" &
+    compose_exec -T -e MW_DISABLE_FOREIGN_IMAGES=1 -e MW_MAINTENANCE_CACHE=accel "$SERVICE" \
+        php -d apc.enable_cli=1 maintenance/refreshLinks.php "$range_start" --e "$range_end" &
     rebuild_pids+=($!)
 done
 rebuild_status=0
