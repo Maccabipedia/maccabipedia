@@ -33,7 +33,8 @@ def test_chunk_titles_respects_url_budget():
     assert len(chunks) > 1
     assert [title for chunk in chunks for title in chunk] == titles
     for chunk in chunks:
-        encoded = quote("\n".join(chunk))
+        # safe="" mirrors requests' quote_plus: '/' counts encoded too.
+        encoded = quote("\n".join(chunk), safe="")
         assert len(encoded) <= budget
 
 

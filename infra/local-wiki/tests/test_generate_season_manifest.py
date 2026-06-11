@@ -4,12 +4,16 @@ from generate_season_manifest import collect_season_titles
 # Stub fetcher: maps (tables, where) → canned CargoExport rows, real-name fixtures.
 _CANNED = {
     ("Football_Games", 'Season="2024/25"'): [
-        {"_pageName": "משחק: 31-08-2024 מכבי תל אביב נגד הפועל תל אביב - ליגת העל",
+        {"_pageName": "משחק:31-08-2024 מכבי תל אביב נגד הפועל תל אביב - ליגת העל",
          "Opponent": "הפועל תל אביב", "Stadium": "אצטדיון בלומפילד",
          "CoachMaccabi": "ז'ארקו לאזטיץ'", "Competition": "ליגת העל"},
-        {"_pageName": "משחק: 07-12-2024 מכבי תל אביב נגד מכבי חיפה - ליגת העל",
+        {"_pageName": "משחק:07-12-2024 מכבי תל אביב נגד מכבי חיפה - ליגת העל",
          "Opponent": "מכבי חיפה", "Stadium": "אצטדיון בלומפילד",
          "CoachMaccabi": "Cant found coach", "Competition": "ליגת העל"},
+        # Cargo stores quotes HTML-entity-encoded (the wiki-wide &quot; quirk).
+        {"_pageName": "משחק:03-02-2025 מכבי תל אביב נגד בית&quot;ר ירושלים - ליגת העל",
+         "Opponent": "בית&quot;ר ירושלים", "Stadium": "אצטדיון בלומפילד",
+         "CoachMaccabi": "ז'ארקו לאזטיץ'", "Competition": "ליגת העל"},
     ],
     ("Games_Events,Football_Games", 'Football_Games.Season="2024/25" AND Games_Events.Team=1'): [
         {"PlayerName": "ערן זהבי"},
@@ -40,7 +44,7 @@ def stub_fetch(tables, fields, where, **kwargs):
 
 def test_football_collects_all_page_kinds():
     titles = collect_season_titles("football", "2024/25", fetch=stub_fetch)
-    assert "משחק: 31-08-2024 מכבי תל אביב נגד הפועל תל אביב - ליגת העל" in titles
+    assert "משחק:31-08-2024 מכבי תל אביב נגד הפועל תל אביב - ליגת העל" in titles
     assert "ערן זהבי" in titles
     assert "הפועל תל אביב" in titles          # main namespace, no prefix
     assert "אצטדיון בלומפילד" in titles
@@ -67,3 +71,10 @@ def test_filters_sentinels_and_dedupes():
     titles = collect_season_titles("football", "2024/25", fetch=stub_fetch)
     assert "Cant found coach" not in titles
     assert len(titles) == len(set(titles)), "duplicate titles in manifest"
+
+
+def test_html_entities_unescaped_to_canonical_titles():
+    titles = collect_season_titles("football", "2024/25", fetch=stub_fetch)
+    assert 'בית"ר ירושלים' in titles
+    assert 'משחק:03-02-2025 מכבי תל אביב נגד בית"ר ירושלים - ליגת העל' in titles
+    assert not any("&quot;" in title for title in titles)

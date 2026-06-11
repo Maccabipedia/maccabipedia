@@ -11,8 +11,9 @@
 #   bash seed-content.sh               # imports every XML in downloaded-pages/
 #   bash seed-content.sh <stem>        # imports only downloaded-pages/<stem>.xml
 #
-# After import, runs maintenance/runJobs.php so deferred parser updates
-# (link tables, Cargo stores, category memberships) land before you browse.
+# After import, rebuilds the link tables (parallel refreshLinks workers),
+# search index and recent changes, then flushes the job queue. Cargo rows are
+# NOT produced by import — run recreate-cargo-tables.sh afterwards.
 
 set -euo pipefail
 
@@ -87,21 +88,26 @@ done
 #    and ~90% of parse wall time; link tables don't need them (file
 #    references are recorded either way).
 #  - refreshLinks.php is single-threaded — run one worker per page-id range
-#    instead of rebuildall.php's serial pass (links rows are per-page, so
-#    ranges can't conflict). rebuildall's other two stages (text index,
+#    instead of rebuildall.php's serial pass. The refresh phase is per-page
+#    so ranges can't conflict; each worker does additionally repeat the
+#    delete-links-from-nonexistent sweep over the whole table, which is
+#    redundant but idempotent. rebuildall's other two stages (text index,
 #    recent changes) run after, they're cheap.
+# DB name/credentials are evaluated INSIDE the mariadb container (they're
+# container env from docker-compose.yml, not host env); only the MediaWiki
+# table prefix has to be restated here.
 REBUILD_WORKERS="${SEED_REBUILD_WORKERS:-8}"
-max_page_id=$(compose_exec -T mariadb mysql -N -u root -p"${MYSQL_ROOT_PASSWORD:-devroot}" \
-    "${MW_DB_NAME:-maccabipedia}" \
-    -e "SELECT COALESCE(MAX(page_id), 0) FROM ${MW_DB_PREFIX:-MPMW_}page" | tr -d '[:space:]')
+max_page_id=$(compose_exec -T mariadb sh -c \
+    'exec mysql -N -u root -p"$MYSQL_ROOT_PASSWORD" "$MYSQL_DATABASE" -e "SELECT COALESCE(MAX(page_id), 0) FROM '"${MW_DB_PREFIX:-MPMW_}"'page"' \
+    | tr -d '[:space:]')
 echo "[$(date +%H:%M:%S)] ==> refreshLinks.php (${REBUILD_WORKERS} workers over page ids 1..${max_page_id})"
 range_size=$(( (max_page_id + REBUILD_WORKERS - 1) / REBUILD_WORKERS ))
 declare -a rebuild_pids=()
 for (( worker=0; worker<REBUILD_WORKERS; worker++ )); do
     range_start=$(( worker * range_size + 1 ))
     range_end=$(( (worker + 1) * range_size ))
-    compose_exec -T -e MW_DISABLE_FOREIGN_IMAGES=1 -e MW_MAINTENANCE_CACHE=accel "$SERVICE" \
-        php -d apc.enable_cli=1 maintenance/refreshLinks.php "$range_start" --e "$range_end" &
+    compose_exec -T -e MW_DISABLE_FOREIGN_IMAGES=1 "$SERVICE" \
+        php maintenance/refreshLinks.php "$range_start" --e "$range_end" &
     rebuild_pids+=($!)
 done
 rebuild_status=0
@@ -120,6 +126,6 @@ echo "[$(date +%H:%M:%S)] ==> rebuildrecentchanges.php"
 compose_exec -T "$SERVICE" php maintenance/rebuildrecentchanges.php
 
 echo "[$(date +%H:%M:%S)] ==> runJobs.php (flush deferred work)"
-compose_exec -e MW_DISABLE_FOREIGN_IMAGES=1 "$SERVICE" php maintenance/runJobs.php --maxjobs 2000
+compose_exec -T -e MW_DISABLE_FOREIGN_IMAGES=1 "$SERVICE" php maintenance/runJobs.php --maxjobs 2000
 
 echo "done — imported ${#xml_files[@]} dump file(s). Reload http://localhost:8080 to see the content."

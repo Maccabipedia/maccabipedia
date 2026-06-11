@@ -1,4 +1,4 @@
-"""Generate a sync-from-prod manifest covering one season of one sport.
+"""Generate a content manifest covering one season of one sport.
 
 Derives every page title the season needs (games, Maccabi players, coaches,
 opponents, stadiums, competitions, season page, uniforms, premiere songs for
@@ -10,11 +10,15 @@ Usage:
     uv run python infra/local-wiki/scripts/generate_season_manifest.py basketball 2023/24
     uv run python infra/local-wiki/scripts/generate_season_manifest.py volleyball 2024/25
 
-Then import with:
-    ./scripts/sync-from-prod.sh pages scripts/content-manifests/season-football-2024-25.manifest
-    ./scripts/seed-content.sh season-football-2024-25
+Then import (full sequence: README → "Seeding a full season"):
+    uv run python scripts/download_pages_from_prod.py pages scripts/content-manifests/season-football-2024-25.manifest
+    bash scripts/seed-content.sh season-football-2024-25
+
+SPORTS below is the only per-sport registry in the pipeline — a new sport is
+one entry here (plus the README sports line).
 """
 import argparse
+import html
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -84,7 +88,14 @@ def cargo_fetch(tables, fields, where, **extra):
 
 
 def _clean(values, prefix=""):
-    return [prefix + value for value in values if value and value not in SENTINELS]
+    # Cargo stores some titles HTML-entity-encoded (e.g. בית&quot;ר — the
+    # known wiki-wide &quot; quirk); unescape so manifests hold canonical
+    # page titles.
+    return [
+        prefix + html.unescape(value)
+        for value in values
+        if value and value not in SENTINELS
+    ]
 
 
 def collect_season_titles(sport, season, fetch=cargo_fetch):

@@ -62,12 +62,9 @@ bash scripts/seed-content.sh starter
 
 Now browse e.g. `http://localhost:8080/index.php/ערן_זהבי`.
 
-**Cargo note**: `Special:Export` returns page wikitext only — Cargo rows are
-regenerated locally from the wikitext. Two catches: the declaring templates
-(`תבנית:טבלאות מידע/…`) are never transcluded by content pages so the season
-exports miss them, and `importDump.php` never fires the page-save hooks that
-run `#cargo_store`. So after importing pages, import the declarations and
-rebuild the tables once:
+**Cargo note**: imports alone leave the Cargo tables empty — after importing
+pages, import the table declarations and rebuild once (why Cargo's own
+tooling can't: see the header of `scripts/populateLocalCargoData.php`):
 
 ```bash
 uv run python scripts/download_pages_from_prod.py pages scripts/content-manifests/cargo-declarations.manifest
@@ -75,14 +72,8 @@ bash scripts/seed-content.sh cargo-declarations
 bash scripts/recreate-cargo-tables.sh
 ```
 
-`recreate-cargo-tables.sh` creates every declared table and then replays the
-page-save Cargo store for every page (`populateLocalCargoData.php`) — Cargo's
-own `cargoRecreateData.php` only re-parses pages transcluding the declaring
-templates, which on MaccabiPedia store almost nothing. The populate runs 8
-parallel workers (override with `CARGO_POPULATE_WORKERS`) with prod-image
-lookups disabled (`MW_DISABLE_FOREIGN_IMAGES=1` — they are HTTP round-trips
-to prod and ~90% of parse time, and storing needs none of them); the full
-wiki populates in ~2 minutes. Re-run after seeding more content with
+The rebuild runs parallel workers (`CARGO_POPULATE_WORKERS`, default 8) and
+finishes in ~2 minutes. Re-run after seeding more content with
 `bash scripts/recreate-cargo-tables.sh --populate-only`.
 
 When iterating, don't tear down with `-v`: a plain `docker compose down`

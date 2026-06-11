@@ -12,7 +12,7 @@
  *
  * Runs inside the mediawiki container, copied next to core's maintenance
  * scripts by recreate-cargo-tables.sh:
- *   php maintenance/createLocalCargoTables.php [--tables A,B,...]
+ *   php maintenance/createLocalCargoTables.php
  */
 
 if ( getenv( 'MW_INSTALL_PATH' ) ) {
@@ -29,15 +29,11 @@ class CreateLocalCargoTables extends Maintenance {
 		parent::__construct();
 		$this->requireExtension( 'Cargo' );
 		$this->addDescription( 'Recreate the DB tables for every declared Cargo table in one process.' );
-		$this->addOption( 'tables', 'Comma-separated subset of Cargo tables to recreate', false, true );
 	}
 
 	public function execute() {
 		$declaredTables = array_keys( CargoUtils::getAllPageProps( 'CargoTableName' ) );
 		sort( $declaredTables );
-		if ( $this->hasOption( 'tables' ) ) {
-			$declaredTables = array_map( 'trim', explode( ',', $this->getOption( 'tables' ) ) );
-		}
 		if ( !$declaredTables ) {
 			$this->fatalError( 'no Cargo tables are declared locally — import the declaration templates first' );
 		}

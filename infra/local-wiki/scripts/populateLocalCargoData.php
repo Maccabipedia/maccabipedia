@@ -37,16 +37,12 @@ class PopulateLocalCargoData extends Maintenance {
 		parent::__construct();
 		$this->requireExtension( 'Cargo' );
 		$this->addDescription( 'Re-store Cargo data for every page, as if each page were re-saved.' );
-		// Parallelism: run N copies of this script, one per shard. Each shard
-		// takes a CONTIGUOUS slice of the page-id space — imported pages of
-		// the same kind have adjacent ids, so concurrent workers mostly write
-		// to different Cargo tables. That matters because Cargo allocates row
-		// ids with an unlocked MAX(_ID)+1 (_ID is the PK), so two workers
-		// storing into the same table can collide; the per-page retry below
-		// absorbs the rare cross-shard collision.
+		// Parallelism: run N copies of this script, one per --shard; the
+		// block-dealing note in execute() explains how work is split.
 		$this->addOption( 'shards', 'Total number of parallel workers', false, true );
 		$this->addOption( 'shard', '0-based index of this worker', false, true );
-		// Escape hatch for pages that lost the race in a parallel run.
+		// Manual escape hatch: re-store a single page (debugging, or after a
+		// page failed all its retries in a parallel run).
 		$this->addOption( 'title', 'Re-store only this page', false, true );
 	}
 
@@ -63,15 +59,19 @@ class PopulateLocalCargoData extends Maintenance {
 		} else {
 			$pageIDs = $this->findPagesThatCanStore( $dbr );
 		}
+		if ( $this->hasOption( 'shard' ) && !$this->hasOption( 'shards' ) ) {
+			$this->fatalError( '--shard requires --shards' );
+		}
 		$shards = max( 1, (int)$this->getOption( 'shards', 1 ) );
 		$shard = (int)$this->getOption( 'shard', 0 );
 		if ( $shards > 1 ) {
-			// Deal BLOCKS of adjacent page-ids round-robin: blocks keep
-			// same-kind pages (which store into the same tables) mostly
-			// within one worker — limiting MAX(_ID)+1 races — while the
-			// round-robin spreads expensive page clusters (e.g. player
-			// profiles) across all workers instead of serializing them
-			// in whichever worker got that contiguous slice.
+			// Deal BLOCKS of adjacent page-ids round-robin. Primary goal is
+			// load balance: expensive same-kind clusters (game pages, player
+			// profiles) spread across all workers instead of serializing in
+			// whichever worker got a contiguous slice. The block granularity
+			// also reduces interleaving on the tables the advisory lock
+			// below does NOT cover (1-2-row stores like profiles), where the
+			// retry loop handles the residual races.
 			$mine = [];
 			foreach ( array_chunk( $pageIDs, 32 ) as $blockIndex => $block ) {
 				if ( $blockIndex % $shards === $shard ) {
@@ -110,17 +110,19 @@ class PopulateLocalCargoData extends Maintenance {
 			// Cargo's unlocked MAX(_ID)+1 — two workers on same-sport game
 			// pages collide near-certainly. Serialize ONLY those through a
 			// per-sport advisory lock; everything else stores 1-2 rows and
-			// the retry below absorbs the rare clash.
+			// the retry below absorbs the rare clash. Game titles share the
+			// "<sport prefix:>dd-dd-dddd" shape across all sports (football
+			// uses the משחק: prefix), so the lock key is derived rather than
+			// enumerated — a future sport is covered automatically.
 			$lockKey = null;
-			if ( strpos( $prefixedTitle, 'משחק:' ) === 0 ) {
-				$lockKey = 'cargo-populate-football-games';
-			} elseif ( preg_match( '/^כדורסל:\d{2}-/u', $prefixedTitle ) ) {
-				$lockKey = 'cargo-populate-basketball-games';
-			} elseif ( preg_match( '/^כדורעף:\d{2}-/u', $prefixedTitle ) ) {
-				$lockKey = 'cargo-populate-volleyball-games';
+			if ( preg_match( '/^(?:([^:]+):\s?)?\d{2}-\d{2}-\d{4} /u', $prefixedTitle, $match ) && !empty( $match[1] ) ) {
+				$lockKey = 'cargo-populate-games-' . $match[1];
 			}
-			if ( $lockKey !== null ) {
-				$dbw->lock( $lockKey, __METHOD__, 120 );
+			if ( $lockKey !== null && !$dbw->lock( $lockKey, __METHOD__, 120 ) ) {
+				// Timed out waiting — proceed unprotected; the retry loop
+				// below still absorbs a collision.
+				$this->output( "$label [$processed/$total] $prefixedTitle — WARNING: lock '$lockKey' timed out\n" );
+				$lockKey = null;
 			}
 
 			// Same sequence as CargoHooks::onPageSaveComplete: drop the
@@ -146,15 +148,15 @@ class PopulateLocalCargoData extends Maintenance {
 					} catch ( Throwable $rollbackError ) {
 						// No open transaction to roll back — fine.
 					}
-					// Jitter so two workers that just collided on the same
-					// table don't immediately collide again.
-					usleep( random_int( 200000, 1000000 ) * $attempts );
 					if ( $attempts >= 5 ) {
 						$failed++;
 						$this->output( "$label [$processed/$total] $prefixedTitle — ERROR after $attempts attempts: "
 							. $exception->getMessage() . "\n" );
 						break;
 					}
+					// Jitter so two workers that just collided on the same
+					// table don't immediately collide again.
+					usleep( random_int( 200000, 1000000 ) * $attempts );
 					$this->output( "$label [$processed/$total] $prefixedTitle — retrying (attempt $attempts): "
 						. $exception->getMessage() . "\n" );
 				}
@@ -212,6 +214,13 @@ class PopulateLocalCargoData extends Maintenance {
 			if ( (int)$row->page_namespace === NS_TEMPLATE ) {
 				$storeTemplateTitles[] = $row->page_title;
 			}
+		}
+		if ( !$storePages ) {
+			// Either no store-bearing templates are imported yet, or the
+			// raw-SQL text-table assumptions above (tt: addresses, plain
+			// utf-8 text) no longer hold — don't "succeed" with empty tables.
+			$this->fatalError( 'no page contains #cargo_store — import the templates first,'
+				. ' or check the text-storage assumptions in findPagesThatCanStore()' );
 		}
 
 		// Pages transcluding any store-bearing template (templatelinks is

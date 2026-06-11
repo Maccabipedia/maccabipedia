@@ -38,10 +38,7 @@ $wgDBpassword = getenv('MW_DB_PASSWORD') ?: 'devpass';
 $wgDBprefix = getenv('MW_DB_PREFIX') ?: 'MPMW_';
 
 ## Cache — disabled so edits and template changes show immediately.
-## Maintenance bulk runs opt into in-process APCu (MW_MAINTENANCE_CACHE=accel
-## plus `php -d apc.enable_cli=1`): message/title lookups stop hitting the DB
-## on every parse. Per-process and per-run — web requests stay uncached.
-$wgMainCacheType = getenv( 'MW_MAINTENANCE_CACHE' ) === 'accel' ? CACHE_ACCEL : CACHE_NONE;
+$wgMainCacheType = CACHE_NONE;
 $wgMemCachedServers = [];
 
 ## Secrets — placeholders only. Prod's env file carries the real values.

@@ -48,7 +48,10 @@ def chunk_titles(titles: list[str], budget: int = _PAGES_PARAM_BUDGET) -> list[l
     current: list[str] = []
     current_len = 0
     for title in titles:
-        encoded_len = len(quote(title)) + len(quote("\n"))
+        # safe="" so '/' counts encoded (%2F), matching how requests
+        # urlencodes the param; spaces over-count (%20 vs '+'), which only
+        # errs toward smaller chunks.
+        encoded_len = len(quote(title, safe="")) + len(quote("\n"))
         if current and current_len + encoded_len > budget:
             chunks.append(current)
             current = []
@@ -99,14 +102,16 @@ def _export_chunk(titles: list[str]) -> str:
     # "<mediawiki" + whitespace so an HTML page that merely mentions the word
     # can't slip through.
     if not re.search(r"<mediawiki\s", response.text[:512]):
-        sys.exit("ERROR: response is not a MediaWiki XML dump — check the site / titles")
+        # RuntimeError (not sys.exit): _export runs on worker threads, where
+        # an exception propagates cleanly through Future.result() to main().
+        raise RuntimeError("response is not a MediaWiki XML dump — check the site / titles")
     return response.text
 
 
 def _export(stem: str, titles: list[str]) -> None:
     titles = [title for title in titles if title.strip()]
     if not titles:
-        sys.exit("ERROR: no page titles to export")
+        raise RuntimeError("no page titles to export")
     _DOWNLOAD_DIR.mkdir(parents=True, exist_ok=True)
     out_file = _DOWNLOAD_DIR / f"{stem}.xml"
 
@@ -133,29 +138,32 @@ def _titles_from_manifest(path: Path) -> list[str]:
 
 def main() -> None:
     op = sys.argv[1] if len(sys.argv) > 1 else ""
-    if op == "site-scripts":
-        _export("site-scripts", _SITE_SCRIPT_TITLES)
-    elif op == "pages":
-        if len(sys.argv) < 3:
-            sys.exit("ERROR: 'pages' op requires a manifest path\n"
-                     "  e.g. ... pages scripts/content-manifests/starter.manifest")
-        manifests = [Path(arg) for arg in sys.argv[2:]]
-        # The wait is prod generating each export, not bandwidth — fetch
-        # manifests concurrently, capped politely at 3 in-flight.
-        with ThreadPoolExecutor(max_workers=3) as pool:
-            jobs = [
-                pool.submit(_export, manifest.stem, _titles_from_manifest(manifest))
-                for manifest in manifests
-            ]
-            for job in jobs:
-                job.result()
-    elif op == "bootstrap":
-        _export("site-scripts", _SITE_SCRIPT_TITLES)
-        _export(_STARTER_MANIFEST.stem, _titles_from_manifest(_STARTER_MANIFEST))
-    elif op in ("-h", "--help", "help"):
-        print(__doc__)
-    else:
-        sys.exit(f"ERROR: unknown op {op!r}\n{__doc__}")
+    try:
+        if op == "site-scripts":
+            _export("site-scripts", _SITE_SCRIPT_TITLES)
+        elif op == "pages":
+            if len(sys.argv) < 3:
+                sys.exit("ERROR: 'pages' op requires a manifest path\n"
+                         "  e.g. ... pages scripts/content-manifests/starter.manifest")
+            manifests = [Path(arg) for arg in sys.argv[2:]]
+            # The wait is prod generating each export, not bandwidth — fetch
+            # manifests concurrently, capped politely at 3 in-flight.
+            with ThreadPoolExecutor(max_workers=3) as pool:
+                jobs = [
+                    pool.submit(_export, manifest.stem, _titles_from_manifest(manifest))
+                    for manifest in manifests
+                ]
+                for job in jobs:
+                    job.result()
+        elif op == "bootstrap":
+            _export("site-scripts", _SITE_SCRIPT_TITLES)
+            _export(_STARTER_MANIFEST.stem, _titles_from_manifest(_STARTER_MANIFEST))
+        elif op in ("-h", "--help", "help"):
+            print(__doc__)
+        else:
+            sys.exit(f"ERROR: unknown op {op!r}\n{__doc__}")
+    except RuntimeError as error:
+        sys.exit(f"ERROR: {error}")
 
 
 if __name__ == "__main__":
