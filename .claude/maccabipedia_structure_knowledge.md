@@ -75,6 +75,19 @@ Why volleyball differs: the storing template `תבנית:משחק כדורעף/�
 
 All stats consumer templates filter Maccabi rows with `Team=1`, so the mismatch is latent — it only matters for queries that target **opponent** rows explicitly (football/basketball `Team=0`, volleyball `Team=2`). Note a player can have rows on both sides of the same table from stints at other clubs (e.g. ערן זהבי has opponent-row events from his הפועל ת"א years).
 
+### Cargo name fields hold normalized values, not page titles
+
+- `Football_Games.Opponent` (and similar name fields) pass through
+  `תבנית:המרות/שם ללא גרש וגרשיים` — quotes/geresh are STRIPPED, so the value
+  (`ביתר ירושלים`) is usually a **redirect** to the real page (`בית"ר ירושלים`).
+  Resolve via `api.php?action=query&redirects=1` before treating values as titles.
+- Title formats for linked entities: football referees `כדורגל:<שם> (שופט)`
+  (from `Football_Games.Refs` — football-only field); volleyball halls
+  `כדורעף:<אולם> (אולם)`, opponent centers `כדורעף:<שם> (מרכז)`; basketball has
+  NO club page (`כדורסל:מכבי תל אביב` is missing on prod, redlinked there too).
+- `api.php` accepts POST through the edge proxy (only the `Special:Export`
+  form rejects POST) — use POST for batched title queries to avoid 414s.
+
 ### Where Cargo declarations and stores live (template layout)
 
 - Every `#cargo_declare` lives on a dedicated template under `תבנית:טבלאות מידע/<table name in Hebrew>` (e.g. `תבנית:טבלאות מידע/משחקי כדורגל` declares `Football_Games`). These are **never transcluded by content pages**. Enumerate them via `api.php?action=query&list=pageswithprop&pwppropname=CargoTableName` (64 tables as of June 2026).
