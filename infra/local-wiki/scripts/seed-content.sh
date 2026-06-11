@@ -83,6 +83,13 @@ for xml in "${xml_files[@]}"; do
         < "$xml"
 done
 
+# Imported <shtml> blocks are HMAC-signed with PROD's SecureHTML secret and
+# would all render "invalid hash" locally — re-sign them with the dev key.
+echo "[$(date +%H:%M:%S)] ==> resignSecureHtml.php (re-sign shtml with the local key)"
+$DOCKER compose -f "$COMPOSE_FILE" cp \
+    "${SCRIPT_DIR}/resignSecureHtml.php" "$SERVICE":/var/www/html/maintenance/resignSecureHtml.php
+compose_exec -T "$SERVICE" php maintenance/resignSecureHtml.php
+
 # Link rebuild re-parses every page, so two speedups apply:
 #  - MW_DISABLE_FOREIGN_IMAGES: image lookups are HTTP round-trips to prod
 #    and ~90% of parse wall time; link tables don't need them (file
@@ -127,5 +134,11 @@ compose_exec -T "$SERVICE" php maintenance/rebuildrecentchanges.php
 
 echo "[$(date +%H:%M:%S)] ==> runJobs.php (flush deferred work)"
 compose_exec -T -e MW_DISABLE_FOREIGN_IMAGES=1 "$SERVICE" php maintenance/runJobs.php --maxjobs 2000
+
+# The parser cache lives in the DB objectcache (CACHE_NONE only disables the
+# main cache), so pages rendered before this seed would keep showing imported
+# pages as redlinks until touched. Drop it.
+echo "[$(date +%H:%M:%S)] ==> purgeParserCache.php (drop stale pre-seed renders)"
+compose_exec -T "$SERVICE" php maintenance/purgeParserCache.php --age 0
 
 echo "done — imported ${#xml_files[@]} dump file(s). Reload http://localhost:8080 to see the content."

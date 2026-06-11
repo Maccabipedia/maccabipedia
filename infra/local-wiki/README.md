@@ -102,10 +102,22 @@ wikitext — no DB dump involved. Season-scoped queries (season page,
 "games this season") are complete; career/all-time queries only see the
 imported seasons.
 
+After seeding content, pull in the category pages it references (squad
+positions, game tracking categories, …) — derived from the local wiki's
+wanted/linked categories, filtered to pages prod actually has:
+
+```bash
+uv run python scripts/generate_wanted_categories_manifest.py
+uv run python scripts/download_pages_from_prod.py pages scripts/content-manifests/wanted-categories.manifest
+bash scripts/seed-content.sh wanted-categories
+```
+
 Skin menu targets live in `content-manifests/menu-targets.manifest`
 (static — update when the skin menu changes). Images are not part of XML
 dumps; the local stack resolves them from prod on demand via
-`$wgForeignFileRepos` in `LocalSettings.env.local.php`.
+`$wgForeignFileRepos` in `LocalSettings.env.local.php`. `<shtml>` blocks
+(SecureHTML) are re-signed with the local dev key automatically during
+`seed-content.sh` — prod's signatures can't validate here.
 
 ## Tear down
 
