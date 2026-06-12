@@ -11,8 +11,9 @@
 #   bash seed-content.sh               # imports every XML in downloaded-pages/
 #   bash seed-content.sh <stem>        # imports only downloaded-pages/<stem>.xml
 #
-# After import, runs maintenance/runJobs.php so deferred parser updates
-# (link tables, Cargo stores, category memberships) land before you browse.
+# After import, rebuilds the link tables (parallel refreshLinks workers),
+# search index and recent changes, then flushes the job queue. Cargo rows are
+# NOT produced by import — run recreate-cargo-tables.sh afterwards.
 
 set -euo pipefail
 
@@ -74,7 +75,7 @@ if [ ${#xml_files[@]} -eq 0 ]; then
 fi
 
 for xml in "${xml_files[@]}"; do
-    echo "==> importDump.php  <  ${xml}"
+    echo "[$(date +%H:%M:%S)] ==> importDump.php  <  ${xml}"
     # Drop --quiet so per-page import errors are visible rather than hidden
     # behind a uniformly-successful exit code.
     compose_exec -T "$SERVICE" \
@@ -82,10 +83,62 @@ for xml in "${xml_files[@]}"; do
         < "$xml"
 done
 
-echo "==> rebuildall.php (link tables, search index)"
-compose_exec "$SERVICE" php maintenance/rebuildall.php
+# Imported <shtml> blocks are HMAC-signed with PROD's SecureHTML secret and
+# would all render "invalid hash" locally — re-sign them with the dev key.
+echo "[$(date +%H:%M:%S)] ==> resignSecureHtml.php (re-sign shtml with the local key)"
+$DOCKER compose -f "$COMPOSE_FILE" cp \
+    "${SCRIPT_DIR}/resignSecureHtml.php" "$SERVICE":/var/www/html/maintenance/resignSecureHtml.php
+compose_exec -T "$SERVICE" php maintenance/resignSecureHtml.php
 
-echo "==> runJobs.php (flush deferred work)"
-compose_exec "$SERVICE" php maintenance/runJobs.php --maxjobs 2000
+# Link rebuild re-parses every page, so two speedups apply:
+#  - MW_DISABLE_FOREIGN_IMAGES: image lookups are HTTP round-trips to prod
+#    and ~90% of parse wall time; link tables don't need them (file
+#    references are recorded either way).
+#  - refreshLinks.php is single-threaded — run one worker per page-id range
+#    instead of rebuildall.php's serial pass. The refresh phase is per-page
+#    so ranges can't conflict; each worker does additionally repeat the
+#    delete-links-from-nonexistent sweep over the whole table, which is
+#    redundant but idempotent. rebuildall's other two stages (text index,
+#    recent changes) run after, they're cheap.
+# DB name/credentials are evaluated INSIDE the mariadb container (they're
+# container env from docker-compose.yml, not host env); only the MediaWiki
+# table prefix has to be restated here.
+REBUILD_WORKERS="${SEED_REBUILD_WORKERS:-8}"
+max_page_id=$(compose_exec -T mariadb sh -c \
+    'exec mysql -N -u root -p"$MYSQL_ROOT_PASSWORD" "$MYSQL_DATABASE" -e "SELECT COALESCE(MAX(page_id), 0) FROM '"${MW_DB_PREFIX:-MPMW_}"'page"' \
+    | tr -d '[:space:]')
+echo "[$(date +%H:%M:%S)] ==> refreshLinks.php (${REBUILD_WORKERS} workers over page ids 1..${max_page_id})"
+range_size=$(( (max_page_id + REBUILD_WORKERS - 1) / REBUILD_WORKERS ))
+declare -a rebuild_pids=()
+for (( worker=0; worker<REBUILD_WORKERS; worker++ )); do
+    range_start=$(( worker * range_size + 1 ))
+    range_end=$(( (worker + 1) * range_size ))
+    compose_exec -T -e MW_DISABLE_FOREIGN_IMAGES=1 "$SERVICE" \
+        php maintenance/refreshLinks.php "$range_start" --e "$range_end" &
+    rebuild_pids+=($!)
+done
+rebuild_status=0
+for pid in "${rebuild_pids[@]}"; do
+    wait "$pid" || rebuild_status=1
+done
+if [ "$rebuild_status" -ne 0 ]; then
+    echo "ERROR: a refreshLinks worker failed — check the output above." >&2
+    exit 1
+fi
+
+echo "[$(date +%H:%M:%S)] ==> rebuildtextindex.php (search index)"
+compose_exec -T "$SERVICE" php maintenance/rebuildtextindex.php
+
+echo "[$(date +%H:%M:%S)] ==> rebuildrecentchanges.php"
+compose_exec -T "$SERVICE" php maintenance/rebuildrecentchanges.php
+
+echo "[$(date +%H:%M:%S)] ==> runJobs.php (flush deferred work)"
+compose_exec -T -e MW_DISABLE_FOREIGN_IMAGES=1 "$SERVICE" php maintenance/runJobs.php --maxjobs 2000
+
+# The parser cache lives in the DB objectcache (CACHE_NONE only disables the
+# main cache), so pages rendered before this seed would keep showing imported
+# pages as redlinks until touched. Drop it.
+echo "[$(date +%H:%M:%S)] ==> purgeParserCache.php (drop stale pre-seed renders)"
+compose_exec -T "$SERVICE" php maintenance/purgeParserCache.php --age 0
 
 echo "done — imported ${#xml_files[@]} dump file(s). Reload http://localhost:8080 to see the content."

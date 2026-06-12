@@ -62,9 +62,66 @@ bash scripts/seed-content.sh starter
 
 Now browse e.g. `http://localhost:8080/index.php/ערן_זהבי`.
 
-**Limitation**: Cargo data tables aren't populated — `Special:Export`
-returns page wikitext only. Full Cargo-table parity needs a real DB dump
-(see "Follow-ups").
+**Cargo note**: imports alone leave the Cargo tables empty — after importing
+pages, import the table declarations and rebuild once (why Cargo's own
+tooling can't: see the header of `scripts/populateLocalCargoData.php`).
+The declaration list is built at runtime from prod, so tables added on prod
+are picked up automatically:
+
+```bash
+uv run python scripts/download_pages_from_prod.py cargo-declarations
+bash scripts/seed-content.sh cargo-declarations
+bash scripts/recreate-cargo-tables.sh
+```
+
+The rebuild runs parallel workers (`CARGO_POPULATE_WORKERS`, default 8) and
+finishes in ~2 minutes. Re-run after seeding more content with
+`bash scripts/recreate-cargo-tables.sh --populate-only`.
+
+When iterating, don't tear down with `-v`: a plain `docker compose down`
+keeps the DB, so the next `up -d` skips the install and you only re-seed
+what changed. Multiple manifests can be passed to one
+`download_pages_from_prod.py pages` call — they download concurrently.
+
+## Seeding a full season (any sport)
+
+Derive every page a season needs (games, players, opponents, stadiums,
+uniforms, premiere songs for football) straight from prod Cargo, then import:
+
+```bash
+uv run python scripts/generate_season_manifest.py football 2024/25
+uv run python scripts/download_pages_from_prod.py pages scripts/content-manifests/season-football-2024-25.manifest
+bash scripts/seed-content.sh season-football-2024-25
+bash scripts/recreate-cargo-tables.sh
+```
+
+Sports: `football`, `basketball`, `volleyball`. Committed manifests cover
+the most recent championship season of each (football 2024/25,
+basketball 2023/24, volleyball 2024/25).
+
+Cargo rows for the imported pages are regenerated locally from their
+wikitext — no DB dump involved. Season-scoped queries (season page,
+"games this season") are complete; career/all-time queries only see the
+imported seasons.
+
+After seeding content, pull in the category pages it references (squad
+positions, game tracking categories, …) — derived from the local wiki's
+wanted/linked categories, filtered to pages prod actually has:
+
+```bash
+uv run python scripts/generate_wanted_categories_manifest.py
+uv run python scripts/download_pages_from_prod.py pages scripts/content-manifests/wanted-categories.manifest
+bash scripts/seed-content.sh wanted-categories
+```
+
+Skin menu target pages are seeded with
+`uv run python scripts/download_pages_from_prod.py menu-targets` — the list
+is parsed at runtime from the skin source, so it follows menu changes
+automatically. Images are not part of XML
+dumps; the local stack resolves them from prod on demand via
+`$wgForeignFileRepos` in `LocalSettings.env.local.php`. `<shtml>` blocks
+(SecureHTML) are re-signed with the local dev key automatically during
+`seed-content.sh` — prod's signatures can't validate here.
 
 ## Tear down
 

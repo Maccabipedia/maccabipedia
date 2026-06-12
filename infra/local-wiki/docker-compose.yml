@@ -42,6 +42,14 @@ services:
 
   mariadb:
     image: mariadb:10.11
+    # Dev-only tuning:
+    #  - flush the InnoDB log once a second instead of fsyncing every commit.
+    #    Cargo stores each row in its own transaction (a game page is ~70
+    #    commits), so per-commit fsync dominates bulk seeding. Worst case on
+    #    a crash: the last second of writes — irrelevant for a throwaway DB.
+    #  - 1G buffer pool (default 128M is smaller than the seeded DB) so the
+    #    read-heavy parse passes are served from RAM after warm-up.
+    command: --innodb_flush_log_at_trx_commit=2 --innodb_buffer_pool_size=1G
     environment:
       MYSQL_DATABASE: maccabipedia
       MYSQL_USER: mw

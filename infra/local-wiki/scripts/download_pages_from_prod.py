@@ -10,8 +10,14 @@ Runs on the host (no credentials; read-only — only fetches page XML):
 
 Ops:
   bootstrap            site-scripts + pages (scripts/content-manifests/starter.manifest)
-  site-scripts         MediaWiki:Common.css + MediaWiki:Common.js
-  pages <manifest>     every title in <manifest> (one per line; blank / '#' ignored)
+  site-scripts         the complete MediaWiki: namespace (Common.css/js + site JS)
+  pages <manifest>...  every title in each <manifest> (one per line; blank / '#'
+                       ignored); multiple manifests download concurrently
+  menu-targets         every page the skin menu links to — parsed at RUNTIME from
+                       skins/Maccabipedia/includes/SkinMaccabipedia.php, so a menu
+                       change can't drift from the seed
+  cargo-declarations   every Cargo declaring template — listed at RUNTIME from
+                       prod's pageswithprop API, so a new table can't drift
 
 Optional env: MACCABIPEDIA_WEB_URL  (default: https://www.maccabipedia.co.il)
 """
@@ -20,7 +26,9 @@ from __future__ import annotations
 import os
 import re
 import sys
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from urllib.parse import quote
 
 import requests
 
@@ -29,16 +37,65 @@ _LOCAL_WIKI_DIR = _SCRIPT_DIR.parent
 _DOWNLOAD_DIR = _LOCAL_WIKI_DIR / "downloaded-pages"
 _STARTER_MANIFEST = _SCRIPT_DIR / "content-manifests" / "starter.manifest"
 _BASE_URL = os.environ.get("MACCABIPEDIA_WEB_URL", "https://www.maccabipedia.co.il").rstrip("/")
-_SITE_SCRIPT_TITLES = ["MediaWiki:Common.css", "MediaWiki:Common.js"]
+# The complete MediaWiki: namespace on prod (5 pages, verified 2026-06) —
+# importing all of it makes the interface namespace identical to prod.
+_SITE_SCRIPT_TITLES = [
+    "MediaWiki:Common.css",
+    "MediaWiki:Common.js",
+    "MediaWiki:MatchHeight.js",
+    "MediaWiki:MultiSlider.js",
+    "MediaWiki:NewScripts.js",
+]
 
 
-def _export(stem: str, titles: list[str]) -> None:
-    titles = [title for title in titles if title.strip()]
-    if not titles:
-        sys.exit("ERROR: no page titles to export")
-    _DOWNLOAD_DIR.mkdir(parents=True, exist_ok=True)
-    out_file = _DOWNLOAD_DIR / f"{stem}.xml"
+# URL-encoded byte budget for the `pages` param of one export GET. Apache's
+# default request-line limit is ~8K; leave headroom for the host, path and the
+# other query params. Hebrew titles inflate ~3x when percent-encoded, so a
+# season manifest (~170 titles) needs several chunks.
+_PAGES_PARAM_BUDGET = 6000
 
+
+def chunk_titles(titles: list[str], budget: int = _PAGES_PARAM_BUDGET) -> list[list[str]]:
+    """Split titles into batches whose URL-encoded `pages` value fits `budget`."""
+    chunks: list[list[str]] = []
+    current: list[str] = []
+    current_len = 0
+    for title in titles:
+        # safe="" so '/' counts encoded (%2F), matching how requests
+        # urlencodes the param; spaces over-count (%20 vs '+'), which only
+        # errs toward smaller chunks.
+        encoded_len = len(quote(title, safe="")) + len(quote("\n"))
+        if current and current_len + encoded_len > budget:
+            chunks.append(current)
+            current = []
+            current_len = 0
+        current.append(title)
+        current_len += encoded_len
+    if current:
+        chunks.append(current)
+    return chunks
+
+
+def merge_export_dumps(dumps: list[str]) -> str:
+    """Merge several Special:Export XML dumps into one importable document.
+
+    Keeps the first dump's <mediawiki> envelope (header + siteinfo) and splices
+    the <page> elements of the rest in before its closing tag.
+    """
+    first = dumps[0]
+    closing_index = first.rindex("</mediawiki>")
+    parts = [first[:closing_index]]
+    for dump in dumps[1:]:
+        if "<page>" not in dump:
+            continue  # every title in this chunk was missing on prod
+        pages_start = dump.index("<page>")
+        pages_end = dump.rindex("</page>") + len("</page>")
+        parts.append(dump[pages_start:pages_end] + "\n")
+    parts.append(first[closing_index:])
+    return "".join(parts)
+
+
+def _export_chunk(titles: list[str]) -> str:
     # GET (not POST): prod's edge layer rejects the POST export form; GET with
     # the same params works. curonly=1 = current revision only; templates=1 also
     # pulls templates the pages reference.
@@ -49,7 +106,6 @@ def _export(stem: str, titles: list[str]) -> None:
         "templates": "1",
         "action": "submit",
     }
-    print(f"==> GET {_BASE_URL}/index.php?title=Special:Export  ({len(titles)} titles) -> {out_file}")
     # Generous timeout: templates=1 exports can take a while on a big page set.
     response = requests.get(f"{_BASE_URL}/index.php", params=params, timeout=120)
     response.raise_for_status()
@@ -59,10 +115,67 @@ def _export(stem: str, titles: list[str]) -> None:
     # "<mediawiki" + whitespace so an HTML page that merely mentions the word
     # can't slip through.
     if not re.search(r"<mediawiki\s", response.text[:512]):
-        sys.exit("ERROR: response is not a MediaWiki XML dump — check the site / titles")
+        # RuntimeError (not sys.exit): _export runs on worker threads, where
+        # an exception propagates cleanly through Future.result() to main().
+        raise RuntimeError("response is not a MediaWiki XML dump — check the site / titles")
+    return response.text
 
-    out_file.write_text(response.text, encoding="utf-8")
+
+def _export(stem: str, titles: list[str]) -> None:
+    titles = [title for title in titles if title.strip()]
+    if not titles:
+        raise RuntimeError("no page titles to export")
+    _DOWNLOAD_DIR.mkdir(parents=True, exist_ok=True)
+    out_file = _DOWNLOAD_DIR / f"{stem}.xml"
+
+    chunks = chunk_titles(titles)
+    print(
+        f"==> GET {_BASE_URL}/index.php?title=Special:Export  "
+        f"({len(titles)} titles in {len(chunks)} request(s)) -> {out_file}"
+    )
+    dumps = [_export_chunk(chunk) for chunk in chunks]
+
+    out_file.write_text(merge_export_dumps(dumps), encoding="utf-8")
     print(f"    OK — {out_file.stat().st_size} bytes")
+
+
+_SKIN_PHP = _LOCAL_WIKI_DIR.parent.parent / "skins" / "Maccabipedia" / "includes" / "SkinMaccabipedia.php"
+
+
+def menu_target_titles(skin_php: Path = _SKIN_PHP) -> list[str]:
+    """Every page the skin menu links to, parsed from the dropdown definitions
+    (and pageUrl() calls) in the skin source — built at runtime so a menu
+    change can never drift from the seeded content."""
+    source = skin_php.read_text(encoding="utf-8")
+    titles = re.findall(r"'title'\s*=>\s*'([^']+)'", source)
+    titles += re.findall(r"pageUrl\(\s*'([^']+)'\s*\)", source)
+    if not titles:
+        raise RuntimeError(f"no menu targets parsed from {skin_php}")
+    return list(dict.fromkeys(titles))
+
+
+def cargo_declaration_titles() -> list[str]:
+    """Every Cargo declaring template, listed live from prod (pageswithprop) —
+    so a table added on prod is picked up by the next seed automatically."""
+    titles: list[str] = []
+    params = {
+        "action": "query",
+        "format": "json",
+        "list": "pageswithprop",
+        "pwppropname": "CargoTableName",
+        "pwplimit": "max",
+    }
+    while True:
+        response = requests.post(f"{_BASE_URL}/api.php", data=params, timeout=60)
+        response.raise_for_status()
+        data = response.json()
+        titles += [row["title"] for row in data["query"]["pageswithprop"]]
+        if "continue" not in data:
+            break
+        params = {**params, **data["continue"]}
+    if not titles:
+        raise RuntimeError("prod returned no Cargo declaring templates")
+    return titles
 
 
 def _titles_from_manifest(path: Path) -> list[str]:
@@ -77,21 +190,36 @@ def _titles_from_manifest(path: Path) -> list[str]:
 
 def main() -> None:
     op = sys.argv[1] if len(sys.argv) > 1 else ""
-    if op == "site-scripts":
-        _export("site-scripts", _SITE_SCRIPT_TITLES)
-    elif op == "pages":
-        if len(sys.argv) < 3:
-            sys.exit("ERROR: 'pages' op requires a manifest path\n"
-                     "  e.g. ... pages scripts/content-manifests/starter.manifest")
-        manifest = Path(sys.argv[2])
-        _export(manifest.stem, _titles_from_manifest(manifest))
-    elif op == "bootstrap":
-        _export("site-scripts", _SITE_SCRIPT_TITLES)
-        _export(_STARTER_MANIFEST.stem, _titles_from_manifest(_STARTER_MANIFEST))
-    elif op in ("-h", "--help", "help"):
-        print(__doc__)
-    else:
-        sys.exit(f"ERROR: unknown op {op!r}\n{__doc__}")
+    try:
+        if op == "site-scripts":
+            _export("site-scripts", _SITE_SCRIPT_TITLES)
+        elif op == "pages":
+            if len(sys.argv) < 3:
+                sys.exit("ERROR: 'pages' op requires a manifest path\n"
+                         "  e.g. ... pages scripts/content-manifests/starter.manifest")
+            manifests = [Path(arg) for arg in sys.argv[2:]]
+            # The wait is prod generating each export, not bandwidth — fetch
+            # manifests concurrently, capped politely at 3 in-flight.
+            with ThreadPoolExecutor(max_workers=3) as pool:
+                jobs = [
+                    pool.submit(_export, manifest.stem, _titles_from_manifest(manifest))
+                    for manifest in manifests
+                ]
+                for job in jobs:
+                    job.result()
+        elif op == "menu-targets":
+            _export("menu-targets", menu_target_titles())
+        elif op == "cargo-declarations":
+            _export("cargo-declarations", cargo_declaration_titles())
+        elif op == "bootstrap":
+            _export("site-scripts", _SITE_SCRIPT_TITLES)
+            _export(_STARTER_MANIFEST.stem, _titles_from_manifest(_STARTER_MANIFEST))
+        elif op in ("-h", "--help", "help"):
+            print(__doc__)
+        else:
+            sys.exit(f"ERROR: unknown op {op!r}\n{__doc__}")
+    except RuntimeError as error:
+        sys.exit(f"ERROR: {error}")
 
 
 if __name__ == "__main__":
