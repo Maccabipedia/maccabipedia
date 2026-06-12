@@ -53,7 +53,10 @@ SPORTS = {
         uniforms_table="Football_Uniforms",
         include_songs=True,
         referee_format="כדורגל:{} (שופט)",
-        extra_titles=("מכבי תל אביב",),
+        # הזנת מפעלי X: single data-entry page holding the WHOLE Competitions
+        # catalog — the stats queries inner-join it, so without it every
+        # aggregate (player/season stats) returns zero.
+        extra_titles=("מכבי תל אביב", "הזנת מפעלי כדורגל"),
     ),
     "basketball": SportConfig(
         games_table="Basketball_Games",
@@ -62,6 +65,7 @@ SPORTS = {
         stadium_format="כדורסל:{}",
         uniforms_table="Basketball_Uniforms",
         include_songs=False,
+        extra_titles=("הזנת מפעלי כדורסל",),
     ),
     "volleyball": SportConfig(
         games_table="Volleyball_Games",
@@ -70,7 +74,7 @@ SPORTS = {
         stadium_format="כדורעף:{} (אולם)",
         uniforms_table="Volleyball_Uniforms",
         include_songs=False,
-        extra_titles=("כדורעף:מכבי תל אביב",),
+        extra_titles=("כדורעף:מכבי תל אביב", "הזנת מפעלי כדורעף"),
     ),
 }
 
