@@ -87,6 +87,11 @@ All stats consumer templates filter Maccabi rows with `Team=1`, so the mismatch 
   NO club page (`כדורסל:מכבי תל אביב` is missing on prod, redlinked there too).
 - `api.php` accepts POST through the edge proxy (only the `Special:Export`
   form rejects POST) — use POST for batched title queries to avoid 414s.
+- Profile templates pick photos with `{{#קיים: קובץ:X}}` — `#ifexist` on a
+  `קובץ:` title checks the LOCAL description page only (never foreign repos),
+  so a wiki copy needs the description pages imported even when binaries come
+  from a ForeignAPIRepo. Each sport's profiles table records the chosen photo
+  in `ProfilePicture` (e.g. `Eran Zahavi Profile.png`).
 
 ### Where Cargo declarations and stores live (template layout)
 
