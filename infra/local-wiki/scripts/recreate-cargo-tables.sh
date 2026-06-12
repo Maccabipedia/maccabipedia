@@ -2,9 +2,10 @@
 #
 # (Re)create + populate the local Cargo tables from the imported pages.
 # Why Cargo's own tooling can't do this here: see the header of
-# populateLocalCargoData.php. Prerequisite — the declaration templates:
+# populateLocalCargoData.php. Prerequisite — the declaration templates
+# (listed at runtime from prod, so new tables are picked up automatically):
 #
-#   uv run python scripts/download_pages_from_prod.py pages scripts/content-manifests/cargo-declarations.manifest
+#   uv run python scripts/download_pages_from_prod.py cargo-declarations
 #   bash scripts/seed-content.sh cargo-declarations
 #   bash scripts/recreate-cargo-tables.sh
 #

@@ -64,10 +64,12 @@ Now browse e.g. `http://localhost:8080/index.php/ערן_זהבי`.
 
 **Cargo note**: imports alone leave the Cargo tables empty — after importing
 pages, import the table declarations and rebuild once (why Cargo's own
-tooling can't: see the header of `scripts/populateLocalCargoData.php`):
+tooling can't: see the header of `scripts/populateLocalCargoData.php`).
+The declaration list is built at runtime from prod, so tables added on prod
+are picked up automatically:
 
 ```bash
-uv run python scripts/download_pages_from_prod.py pages scripts/content-manifests/cargo-declarations.manifest
+uv run python scripts/download_pages_from_prod.py cargo-declarations
 bash scripts/seed-content.sh cargo-declarations
 bash scripts/recreate-cargo-tables.sh
 ```
@@ -112,8 +114,10 @@ uv run python scripts/download_pages_from_prod.py pages scripts/content-manifest
 bash scripts/seed-content.sh wanted-categories
 ```
 
-Skin menu targets live in `content-manifests/menu-targets.manifest`
-(static — update when the skin menu changes). Images are not part of XML
+Skin menu target pages are seeded with
+`uv run python scripts/download_pages_from_prod.py menu-targets` — the list
+is parsed at runtime from the skin source, so it follows menu changes
+automatically. Images are not part of XML
 dumps; the local stack resolves them from prod on demand via
 `$wgForeignFileRepos` in `LocalSettings.env.local.php`. `<shtml>` blocks
 (SecureHTML) are re-signed with the local dev key automatically during

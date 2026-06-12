@@ -10,9 +10,14 @@ Runs on the host (no credentials; read-only — only fetches page XML):
 
 Ops:
   bootstrap            site-scripts + pages (scripts/content-manifests/starter.manifest)
-  site-scripts         MediaWiki:Common.css + MediaWiki:Common.js
+  site-scripts         the complete MediaWiki: namespace (Common.css/js + site JS)
   pages <manifest>...  every title in each <manifest> (one per line; blank / '#'
                        ignored); multiple manifests download concurrently
+  menu-targets         every page the skin menu links to — parsed at RUNTIME from
+                       skins/Maccabipedia/includes/SkinMaccabipedia.php, so a menu
+                       change can't drift from the seed
+  cargo-declarations   every Cargo declaring template — listed at RUNTIME from
+                       prod's pageswithprop API, so a new table can't drift
 
 Optional env: MACCABIPEDIA_WEB_URL  (default: https://www.maccabipedia.co.il)
 """
@@ -134,6 +139,45 @@ def _export(stem: str, titles: list[str]) -> None:
     print(f"    OK — {out_file.stat().st_size} bytes")
 
 
+_SKIN_PHP = _LOCAL_WIKI_DIR.parent.parent / "skins" / "Maccabipedia" / "includes" / "SkinMaccabipedia.php"
+
+
+def menu_target_titles(skin_php: Path = _SKIN_PHP) -> list[str]:
+    """Every page the skin menu links to, parsed from the dropdown definitions
+    (and pageUrl() calls) in the skin source — built at runtime so a menu
+    change can never drift from the seeded content."""
+    source = skin_php.read_text(encoding="utf-8")
+    titles = re.findall(r"'title'\s*=>\s*'([^']+)'", source)
+    titles += re.findall(r"pageUrl\(\s*'([^']+)'\s*\)", source)
+    if not titles:
+        raise RuntimeError(f"no menu targets parsed from {skin_php}")
+    return list(dict.fromkeys(titles))
+
+
+def cargo_declaration_titles() -> list[str]:
+    """Every Cargo declaring template, listed live from prod (pageswithprop) —
+    so a table added on prod is picked up by the next seed automatically."""
+    titles: list[str] = []
+    params = {
+        "action": "query",
+        "format": "json",
+        "list": "pageswithprop",
+        "pwppropname": "CargoTableName",
+        "pwplimit": "max",
+    }
+    while True:
+        response = requests.post(f"{_BASE_URL}/api.php", data=params, timeout=60)
+        response.raise_for_status()
+        data = response.json()
+        titles += [row["title"] for row in data["query"]["pageswithprop"]]
+        if "continue" not in data:
+            break
+        params = {**params, **data["continue"]}
+    if not titles:
+        raise RuntimeError("prod returned no Cargo declaring templates")
+    return titles
+
+
 def _titles_from_manifest(path: Path) -> list[str]:
     if not path.is_file():
         sys.exit(f"ERROR: manifest not found: {path}")
@@ -163,6 +207,10 @@ def main() -> None:
                 ]
                 for job in jobs:
                     job.result()
+        elif op == "menu-targets":
+            _export("menu-targets", menu_target_titles())
+        elif op == "cargo-declarations":
+            _export("cargo-declarations", cargo_declaration_titles())
         elif op == "bootstrap":
             _export("site-scripts", _SITE_SCRIPT_TITLES)
             _export(_STARTER_MANIFEST.stem, _titles_from_manifest(_STARTER_MANIFEST))

@@ -4,8 +4,8 @@ from generate_season_manifest import collect_season_titles, expand_with_redirect
 # Stub fetcher: maps (tables, where) → canned CargoExport rows, real-name fixtures.
 _CANNED = {
     ("Football_Games", 'Season="2024/25"'): [
-        {"_pageName": "משחק:31-08-2024 מכבי תל אביב נגד הפועל תל אביב - ליגת העל",
-         "Opponent": "הפועל תל אביב", "Stadium": "אצטדיון בלומפילד",
+        {"_pageName": "משחק:31-08-2024 מכבי תל אביב נגד בני יהודה - ליגת העל",
+         "Opponent": "בני יהודה", "Stadium": "אצטדיון בלומפילד",
          "CoachMaccabi": "ז'ארקו לאזטיץ'", "Competition": "ליגת העל",
          "Refs": "אוראל גרינפלד"},
         {"_pageName": "משחק:07-12-2024 מכבי תל אביב נגד מכבי חיפה - ליגת העל",
@@ -35,8 +35,8 @@ _CANNED = {
         {"_pageName": "שיר: קדימה מכבי"},
     ],
     ("Basketball_Games", 'Season="2023/24"'): [
-        {"_pageName": "כדורסל:25-05-2024 מכבי תל אביב נגד הפועל חולון - ליגת העל",
-         "Opponent": "הפועל חולון", "Stadium": "היכל מנורה מבטחים",
+        {"_pageName": "כדורסל:25-05-2024 מכבי תל אביב נגד מכבי ראשון לציון - ליגת העל",
+         "Opponent": "מכבי ראשון לציון", "Stadium": "היכל מנורה מבטחים",
          "CoachMaccabi": "עודד קטש", "Competition": "ליגת העל"},
     ],
     ("Basketball_Player_Game_Events_Summary,Basketball_Games",
@@ -53,9 +53,9 @@ def stub_fetch(tables, fields, where, **kwargs):
 
 def test_football_collects_all_page_kinds():
     titles = collect_season_titles("football", "2024/25", fetch=stub_fetch)
-    assert "משחק:31-08-2024 מכבי תל אביב נגד הפועל תל אביב - ליגת העל" in titles
+    assert "משחק:31-08-2024 מכבי תל אביב נגד בני יהודה - ליגת העל" in titles
     assert "ערן זהבי" in titles
-    assert "הפועל תל אביב" in titles          # main namespace, no prefix
+    assert "בני יהודה" in titles          # main namespace, no prefix
     assert "אצטדיון בלומפילד" in titles
     assert "ליגת העל" in titles
     assert "עונת 2024/25" in titles
@@ -71,9 +71,9 @@ def test_football_collects_all_page_kinds():
 
 def test_basketball_titles_get_sport_prefix():
     titles = collect_season_titles("basketball", "2023/24", fetch=stub_fetch)
-    assert "כדורסל:25-05-2024 מכבי תל אביב נגד הפועל חולון - ליגת העל" in titles
+    assert "כדורסל:25-05-2024 מכבי תל אביב נגד מכבי ראשון לציון - ליגת העל" in titles
     assert "כדורסל:טל ברודי" in titles         # player prefixed
-    assert "כדורסל:הפועל חולון" in titles      # opponent prefixed
+    assert "כדורסל:מכבי ראשון לציון" in titles      # opponent prefixed
     assert "כדורסל:ליגת העל" in titles         # competition prefixed
     assert "כדורסל:עונת 2023/24" in titles     # season page prefixed
     assert "כדורסל:היכל מנורה מבטחים" in titles
