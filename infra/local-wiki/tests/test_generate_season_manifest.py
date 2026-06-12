@@ -24,6 +24,13 @@ _CANNED = {
     ("Football_Uniforms", 'Season="2024/25"'): [
         {"_pageName": "מדי בית 2024/25"},
     ],
+    ("Profiles", '_pageName IN ("ערן זהבי","דור פרץ")'): [
+        {"_pageName": "ערן זהבי", "ProfilePicture": "Eran Zahavi Profile.png"},
+        {"_pageName": "דור פרץ", "ProfilePicture": ""},
+    ],
+    ("Basketball_Players", '_pageName IN ("כדורסל:טל ברודי")'): [
+        {"_pageName": "כדורסל:טל ברודי", "ProfilePicture": "Tal Brody Profile.png"},
+    ],
     ("Songs", 'PremiereSeason="2024/25"'): [
         {"_pageName": "שיר: קדימה מכבי"},
     ],
@@ -58,6 +65,8 @@ def test_football_collects_all_page_kinds():
     assert "כדורגל:אוראל גרינפלד (שופט)" in titles   # referee page, prefixed+suffixed
     assert "מכבי תל אביב" in titles                  # the club page itself
     assert "Cant found referee" not in str(titles)
+    assert "קובץ:Eran Zahavi Profile.png" in titles  # profile photo description page
+    assert "קובץ:" not in titles                     # photo-less players add nothing
 
 
 def test_basketball_titles_get_sport_prefix():

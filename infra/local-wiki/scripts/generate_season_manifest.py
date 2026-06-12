@@ -40,6 +40,7 @@ class SportConfig:
     stadium_format: str     # stadium page title per sport, '{}' = the Cargo Stadium value
     uniforms_table: str
     include_songs: bool     # Songs table is club-wide; pulled once, with football
+    profiles_table: str     # per-sport player profiles; ProfilePicture names the photo file
     referee_format: str = ""   # main-referee page title; '' = referees have no pages
     extra_titles: tuple = ()   # static per-sport pages every season links (e.g. the club page)
 
@@ -51,6 +52,7 @@ SPORTS = {
         prefix="",
         stadium_format="{}",
         uniforms_table="Football_Uniforms",
+        profiles_table="Profiles",
         include_songs=True,
         referee_format="כדורגל:{} (שופט)",
         # הזנת מפעלי X: single data-entry page holding the WHOLE Competitions
@@ -64,6 +66,7 @@ SPORTS = {
         prefix="כדורסל:",
         stadium_format="כדורסל:{}",
         uniforms_table="Basketball_Uniforms",
+        profiles_table="Basketball_Players",
         include_songs=False,
         extra_titles=("הזנת מפעלי כדורסל",),
     ),
@@ -73,6 +76,7 @@ SPORTS = {
         prefix="כדורעף:",
         stadium_format="כדורעף:{} (אולם)",
         uniforms_table="Volleyball_Uniforms",
+        profiles_table="Volleyball_Players",
         include_songs=False,
         extra_titles=("כדורעף:מכבי תל אביב", "הזנת מפעלי כדורעף"),
     ),
@@ -128,9 +132,24 @@ def collect_season_titles(sport, season, fetch=cargo_fetch):
     )
     uniforms = fetch(config.uniforms_table, "_pageName", f'Season="{season}"')
 
+    # Profile photos: the profile templates pick the photo with #ifexist on
+    # the קובץ: page, which must exist LOCALLY (the binary then streams from
+    # the foreign repo) — so pull the file-description pages the players use.
+    player_titles = _clean((row["PlayerName"] for row in players), config.prefix)
+    profile_pictures = []
+    if player_titles:
+        quoted_names = ",".join(f'"{name}"' for name in player_titles if '"' not in name)
+        profiles = fetch(
+            config.profiles_table,
+            "_pageName,ProfilePicture",
+            f"_pageName IN ({quoted_names})",
+        )
+        profile_pictures = _clean((row.get("ProfilePicture") for row in profiles), "קובץ:")
+
     titles = []
     titles += _clean(row["_pageName"] for row in games)  # game pages carry their own prefix
-    titles += _clean((row["PlayerName"] for row in players), config.prefix)
+    titles += player_titles
+    titles += profile_pictures
     titles += _clean((row["CoachMaccabi"] for row in games), config.prefix)
     titles += _clean((row["Opponent"] for row in games), config.prefix)
     titles += [config.stadium_format.format(value)
