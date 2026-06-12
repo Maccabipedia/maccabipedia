@@ -32,7 +32,15 @@ _LOCAL_WIKI_DIR = _SCRIPT_DIR.parent
 _DOWNLOAD_DIR = _LOCAL_WIKI_DIR / "downloaded-pages"
 _STARTER_MANIFEST = _SCRIPT_DIR / "content-manifests" / "starter.manifest"
 _BASE_URL = os.environ.get("MACCABIPEDIA_WEB_URL", "https://www.maccabipedia.co.il").rstrip("/")
-_SITE_SCRIPT_TITLES = ["MediaWiki:Common.css", "MediaWiki:Common.js"]
+# The complete MediaWiki: namespace on prod (5 pages, verified 2026-06) —
+# importing all of it makes the interface namespace identical to prod.
+_SITE_SCRIPT_TITLES = [
+    "MediaWiki:Common.css",
+    "MediaWiki:Common.js",
+    "MediaWiki:MatchHeight.js",
+    "MediaWiki:MultiSlider.js",
+    "MediaWiki:NewScripts.js",
+]
 
 
 # URL-encoded byte budget for the `pages` param of one export GET. Apache's
