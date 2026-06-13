@@ -119,6 +119,11 @@ Hebrew redirect syntax: `#הפניה [[Target_Page_Name]]`
 **Newspapers** (`File:` pages, template `{{תיוג עיתונים}}`):
 - File naming: `{שם_עיתון}_{תאריך_המשחק}_{שם_היריבה}_{מספר}_{(תאריך_פרסום)}`
 
+**Category sort keys (every `File:` upload):**
+- A file sorts within its category by its **page title** unless given a sort key — `[[קטגוריה:X|sortkey]]`. Before deciding, **always check how existing similar uploads in the same category sort and match them** — staying consistent with the collection matters more than any general rule.
+- The common default is a **year** key (e.g. a season's ending year), but not always — some collections sort by date, opponent, or another field. So don't assume: confirm against the siblings, then set the matching key or consciously accept the default title-order.
+- Example: basketball season team photos (`כדורסל - תמונה קבוצתית YYYY-YY.jpg`, category `כדורסל/תמונות קבוצתיות`) use the season's **ending year** (`2010/11 → |2011`).
+
 ## 8. Non-Game Entities
 
 **Fan Songs** (`שיר:` namespace, template `{{שיר}}`):
