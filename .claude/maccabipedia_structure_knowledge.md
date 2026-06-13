@@ -108,6 +108,8 @@ Hebrew redirect syntax: `#הפניה [[Target_Page_Name]]`
 
 **Tickets** (`File:` pages):
 - Basketball: `{{תיוג כרטיס משחק כדורסל|משחק=PAGE_NAME}}`
+- Per-season category auto-assigned: `קטגוריה:כרטיסי משחק כדורסל מעונת YYYY/YY`
+- Each season with tickets has a dedicated page `כרטיסי משחק כדורסל YYYY/YY` containing just `{{כרטיסי עונה|ענף=כדורסל|עונה=YYYY/YY}}` — the template renders the tabbed visualization (league/cup/europe/other) by querying the per-season category. After uploading tickets for a new season, create this page if missing.
 
 **Posters** (`File:` pages):
 - Basketball: `{{תיוג כרזת כדורסל|משחק=PAGE_NAME}}`
