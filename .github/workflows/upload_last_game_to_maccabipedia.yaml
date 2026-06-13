@@ -15,7 +15,7 @@ jobs:
         with:
           python-version: 3.11
           architecture: x64
-      - uses: astral-sh/setup-uv@v8
+      - uses: astral-sh/setup-uv@v7
       - name: Install dependencies
         run: uv sync
       - name: Fetch Games From MaccabiTLVSite
