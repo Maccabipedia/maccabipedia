@@ -32,6 +32,18 @@ from maccabipediabot.common.json_io import write_pydantic_list_as_json
 
 logger = logging.getLogger(__name__)
 
+
+class EuroleagueBlockedError(Exception):
+    """The Euroleague site is unreachable or gating us behind a bot challenge.
+
+    Raised for transient, environmental conditions — the Vercel WAF serving its JS
+    "Security Checkpoint" to a flagged (residential) IP, or the proxy/network path
+    being down — as opposed to a real parsing bug or an unmapped team name. The
+    scheduled CI job soft-fails on this (see ``--soft-fail-on-block``) so a challenged
+    IP doesn't turn the run red, most notably during the Euroleague off-season when
+    there are no games to miss anyway.
+    """
+
 TEAM_RESULTS_URL = (
     "https://www.euroleaguebasketball.net/en/euroleague/teams/maccabi-rapyd-tel-aviv/games/tel/"
 )
@@ -56,7 +68,18 @@ def extract_next_data(html: str) -> dict[str, Any]:
 
 
 def fetch_html(url: str) -> str:
-    resp = requests.get(url, headers=HTTP_HEADERS, timeout=30)
+    try:
+        resp = requests.get(url, headers=HTTP_HEADERS, timeout=30)
+    except requests.exceptions.RequestException as error:
+        # Proxy unreachable / connection reset / timeout — the residential proxy or the
+        # network path to Euroleague is down. Environmental, not a bug.
+        raise EuroleagueBlockedError(f"Could not reach Euroleague ({url}): {error}") from error
+    if resp.status_code == 429 and resp.headers.get("x-vercel-mitigated") == "challenge":
+        # Vercel's WAF is serving its JS "Security Checkpoint" instead of the page; a
+        # headless client can't solve it. IP-reputation based, not a header/UA issue.
+        raise EuroleagueBlockedError(
+            f"Euroleague returned a Vercel bot challenge (HTTP 429) for {url}"
+        )
     resp.raise_for_status()
     return resp.text
 
@@ -291,6 +314,11 @@ def main() -> None:
     parser.add_argument("--unknown-teams-report", type=Path, default=None,
                         help="On unmapped team names, write the affected games as JSON here "
                              "(consumed by CI to alert the error channel).")
+    parser.add_argument("--soft-fail-on-block", action="store_true",
+                        help="If Euroleague is unreachable or behind a Vercel bot challenge, "
+                             "write an empty result and exit 0 instead of failing. Used by the "
+                             "scheduled CI job so a challenged residential IP — common in the "
+                             "off-season — doesn't turn the run red.")
     args = parser.parse_args()
 
     try:
@@ -298,6 +326,11 @@ def main() -> None:
     except UnknownTeamNameError as error:
         write_unknown_teams_report(args.unknown_teams_report, error.affected_games)
         raise
+    except EuroleagueBlockedError as error:
+        if not args.soft_fail_on_block:
+            raise
+        logger.warning("Euroleague crawl skipped — site blocked: %s", error)
+        games = []
 
     write_pydantic_list_as_json(games, args.output)
 
