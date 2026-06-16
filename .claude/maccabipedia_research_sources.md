@@ -23,6 +23,7 @@ Wiki page with full list: `https://www.maccabipedia.co.il/מקורות_שימו�
 - Israeli Film Archive: https://jfc.org.il/
 - GPO National Photo Collection: https://gpophoto.gov.il/ — 160K+ digitized photos since pre-1948
 - Maccabi World Union Archive: https://www.maccabi.org/who-we-are/archive — ~30K photos, posters, films from early 20th century
+- Vanished heritage stadiums of Tel Aviv-Jaffa (PDF, Avnei Moreshet / Prof. Eliyahu Stern, 2026): https://hamoreshet.org.il/viewer.php?file=/wp-content/pdf/present-based-past/Tel_Aviv_Disappeared_Stadiums.pdf — visual essay on the football & basketball grounds that disappeared from the city, incl. Maccabi TLV historical home grounds, with photos and dates
 
 **Press:**
 - Ynet archive: https://www.ynet.co.il/home/0,7340,L-4269-77-57,00.html
@@ -41,6 +42,7 @@ Wiki page with full list: `https://www.maccabipedia.co.il/מקורות_שימו�
 - Retro blog 1: https://futboltelevisionretro.blogspot.com/2015/07/maccabi-tel-aviv-tv.html
 - Retro blog 2: https://lagaleriadelfutbol.blogspot.com/2015/07/maccabitelaviv.html
 - Alamy (including B&W historical): https://www.alamy.com/stock-photo/maccabi-tel-aviv.html
+- Yoash Alroei blog: https://yoashtvblog.co.il/ — personal Israeli sport/history archive (research, vintage photos, first-hand recollections), incl. Maccabi TLV history posts
 
 **Forums:**
 - 12p forum (songs, tifos, photos, all sports): https://forum.12p.co.il/
