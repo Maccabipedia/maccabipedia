@@ -1,16 +1,22 @@
 """Parser tests for crawl_euroleague."""
+import json
 from datetime import datetime
 from pathlib import Path
 
 import pytest
+import requests
 
+from maccabipediabot.basketball import crawl_euroleague
 from maccabipediabot.basketball._crawler_utils import UnknownTeamNameError
 from maccabipediabot.basketball.basketball_game import BasketballGame
 from maccabipediabot.basketball.crawl_euroleague import (
     MACCABI_TEAM_NAME_ENG,
+    EuroleagueBlockedError,
     _parse_team_results_entry,
     discover_games_from_html,
     extract_next_data,
+    fetch_html,
+    main,
     parse_game_page,
 )
 
@@ -150,3 +156,76 @@ def test_parse_entry_raises_on_unmapped_team_name():
     with pytest.raises(UnknownTeamNameError) as exc_info:
         _parse_team_results_entry(result)
     assert exc_info.value.affected_games[0]["teams"] == ["Totally New Club"]
+
+
+class _StubResponse:
+    """Minimal stand-in for requests.Response — only what fetch_html touches."""
+
+    def __init__(self, *, status_code: int = 200, headers: dict | None = None, text: str = ""):
+        self.status_code = status_code
+        self.headers = headers or {}
+        self.text = text
+
+    def raise_for_status(self) -> None:
+        if self.status_code >= 400:
+            raise requests.exceptions.HTTPError(f"HTTP {self.status_code}")
+
+
+def test_fetch_html_raises_blocked_on_vercel_challenge(monkeypatch):
+    """A 429 carrying Vercel's challenge header is the WAF gating a flagged IP, not a
+    real HTTP error — surface it as a blocked condition the job can soft-fail on."""
+    def stub_get(url, headers=None, timeout=None):
+        return _StubResponse(status_code=429, headers={"x-vercel-mitigated": "challenge"})
+
+    monkeypatch.setattr(crawl_euroleague.requests, "get", stub_get)
+    with pytest.raises(EuroleagueBlockedError):
+        fetch_html("https://www.euroleaguebasketball.net/x")
+
+
+def test_fetch_html_raises_blocked_on_proxy_failure(monkeypatch):
+    """Proxy unreachable / connection reset is environmental — same blocked condition."""
+    def stub_get(url, headers=None, timeout=None):
+        raise requests.exceptions.ProxyError("Unable to connect to proxy")
+
+    monkeypatch.setattr(crawl_euroleague.requests, "get", stub_get)
+    with pytest.raises(EuroleagueBlockedError):
+        fetch_html("https://www.euroleaguebasketball.net/x")
+
+
+def test_fetch_html_still_raises_on_plain_http_error(monkeypatch):
+    """A genuine 500 (not a bot challenge) must keep failing loudly — don't swallow it."""
+    def stub_get(url, headers=None, timeout=None):
+        return _StubResponse(status_code=500)
+
+    monkeypatch.setattr(crawl_euroleague.requests, "get", stub_get)
+    with pytest.raises(requests.exceptions.HTTPError):
+        fetch_html("https://www.euroleaguebasketball.net/x")
+
+
+def test_main_soft_fail_writes_empty_output_when_blocked(monkeypatch, tmp_path):
+    """With --soft-fail-on-block, a blocked crawl writes an empty list and exits 0 so
+    the downstream uploader no-ops and the scheduled run stays green."""
+    def blocked(_limit):
+        raise EuroleagueBlockedError("Vercel challenge")
+
+    monkeypatch.setattr(crawl_euroleague, "_run_latest_season", blocked)
+    output = tmp_path / "euroleague.json"
+    monkeypatch.setattr(
+        "sys.argv",
+        ["crawl_euroleague", "--output", str(output), "--soft-fail-on-block"],
+    )
+    main()
+    assert json.loads(output.read_text(encoding="utf-8")) == []
+
+
+def test_main_reraises_block_without_soft_fail_flag(monkeypatch, tmp_path):
+    """Without the flag (local/default), a blocked crawl raises — no silent success."""
+    def blocked(_limit):
+        raise EuroleagueBlockedError("Vercel challenge")
+
+    monkeypatch.setattr(crawl_euroleague, "_run_latest_season", blocked)
+    output = tmp_path / "euroleague.json"
+    monkeypatch.setattr("sys.argv", ["crawl_euroleague", "--output", str(output)])
+    with pytest.raises(EuroleagueBlockedError):
+        main()
+    assert not output.exists()

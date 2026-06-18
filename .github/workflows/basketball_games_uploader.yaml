@@ -47,7 +47,8 @@ jobs:
         run: |
           uv run python -m maccabipediabot.basketball.crawl_euroleague \
             --season latest --limit 1 --output /tmp/euroleague.json \
-            --unknown-teams-report /tmp/unknown_teams_euroleague.json
+            --unknown-teams-report /tmp/unknown_teams_euroleague.json \
+            --soft-fail-on-block
 
       - name: Upload Euroleague games
         env:
