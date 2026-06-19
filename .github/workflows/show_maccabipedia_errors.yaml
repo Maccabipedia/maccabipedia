@@ -16,6 +16,18 @@ jobs:
       - uses: astral-sh/setup-uv@v7
       - name: Install dependencies
         run: uv sync
+      # Restore the previous run's full error report so we can send only newly-appeared
+      # errors. Rolling key (run_id is always unique) => the exact key never hits, so the
+      # restore-keys prefix brings back the latest baseline and a fresh one is always saved
+      # at post-job. An empty/missing baseline (first run, or rare cache eviction) simply
+      # means everything is "new" and the full report is sent once.
+      - name: Restore previous errors baseline
+        uses: actions/cache@v4
+        with:
+          path: error-report-baseline
+          key: maccabipedia-errors-baseline-v1-${{ github.run_id }}
+          restore-keys: |
+            maccabipedia-errors-baseline-v1-
       - name: Fetch MaccabiPedia Data
         run: uv run python -m maccabistats.github_actions_scripts.fetch_games_from_maccabipedia
       - name: Find Errors
@@ -23,20 +35,41 @@ jobs:
       - name: Get current date
         id: date
         run: echo "date=$(date +'%Y_%m_%d')" >> $GITHUB_OUTPUT
+      - name: Compute new errors
+        id: diff
+        env:
+          DATE: ${{ steps.date.outputs.date }}
+        run: |
+          mkdir -p error-report-baseline
+          touch error-report-baseline/before_1950.txt error-report-baseline/after_1950.txt
+          bash .github/scripts/filter_new_error_lines.sh \
+            error-report-baseline/before_1950.txt \
+            "${DATE}__maccabipedia_errors_before_1950.txt" > new_before_1950.txt
+          bash .github/scripts/filter_new_error_lines.sh \
+            error-report-baseline/after_1950.txt \
+            "${DATE}__maccabipedia_errors_after_1950.txt" > new_after_1950.txt
+          if [ -s new_before_1950.txt ]; then echo "has_new_before=true" >> "$GITHUB_OUTPUT"; else echo "has_new_before=false" >> "$GITHUB_OUTPUT"; fi
+          if [ -s new_after_1950.txt ]; then echo "has_new_after=true" >> "$GITHUB_OUTPUT"; else echo "has_new_after=false" >> "$GITHUB_OUTPUT"; fi
+          # Update the baseline to today's full report so persistent errors are not
+          # re-sent next run; this is what gets saved back to the cache at post-job.
+          cp "${DATE}__maccabipedia_errors_before_1950.txt" error-report-baseline/before_1950.txt
+          cp "${DATE}__maccabipedia_errors_after_1950.txt" error-report-baseline/after_1950.txt
       - name: Send Errors to Telegram (before 1950)
+        if: steps.diff.outputs.has_new_before == 'true'
         uses: appleboy/telegram-action@v1.0.1
         with:
           to: ${{ secrets.MACCABIPEDIA_ERRORS_TELEGRAM_TO }}
           token: ${{ secrets.MACCABIPEDIA_ERRORS_TELEGRAM_TOKEN }}
-          message: MaccabiPedia errors for game before 1950
-          document: ${{ steps.date.outputs.date }}__maccabipedia_errors_before_1950.txt
+          message: New MaccabiPedia errors (before 1950)
+          document: new_before_1950.txt
       - name: Send Errors to Telegram (After 1950)
+        if: steps.diff.outputs.has_new_after == 'true'
         uses: appleboy/telegram-action@v1.0.1
         with:
           to: ${{ secrets.MACCABIPEDIA_ERRORS_TELEGRAM_TO }}
           token: ${{ secrets.MACCABIPEDIA_ERRORS_TELEGRAM_TOKEN }}
-          message: MaccabiPedia errors for game after 1950
-          document: ${{ steps.date.outputs.date }}__maccabipedia_errors_after_1950.txt
+          message: New MaccabiPedia errors (after 1950)
+          document: new_after_1950.txt
   workflow-keepalive:
     if: github.event_name == 'schedule'
     runs-on: ubuntu-latest
