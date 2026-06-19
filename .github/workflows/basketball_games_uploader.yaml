@@ -89,12 +89,16 @@ jobs:
 
       # Not a team-mapping failure: report WHICH step died and the real error tail, so the
       # alert points at the actual cause (e.g. a wiki-login TimeoutError) instead of guessing.
-      # Each python step tees its combined output to /tmp/uploader.log; we redact any
-      # scheme://user:pass@ credentials before sending so the residential-proxy secret can't
-      # leak into Telegram (GitHub's secret masking covers the run log, not this message).
+      # Each python step tees its combined output to /tmp/uploader.log. Before sending we
+      # redact secret VALUES (proxy URL, bot password) literally plus any scheme://user:pass@
+      # credentials, HTML-escape, and cap total size — GitHub masks the run log but NOT the
+      # action input we hand to Telegram.
       - name: Collect failure detail
         if: failure() && steps.unknown_team.outputs.found != 'true'
         id: failure_detail
+        env:
+          PROXY: ${{ secrets.EUROLEAGUE_HTTPS_PROXY }}
+          BOT_PASSWORD: ${{ secrets.MACCABIPEDIA_BOT_PASSWORD }}
         run: |
           if   [ "${{ steps.crawl_basket.outcome }}" = "failure" ]; then failed_step="Crawl basket.co.il"
           elif [ "${{ steps.upload_basket.outcome }}" = "failure" ]; then failed_step="Upload basket.co.il games"
@@ -103,13 +107,21 @@ jobs:
           else failed_step="setup / a non-crawl step"
           fi
           echo "step=$failed_step" >> "$GITHUB_OUTPUT"
+
+          detail="$(tail -n 25 /tmp/uploader.log 2>/dev/null || true)"
+          [ -n "$detail" ] || detail="(no output captured)"
+          # Literal (non-regex) secret redaction via bash substitution: a quoted pattern is
+          # matched verbatim, so embedded / . * etc. need no escaping.
+          if [ -n "$PROXY" ]; then detail="${detail//"$PROXY"/[redacted]}"; fi
+          if [ -n "$BOT_PASSWORD" ]; then detail="${detail//"$BOT_PASSWORD"/[redacted]}"; fi
+          detail="$(printf '%s' "$detail" \
+            | sed -E 's#(https?://)[^/@[:space:]]+@#\1[redacted]@#g' \
+            | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g' \
+            | tail -c 3000 || true)"
           {
-            echo "detail<<TG_EOF"
-            tail -n 25 /tmp/uploader.log 2>/dev/null \
-              | sed -E 's#(https?://)[^/@[:space:]]+@#\1<redacted>@#g' \
-              | cut -c -300 \
-              || echo "(no output captured)"
-            echo "TG_EOF"
+            echo "detail<<TG_EOF_b9f3a2c1"
+            printf '%s\n' "$detail"
+            echo "TG_EOF_b9f3a2c1"
           } >> "$GITHUB_OUTPUT"
 
       - name: Alert error channel about unknown team name
@@ -133,9 +145,10 @@ jobs:
         with:
           to: ${{ secrets.MACCABIPEDIA_ERRORS_TELEGRAM_TO }}
           token: ${{ secrets.MACCABIPEDIA_ERRORS_TELEGRAM_TOKEN }}
+          format: html
           message: |
             🏀 Basketball uploader failed (not a team-mapping issue).
             Failed step: ${{ steps.failure_detail.outputs.step }}
             Error tail:
-            ${{ steps.failure_detail.outputs.detail }}
+            <pre>${{ steps.failure_detail.outputs.detail }}</pre>
             Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
