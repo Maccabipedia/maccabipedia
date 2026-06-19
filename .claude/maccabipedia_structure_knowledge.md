@@ -124,6 +124,26 @@ Hebrew redirect syntax: `#הפניה [[Target_Page_Name]]`
 - The common default is a **year** key (e.g. a season's ending year), but not always — some collections sort by date, opponent, or another field. So don't assume: confirm against the siblings, then set the matching key or consciously accept the default title-order.
 - Example: basketball season team photos (`כדורסל - תמונה קבוצתית YYYY-YY.jpg`, category `כדורסל/תמונות קבוצתיות`) use the season's **ending year** (`2010/11 → |2011`).
 
+## 7b. Renaming (Moving) a Game Page
+
+Renaming a game page (wrong home/away orientation, a title typo, or an opponent-name change) means updating **everything keyed to the old title** — and not all of it lives in Cargo. Applies to all sports (football `משחק:`, volleyball `כדורעף:`, basketball `כדורסל:`).
+
+**Title convention:** `<prefix>:DD-MM-YYYY <home> נגד <away> - <competition>` — the home team is listed first. Home game → Maccabi first + `בית חוץ=בית`; away → opponent first + `בית חוץ=חוץ`. A leg officially hosted by Maccabi but **relocated abroad** (e.g. the CEV ban on matches in Israel) is still `בית` per the official designation, even though the stadium is foreign.
+
+**Steps:**
+1. **Move** the page to the corrected title. Default to `noredirect=True` for a clean state once step 4 is done; keep a redirect only if unsure about external inbound links.
+2. **Content** — if orientation changed, set the game template's `בית חוץ` to match the new title (`בית`/`חוץ`). Result fields (Maccabi sets/score first) are unaffected.
+3. **Attached media files — the easy-to-miss part (NOT all in Cargo).** Each ticket / poster / programme / newspaper-coverage file is a `File:` page whose `{{תיוג …}}` template names the game page in a param — and the **param name varies by template**:
+   - ticket: `{{תיוג כרטיס משחק <sport>|משחק=<old title>}}`
+   - poster: `{{תיוג כרזת משחק|ענף=<sport>|משחק=<old title>}}` (also writes a `<Sport>_Game_Posters` Cargo row: `fileName`,`gamePage`)
+   - newspaper: `{{תיוג עיתוני <sport>|…|שיוך משחק=<old title>}}` ← param is `שיוך משחק`, not `משחק`
+   That param drives the file's **auto-derived categories** (opponent / season / home-away / win-loss / stage); there is usually **no** category literally named after the page. **Find every attached file by searching the File namespace (ns=6) for the game's date** (`DD-MM-YYYY` matches all template types regardless of param name). For each hit, edit its game-page param to the new title — the categories re-derive automatically. (For posters you can also query `<Sport>_Game_Posters WHERE gamePage='<old title>'`.)
+4. **Series navigation** — sibling game pages point here via `משחק קודם בסדרה` / `משחק הבא בסדרה`. Update those to the new title.
+5. **Purge** (`forcelinkupdate`): the renamed page, every updated `File:` page, and all aggregators that list it via Cargo — season, opponent, stadium, competition, referee pages (§3) — plus `עמוד ראשי` and `פורטל שחקנים`. The season/opponent/stadium/referee/adjacent-date backlinks are Cargo/template-generated; they follow the move **only after a purge** and are NOT hardcoded breakage.
+6. **Verify** — `<Sport>_Games` Cargo shows exactly one row at the new title with the correct `HomeAway`; an ns=6 date search shows the attached files now naming the new title.
+
+**Finding rename-worthy games:** duplicates → `<Sport>_Games GROUP BY Date,Opponent,Competition HAVING COUNT(*)>1`; orientation/typo → reconstruct the expected title from (`Date`,`Opponent`,`Competition`,`HomeAway`) and diff against `_pageName`.
+
 ## 8. Non-Game Entities
 
 **Fan Songs** (`שיר:` namespace, template `{{שיר}}`):
