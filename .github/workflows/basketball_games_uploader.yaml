@@ -20,19 +20,21 @@ jobs:
         run: uv sync
 
       - name: Crawl basket.co.il (latest 1 game)
+        id: crawl_basket
         run: |
           uv run python -m maccabipediabot.basketball.crawl_basket_co_il \
             --season latest --limit 1 --output /tmp/basket.json \
-            --unknown-teams-report /tmp/unknown_teams_basket.json
+            --unknown-teams-report /tmp/unknown_teams_basket.json 2>&1 | tee -a /tmp/uploader.log
 
       - name: Upload basket.co.il games
+        id: upload_basket
         env:
           PYWIKIBOT_DIR: packages/maccabipediabot/src/maccabipediabot/pywikibot_configs/
           MACCABIPEDIA_BOT_USERNAME: ${{ secrets.MACCABIPEDIA_BOT_USERNAME }}
           MACCABIPEDIA_BOT_PASSWORD: ${{ secrets.MACCABIPEDIA_BOT_PASSWORD }}
         run: |
           uv run python -m maccabipediabot.basketball.gamesbot_basketball \
-            --input /tmp/basket.json --skip-existing
+            --input /tmp/basket.json --skip-existing 2>&1 | tee -a /tmp/uploader.log
 
       - name: Connect to Tailscale
         uses: tailscale/github-action@v3
@@ -42,22 +44,24 @@ jobs:
           tags: tag:ci
 
       - name: Crawl Euroleague (via residential proxy)
+        id: crawl_euroleague
         env:
           HTTPS_PROXY: ${{ secrets.EUROLEAGUE_HTTPS_PROXY }}
         run: |
           uv run python -m maccabipediabot.basketball.crawl_euroleague \
             --season latest --limit 1 --output /tmp/euroleague.json \
             --unknown-teams-report /tmp/unknown_teams_euroleague.json \
-            --soft-fail-on-block
+            --soft-fail-on-block 2>&1 | tee -a /tmp/uploader.log
 
       - name: Upload Euroleague games
+        id: upload_euroleague
         env:
           PYWIKIBOT_DIR: packages/maccabipediabot/src/maccabipediabot/pywikibot_configs/
           MACCABIPEDIA_BOT_USERNAME: ${{ secrets.MACCABIPEDIA_BOT_USERNAME }}
           MACCABIPEDIA_BOT_PASSWORD: ${{ secrets.MACCABIPEDIA_BOT_PASSWORD }}
         run: |
           uv run python -m maccabipediabot.basketball.gamesbot_basketball \
-            --input /tmp/euroleague.json --skip-existing
+            --input /tmp/euroleague.json --skip-existing 2>&1 | tee -a /tmp/uploader.log
 
       # Each crawl writes its own report file (and exits non-zero) when it hits a team
       # name missing from translations._TEAM_NAMES, which would otherwise leak the
@@ -83,6 +87,31 @@ jobs:
             echo "found=false" >> "$GITHUB_OUTPUT"
           fi
 
+      # Not a team-mapping failure: report WHICH step died and the real error tail, so the
+      # alert points at the actual cause (e.g. a wiki-login TimeoutError) instead of guessing.
+      # Each python step tees its combined output to /tmp/uploader.log; we redact any
+      # scheme://user:pass@ credentials before sending so the residential-proxy secret can't
+      # leak into Telegram (GitHub's secret masking covers the run log, not this message).
+      - name: Collect failure detail
+        if: failure() && steps.unknown_team.outputs.found != 'true'
+        id: failure_detail
+        run: |
+          if   [ "${{ steps.crawl_basket.outcome }}" = "failure" ]; then failed_step="Crawl basket.co.il"
+          elif [ "${{ steps.upload_basket.outcome }}" = "failure" ]; then failed_step="Upload basket.co.il games"
+          elif [ "${{ steps.crawl_euroleague.outcome }}" = "failure" ]; then failed_step="Crawl Euroleague"
+          elif [ "${{ steps.upload_euroleague.outcome }}" = "failure" ]; then failed_step="Upload Euroleague games"
+          else failed_step="setup / a non-crawl step"
+          fi
+          echo "step=$failed_step" >> "$GITHUB_OUTPUT"
+          {
+            echo "detail<<TG_EOF"
+            tail -n 25 /tmp/uploader.log 2>/dev/null \
+              | sed -E 's#(https?://)[^/@[:space:]]+@#\1<redacted>@#g' \
+              | cut -c -300 \
+              || echo "(no output captured)"
+            echo "TG_EOF"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Alert error channel about unknown team name
         if: failure() && steps.unknown_team.outputs.found == 'true'
         uses: appleboy/telegram-action@v1.0.1
@@ -95,10 +124,9 @@ jobs:
             ${{ steps.unknown_team.outputs.detail }}
             Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
-      # Any other failure (most often the Euroleague residential proxy / Tailscale being
-      # down, or a rate-limit) — ping the error channel so we notice proactively instead
-      # of only seeing a red run. Gated on found != 'true' so it doesn't double-fire with
-      # the unmapped-team alert above, which is more specific.
+      # Any other failure — ping the error channel with the real failed step and error tail
+      # (from Collect failure detail) so we act on the actual cause instead of a guess. Gated
+      # on found != 'true' so it doesn't double-fire with the unmapped-team alert above.
       - name: Alert error channel on workflow failure
         if: failure() && steps.unknown_team.outputs.found != 'true'
         uses: appleboy/telegram-action@v1.0.1
@@ -107,5 +135,7 @@ jobs:
           token: ${{ secrets.MACCABIPEDIA_ERRORS_TELEGRAM_TOKEN }}
           message: |
             🏀 Basketball uploader failed (not a team-mapping issue).
-            Most likely the Euroleague residential proxy / Tailscale is down, or a rate-limit.
-            Check the run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            Failed step: ${{ steps.failure_detail.outputs.step }}
+            Error tail:
+            ${{ steps.failure_detail.outputs.detail }}
+            Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
