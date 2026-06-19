@@ -26,27 +26,6 @@
     }
 }
 
-.nmpSeasonGamesListContainer {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));
-    gap: @space-large;
-
-    background-color: white;
-    padding: @space-regular;
-    margin: -8px;
-
-    p {
-        margin: 0;
-    }
-
-    .viewport-wide-start-from(@viewport-regular; {
-            gap: @space-xLarge;
-            grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
-        });
-}
-
-
-
 .games-list-game-container {
     position: relative;
 
@@ -64,10 +43,6 @@
 
     &>a {
         .absolute-full-container-link();
-    }
-
-    .thropy-win-game-icon {
-        display: none;
     }
 
     .games-list-game-header {
@@ -117,21 +92,35 @@
     }
 
     .result-container {
+        width: 100%;
+        overflow: hidden;
         border-block-end: 1px solid @gray-lightest;
+
+        .home-team,
+        .away-team {
+            display: flex;
+            gap: @space-xSmall;
+
+            padding: @space-xxSmall @space-regular;
+
+            .thropy-win-game-icon {
+                display: flex;
+
+                img {
+                    width: 20px;
+                    height: 20px;
+                }
+            }
+        }
 
         .win-team {
             font-weight: bold;
         }
 
         .team-name {
+            flex: 1;
+            min-width: 0;
             .ellipsis();
-        }
-
-        p {
-            display: grid;
-            grid-template-columns: 1fr auto;
-
-            padding: 0 @space-regular;
         }
     }
 
