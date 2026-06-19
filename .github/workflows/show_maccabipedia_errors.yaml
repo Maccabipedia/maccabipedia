@@ -39,17 +39,7 @@ jobs:
         id: diff
         env:
           DATE: ${{ steps.date.outputs.date }}
-        run: |
-          mkdir -p error-report-baseline
-          touch error-report-baseline/before_1950.txt error-report-baseline/after_1950.txt
-          bash .github/scripts/filter_new_error_lines.sh \
-            error-report-baseline/before_1950.txt \
-            "${DATE}__maccabipedia_errors_before_1950.txt" > new_before_1950.txt
-          bash .github/scripts/filter_new_error_lines.sh \
-            error-report-baseline/after_1950.txt \
-            "${DATE}__maccabipedia_errors_after_1950.txt" > new_after_1950.txt
-          if [ -s new_before_1950.txt ]; then echo "has_new_before=true" >> "$GITHUB_OUTPUT"; else echo "has_new_before=false" >> "$GITHUB_OUTPUT"; fi
-          if [ -s new_after_1950.txt ]; then echo "has_new_after=true" >> "$GITHUB_OUTPUT"; else echo "has_new_after=false" >> "$GITHUB_OUTPUT"; fi
+        run: bash .github/scripts/compute_new_errors.sh
       - name: Send Errors to Telegram (before 1950)
         if: steps.diff.outputs.has_new_before == 'true'
         uses: appleboy/telegram-action@v1.0.1
@@ -67,16 +57,12 @@ jobs:
           message: New MaccabiPedia errors (after 1950)
           document: new_after_1950.txt
       # Advance the baseline ONLY after the sends succeed (if: success() => skipped when a
-      # send failed, and a skipped send on a quiet day still counts as success). This is
-      # what gets saved back to the cache at post-job. Advancing earlier would fold today's
-      # new errors into the baseline even if delivery failed, silently dropping the alert.
+      # send failed; a skipped send on a quiet day still counts as success).
       - name: Advance errors baseline
         if: success()
         env:
           DATE: ${{ steps.date.outputs.date }}
-        run: |
-          cp "${DATE}__maccabipedia_errors_before_1950.txt" error-report-baseline/before_1950.txt
-          cp "${DATE}__maccabipedia_errors_after_1950.txt" error-report-baseline/after_1950.txt
+        run: bash .github/scripts/advance_errors_baseline.sh
   workflow-keepalive:
     if: github.event_name == 'schedule'
     runs-on: ubuntu-latest
