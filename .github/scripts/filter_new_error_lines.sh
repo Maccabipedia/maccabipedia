@@ -28,7 +28,7 @@ awk -v base="$baseline" '
   /^$/  { next }
   /^ /  {
           if (!($0 in seen)) {
-            if (!printed_header) { print ""; print header; printed_header = 1 }
+            if (!printed_header) { if (emitted) print ""; print header; printed_header = 1; emitted = 1 }
             print
           }
           next
