@@ -10,6 +10,7 @@ testpaths = [
     "packages/maccabipedia-mcp/tests",
     "packages/maccabistats/tests",
     "infra/local-wiki/tests",
+    "tests",
 ]
 # Make `conftest.py` importable from sibling test files (no __init__.py per
 # project convention, so `from conftest import …` would otherwise fail).

@@ -16,6 +16,18 @@ jobs:
       - uses: astral-sh/setup-uv@v7
       - name: Install dependencies
         run: uv sync
+      # Restore the previous run's full error report so we can send only newly-appeared
+      # errors. Rolling key (run_id is always unique) => the exact key never hits, so the
+      # restore-keys prefix brings back the latest baseline and a fresh one is always saved
+      # at post-job. An empty/missing baseline (first run, or rare cache eviction) simply
+      # means everything is "new" and the full report is sent once.
+      - name: Restore previous errors baseline
+        uses: actions/cache@v4
+        with:
+          path: error-report-baseline
+          key: maccabipedia-errors-baseline-v1-${{ github.run_id }}
+          restore-keys: |
+            maccabipedia-errors-baseline-v1-
       - name: Fetch MaccabiPedia Data
         run: uv run python -m maccabistats.github_actions_scripts.fetch_games_from_maccabipedia
       - name: Find Errors
@@ -23,20 +35,34 @@ jobs:
       - name: Get current date
         id: date
         run: echo "date=$(date +'%Y_%m_%d')" >> $GITHUB_OUTPUT
+      - name: Compute new errors
+        id: diff
+        env:
+          DATE: ${{ steps.date.outputs.date }}
+        run: bash .github/scripts/compute_new_errors.sh
       - name: Send Errors to Telegram (before 1950)
+        if: steps.diff.outputs.has_new_before == 'true'
         uses: appleboy/telegram-action@v1.0.1
         with:
           to: ${{ secrets.MACCABIPEDIA_ERRORS_TELEGRAM_TO }}
           token: ${{ secrets.MACCABIPEDIA_ERRORS_TELEGRAM_TOKEN }}
-          message: MaccabiPedia errors for game before 1950
-          document: ${{ steps.date.outputs.date }}__maccabipedia_errors_before_1950.txt
+          message: New MaccabiPedia errors (before 1950)
+          document: new_before_1950.txt
       - name: Send Errors to Telegram (After 1950)
+        if: steps.diff.outputs.has_new_after == 'true'
         uses: appleboy/telegram-action@v1.0.1
         with:
           to: ${{ secrets.MACCABIPEDIA_ERRORS_TELEGRAM_TO }}
           token: ${{ secrets.MACCABIPEDIA_ERRORS_TELEGRAM_TOKEN }}
-          message: MaccabiPedia errors for game after 1950
-          document: ${{ steps.date.outputs.date }}__maccabipedia_errors_after_1950.txt
+          message: New MaccabiPedia errors (after 1950)
+          document: new_after_1950.txt
+      # Advance the baseline ONLY after the sends succeed (if: success() => skipped when a
+      # send failed; a skipped send on a quiet day still counts as success).
+      - name: Advance errors baseline
+        if: success()
+        env:
+          DATE: ${{ steps.date.outputs.date }}
+        run: bash .github/scripts/advance_errors_baseline.sh
   workflow-keepalive:
     if: github.event_name == 'schedule'
     runs-on: ubuntu-latest
