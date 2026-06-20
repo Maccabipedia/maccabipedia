@@ -79,7 +79,7 @@ Wiki page with full list: `https://www.maccabipedia.co.il/מקורות_שימו�
 **Stats & results:**
 - Hebrew Wikipedia (league seasons): https://he.wikipedia.org/wiki/עונת_2002/2003_בליגת_העל_בכדורסל
 - Hebrew Wikipedia (state cup): https://he.wikipedia.org/wiki/גביע_המדינה_בכדורסל_2002/2003
-- Safsal (cup finals): https://safsal.co.il/?page_id=17580
+- Safsal history archive (hub): https://www.safsal.co.il/history — Israeli basketball history pages. State Cup finals from 1955/56 (h2575 — scores cross-verified 100% vs Wikipedia + our own data; **venues sometimes wrong**), Premier League milestones (h2555), Israeli teams in European cups, early decades (h2554), season awards 1980–2002 / POY-Coach-Rookie-All-Star (h2552), National League champions (h2580) + historic records (h2576). Older `?page_id=` URLs are dead.
 - EuroLeague Official: https://www.euroleaguebasketball.net/en/euroleague/teams/maccabi-rapyd-tel-aviv/tel/ — stats, rosters, results, records
 - basket.co.il (Israeli Basketball Association): https://basket.co.il/team.asp?TeamId=1096&lang=en — official league stats per season (~2000-01+)
 
