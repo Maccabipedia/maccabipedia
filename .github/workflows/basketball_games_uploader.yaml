@@ -9,6 +9,14 @@ on:
 jobs:
   upload-basketball-games:
     runs-on: ubuntu-latest
+    # Force `bash -eo pipefail` for every run-step. Without pipefail, the
+    # `... 2>&1 | tee -a /tmp/uploader.log` pipelines below would take their exit
+    # code from `tee` (always 0), masking a crash in the crawler/uploader — a
+    # failed upload would then leave the run green and the `if: failure()` alert
+    # chain would never fire, silently dropping the game.
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-python@v6
