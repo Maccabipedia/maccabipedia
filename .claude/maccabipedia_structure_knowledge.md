@@ -304,3 +304,62 @@ Two side effects worth knowing:
 - `כדורסל` — אליפויות, גביעי מדינה, גביעי אירופה, הגביע הבין יבשתי, etc.
 - `כדורעף` — אליפויות, גביעי מדינה, etc.
 
+
+## 14. Game Category Sort Keys
+
+Every category a game page lands in is sorted by a **year-month-day** key, so category
+listings read chronologically.
+
+### The key
+
+Each sport's main template defines it once, next to its other `#vardefine` calls:
+
+```
+{{#vardefine: מפתח מיון |{{#תנאי: {{{תאריך המשחק|}}} |{{#time:Y-m-d|{{{תאריך המשחק}}} }} }} }}
+```
+
+Every category assignment then ends `|{{#var: מפתח מיון}}]]`. Sub-templates render on the
+same page after the main template runs, so they read the same variable — no parameter
+plumbing. The `#תנאי` guard matters: `{{#time:Y-m-d|}}` on an empty date returns *today*,
+which would stamp dateless games with the day they were last rendered.
+
+### Why a key is needed at all
+
+`תאריך המשחק` is `DD-MM-YYYY`, and so is the page title (`כדורסל:16-02-2017 ...`). Both the
+default title sort and a raw `|{{{תאריך המשחק|}}}` key therefore sort by **day of month**
+first. Before this was fixed (2026-09-11) every game category in all three sports was
+mis-ordered, e.g. 01-05-2003 → 03-05-1982 → 04-04-1994.
+
+### Where it is applied
+
+| Template | assignments keyed |
+|---|---|
+| `תבנית:משחק כדורסל` | 55 of 56 |
+| `תבנית:קטלוג משחקים` (football) | 40 of 40 |
+| `תבנית:משחק כדורעף` | 53 of 54 |
+| 15 sub-templates of the three | 31 |
+
+Two deliberate exclusions: `משחקי כדורסל ללא תאריך המשחק` and its volleyball twin, whose
+members have no date by definition. `תבניות עזר לקטלוג משחקים` is also skipped — it tags
+template pages, not games.
+
+The six `משחקי זכייה בתואר` assignments previously keyed by `{{{עונה|}}}` now use the date
+key too: identical order across seasons, and it fixes the within-season tie-break that
+used to fall back to day-of-month.
+
+### TRAP: a category name can contain a pipe
+
+`[[קטגוריה: משחקי זכייה ב{{{מפעל|}}} (כדורסל)|...]]` — the name itself holds
+`{{{param|default}}}`. Splitting a category body on its *first* `|` truncates the name to
+`משחקי זכייה ב{{{מפעל` and silently points the page at a different (or no) category. Any
+script that rewrites sort keys must split only on a pipe at **brace depth zero**. Three
+lines in `משחק כדורסל` were broken this way and repaired the same day; the tell is
+unbalanced braces inside the category body, so assert `body.count("{") == body.count("}")`
+after every rewrite.
+
+### Applying a change
+
+Editing these templates re-categorizes ~8,300 game pages through the job queue. It drains
+on its own; `action=purge` with `forcelinkupdate` forces individual pages sooner (batches
+of 10, see the profile-purge note). Until it drains, a category legitimately shows a mix of
+date-keyed and title-keyed entries.
