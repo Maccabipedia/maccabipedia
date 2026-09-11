@@ -152,6 +152,68 @@ def test_bare_maccabi_on_both_sides_is_refused_rather_than_guessed():
     assert parse_game_video_title("Highlights: Maccabi - Maccabi 80:70") is None
 
 
+@pytest.mark.parametrize("title,kind,opponent,maccabi,opponent_points", [
+    # "Summary" is the channel's other word for a highlights video.
+    ("Game summary: Maccabi Rapyd Tel Aviv - Hapoel Holon 61:89 (playoff semi-final game 3)",
+     VideoKind.HIGHLIGHTS, "Hapoel Holon", 61, 89),
+    ("Summary: Maccabi Rapyd Tel Aviv - Elitzur Netanya 88:94",
+     VideoKind.HIGHLIGHTS, "Elitzur Netanya", 88, 94),
+    ("Derby Summary: Hapoel Tel Aviv - Maccabi Rapyd Tel Aviv 80:85",
+     VideoKind.HIGHLIGHTS, "Hapoel Tel Aviv", 85, 80),
+    ("Full game: Maccabi Rapyd Tel Aviv - Ironi Kiryat Ata 77:102",
+     VideoKind.FULL_GAME, "Ironi Kiryat Ata", 77, 102),
+])
+def test_parses_summary_titles(title, kind, opponent, maccabi, opponent_points):
+    parsed = parse_game_video_title(title)
+    assert parsed is not None, f"expected a parse for: {title}"
+    assert parsed.kind == kind
+    assert parsed.opponent_raw == opponent
+    assert (parsed.maccabi_points, parsed.opponent_points) == (maccabi, opponent_points)
+
+
+@pytest.mark.parametrize("title,opponent,maccabi,opponent_points,language", [
+    # The archive uploads carry no keyword at all: "<competition> <year>, <stage>,
+    # <teams> <score>". These are most of the pre-2010 material on the channel.
+    ("National League 1985, Round 15, Hapoel Holon - Maccabi Tel Aviv 82:83",
+     "Hapoel Holon", 83, 82, "en"),
+    ("1980 European Cup, Preliminary Round, Maccabi Tel Aviv vs. Aris Thessaloniki 111:78",
+     "Aris Thessaloniki", 111, 78, "en"),
+    ("1997 State Cup Final, Hapoel Jerusalem vs. Maccabi Tel Aviv 89:82",
+     "Hapoel Jerusalem", 82, 89, "en"),
+    ("EuroLeague 1997, Group Stage, Maccabi Tel Aviv vs. CSKA 78:77, Koudelin's game-winning basket",
+     "CSKA", 78, 77, "en"),
+    ('גביע אירופה 1985,בית הגמר,מח\' 1, מכבי ת"א - באנקו רומא 86:95',
+     "באנקו רומא", 95, 86, "he"),
+    ('ליגה לאומית 1997,מח\' 11, מכבי ת"א - הפועל גליל עליון 86:88',
+     "הפועל גליל עליון", 88, 86, "he"),
+    ('בני הרצליה - מכבי Rapyd ת"א 114:99 (18 שלשות)',
+     "בני הרצליה", 114, 99, "he"),
+])
+def test_parses_archive_titles_without_a_keyword(title, opponent, maccabi, opponent_points, language):
+    parsed = parse_game_video_title(title)
+    assert parsed is not None, f"expected a parse for: {title}"
+    assert parsed.opponent_raw == opponent
+    assert (parsed.maccabi_points, parsed.opponent_points) == (maccabi, opponent_points)
+    assert parsed.language == language
+    # No keyword means the kind cannot be read off the title; the matcher decides it
+    # from the video's duration instead.
+    assert parsed.kind is None
+
+
+@pytest.mark.parametrize("title", [
+    # Player compilations carrying a real game score, in both languages.
+    "היילייטס רומן סורקין (18 נקודות) | מכבי מול נתניה 92:102",
+    "היילייטס ג'יילן הורד (21 נקודות ו-10 אסיסטים) | מכבי מול נתניה 92:102",
+    "היילייטס רומן סורקין (16 נקודות) | בני הרצליה - מכבי Rapyd ת\"א 114:99",
+    "Lonnie Walker Highlights (15 Pts) Maccabi Rapyd Tel Aviv vs. Ironi Ramat Gan 81:84",
+    # Friendlies, however they are worded.
+    "Training match summary | Maccabi Rapyd Tel Aviv - Maccabi Raanana 66:99",
+    "משחק הכנה: מכבי - זניט 77:102 | FULL GAME",
+])
+def test_rejects_player_clips_and_friendlies_without_a_keyword(title):
+    assert parse_game_video_title(title) is None
+
+
 @pytest.mark.parametrize("title", [
     # Player compilations: a name and a points count, no game score.
     "Roman Sorkin (13 points) Highlights vs Galil Elyon | המהלכים של רומן סורקין נגד גליל עליון",

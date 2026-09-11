@@ -76,6 +76,20 @@ def test_reversed_score_is_flagged_rather_than_matched():
     assert "swapped" in match.reason
 
 
+def test_both_score_orders_matching_the_same_opponent_is_refused():
+    """The channel has published both "74:80" and "80:74" for one game, so when a
+    season holds the mirror result against the same club, either pick would be a guess
+    that lands a video on a real but different game."""
+    rows = [row("כדורסל:01-12-2024 מכבי תל אביב נגד הפועל חולון - ליגת העל", "הפועל חולון", 80, 74),
+            row("כדורסל:20-12-2024 הפועל חולון נגד מכבי תל אביב - ליגת העל", "הפועל חולון", 74, 80,
+                home_away="חוץ")]
+    match = only_match([entry("x", "Game Highlights: Maccabi Rapyd Tel Aviv vs. Hapoel Holon 80:74")],
+                       rows=rows)
+    assert match.bucket == Bucket.AMBIGUOUS
+    assert "both score orders" in match.reason
+    assert len(match.candidates) == 2
+
+
 def test_a_video_already_on_the_page_is_not_written_again():
     match = only_match([entry("dRsHKQtTRBM", 'תקציר המשחק: מכבי Rapyd ת"א - מילאנו 88:102')])
     assert match.bucket == Bucket.ALREADY_PRESENT
@@ -123,6 +137,28 @@ def test_a_condensed_replay_never_reaches_the_full_game_slots():
     matches = {match.entry.video_id: match for match in match_videos(entries, ROWS, {})}
     assert matches["c"].bucket == Bucket.OVERFLOW
     assert matches["c"].slot is None
+
+
+@pytest.mark.parametrize("duration,expected_slot", [
+    (180, "תקציר וידאו"),     # a short clip is a highlight
+    (900, "תקציר וידאו"),     # a condensed game shares the highlight slots
+    (7000, "משחק מלא"),        # a long one is the full game
+    (None, "תקציר וידאו"),    # unknown length falls back to the commonest kind
+])
+def test_archive_titles_take_their_kind_from_the_duration(duration, expected_slot):
+    """The channel's archive uploads name no kind: "<competition> <year>, <stage>,
+    <teams> <score>". Only the length can say what they are."""
+    title = 'ליגה לאומית 2024,מח\' 11, מכבי ת"א - אליצור נתניה 92:102'
+    match = only_match([entry("arch", title, duration=duration)])
+    assert match.bucket == Bucket.EXACT
+    assert match.slot == expected_slot
+
+
+def test_an_archive_title_is_not_rejected_for_its_length():
+    """With no stated kind there is nothing for the length to contradict."""
+    title = 'ליגה לאומית 2024,מח\' 11, מכבי ת"א - אליצור נתניה 92:102'
+    match = only_match([entry("arch", title, duration=3000)])
+    assert match.bucket == Bucket.EXACT
 
 
 def test_an_override_promotes_an_ambiguous_video():

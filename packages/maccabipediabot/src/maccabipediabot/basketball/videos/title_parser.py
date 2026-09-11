@@ -27,7 +27,10 @@ class VideoKind(Enum):
 
 @dataclass(frozen=True)
 class ParsedTitle:
-    kind: VideoKind
+    # None when the title names no kind at all — the archive uploads, which are just
+    # "<competition> <year>, <stage>, <teams> <score>". The matcher reads the kind off
+    # the video's duration in that case.
+    kind: VideoKind | None
     opponent_raw: str
     maccabi_points: int
     opponent_points: int
@@ -47,6 +50,19 @@ _KEYWORDS: tuple[tuple[str, VideoKind, str], ...] = (
     ("Match Highlights", VideoKind.HIGHLIGHTS, "en"),
     ("Highlights", VideoKind.HIGHLIGHTS, "en"),
     ("Full Game", VideoKind.FULL_GAME, "en"),
+    # "Summary" is the channel's other word for a highlights video.
+    ("Game Summary", VideoKind.HIGHLIGHTS, "en"),
+    ("Derby Summary", VideoKind.HIGHLIGHTS, "en"),
+    ("Summary", VideoKind.HIGHLIGHTS, "en"),
+)
+
+# One player's plays from a game. These carry the real game score, so they have to be
+# recognised and dropped before the keyword-less path below would accept them.
+_PLAYER_CLIP_RES = (
+    re.compile(r"\(\s*\d{1,2}\s*(?:points?|pts|נקודות)", re.IGNORECASE),
+    re.compile(r"המהלכים של"),
+    re.compile(r"^\s*היילייטס", re.IGNORECASE),
+    re.compile(r"\bhighlights\s+(?:vs\.?|נגד)\b", re.IGNORECASE),
 )
 
 # "<keyword><optional qualifier><: or |><body>". The qualifier is lazy so the FIRST
@@ -68,10 +84,11 @@ _SUFFIX_RES: tuple[tuple[re.Pattern[str], VideoKind, str], ...] = tuple(
 # never reach the matcher — a match there would be a false one.
 _NON_COMPETITIVE_TOKENS = (
     "משחק ההכנה", "משחק הכנה", "משחק אימון", "משחקי הכנה", "קדם עונה",
-    "preseason", "pre-season", "friendly",
+    "preseason", "pre-season", "friendly", "training match",
 )
 
 _SCORE_RE = re.compile(r"(\d{1,3})\s*:\s*(\d{1,3})")
+_HEBREW_RE = re.compile(r"[֐-׿]")
 _TEAM_SEPARATOR_RE = re.compile(r"\s+(?:-|–|vs\.?|at|נגד|מול)\s+", re.IGNORECASE)
 _MACCABI_TEL_AVIV_RE = re.compile(
     r'(?:מכבי.*(?:תל אביב|ת"א|ת״א))|(?:Maccabi.*Tel[\s-]?Aviv)',
@@ -94,8 +111,12 @@ def _is_maccabi_tel_aviv(team_name: str) -> bool:
     return len(remaining) == 1 and remaining[0] in _BARE_MACCABI_NAMES
 
 
-def _match_keyword(title: str) -> tuple[str, VideoKind, str] | None:
-    """Split the title into (body, kind, language) on its game-video keyword."""
+def _match_keyword(title: str) -> tuple[str, VideoKind | None, str] | None:
+    """Split the title into (body, kind, language) on its game-video keyword.
+
+    Falls back to the whole title with an unknown kind: the channel's archive uploads
+    carry no keyword, only "<competition> <year>, <stage>, <teams> <score>".
+    """
     for pattern, kind, language in _PREFIX_RES:
         found = pattern.match(title)
         if found:
@@ -104,7 +125,10 @@ def _match_keyword(title: str) -> tuple[str, VideoKind, str] | None:
         found = pattern.match(title)
         if found:
             return found.group("body").strip(), kind, language
-    return None
+    if any(pattern.search(title) for pattern in _PLAYER_CLIP_RES):
+        return None  # one player's plays, not the game
+    language = "he" if _HEBREW_RE.search(title) else "en"
+    return title, None, language
 
 
 def parse_game_video_title(title: str) -> ParsedTitle | None:
@@ -125,7 +149,11 @@ def parse_game_video_title(title: str) -> ParsedTitle | None:
     if score is None:
         return None
 
-    sides = _TEAM_SEPARATOR_RE.split(body[:score.start()].strip(), maxsplit=1)
+    # Archive titles lead with the competition and stage — "National League 1985,
+    # Round 15, Hapoel Holon - Maccabi Tel Aviv 82:83" — so only the last
+    # comma-separated segment before the score names the teams.
+    teams_part = body[:score.start()].strip().rsplit(",", 1)[-1].strip()
+    sides = _TEAM_SEPARATOR_RE.split(teams_part, maxsplit=1)
     if len(sides) != 2:
         return None
     left_team, right_team = (side.strip() for side in sides)

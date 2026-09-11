@@ -80,7 +80,9 @@ class VideoMatch:
 
     @property
     def kind(self) -> VideoKind | None:
-        return self.parsed.kind if self.parsed is not None else self.kind_override
+        if self.kind_override is not None:
+            return self.kind_override
+        return self.parsed.kind if self.parsed is not None else None
 
     @property
     def language(self) -> str:
@@ -96,6 +98,21 @@ def _duration_is_sane(entry: VideoEntry, kind: VideoKind) -> bool:
         return True  # unknown duration: nothing to check against
     low, high = DURATION_RANGE[kind]
     return low <= entry.duration_seconds <= high
+
+
+def kind_from_duration(duration_seconds: int | None) -> VideoKind:
+    """What kind of video this is, judged by length alone.
+
+    Used for the channel's archive uploads, whose titles name no kind at all. An
+    unknown length falls back to a highlight, the commonest kind by far.
+    """
+    if not duration_seconds:
+        return VideoKind.HIGHLIGHTS
+    if duration_seconds >= DURATION_RANGE[VideoKind.FULL_GAME][0]:
+        return VideoKind.FULL_GAME
+    if duration_seconds >= DURATION_RANGE[VideoKind.CONDENSED][0]:
+        return VideoKind.CONDENSED
+    return VideoKind.HIGHLIGHTS
 
 
 def _classify(entry: VideoEntry, parsed: ParsedTitle,
@@ -133,14 +150,33 @@ def _classify(entry: VideoEntry, parsed: ParsedTitle,
         return VideoMatch(entry, parsed, Bucket.AMBIGUOUS, reason, candidates=candidates)
 
     chosen = by_opponent[0]
-    if not _duration_is_sane(entry, parsed.kind):
+
+    # The channel is not perfectly consistent about score order: a few percent of its
+    # English titles use the Hebrew one, and it has published both "74:80" and "80:74"
+    # for the same game. Usually the wrong order simply matches nothing. But when BOTH
+    # orders match a game against this opponent, picking either would be a guess, and a
+    # wrong guess here puts a video on a real but different game.
+    swapped = [row for row in season_rows
+               if (row.maccabi_points, row.opponent_points) == (score[1], score[0])
+               and opponent_matches(parsed.opponent_raw, row.opponent)]
+    if swapped and swapped[0].page_name != chosen.page_name:
         return VideoMatch(entry, parsed, Bucket.AMBIGUOUS,
-                          f"duration {entry.duration_seconds}s is outside the {parsed.kind.value} range",
+                          "both score orders match a game against this opponent",
+                          candidates=[chosen.page_name, swapped[0].page_name])
+
+    # A title that names no kind (the archive uploads) gets one from its length; there
+    # is then nothing left for the length to contradict.
+    kind = parsed.kind if parsed.kind is not None else kind_from_duration(entry.duration_seconds)
+    kind_override = kind if parsed.kind is None else None
+    if parsed.kind is not None and not _duration_is_sane(entry, kind):
+        return VideoMatch(entry, parsed, Bucket.AMBIGUOUS,
+                          f"duration {entry.duration_seconds}s is outside the {kind.value} range",
                           candidates=[chosen.page_name])
-    if entry.url in existing_urls_for_family(chosen, SLOTS[parsed.kind]):
+    if entry.url in existing_urls_for_family(chosen, SLOTS[kind]):
         return VideoMatch(entry, parsed, Bucket.ALREADY_PRESENT, "this URL is already on the page",
-                          page_name=chosen.page_name)
-    return VideoMatch(entry, parsed, Bucket.EXACT, "score and opponent agree", page_name=chosen.page_name)
+                          page_name=chosen.page_name, kind_override=kind_override)
+    return VideoMatch(entry, parsed, Bucket.EXACT, "score and opponent agree",
+                      page_name=chosen.page_name, kind_override=kind_override)
 
 
 def _slot_family_groups(matches: list[VideoMatch]) -> dict[tuple[str, tuple[str, str]], list[VideoMatch]]:
