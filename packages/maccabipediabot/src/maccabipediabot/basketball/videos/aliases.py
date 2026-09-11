@@ -23,7 +23,7 @@ rows say "פנאתינייקוס". Canonicalising would move the name away from 
 import html
 import re
 
-from maccabipediabot.basketball.translations import team_name_to_hebrew
+from maccabipediabot.basketball.translations import video_title_team_to_hebrew
 
 # Sponsor names the club or its opponents have carried; noise inside a team name.
 _SPONSOR_TOKENS = frozenset({
@@ -47,14 +47,26 @@ _ABBREVIATIONS = (
 
 _QUOTE_CHARS = str.maketrans("", "", "\"'`״׳")
 
+# Hebrew spellings that differ between eras or between editors for the same club.
+_HEBREW_SPELLING_VARIANTS = {
+    "קריית": "קרית",
+    "מונאקו": "מונקו",
+    "באסקוניה": "בסקוניה",
+    "ז'אלגריס": "ז'לגיריס",
+}
+
 
 def normalize_team_name(name: str) -> str:
     """Expand abbreviations, drop sponsor words and quote marks, collapse whitespace."""
     text = html.unescape(name)
     for abbreviation, expansion in _ABBREVIATIONS:
         text = text.replace(abbreviation, expansion)
-    text = text.translate(_QUOTE_CHARS)
-    words = [word for word in text.split() if word.lower() not in _SPONSOR_TOKENS]
+    text = text.translate(_QUOTE_CHARS).replace("/", " ")
+    words = [
+        _HEBREW_SPELLING_VARIANTS.get(word, word)
+        for word in text.split()
+        if word.lower() not in _SPONSOR_TOKENS
+    ]
     return re.sub(r"\s+", " ", " ".join(words)).strip()
 
 
@@ -75,17 +87,14 @@ def resolve_opponent(opponent_raw: str) -> str | None:
     name = normalize_team_name(opponent_raw)
     if not name:
         return None
-    translated = team_name_to_hebrew(name)
-    if translated != name:
-        return translated
+    # The map's keys carry their own sponsor words ("EA7 Emporio Armani Milan"), which
+    # normalization strips, so try the untouched spelling as well.
+    for candidate in (name, html.unescape(opponent_raw).strip()):
+        translated = video_title_team_to_hebrew(candidate)
+        if translated is not None:
+            return translated
     if re.search(r"[֐-׿]", name):
-        return name
-    # Try the untouched spelling too: the map's keys carry their own sponsor words
-    # ("EA7 Emporio Armani Milan"), which normalization may have stripped.
-    original = html.unescape(opponent_raw).strip()
-    translated_original = team_name_to_hebrew(original)
-    if translated_original != original:
-        return translated_original
+        return name  # already Hebrew: the tolerant comparison below absorbs spellings
     return None
 
 

@@ -19,6 +19,10 @@ from enum import Enum
 
 from maccabipediabot.basketball.videos.aliases import opponent_matches, resolve_opponent
 from maccabipediabot.basketball.videos.cargo import GameRow
+from maccabipediabot.basketball.videos.euroleague_title import (
+    ParsedEuroleagueTitle,
+    parse_euroleague_title,
+)
 from maccabipediabot.basketball.videos.inventory import VideoEntry
 from maccabipediabot.basketball.videos.title_parser import ParsedTitle, VideoKind, parse_game_video_title
 
@@ -67,10 +71,20 @@ class VideoMatch:
     candidates: list[str] = field(default_factory=list)
     slot: str | None = None
     source: str = MACCABI_CHANNEL
+    # EuroLeague titles are parsed by a different module, so their kind is carried here.
+    kind_override: VideoKind | None = None
 
     @property
     def url(self) -> str:
         return self.entry.url
+
+    @property
+    def kind(self) -> VideoKind | None:
+        return self.parsed.kind if self.parsed is not None else self.kind_override
+
+    @property
+    def language(self) -> str:
+        return self.parsed.language if self.parsed is not None else "en"
 
 
 def existing_urls_for_family(row: GameRow, family: tuple[str, str]) -> tuple[str, str]:
@@ -129,24 +143,36 @@ def _classify(entry: VideoEntry, parsed: ParsedTitle,
     return VideoMatch(entry, parsed, Bucket.EXACT, "score and opponent agree", page_name=chosen.page_name)
 
 
-def assign_slots(matches: list[VideoMatch], rows_by_page: dict[str, GameRow]) -> None:
+def _slot_family_groups(matches: list[VideoMatch]) -> dict[tuple[str, tuple[str, str]], list[VideoMatch]]:
+    groups: dict[tuple[str, tuple[str, str]], list[VideoMatch]] = defaultdict(list)
+    for match in matches:
+        if match.bucket == Bucket.EXACT and match.kind is not None and match.page_name:
+            groups[(match.page_name, SLOTS[match.kind])].append(match)
+    return groups
+
+
+def assign_slots(matches: list[VideoMatch], rows_by_page: dict[str, GameRow],
+                 already_assigned: list[VideoMatch] | None = None) -> None:
     """Give each exact match a free template parameter, or mark it as overflow.
 
     Grouped by slot FAMILY rather than by kind, so highlights and condensed games
     compete for the same two תקציר parameters instead of each claiming both.
+    `already_assigned` holds matches from an earlier pass (the club channel), whose
+    slots are treated as taken.
     """
-    per_page_family: dict[tuple[str, tuple[str, str]], list[VideoMatch]] = defaultdict(list)
-    for match in matches:
-        if match.bucket == Bucket.EXACT and match.parsed is not None and match.page_name:
-            per_page_family[(match.page_name, SLOTS[match.parsed.kind])].append(match)
+    taken: dict[tuple[str, tuple[str, str]], set[str]] = defaultdict(set)
+    for (page_name, family), group in _slot_family_groups(already_assigned or []).items():
+        taken[(page_name, family)] = {match.slot for match in group if match.slot}
 
-    for (page_name, family), group in per_page_family.items():
-        group.sort(key=lambda match: (_KIND_RANK[match.parsed.kind],
-                                      match.parsed.language != "he",
+    for (page_name, family), group in _slot_family_groups(matches).items():
+        group.sort(key=lambda match: (_KIND_RANK[match.kind],
+                                      match.language != "he",
                                       match.entry.video_id))
         row = rows_by_page.get(page_name)
         existing = existing_urls_for_family(row, family) if row else ("", "")
-        free_slots = [slot for slot, url in zip(family, existing) if not url]
+        already_taken = taken.get((page_name, family), set())
+        free_slots = [slot for slot, url in zip(family, existing)
+                      if not url and slot not in already_taken]
         for match in group:
             if free_slots:
                 match.slot = free_slots.pop(0)
@@ -178,6 +204,87 @@ def match_videos(entries: list[VideoEntry], rows: list[GameRow],
     assign_slots(matches, rows_by_page)
     logger.info("Matched %d game videos (%d channel videos were not game videos)",
                 len(matches), skipped_non_game)
+    return matches
+
+
+EUROLEAGUE_COMPETITION = "יורוליג"
+
+
+def _euroleague_leg(round_number: int) -> str:
+    return f"מחזור {round_number}"
+
+
+def _classify_euroleague(entry: VideoEntry, parsed: ParsedEuroleagueTitle,
+                         rows_by_season: dict[str, list[GameRow]],
+                         overrides: dict[str, str]) -> VideoMatch:
+    """EuroLeague titles carry no score, so the key is the round (their R##, our Leg)."""
+    if entry.video_id in overrides:
+        return VideoMatch(entry, None, Bucket.EXACT, "override",
+                          page_name=overrides[entry.video_id], source=EUROLEAGUE_CHANNEL)
+
+    season_rows = [row for row in rows_by_season.get(parsed.season, [])
+                   if row.competition == EUROLEAGUE_COMPETITION]
+    if not season_rows:
+        return VideoMatch(entry, None, Bucket.UNMATCHED,
+                          f"no EuroLeague games on the wiki for {parsed.season}",
+                          source=EUROLEAGUE_CHANNEL)
+
+    if parsed.round_number is not None:
+        candidates = [row for row in season_rows if row.leg == _euroleague_leg(parsed.round_number)]
+        missing_key = f"no EuroLeague game in {parsed.season} is {_euroleague_leg(parsed.round_number)}"
+    else:
+        # A Classic Games replay names no round; the opponent has to carry the match.
+        candidates = [row for row in season_rows
+                      if opponent_matches(parsed.opponent_raw, row.opponent)]
+        missing_key = f"no EuroLeague game in {parsed.season} against {parsed.opponent_raw!r}"
+
+    if not candidates:
+        return VideoMatch(entry, None, Bucket.UNMATCHED, missing_key, source=EUROLEAGUE_CHANNEL)
+    if len(candidates) > 1:
+        return VideoMatch(entry, None, Bucket.AMBIGUOUS, "several games fit this key",
+                          candidates=[row.page_name for row in candidates],
+                          source=EUROLEAGUE_CHANNEL)
+
+    chosen = candidates[0]
+    if not opponent_matches(parsed.opponent_raw, chosen.opponent):
+        return VideoMatch(entry, None, Bucket.AMBIGUOUS,
+                          f"opponent disagrees: title says {parsed.opponent_raw!r}, "
+                          f"page says {chosen.opponent!r}",
+                          candidates=[chosen.page_name], source=EUROLEAGUE_CHANNEL)
+    if entry.url in existing_urls_for_family(chosen, SLOTS[parsed.kind]):
+        return VideoMatch(entry, None, Bucket.ALREADY_PRESENT, "this URL is already on the page",
+                          page_name=chosen.page_name, source=EUROLEAGUE_CHANNEL)
+    return VideoMatch(entry, None, Bucket.EXACT, "season, round and opponent agree",
+                      page_name=chosen.page_name, source=EUROLEAGUE_CHANNEL)
+
+
+def match_euroleague_videos(entries: list[VideoEntry], rows: list[GameRow],
+                            overrides: dict[str, str],
+                            already_assigned: list[VideoMatch] | None = None) -> list[VideoMatch]:
+    """Match EuroLeague-channel videos, leaving slots already claimed by the club channel.
+
+    Pass the club channel's matches as `already_assigned` so its own Hebrew highlight
+    keeps the first slot and a EuroLeague video takes the second.
+    """
+    rows_by_season: dict[str, list[GameRow]] = defaultdict(list)
+    for row in rows:
+        rows_by_season[row.season].append(row)
+    rows_by_page = {row.page_name: row for row in rows}
+
+    matches: list[VideoMatch] = []
+    seen_video_ids: set[str] = set()
+    for entry in entries:
+        if entry.video_id in seen_video_ids:
+            continue
+        seen_video_ids.add(entry.video_id)
+        parsed = parse_euroleague_title(entry.title)
+        if parsed is None:
+            continue  # not a Maccabi game video
+        match = _classify_euroleague(entry, parsed, rows_by_season, overrides)
+        match.kind_override = parsed.kind
+        matches.append(match)
+
+    assign_slots(matches, rows_by_page, already_assigned=already_assigned or [])
     return matches
 
 

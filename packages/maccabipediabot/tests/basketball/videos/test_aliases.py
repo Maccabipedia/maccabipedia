@@ -25,7 +25,10 @@ def test_normalize_team_name(raw, expected):
 
 @pytest.mark.parametrize("raw,expected", [
     ("Hapoel Jerusalem", "הפועל ירושלים"),          # via the existing EN->HE map
-    ("Elitzur Netanya", "אליצור עירוני נתניה"),
+    # Video-title aliases resolve to the DISTINCTIVE part of the name, because Cargo
+    # spells this club both "אליצור נתניה" and "אליצור עירוני נתניה".
+    ("Elitzur Netanya", "נתניה"),
+    ("Panathinaikos", "פנאתינייקוס"),
     ("Zalgiris Kaunas", "ז'לגיריס קובנה"),
     ("אליצור נתניה", "אליצור נתניה"),               # Hebrew titles pass through
     ("מילאנו", "מילאנו"),
@@ -63,6 +66,20 @@ def test_opponent_matches_across_era_spellings(title_name, cargo_opponent):
 ])
 def test_opponent_does_not_match_a_different_club(title_name, cargo_opponent):
     assert opponent_matches(title_name, cargo_opponent) is False
+
+
+@pytest.mark.parametrize("typo", [
+    "DInamo Sassari",      # stray capital
+    "Crvena zvezda",       # lower case
+    "UNICS Kazan",         # all caps
+    "Hapoel Gilboa-Galil",  # hyphen instead of a slash
+    "Zenit St. Petersburg",  # abbreviation dot
+    "Asvel",
+])
+def test_channel_typos_and_case_still_resolve(typo):
+    """The channels are inconsistent about case and punctuation; none of that should
+    cost a match."""
+    assert resolve_opponent(typo) is not None
 
 
 def test_unknown_opponent_never_claims_a_match():
