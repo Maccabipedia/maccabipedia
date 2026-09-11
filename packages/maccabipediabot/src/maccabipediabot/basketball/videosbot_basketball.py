@@ -16,6 +16,7 @@ from pathlib import Path
 
 from maccabipediabot.basketball.videos import rss
 from maccabipediabot.basketball.videos.cargo import fetch_basketball_game_rows
+from maccabipediabot.basketball.videos.confidence import MAX_SCORE, score_all
 from maccabipediabot.basketball.videos.inventory import (
     MACCABI_CHANNEL_ID,
     VideoEntry,
@@ -99,15 +100,21 @@ def build_matches(entries: list[VideoEntry], euroleague_entries: list[VideoEntry
     club_matches = match_videos(entries, rows, overrides)
     euroleague_matches = match_euroleague_videos(
         euroleague_entries, rows, overrides, already_assigned=club_matches)
-    return club_matches + euroleague_matches, rows
+    matches = club_matches + euroleague_matches
+    score_all(matches, rows)
+    return matches, rows
 
 
 def log_bucket_counts(matches) -> None:
     for bucket in Bucket:
         count = sum(1 for match in matches if match.bucket == bucket)
         logger.info("  %-16s %d", bucket.value, count)
-    writable = sum(1 for match in matches if match.bucket == Bucket.EXACT and match.slot)
-    logger.info("  %-16s %d", "writable", writable)
+    writable = [match for match in matches if match.bucket == Bucket.EXACT and match.slot]
+    logger.info("  %-16s %d", "writable", len(writable))
+    for score in range(MAX_SCORE, 0, -1):
+        count = sum(1 for match in writable if match.confidence == score)
+        if count:
+            logger.info("    score %-2d       %d", score, count)
 
 
 def main() -> None:
@@ -139,6 +146,8 @@ def main() -> None:
                         help="Per-video record of what has been written, so a killed run resumes.")
     parser.add_argument("--purge", action="store_true",
                         help="Purge the season pages of everything written.")
+    parser.add_argument("--min-confidence", type=int, default=None,
+                        help="With --write: refuse anything scored below this (1-10).")
     args = parser.parse_args()
 
     logging.basicConfig(format="%(asctime)s %(levelname)s %(message)s", level=logging.INFO)
@@ -194,7 +203,8 @@ def main() -> None:
         logger.warning("LIVE MODE: pages will be edited on MaccabiPedia")
     site = get_site()
     outcome = write_matches(site, matches, progress_path=args.progress,
-                            dry_run=args.dry_run, limit=args.limit, pages=pages)
+                            dry_run=args.dry_run, limit=args.limit, pages=pages,
+                            min_confidence=args.min_confidence)
 
     if args.purge and not args.dry_run:
         purged = purge_season_pages(site, outcome.seasons)

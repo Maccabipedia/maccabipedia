@@ -7,6 +7,7 @@ import html
 from collections import Counter, defaultdict
 from datetime import date
 
+from maccabipediabot.basketball.videos.confidence import MAX_SCORE, MIN_SCORE
 from maccabipediabot.basketball.videos.matcher import Bucket, VideoMatch
 
 WIKI_BASE_URL = "https://www.maccabipedia.co.il"
@@ -70,18 +71,36 @@ def _target_cell(match: VideoMatch) -> str:
     return "—"
 
 
+_SCORE_HEADINGS = {
+    10: "10 — ודאי: תוצאה ייחודית, יריבה מזוהה, והסרטון הועלה ביום המשחק",
+    9: "9 — חזק מאוד: כל הראיות מסכימות, אך הסרטון הועלה מאוחר יותר באותה עונה",
+    8: "8 — חזק: ראיה אחת חסרה",
+    7: "7 — טוב: העלאה ארכיונית, אין אות תאריך",
+    6: "6 — סביר: חסרות שתי ראיות",
+    5: "5 — בינוני",
+    4: "4 — חלש",
+    3: "3 — חלש מאוד",
+    2: "2 — חשוד",
+    1: "1 — לא לכתוב ללא בדיקה",
+}
+
+
 def _match_row(match: VideoMatch) -> str:
     parsed = match.parsed
     score = (f"{parsed.maccabi_points}:{parsed.opponent_points}" if parsed else "—")
     opponent = parsed.opponent_raw if parsed else "—"
     kind = match.kind.value if match.kind else "—"
+    days = "—" if match.days_after_game is None else f"{match.days_after_game:+d}"
     return (
         f'<tr class="b-{match.bucket.value}">'
+        f'<td class="score"><b>{_escape(match.confidence if match.confidence else "—")}</b></td>'
         f'<td><a href="{_escape(match.url)}" target="_blank">{_escape(match.entry.title)}</a></td>'
+        f"<td>{_escape(match.entry.season)}</td>"
         f'<td><span class="tag">{_escape(match.source)}</span></td>'
         f'<td><span class="tag">{_escape(kind)}</span></td>'
         f'<td class="score">{_escape(score)}</td>'
         f"<td>{_escape(opponent)}</td>"
+        f'<td class="score">{_escape(days)}</td>'
         f'<td><span class="tag">{_escape(_BUCKET_LABELS.get(match.bucket, match.bucket.value))}</span></td>'
         f"<td>{_escape(match.reason)}</td>"
         f"<td>{_target_cell(match)}</td>"
@@ -90,22 +109,38 @@ def _match_row(match: VideoMatch) -> str:
     )
 
 
-def _season_section(season: str, matches: list[VideoMatch]) -> str:
+_TABLE_HEAD = (
+    "<table><thead><tr>"
+    "<th>ציון</th><th>סרטון</th><th>עונה</th><th>ערוץ</th><th>סוג</th><th>תוצאה</th>"
+    "<th>יריבה</th><th>ימים מהמשחק</th><th>סטטוס</th><th>סיבה</th>"
+    "<th>דף המשחק</th><th>פרמטר</th>"
+    "</tr></thead><tbody>"
+)
+
+
+def _score_section(score: int, matches: list[VideoMatch], open_by_default: bool) -> str:
+    rows = "\n".join(_match_row(match) for match in matches)
+    heading = _SCORE_HEADINGS.get(score, str(score))
+    return (
+        f"<details{' open' if open_by_default else ''}>"
+        f"<summary>{_escape(heading)} — {len(matches)} סרטונים</summary>"
+        f"{_TABLE_HEAD}{rows}</tbody></table></details>"
+    )
+
+
+def _unwritable_section(matches: list[VideoMatch]) -> str:
+    if not matches:
+        return ""
     counts = Counter(match.bucket for match in matches)
     summary_bits = ", ".join(
         f"{_BUCKET_LABELS.get(bucket, bucket.value)}: {count}"
         for bucket, count in sorted(counts.items(), key=lambda item: item[0].value)
     )
-    rows = "\n".join(_match_row(match) for match in matches)
+    rows = "\n".join(_match_row(match) for match in
+                     sorted(matches, key=lambda match: (match.bucket.value, match.entry.season)))
     return (
-        f"<details><summary>{_escape(season or 'ללא עונה')} — {len(matches)} סרטונים "
-        f"({_escape(summary_bits)})</summary>"
-        "<table><thead><tr>"
-        "<th>סרטון</th><th>ערוץ</th><th>סוג</th><th>תוצאה</th><th>יריבה</th>"
-        "<th>סטטוס</th><th>סיבה</th><th>דף המשחק</th><th>פרמטר</th>"
-        "</tr></thead><tbody>"
-        f"{rows}"
-        "</tbody></table></details>"
+        f"<details><summary>לא ייכתב — {len(matches)} סרטונים ({_escape(summary_bits)})"
+        f"</summary>{_TABLE_HEAD}{rows}</tbody></table></details>"
     )
 
 
@@ -160,36 +195,40 @@ def render_sample_section(checks: list) -> str:
     )
 
 
-def _counts_list(matches: list[VideoMatch], skipped_non_game: int) -> str:
-    counts = Counter(match.bucket for match in matches)
+def _score_counts_list(writable: list[VideoMatch], unwritable: list[VideoMatch],
+                       skipped_non_game: int) -> str:
+    counts = Counter(match.confidence for match in writable)
     items = [
-        f'<li><span class="n">{counts.get(bucket, 0)}</span>'
-        f'<span class="k">{_escape(label)} ({bucket.value})</span></li>'
-        for bucket, label in _BUCKET_LABELS.items()
+        f'<li><span class="n">{counts.get(score, 0)}</span>'
+        f'<span class="k">ציון {score}</span></li>'
+        for score in range(MAX_SCORE, 0, -1) if counts.get(score)
     ]
-    items.append(f'<li><span class="n">{len(matches)}</span>'
-                 f'<span class="k">סרטוני משחק שנבדקו</span></li>')
+    items.append(f'<li><span class="n">{len(writable)}</span>'
+                 f'<span class="k">ייכתבו לוויקי</span></li>')
+    items.append(f'<li><span class="n">{len(unwritable)}</span>'
+                 f'<span class="k">לא ייכתבו</span></li>')
     items.append(f'<li><span class="n">{skipped_non_game}</span>'
                  f'<span class="k">סרטונים שאינם משחק</span></li>')
     return f'<ul class="counts">{"".join(items)}</ul>'
 
 
-def _sort_key(season: str) -> str:
-    return season or "0000/00"
-
-
 def render_report(matches: list[VideoMatch], skipped_non_game: int,
                   sample_section: str = "") -> str:
-    """The full review page. `sample_section` is the verification sample, added later."""
-    by_season: dict[str, list[VideoMatch]] = defaultdict(list)
-    for match in matches:
-        by_season[match.entry.season].append(match)
+    """The full review page, ordered by confidence so the weakest matches are findable."""
+    writable = [match for match in matches if match.bucket == Bucket.EXACT and match.slot]
+    unwritable = [match for match in matches if match not in writable]
+
+    by_score: dict[int, list[VideoMatch]] = defaultdict(list)
+    for match in writable:
+        by_score[match.confidence or MIN_SCORE].append(match)
 
     sections = "\n".join(
-        _season_section(season, sorted(by_season[season], key=lambda match: match.bucket.value))
-        for season in sorted(by_season, key=_sort_key, reverse=True)
+        _score_section(score,
+                       sorted(by_score[score], key=lambda match: match.entry.season, reverse=True),
+                       open_by_default=score < MAX_SCORE)
+        for score in sorted(by_score, reverse=True)
     )
-    writable = sum(1 for match in matches if match.bucket == Bucket.EXACT and match.slot)
+    perfect = len(by_score.get(MAX_SCORE, []))
 
     return (
         "<!doctype html>"
@@ -199,10 +238,14 @@ def render_report(matches: list[VideoMatch], skipped_non_game: int,
         f"<style>{_STYLE}</style></head><body><div class=\"wrap\">"
         "<h1>סרטוני משחקי כדורסל — דוח התאמה</h1>"
         f'<p class="sub">נוצר ב-{date.today().strftime("%d-%m-%Y")} · '
-        f"{writable} סרטונים מוכנים לכתיבה לדפי המשחקים · "
+        f"{len(writable)} סרטונים מוכנים לכתיבה, מתוכם {perfect} בציון 10 · "
         "שום דבר עדיין לא נכתב לוויקי</p>"
-        f"{_counts_list(matches, skipped_non_game)}"
+        '<p class="sub">הציון נבנה מראיות בלתי תלויות: האם התוצאה ייחודית לעונה, האם שם '
+        "היריבה זוהה במפורש, והאם תאריך ההעלאה תומך — הראיה היחידה שאינה מגיעה מכותרת "
+        "הסרטון. הקבוצות הפתוחות למטה הן אלה שכדאי לעבור עליהן.</p>"
+        f"{_score_counts_list(writable, unwritable, skipped_non_game)}"
         f"{sample_section}"
         f"{sections}"
+        f"{_unwritable_section(unwritable)}"
         "</div></body></html>"
     )

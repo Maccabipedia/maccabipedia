@@ -28,11 +28,14 @@ def entry(video_id, title, duration=180, season="2024/25"):
 
 
 ROWS = [
-    row("כדורסל:01-11-2024 מכבי תל אביב נגד אליצור נתניה - ליגת העל", "אליצור נתניה", 102, 92),
-    row("כדורסל:08-11-2024 הפועל חולון נגד מכבי תל אביב - ליגת העל", "הפועל חולון", 80, 77, home_away="חוץ"),
-    row("כדורסל:15-11-2024 מכבי תל אביב נגד הפועל תל אביב - ליגת העל", "הפועל תל אביב", 80, 77),
+    row("כדורסל:01-11-2024 מכבי תל אביב נגד אליצור נתניה - ליגת העל", "אליצור נתניה", 102, 92,
+        date="01-11-2024"),
+    row("כדורסל:08-11-2024 הפועל חולון נגד מכבי תל אביב - ליגת העל", "הפועל חולון", 80, 77,
+        home_away="חוץ", date="08-11-2024"),
+    row("כדורסל:15-11-2024 מכבי תל אביב נגד הפועל תל אביב - ליגת העל", "הפועל תל אביב", 80, 77,
+        date="15-11-2024"),
     row("כדורסל:22-11-2024 מכבי תל אביב נגד מילאנו - יורוליג", "ארמאני מילאנו", 102, 88,
-        competition="יורוליג", leg="מחזור 9",
+        competition="יורוליג", leg="מחזור 9", date="22-11-2024",
         highlights=("https://www.youtube.com/watch?v=dRsHKQtTRBM", "")),
 ]
 
@@ -60,6 +63,38 @@ def test_same_score_with_an_unknown_opponent_is_ambiguous():
     match = only_match([entry("x1", "Highlights: Maccabi Playtika Tel Aviv - Unknown FC 80:77")])
     assert match.bucket == Bucket.AMBIGUOUS
     assert len(match.candidates) == 2
+
+
+def dated_entry(video_id, title, published, duration=180, season="2024/25"):
+    return VideoEntry(video_id=video_id, title=title, duration_seconds=duration,
+                      season=season, playlist=f"{season} Season", published=published)
+
+
+def test_the_upload_date_settles_an_unknown_opponent():
+    """Two games share the score and the title's opponent is unrecognised, but the club
+    posts a game's video within days, and only one of the two was played then."""
+    match = only_match([dated_entry(
+        "x1", "Highlights: Maccabi Playtika Tel Aviv - Unknown FC 80:77", published="20241109")])
+    assert match.bucket == Bucket.EXACT
+    assert match.page_name.startswith("כדורסל:08-11-2024")
+    assert "upload date" in match.reason
+
+
+def test_the_upload_date_does_not_rescue_an_archive_video():
+    """Uploaded years later, so it says nothing about which of the two games it is."""
+    match = only_match([dated_entry(
+        "x1", "Highlights: Maccabi Playtika Tel Aviv - Unknown FC 80:77", published="20180101")])
+    assert match.bucket == Bucket.AMBIGUOUS
+
+
+def test_the_upload_date_is_ignored_when_it_fits_both_candidates():
+    """Both games fall inside the window, so the date cannot choose either."""
+    rows = [row("כדורסל:08-11-2024 א", "הפועל חולון", 80, 77, date="08-11-2024"),
+            row("כדורסל:10-11-2024 ב", "הפועל תל אביב", 80, 77, date="10-11-2024")]
+    match = only_match([dated_entry(
+        "x1", "Highlights: Maccabi Playtika Tel Aviv - Unknown FC 80:77", published="20241111")],
+        rows=rows)
+    assert match.bucket == Bucket.AMBIGUOUS
 
 
 def test_no_game_with_that_score_is_unmatched():

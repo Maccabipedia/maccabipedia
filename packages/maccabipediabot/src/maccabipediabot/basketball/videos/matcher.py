@@ -19,6 +19,7 @@ from enum import Enum
 
 from maccabipediabot.basketball.videos.aliases import opponent_matches, resolve_opponent
 from maccabipediabot.basketball.videos.cargo import GameRow
+from maccabipediabot.basketball.videos.dates import days_between_game_and_upload
 from maccabipediabot.basketball.videos.euroleague_title import (
     ParsedEuroleagueTitle,
     parse_euroleague_title,
@@ -73,6 +74,10 @@ class VideoMatch:
     source: str = MACCABI_CHANNEL
     # EuroLeague titles are parsed by a different module, so their kind is carried here.
     kind_override: VideoKind | None = None
+    # Filled in by confidence.score_all: 1-10, and how long after the game the video
+    # went up. Both are for the review page, not for the matching itself.
+    confidence: int | None = None
+    days_after_game: int | None = None
 
     @property
     def url(self) -> str:
@@ -91,6 +96,17 @@ class VideoMatch:
 
 def existing_urls_for_family(row: GameRow, family: tuple[str, str]) -> tuple[str, str]:
     return row.highlights if family == HIGHLIGHTS_SLOTS else row.full_games
+
+
+# The club posts a game's video within a few days. Wider than the confidence score's
+# window, because here it is used to CHOOSE between candidates rather than to confirm.
+_UPLOAD_WINDOW_DAYS = 10
+
+
+def _uploaded_just_after(published: str, game_date: str) -> bool:
+    """True when this video went up within days of that game being played."""
+    days_apart = days_between_game_and_upload(game_date, published)
+    return days_apart is not None and 0 <= days_apart <= _UPLOAD_WINDOW_DAYS
 
 
 def _duration_is_sane(entry: VideoEntry, kind: VideoKind) -> bool:
@@ -133,6 +149,16 @@ def _classify(entry: VideoEntry, parsed: ParsedTitle,
         return VideoMatch(entry, parsed, Bucket.UNMATCHED, "no game in this season ended with that score")
 
     by_opponent = [row for row in same_score if opponent_matches(parsed.opponent_raw, row.opponent)]
+
+    # The upload date is evidence the title cannot give. When the opponent name fails
+    # to settle things, a video uploaded within days of exactly one candidate settles
+    # them instead: the club posts a game's video straight after the game.
+    if len(by_opponent) != 1 and entry.published:
+        dated = [row for row in same_score if _uploaded_just_after(entry.published, row.date)]
+        if len(dated) == 1:
+            return VideoMatch(entry, parsed, Bucket.EXACT,
+                              "score and upload date agree", page_name=dated[0].page_name)
+
     if len(by_opponent) != 1:
         if len(by_opponent) > 1:
             reason = "several games against this opponent share the score"

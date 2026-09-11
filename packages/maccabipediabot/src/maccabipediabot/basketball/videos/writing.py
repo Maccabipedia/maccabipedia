@@ -63,13 +63,24 @@ def _record(progress_path: Path, match: VideoMatch) -> None:
 
 def write_matches(site: pw.Site, matches: list[VideoMatch], *, progress_path: Path,
                   dry_run: bool = False, limit: int | None = None,
-                  pages: set[str] | None = None) -> WriteOutcome:
-    """Write every exact match that holds a slot. Returns what happened."""
+                  pages: set[str] | None = None,
+                  min_confidence: int | None = None) -> WriteOutcome:
+    """Write every exact match that holds a slot. Returns what happened.
+
+    `min_confidence` refuses anything scored below it, so a run can be restricted to
+    the matches whose evidence is strongest.
+    """
     outcome = WriteOutcome()
     already_written = load_written_video_ids(progress_path)
 
     writable = [match for match in matches
                 if match.bucket == Bucket.EXACT and match.slot and match.page_name]
+    if min_confidence is not None:
+        below = [match for match in writable
+                 if (match.confidence or 0) < min_confidence]
+        writable = [match for match in writable if match not in below]
+        if below:
+            logger.info("Holding back %d matches scored below %d", len(below), min_confidence)
     if pages is not None:
         writable = [match for match in writable if match.page_name in pages]
     writable.sort(key=lambda match: (match.page_name, match.slot))
