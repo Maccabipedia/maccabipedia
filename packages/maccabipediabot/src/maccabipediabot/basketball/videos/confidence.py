@@ -12,13 +12,14 @@ the matcher does NOT read from the video title — when the video was uploaded.
 
 Everything else sits in between, losing a point per piece of missing evidence.
 """
+import re
 from dataclasses import dataclass
 
 from collections import defaultdict
 
-from maccabipediabot.basketball.videos.aliases import normalize_team_name, resolve_opponent
+from maccabipediabot.basketball.videos.aliases import resolve_opponent
 from maccabipediabot.basketball.videos.cargo import GameRow
-from maccabipediabot.basketball.videos.dates import days_between_game_and_upload
+from maccabipediabot.basketball.videos.dates import days_between_game_and_upload, parse_game_date
 from maccabipediabot.basketball.videos.matcher import Bucket, VideoMatch
 
 MIN_SCORE = 1
@@ -31,17 +32,32 @@ _SAME_SEASON_DAYS = 300
 
 @dataclass(frozen=True)
 class Evidence:
-    """What, besides the date, supports this match."""
+    """What, besides the date, supports this match.
+
+    Deliberately narrow: only things that bear on whether this video shows THIS game.
+    Two properties that look like quality signals are left out on purpose.
+
+    Whether the title stated the kind of video, or the kind had to be read off its
+    length, says nothing about which game it is — it decides which parameter the link
+    goes in, not whether the link is right. It used to cost a point, which held 655
+    otherwise-perfect archive matches below their real confidence.
+
+    Whether the opponent name matched exactly or by containment is likewise not a
+    weakness: the alias table maps each club to the distinctive part of its name
+    precisely because Cargo spells the same club differently by era, so containment is
+    the designed-for normal case rather than a near miss.
+    """
     # Only one game that season ended with this score, so the opponent was not needed
     # to choose between candidates.
     score_unique_in_season: bool
     # The opponent name was resolved through the translations map rather than assumed
     # to be already-correct Hebrew.
     opponent_recognised: bool
-    # The resolved name equals the page's opponent, rather than merely containing it.
-    opponent_exact: bool
-    # The title said what kind of video this is, instead of it being read off the length.
-    kind_stated: bool
+    # Whether a year written in the title agrees with the year the game was played, or
+    # None when the title names no year. The season used for matching comes from the
+    # PLAYLIST, never the title, so this is independent — and it is the only such
+    # evidence available for archive uploads, whose dates say nothing.
+    title_year_agrees: bool | None = None
 
 
 def date_points(days_apart: int | None) -> int | None:
@@ -57,25 +73,41 @@ def date_points(days_apart: int | None) -> int | None:
     return 0                # years later: an archive upload, says nothing
 
 
+_YEAR_RE = re.compile(r"(?<!\d)(19[5-9]\d|20[0-2]\d)(?!\d)")
+
+
+def title_year_agrees(title: str, game_date: str) -> bool | None:
+    """Does a year written in the title match the year the game was played?
+
+    None when the title names no year. A season spans two calendar years, so either
+    side of the game's own year counts as agreement.
+    """
+    years = {int(year) for year in _YEAR_RE.findall(title)}
+    if not years:
+        return None
+    game = parse_game_date(game_date or "")
+    if game is None:
+        return None
+    return bool(years & {game.year - 1, game.year, game.year + 1})
+
+
 def collect_evidence(match: VideoMatch, row: GameRow, season_rows: list[GameRow]) -> Evidence:
     """Read off what supports this match, beyond the upload date."""
+    year_agrees = title_year_agrees(match.entry.title, row.date)
     parsed = match.parsed
     if parsed is None:
-        # A EuroLeague match: its key is the round, which is as specific as a score.
-        return Evidence(score_unique_in_season=True,
-                        opponent_recognised=resolve_opponent(match.entry.title) is not None,
-                        opponent_exact=False, kind_stated=True)
+        # A EuroLeague match: its key is the season plus the round, which picks out one
+        # game as sharply as a score does.
+        return Evidence(score_unique_in_season=True, opponent_recognised=True,
+                        title_year_agrees=year_agrees)
 
     score = (parsed.maccabi_points, parsed.opponent_points)
     same_score = [candidate for candidate in season_rows
                   if (candidate.maccabi_points, candidate.opponent_points) == score]
-    resolved = resolve_opponent(parsed.opponent_raw)
     return Evidence(
         score_unique_in_season=len(same_score) == 1,
-        opponent_recognised=resolved is not None,
-        opponent_exact=(resolved is not None
-                        and normalize_team_name(resolved) == normalize_team_name(row.opponent)),
-        kind_stated=parsed.kind is not None,
+        opponent_recognised=resolve_opponent(parsed.opponent_raw) is not None,
+        title_year_agrees=year_agrees,
     )
 
 
@@ -89,14 +121,26 @@ def score_match(match: VideoMatch, row: GameRow | None, evidence: Evidence) -> i
     if points is None:
         return MIN_SCORE
 
+    if evidence.title_year_agrees is False:
+        # The title names a year that is not the year of this game. Whatever else lines
+        # up, something is wrong with the pairing.
+        return MIN_SCORE + 1
+
+    date_confirms = points == 3
+
     score = _BASE_SCORE + points
-    if not evidence.score_unique_in_season:
+    if points == 0 and evidence.title_year_agrees:
+        # No usable upload date, but the title's own year backs the match. Coarser than
+        # a same-day upload, so it is worth less than one — but it is real evidence, and
+        # for the archive era it is the only kind there is.
+        score += 2
+    if not evidence.score_unique_in_season and not date_confirms:
+        # A score shared by two games that season means the score alone did not identify
+        # the game, and the opponent had to choose. That is a weakness only while the
+        # opponent is the sole tie-breaker: an upload dated to the game itself confirms
+        # the choice from a direction the title cannot reach, so the doubt is gone.
         score -= 2
     if not evidence.opponent_recognised:
-        score -= 1
-    if not evidence.opponent_exact:
-        score -= 1
-    if not evidence.kind_stated:
         score -= 1
     return max(MIN_SCORE, min(MAX_SCORE, score))
 
