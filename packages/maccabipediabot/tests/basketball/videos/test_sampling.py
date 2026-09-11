@@ -86,6 +86,14 @@ def sample_of_one(game_date):
     return [match], {match.page_name: row}
 
 
+def test_cargo_iso_dates_are_understood():
+    """Cargo returns '2024-11-22' while page titles use '22-11-2024'; both must work."""
+    sample, rows = sample_of_one("2024-11-22")
+    [check] = verify_sample(sample, rows, lambda video_id: "20241122")
+    assert check.days_apart == 0
+    assert check.verdict == Verdict.CONFIRMED
+
+
 @pytest.mark.parametrize("upload_date,verdict", [
     ("20241122", Verdict.CONFIRMED),      # same day
     ("20241123", Verdict.CONFIRMED),      # next day

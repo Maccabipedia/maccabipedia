@@ -30,10 +30,10 @@ import pywikibot as pw
 
 from maccabipediabot.common.logging_setup import setup_logging
 from maccabipediabot.common.wiki_login import get_site
-from maccabipediabot.maintenance.videos.update_wiki_video_field import (
-    TEMPLATE_NAME,
-    set_video_field,
-)
+from maccabipediabot.maintenance.videos.sport_templates import FOOTBALL
+from maccabipediabot.maintenance.videos.update_wiki_video_field import set_video_field
+
+TEMPLATE_NAME = FOOTBALL.template_name
 from maccabipediabot.maintenance.videos.youtube.title import (
     FULL_MATCH,
     HIGHLIGHTS,

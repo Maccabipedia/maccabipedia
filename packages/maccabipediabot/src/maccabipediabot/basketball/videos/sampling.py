@@ -89,9 +89,24 @@ def choose_verification_sample(matches: Iterable[VideoMatch], rows_by_page: dict
     return chosen
 
 
+# Cargo returns dates as "2026-05-17"; page titles and the bots use "17-05-2026".
+_GAME_DATE_FORMATS = ("%Y-%m-%d", "%d-%m-%Y")
+
+
+def _parse_game_date(game_date: str) -> datetime | None:
+    for date_format in _GAME_DATE_FORMATS:
+        try:
+            return datetime.strptime(game_date, date_format)
+        except ValueError:
+            continue
+    return None
+
+
 def _days_between(game_date: str, upload_date: str) -> int | None:
+    game = _parse_game_date(game_date)
+    if game is None:
+        return None
     try:
-        game = datetime.strptime(game_date, "%d-%m-%Y")
         upload = datetime.strptime(upload_date, "%Y%m%d")
     except ValueError:
         return None
