@@ -95,6 +95,22 @@ jobs:
             echo "found=false" >> "$GITHUB_OUTPUT"
           fi
 
+      # Videos appear on the club's YouTube channel hours to days after the game, so this
+      # cannot run at upload time — it revisits games of the current and previous season
+      # whose video parameters are still empty and fills whatever it can match. Reads
+      # YouTube's public RSS feeds: no API key, no proxy, and unlike yt-dlp they answer
+      # datacenter IPs.
+      - name: Attach game videos from the official channel
+        id: attach_videos
+        env:
+          PYWIKIBOT_DIR: packages/maccabipediabot/src/maccabipediabot/pywikibot_configs/
+          MACCABIPEDIA_BOT_USERNAME: ${{ secrets.MACCABIPEDIA_BOT_USERNAME }}
+          MACCABIPEDIA_BOT_PASSWORD: ${{ secrets.MACCABIPEDIA_BOT_PASSWORD }}
+        run: |
+          set -o pipefail
+          uv run python -m maccabipediabot.basketball.videosbot_basketball \
+            --source rss --seasons current,previous --write --purge 2>&1 | tee -a /tmp/uploader.log
+
       # Not a team-mapping failure: report WHICH step died and the real error tail, so the
       # alert points at the actual cause (e.g. a wiki-login TimeoutError) instead of guessing.
       # Each python step tees its combined output to /tmp/uploader.log. Before sending we
@@ -112,6 +128,7 @@ jobs:
           elif [ "${{ steps.upload_basket.outcome }}" = "failure" ]; then failed_step="Upload basket.co.il games"
           elif [ "${{ steps.crawl_euroleague.outcome }}" = "failure" ]; then failed_step="Crawl Euroleague"
           elif [ "${{ steps.upload_euroleague.outcome }}" = "failure" ]; then failed_step="Upload Euroleague games"
+          elif [ "${{ steps.attach_videos.outcome }}" = "failure" ]; then failed_step="Attach game videos"
           else failed_step="setup / a non-crawl step"
           fi
           echo "step=$failed_step" >> "$GITHUB_OUTPUT"
