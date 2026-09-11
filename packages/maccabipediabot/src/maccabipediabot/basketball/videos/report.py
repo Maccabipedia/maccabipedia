@@ -109,6 +109,56 @@ def _season_section(season: str, matches: list[VideoMatch]) -> str:
     )
 
 
+_VERDICT_LABELS = {
+    "confirmed": "אושר",
+    "date mismatch": "תאריך לא תואם",
+    "no date signal": "אין אות תאריך",
+}
+
+
+def render_sample_section(checks: list) -> str:
+    """The verification sample, pinned above the per-season detail.
+
+    Each row pairs what the matcher decided with the video's real upload date, which
+    the matcher never saw.
+    """
+    if not checks:
+        return ""
+    counts = Counter(check.verdict.value for check in checks)
+    summary = " · ".join(f"{_VERDICT_LABELS.get(verdict, verdict)}: {count}"
+                         for verdict, count in sorted(counts.items()))
+    rows = []
+    for check in checks:
+        match = check.match
+        days = "—" if check.days_apart is None else f"{check.days_apart:+d}"
+        rows.append(
+            f"<tr>"
+            f'<td><a href="{_escape(match.url)}" target="_blank">{_escape(match.entry.title)}</a></td>'
+            f"<td>{_page_link(match.page_name)}</td>"
+            f"<td>{_escape(check.game_date)}</td>"
+            f"<td>{_escape(check.opponent)}</td>"
+            f"<td>{_escape(check.home_away)}</td>"
+            f'<td class="score">{_escape(match.parsed.maccabi_points if match.parsed else "")}'
+            f':{_escape(match.parsed.opponent_points if match.parsed else "")}</td>'
+            f"<td>{_escape(check.upload_date or '—')}</td>"
+            f'<td class="score">{_escape(days)}</td>'
+            f'<td><span class="tag">{_escape(_VERDICT_LABELS.get(check.verdict.value, check.verdict.value))}</span></td>'
+            f"</tr>"
+        )
+    return (
+        '<details open><summary>בדיקת מדגם — 20 התאמות מול תאריך ההעלאה האמיתי '
+        f"({_escape(summary)})</summary>"
+        '<p class="sub">תאריך ההעלאה הוא אות עצמאי: המתאם לא רואה אותו. סרטון שהועלה '
+        "ביום המשחק מאשר את ההתאמה; סרטון ארכיוני שהועלה שנים אחר כך לא מעיד לכאן ולכאן.</p>"
+        "<table><thead><tr>"
+        "<th>סרטון</th><th>דף המשחק</th><th>תאריך המשחק</th><th>יריבה</th><th>בית/חוץ</th>"
+        "<th>תוצאה בכותרת</th><th>הועלה</th><th>הפרש ימים</th><th>ממצא</th>"
+        "</tr></thead><tbody>"
+        f"{''.join(rows)}"
+        "</tbody></table></details>"
+    )
+
+
 def _counts_list(matches: list[VideoMatch], skipped_non_game: int) -> str:
     counts = Counter(match.bucket for match in matches)
     items = [

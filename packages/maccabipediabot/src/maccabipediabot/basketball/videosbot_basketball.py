@@ -27,7 +27,9 @@ from maccabipediabot.basketball.videos.matcher import (
     match_euroleague_videos,
     match_videos,
 )
-from maccabipediabot.basketball.videos.report import render_report
+from maccabipediabot.basketball.videos.report import render_report, render_sample_section
+from maccabipediabot.basketball.videos.sampling import choose_verification_sample, verify_sample
+from maccabipediabot.basketball.videos.youtube_metadata import fetch_upload_date
 
 logger = logging.getLogger(__name__)
 
@@ -118,6 +120,9 @@ def main() -> None:
                         help="'all', 'current,previous', or a comma-separated list.")
     parser.add_argument("--overrides", type=Path, help="CSV of video_id,page_name.")
     parser.add_argument("--report", type=Path, help="Write the HTML review page here.")
+    parser.add_argument("--sample", type=int, default=0,
+                        help="Verify N matches against their real upload date and pin the "
+                             "result to the top of the report.")
     args = parser.parse_args()
 
     logging.basicConfig(format="%(asctime)s %(levelname)s %(message)s", level=logging.INFO)
@@ -137,12 +142,25 @@ def main() -> None:
     logger.info("Loaded %d club videos and %d EuroLeague videos",
                 len(entries), len(euroleague_entries))
 
-    matches, _ = build_matches(entries, euroleague_entries, seasons, load_overrides(args.overrides))
+    matches, rows = build_matches(entries, euroleague_entries, seasons,
+                                  load_overrides(args.overrides))
     log_bucket_counts(matches)
+
+    sample_section = ""
+    if args.sample:
+        rows_by_page = {row.page_name: row for row in rows}
+        sample = choose_verification_sample(matches, rows_by_page, size=args.sample)
+        logger.info("Verifying %d sampled matches against their upload dates", len(sample))
+        checks = verify_sample(sample, rows_by_page, fetch_upload_date)
+        sample_section = render_sample_section(checks)
+        for verdict in {check.verdict for check in checks}:
+            logger.info("  sample %-16s %d", verdict.value,
+                        sum(1 for check in checks if check.verdict == verdict))
 
     if args.report:
         args.report.write_text(
-            render_report(matches, skipped_non_game=count_non_game_videos(entries)),
+            render_report(matches, skipped_non_game=count_non_game_videos(entries),
+                          sample_section=sample_section),
             encoding="utf-8",
         )
         logger.info("Report written to %s", args.report)
