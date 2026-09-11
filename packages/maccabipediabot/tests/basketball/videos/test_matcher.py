@@ -2,6 +2,10 @@
 
 The key is the season plus the final score, confirmed by the opponent. Anything the
 key cannot settle goes to a review bucket rather than being guessed at.
+
+Note the score order in the titles below: Hebrew reads right to left, so
+'מכבי - אליצור נתניה 92:102' is Maccabi 102, and the English title of the same game
+carries the digits the other way round.
 """
 import pytest
 
@@ -24,7 +28,7 @@ def entry(video_id, title, duration=180, season="2024/25"):
 
 
 ROWS = [
-    row("כדורסל:01-11-2024 מכבי תל אביב נגד אליצור נתניה - ליגת העל", "אליצור נתניה", 92, 102),
+    row("כדורסל:01-11-2024 מכבי תל אביב נגד אליצור נתניה - ליגת העל", "אליצור נתניה", 102, 92),
     row("כדורסל:08-11-2024 הפועל חולון נגד מכבי תל אביב - ליגת העל", "הפועל חולון", 80, 77, home_away="חוץ"),
     row("כדורסל:15-11-2024 מכבי תל אביב נגד הפועל תל אביב - ליגת העל", "הפועל תל אביב", 80, 77),
     row("כדורסל:22-11-2024 מכבי תל אביב נגד מילאנו - יורוליג", "ארמאני מילאנו", 102, 88,
@@ -73,14 +77,14 @@ def test_reversed_score_is_flagged_rather_than_matched():
 
 
 def test_a_video_already_on_the_page_is_not_written_again():
-    match = only_match([entry("dRsHKQtTRBM", 'תקציר המשחק: מכבי Rapyd ת"א - מילאנו 102:88')])
+    match = only_match([entry("dRsHKQtTRBM", 'תקציר המשחק: מכבי Rapyd ת"א - מילאנו 88:102')])
     assert match.bucket == Bucket.ALREADY_PRESENT
 
 
 def test_second_highlight_takes_the_second_slot_and_a_third_overflows():
     entries = [entry("a", 'תקציר המשחק: מכבי Rapyd ת"א - אליצור נתניה 92:102'),
-               entry("b", "Highlights: Maccabi Rapyd Tel Aviv - Elitzur Netanya 92:102"),
-               entry("c", "Game Highlights: Maccabi Rapyd Tel Aviv - Elitzur Netanya 92:102")]
+               entry("b", "Highlights: Maccabi Rapyd Tel Aviv - Elitzur Netanya 102:92"),
+               entry("c", "Game Highlights: Maccabi Rapyd Tel Aviv - Elitzur Netanya 102:92")]
     matches = {match.entry.video_id: match for match in match_videos(entries, ROWS, {})}
     assert matches["a"].slot == "תקציר וידאו"          # Hebrew ranks first
     assert matches["b"].slot == "תקציר וידאו2"
@@ -114,7 +118,7 @@ def test_condensed_replay_alone_takes_the_first_highlight_slot():
 
 def test_a_condensed_replay_never_reaches_the_full_game_slots():
     entries = [entry("a", 'תקציר המשחק: מכבי Rapyd ת"א - אליצור נתניה 92:102'),
-               entry("b", "Highlights: Maccabi Rapyd Tel Aviv - Elitzur Netanya 92:102"),
+               entry("b", "Highlights: Maccabi Rapyd Tel Aviv - Elitzur Netanya 102:92"),
                entry("c", 'תרכיז המשחק: מכבי Rapyd ת"א - אליצור נתניה 92:102', duration=900)]
     matches = {match.entry.video_id: match for match in match_videos(entries, ROWS, {})}
     assert matches["c"].bucket == Bucket.OVERFLOW
@@ -163,14 +167,14 @@ def test_non_game_videos_are_dropped_entirely():
     (("", "https://www.youtube.com/watch?v=other"), "תקציר וידאו"),
 ])
 def test_an_occupied_slot_is_never_overwritten(existing, expected_slot):
-    rows = [row("כדורסל:01-11-2024 מכבי תל אביב נגד אליצור נתניה - ליגת העל", "אליצור נתניה", 92, 102,
+    rows = [row("כדורסל:01-11-2024 מכבי תל אביב נגד אליצור נתניה - ליגת העל", "אליצור נתניה", 102, 92,
                 highlights=existing)]
     match = only_match([entry("a", 'תקציר המשחק: מכבי Rapyd ת"א - אליצור נתניה 92:102')], rows=rows)
     assert match.slot == expected_slot
 
 
 def test_both_slots_taken_means_overflow():
-    rows = [row("כדורסל:01-11-2024 מכבי תל אביב נגד אליצור נתניה - ליגת העל", "אליצור נתניה", 92, 102,
+    rows = [row("כדורסל:01-11-2024 מכבי תל אביב נגד אליצור נתניה - ליגת העל", "אליצור נתניה", 102, 92,
                 highlights=("https://youtu.be/a", "https://youtu.be/b"))]
     match = only_match([entry("a", 'תקציר המשחק: מכבי Rapyd ת"א - אליצור נתניה 92:102')], rows=rows)
     assert match.bucket == Bucket.OVERFLOW

@@ -3,6 +3,17 @@
 Every title here is real, taken from the channel's own listing. The channel writes
 the home team first and embeds the current sponsor name ("Rapyd", "Playtika", "FOX",
 "Electra"), so which side is Maccabi has to be decided by name, never by position.
+
+SCORE ORDER: Hebrew titles are written right to left, so the first team named takes
+the SECOND number, while English titles pair them in reading order. The scores below
+for the 2026 league finals are checked against Basketball_Games:
+
+    game 1 (16-06-2026) Maccabi 96 Hapoel 75
+    game 3 (21-06-2026) Maccabi 74 Hapoel 80
+    game 4 (23-06-2026) Maccabi 83 Hapoel 79
+
+and the channel's own Hebrew and English titles for game 3 carry the digits in
+opposite order, which is what fixes the rule.
 """
 import pytest
 
@@ -10,11 +21,12 @@ from maccabipediabot.basketball.videos.title_parser import VideoKind, parse_game
 
 
 @pytest.mark.parametrize("title,kind,opponent,maccabi,opponent_points,language", [
-    ('תקציר המשחק: מכבי Rapyd ת"א - אליצור נתניה 92:102', VideoKind.HIGHLIGHTS, "אליצור נתניה", 92, 102, "he"),
+    ('תקציר המשחק: מכבי Rapyd ת"א - אליצור נתניה 92:102', VideoKind.HIGHLIGHTS, "אליצור נתניה", 102, 92, "he"),
     ("תקציר: הפועל אילת - מכבי Playtika תל אביב 85:70 (ליגת העל, מחזור 18)",
-     VideoKind.HIGHLIGHTS, "הפועל אילת", 70, 85, "he"),
+     VideoKind.HIGHLIGHTS, "הפועל אילת", 85, 70, "he"),
+    # Verified: game 1 of the 2026 finals, Maccabi 96 Hapoel 75.
     ('תקציר: מכבי Rapyd ת"א - הפועל ת"א 75:96 (גמר פלייאוף 1)',
-     VideoKind.HIGHLIGHTS, 'הפועל ת"א', 75, 96, "he"),
+     VideoKind.HIGHLIGHTS, 'הפועל ת"א', 96, 75, "he"),
     ("Highlights: Maccabi FOX Tel Aviv - Maccabi Haifa 67:59",
      VideoKind.HIGHLIGHTS, "Maccabi Haifa", 67, 59, "en"),
     ("Highlights: Hapoel Jerusalem - Maccabi FOX TelAviv 74:63",
@@ -24,15 +36,21 @@ from maccabipediabot.basketball.videos.title_parser import VideoKind, parse_game
     ("Highlights: Maccabi Playtika Tel Aviv vs Real Madrid 75:74 | תקציר הניצחון של מכבי על ריאל מדריד",
      VideoKind.HIGHLIGHTS, "Real Madrid", 75, 74, "en"),
     ('המשחק המלא: מכבי Rapyd ת"א - באיירן מינכן 106:111',
-     VideoKind.FULL_GAME, "באיירן מינכן", 106, 111, "he"),
+     VideoKind.FULL_GAME, "באיירן מינכן", 111, 106, "he"),
     ("Full Game: Barcelona - Maccabi Electra Tel Aviv 89:71",
      VideoKind.FULL_GAME, "Barcelona", 71, 89, "en"),
     ("Highlights: Maccabi Electra Tel-Aviv - Maccabi Rishon Lezion 79:58",
      VideoKind.HIGHLIGHTS, "Maccabi Rishon Lezion", 79, 58, "en"),
-    ('תרכיז המשחק: מכבי Rapyd ת"א - הפועל ת"א 80:74', VideoKind.CONDENSED, 'הפועל ת"א', 80, 74, "he"),
-    ('תרכיז משחק האליפות: הפועל ת"א - מכבי Rapyd ת"א 83:79', VideoKind.CONDENSED, 'הפועל ת"א', 79, 83, "he"),
+    # Verified: game 3 of the 2026 finals, Maccabi 74 Hapoel 80.
+    ('תרכיז המשחק: מכבי Rapyd ת"א - הפועל ת"א 80:74', VideoKind.CONDENSED, 'הפועל ת"א', 74, 80, "he"),
+    ("Game Highlights: Maccabi Rapyd Tel Aviv vs. Hapoel Tel Aviv 74:80 (Playoff Finals Game 3)",
+     VideoKind.HIGHLIGHTS, "Hapoel Tel Aviv", 74, 80, "en"),
+    # Verified: game 4 of the 2026 finals, Maccabi 83 Hapoel 79.
+    ('תרכיז משחק האליפות: הפועל ת"א - מכבי Rapyd ת"א 83:79', VideoKind.CONDENSED, 'הפועל ת"א', 83, 79, "he"),
     ('תקציר משחק האליפות: הפועל ת"א - מכבי Rapyd ת"א 83:79 (גמר פלייאוף משחק 4)',
-     VideoKind.HIGHLIGHTS, 'הפועל ת"א', 79, 83, "he"),
+     VideoKind.HIGHLIGHTS, 'הפועל ת"א', 83, 79, "he"),
+    ("Championship Game Highlights: Hapoel Tel Aviv - Maccabi Rapyd Tel Aviv 79:83",
+     VideoKind.HIGHLIGHTS, "Hapoel Tel Aviv", 83, 79, "en"),
 ])
 def test_parses_game_titles(title, kind, opponent, maccabi, opponent_points, language):
     parsed = parse_game_video_title(title)
@@ -53,26 +71,26 @@ def test_parses_game_titles(title, kind, opponent, maccabi, opponent_points, lan
      VideoKind.HIGHLIGHTS, "Hapoel Tel Aviv", 83, 79),
     # A qualifier between the keyword and the colon.
     ('המשחק המלא (חצי גמר פלייאוף משחק 1): מכבי Rapyd ת"א - הפועל חולון 93:107',
-     VideoKind.FULL_GAME, "הפועל חולון", 93, 107),
+     VideoKind.FULL_GAME, "הפועל חולון", 107, 93),
     ('המשחק המלא, גמר גביע המדינה 2025/26: מכבי Rapyd ת"א - בני הרצליה 90:109',
-     VideoKind.FULL_GAME, "בני הרצליה", 90, 109),
+     VideoKind.FULL_GAME, "בני הרצליה", 109, 90),
     ('תקציר מחזור 8 יורוליג: מכבי Rapyd ת"א - הכוכב האדום 99:92',
-     VideoKind.HIGHLIGHTS, "הכוכב האדום", 99, 92),
+     VideoKind.HIGHLIGHTS, "הכוכב האדום", 92, 99),
     ('תקציר גמר גביע המדינה: מכבי Playtika תל אביב - הפועל ירושלים 72:87',
-     VideoKind.HIGHLIGHTS, "הפועל ירושלים", 72, 87),
+     VideoKind.HIGHLIGHTS, "הפועל ירושלים", 87, 72),
     # A pipe where the colon usually goes.
     ('תרכיז המשחק | מכבי Rapyd ת"א - הכוכב האדום 99:92',
-     VideoKind.CONDENSED, "הכוכב האדום", 99, 92),
+     VideoKind.CONDENSED, "הכוכב האדום", 92, 99),
     ('תרכיז המשחק | פנאתינייקוס - מכבי Rapyd ת"א 85:99',
-     VideoKind.CONDENSED, "פנאתינייקוס", 99, 85),
+     VideoKind.CONDENSED, "פנאתינייקוס", 85, 99),
     # The keyword trailing the title instead of leading it.
     ('מכבי Rapyd ת"א - ריאל מדריד 91:92 המשחק המלא',
-     VideoKind.FULL_GAME, "ריאל מדריד", 91, 92),
+     VideoKind.FULL_GAME, "ריאל מדריד", 92, 91),
     # "מול" used as the separator instead of a dash.
     ("תקציר: הפועל חולון מול מכבי Playtika תל אביב 76:82 (ליגת העל, מחזור 27)",
-     VideoKind.HIGHLIGHTS, "הפועל חולון", 82, 76),
+     VideoKind.HIGHLIGHTS, "הפועל חולון", 76, 82),
     ("תקציר: מכבי Playtika תל אביב מול פנאתינייקוס 95:88 (פלייאוף היורוליג, משחק מספר 4)",
-     VideoKind.HIGHLIGHTS, "פנאתינייקוס", 95, 88),
+     VideoKind.HIGHLIGHTS, "פנאתינייקוס", 88, 95),
     # The English name for a תרכיז.
     ("Condensed Game: Valencia Basket - Maccabi Playtika Tel Aviv 93:94 | התרכיז: ולנסיה מול מכבי",
      VideoKind.CONDENSED, "Valencia Basket", 94, 93),
@@ -119,7 +137,7 @@ def test_player_compilation_with_a_game_score_is_still_rejected():
 @pytest.mark.parametrize("title,opponent,maccabi,opponent_points", [
     ("Highlights: Maccabi Rapyd Tel Aviv - Maccabi Rishon LeZion 86:81", "Maccabi Rishon LeZion", 86, 81),
     ("Highlights: Maccabi FOX Tel Aviv - Maccabi Haifa 67:59", "Maccabi Haifa", 67, 59),
-    ('תקציר המשחק: מכבי Rapyd ת"א - מכבי רעננה 95:75', "מכבי רעננה", 95, 75),
+    ("Game Highlights: Maccabi Rapyd Tel Aviv vs. Maccabi Ra'anana 95:75", "Maccabi Ra'anana", 95, 75),
 ])
 def test_another_maccabi_club_is_not_mistaken_for_maccabi_tel_aviv(title, opponent, maccabi, opponent_points):
     """Several opponents are themselves named Maccabi, so a bare-Maccabi rule must not

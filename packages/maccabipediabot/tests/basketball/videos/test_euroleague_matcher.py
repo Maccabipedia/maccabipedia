@@ -93,7 +93,8 @@ def test_a_row_without_a_leg_cannot_be_claimed_by_a_round():
 
 def test_the_club_channel_keeps_the_first_slot():
     """Both matchers run over the same rows, the club's own video first."""
-    club_entry = VideoEntry("club1", 'תקציר המשחק: מכבי Rapyd ת"א - פנאתינייקוס 85:99',
+    # Hebrew reads right to left: this is Maccabi 85, Panathinaikos 99.
+    club_entry = VideoEntry("club1", 'תקציר המשחק: מכבי Rapyd ת"א - פנאתינייקוס 99:85',
                             180, "2025/26", "2025/26 Season", None)
     club_matches = match_videos([club_entry], ROWS, {})
     euroleague_matches = match_euroleague_videos(
