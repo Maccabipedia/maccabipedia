@@ -11,6 +11,9 @@ class WikiClient:
     def __init__(self, config: Config) -> None:
         self._config = config
         self._session = requests.Session()
+        # maccabipedia's Imunify360 WAF 415s the default wildcard Accept (*/*); send a concrete
+        # value. MediaWiki ignores Accept (format is set by the `format` param) so bodies are unchanged.
+        self._session.headers["Accept"] = "application/json"
         self._csrf_token: str | None = None
 
     @property

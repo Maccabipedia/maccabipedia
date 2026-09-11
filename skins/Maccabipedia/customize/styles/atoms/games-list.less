@@ -127,16 +127,6 @@
     .result-indicator {
         height: 2px;
 
-        &.win {
-            background-color: @background-contrast-regular;
-        }
-
-        &.loose {
-            background-color: @background-primary-darker;
-        }
-
-        &.tie {
-            background-color: @background-secondary-lighter;
-        }
+        .game-result-colors();
     }
 }

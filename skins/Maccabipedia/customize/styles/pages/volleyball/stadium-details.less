@@ -3,7 +3,11 @@
         .disclaimer();
     }
 
-    .entity-profile {
+    .profile-container {
+        .viewport-wide-start-from(@viewport-large; {
+                grid-template-columns: auto repeat(3, 20%) 1fr !important;
+            });
+
         .banner-decorator-container {
             display: none;
 

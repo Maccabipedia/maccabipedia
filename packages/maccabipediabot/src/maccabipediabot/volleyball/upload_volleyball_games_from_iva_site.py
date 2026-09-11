@@ -13,13 +13,13 @@ import requests
 from maccabipediabot.volleyball.volleyball_common import TEAM_NAMES_REPLACER, STADIUMS_NAMES
 from maccabipediabot.volleyball.gamesbot_volleyball import VolleyballGame, create_or_update_volleyball_game_pages
 
-WEB_ADDRESS_FOR_MACCABI_LEAGUE_GAMES = 'https://iva.org.il/team/?TeamId=34149&cYear=2026'
+WEB_ADDRESS_FOR_MACCABI_LEAGUE_GAMES = 'https://iva.org.il/team/?TeamId=97Kjdl&cYear=2027'
 MACCABI_NAMES = ['מכבי יעדים תל-אביב', 'מכבי תל אביב', 'מכבי יעדים תל אביב']
 LEAGUE_NAME_AS_IT_DISPLAYED_IN_IVA_SITE = 'ליגת על גברים'
 TROPHY_NAME_AS_IT_DISPLAYED_IN_IVA_SITE = 'גביע המדינה לגברים'
 LEAGUE_NAME = 'ליגת העל'
 TROPHY_NAME = 'גביע המדינה'
-CURRENT_SEASON = '2025/26'
+CURRENT_SEASON = '2026/27'
 
 
 def create_volleyball_game_from_dataframe_row(row: pd.Series) -> VolleyballGame:

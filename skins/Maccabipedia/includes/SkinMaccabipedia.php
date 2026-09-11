@@ -1,6 +1,6 @@
 <?php
 /**
- * Maccabipedia skin — successor to Metrolook.
+ * Maccabipedia skin.
  *
  * SkinMustache-based skin built around declarative data builders + mustache
  * iteration. The skin's responsibilities, roughly: build menu data arrays
@@ -8,10 +8,7 @@
  * delegate everything else to MW core.
  *
  * This is the default skin. Its LESS/JS source lives under
- * `skins/Maccabipedia/` (own `skins.maccabipedia.*` ResourceLoader modules,
- * no runtime dependency on Metrolook). The legacy Metrolook skin stays
- * vendored at `skins/Metrolook/` as an opt-in fallback and is no longer
- * maintained.
+ * `skins/Maccabipedia/` (own `skins.maccabipedia.*` ResourceLoader modules).
  *
  * @file
  * @ingroup Skins
@@ -44,9 +41,9 @@ class SkinMaccabipedia extends SkinMustache {
 		// SkinMustache's default `html-title-heading` wraps the title in
 		// <h1 class="firstHeading">; our `.firstHeading` rule has font-size:140%
 		// which would scale the .mw-page-title-main span inside the yellow
-		// .maccabipedia-page-title bar from 1.1rem to ~25px. Match Metrolook's
-		// $this->html('title') emission — bare <span class="mw-page-title-main">
-		// via OutputPage::getPageTitle().
+		// .maccabipedia-page-title bar from 1.1rem to ~25px. Emit a bare
+		// <span class="mw-page-title-main"> via OutputPage::getPageTitle()
+		// instead.
 		$data['html-title-heading'] = $this->getOutput()->getPageTitle();
 		$data['data-app-header'] = $this->buildAppHeaderData();
 		$data['data-app-footer'] = $this->buildAppFooterData();
@@ -255,10 +252,9 @@ class SkinMaccabipedia extends SkinMustache {
 	}
 
 	/**
-	 * Search input — Metrolook used $this->makeSearchInput(['class' => 'text-field']).
-	 * SkinMustache's data-search-box.html-input has no class hook, so we build
-	 * the input ourselves to keep the .text-field CSS rules in app-header.less
-	 * applying.
+	 * Search input — SkinMustache's data-search-box.html-input has no class
+	 * hook, so we build the input ourselves to keep the .text-field CSS rules
+	 * in app-header.less applying.
 	 */
 	private function buildSearchInputHtml(): string {
 		return Html::input( 'search', '', 'search', [

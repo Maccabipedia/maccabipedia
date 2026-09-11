@@ -1,41 +1,17 @@
-import json
 import logging
 import re
 from datetime import datetime, timedelta
 from typing import List, Optional
 
 import bs4
-import requests
 from bs4 import BeautifulSoup
-from requests.adapters import HTTPAdapter
-from urllib3.util.retry import Retry
 
 from maccabipediabot.calendar.calendar_operations import Event
+from maccabipediabot.common.maccabipedia_http import build_maccabipedia_session, parse_cargo_rows
 
 _logger = logging.getLogger(__name__)
 
-# MaccabiPedia occasionally serves a transient 415 from an openresty proxy (the normal server is nginx),
-# seen around ~19:00 UTC and enough to crash the scheduled football calendar workflow. Retry across those
-# blips instead of failing the daily job. Mirrors maccabistats' MaccabiPediaCargoChunksCrawler session.
-_RETRYABLE_STATUSES = (408, 415, 429, 500, 502, 503, 504)
-
-
-def _build_session() -> requests.Session:
-    session = requests.Session()
-    retry = Retry(
-        total=5,
-        backoff_factor=2,
-        status_forcelist=_RETRYABLE_STATUSES,
-        allowed_methods=frozenset(["GET"]),
-        raise_on_status=False,
-    )
-    adapter = HTTPAdapter(max_retries=retry)
-    session.mount("http://", adapter)
-    session.mount("https://", adapter)
-    return session
-
-
-_session = _build_session()
+_session = build_maccabipedia_session()
 
 
 def get_channel(x: str) -> str:
@@ -188,10 +164,9 @@ def handle_game(game: bs4.element.Tag) -> Event:
     response = _session.get(
         f"https://www.maccabipedia.co.il/index.php?title=Special:CargoExport&format=json&tables=Football_Games&fields=_pageName&where=Football_Games.Date='{game_date.date()}'")
     response.raise_for_status()
-    page_name = json.loads(response.text)
-    if page_name and '_pageName' in page_name[0]:
-        page_name = page_name[0]['_pageName']
-        page_name = re.sub(r"\s+", '_', page_name)  # Replacing spaces/whitespace with underscore
+    rows = parse_cargo_rows(response)
+    if rows and '_pageName' in rows[0]:
+        page_name = re.sub(r"\s+", '_', rows[0]['_pageName'])  # Spaces/whitespace to underscore
         game_page_link = f'\n<a href="https://maccabipedia.co.il/{page_name}">עמוד המשחק</a>'
     else:
         page_name = ''

@@ -2,7 +2,7 @@
 import logging
 from collections.abc import Iterator
 from collections import deque
-from typing import Dict
+from typing import Dict, List
 import html
 
 import requests
@@ -16,13 +16,18 @@ logger = logging.getLogger(__name__)
 _MAX_LIMIT_PER_REQUEST = 5000  # mediawiki api hardcoded limit
 _MUST_HAVE_FIELDS = "_pageName"
 
-# MaccabiPedia occasionally serves transient 415 from an openresty proxy (normal server is nginx);
-# seen twice in six days at ~19:00 UTC. Retry across those blips instead of failing the daily job.
+# MaccabiPedia's Imunify360 WAF returns HTTP 415 to requests whose Accept header is the default
+# wildcard */* (fires for datacenter IPs, so it broke scheduled CI jobs). Send a concrete Accept;
+# MediaWiki ignores it (format comes from &format=json) so no response body changes.
+_MACCABIPEDIA_JSON_HEADERS = {"Accept": "application/json"}
+
+# The same edge also serves transient 415/5xx blips; retry across those instead of failing the job.
 _RETRYABLE_STATUSES = (408, 415, 429, 500, 502, 503, 504)
 
 
 def _build_session() -> requests.Session:
     session = requests.Session()
+    session.headers.update(_MACCABIPEDIA_JSON_HEADERS)
     retry = Retry(
         total=5,
         backoff_factor=2,
@@ -89,7 +94,7 @@ class MaccabiPediaCargoChunksCrawler(Iterator):
                               f"status code: {request_result.status_code}, text: {request_result.text}")
             raise ValueError(f"status code {request_result.status_code} while fetching data from maccabipedia")
 
-        current_request_as_json = request_result.json()
+        current_request_as_json = self._parse_cargo_rows(request_result)
         self._current_offset += _MAX_LIMIT_PER_REQUEST
 
         # We have received smaller amount than the limit, that is the last query
@@ -99,6 +104,33 @@ class MaccabiPediaCargoChunksCrawler(Iterator):
         # Add to queue for iteration
         [self._already_fetched_data_queue.append(self._decode_maccabipedia_data_and_remove_nones(data)) for data in
          current_request_as_json]
+
+    @staticmethod
+    def _parse_cargo_rows(request_result: requests.Response) -> List[Dict]:
+        """CargoExport owes us a JSON array of row objects. Pinning `Accept: application/json`
+        stopped the WAF's HTTP 415s, but ~15% of CI runs still get a 200 whose body parses as a
+        bare JSON *string* — an edge/WAF block page, not wiki data. That used to surface far from
+        the cause as "'str' object has no attribute 'items'", so fail here instead and log the
+        raw body: the block can't be reproduced off a datacenter IP, so CI is our only witness.
+        """
+        try:
+            payload = request_result.json()
+        except ValueError as parse_error:
+            logger.error(f"CargoExport returned a non-JSON body from {request_result.url}, "
+                         f"server: {request_result.headers.get('Server')}, "
+                         f"content-type: {request_result.headers.get('Content-Type')}, "
+                         f"body: {request_result.text[:800]!r}")
+            raise ValueError(f"CargoExport returned a non-JSON body: {parse_error}")
+
+        if not isinstance(payload, list):
+            logger.error(f"CargoExport returned a bare {type(payload).__name__} instead of a row array "
+                         f"from {request_result.url}, "
+                         f"server: {request_result.headers.get('Server')}, "
+                         f"content-type: {request_result.headers.get('Content-Type')}, "
+                         f"body: {request_result.text[:800]!r}")
+            raise ValueError(f"CargoExport returned a bare {type(payload).__name__}, expected a row array")
+
+        return payload
 
     @staticmethod
     def _decode_maccabipedia_data_and_remove_nones(maccabipedia_data) -> Dict:

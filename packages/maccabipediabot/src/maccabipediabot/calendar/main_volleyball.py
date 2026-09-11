@@ -8,15 +8,17 @@ import re
 from datetime import datetime, timedelta
 from typing import Dict, List
 
-import requests
 from dotenv import load_dotenv
 
+from maccabipediabot.common.maccabipedia_http import build_maccabipedia_session, parse_cargo_rows
 from maccabipediabot.calendar.calendar_operations import fetch_games_from_calendar, update_event, upload_event, delete_event, Event
 from maccabipediabot.calendar.google_calendar_api import initialize_global_google_service_account_from_memory_json
 from maccabipediabot.volleyball.upload_volleyball_games_from_iva_site import extract_games_metadata
 from maccabipediabot.volleyball.volleyball_game import VolleyballGame
 
 _logger = logging.getLogger(__name__)
+
+_session = build_maccabipedia_session()
 
 
 def load_game_overrides() -> Dict:
@@ -135,12 +137,11 @@ def format_result(game: VolleyballGame) -> str:
 
 def cast_game_to_google_event(game: VolleyballGame) -> Event:
     # Get link to game page at maccabipedia
-    response = requests.get(
+    response = _session.get(
         f"https://www.maccabipedia.co.il/index.php?title=Special:CargoExport&format=json&tables=Volleyball_Games&fields=_pageName&where=Volleyball_Games.Date='{game.date.date().strftime('%Y-%m-%d')}'")
-    page_name = json.loads(response.text)
-    if page_name and '_pageName' in page_name[0]:
-        page_name = page_name[0]['_pageName']
-        page_name = re.sub(r"\s+", '_', page_name)  # Replacing spaces/whitespace with underscore
+    rows = parse_cargo_rows(response)
+    if rows and '_pageName' in rows[0]:
+        page_name = re.sub(r"\s+", '_', rows[0]['_pageName'])  # Spaces/whitespace to underscore
         game_page_link = f'\n<a href="https://maccabipedia.co.il/{page_name}">עמוד המשחק</a>'
     else:
         page_name = ''

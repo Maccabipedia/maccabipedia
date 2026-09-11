@@ -9,9 +9,14 @@ setup_logging(level=logging.DEBUG)
 
 
 def fetch_games_from_maccabi_tlv_site() -> None:
-    # Season 2025/26
-    os.environ['START_SEASON_TO_CRAWL'] = '86'
+    # Season 2026/27
+    os.environ['START_SEASON_TO_CRAWL'] = '87'
     logging.info(f"Fetching maccabi tlv site games with start season: {os.environ['START_SEASON_TO_CRAWL']}")
+
+    # The crawler iterates range(START_SEASON_TO_CRAWL, max_seasons_to_crawl), so the
+    # ceiling is an *exclusive* upper bound and must sit one past the newest season page
+    # or that season is silently skipped. Bump both together every season rollover.
+    MaccabiStatsConfigSingleton.maccabi_site.max_seasons_to_crawl = 88
 
     MaccabiStatsConfigSingleton.maccabi_site.use_multiprocess_crawling = False
     logging.info(

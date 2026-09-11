@@ -132,9 +132,3 @@ pywikibot.lwp
 .claude/tmp/
 .mcp.json
 docs/superpowers/
-
-# Metrolook binary banners (~5.9 MB) — pulled into
-# infra/local-wiki/synced/skins/Metrolook/assets/ via sync-from-prod.sh and
-# bind-mounted at runtime. The .gitkeep keeps the mountpoint in git.
-/skins/Metrolook/assets/*
-!/skins/Metrolook/assets/.gitkeep

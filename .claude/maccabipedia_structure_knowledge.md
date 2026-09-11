@@ -289,6 +289,16 @@ Pill-style navigation strips on player/staff achievement category pages, rendere
 
 Each template uses DPL with a regex on category titles (`[1-9]` or `[1-9][0-9]` for the count) plus a `PAGESINCATEGORY > 0` filter, so only categories with at least one member appear in the strip. New milestone categories materialize automatically when a player gets categorized — no need to pre-create them.
 
+### Why milestone counts go stale (and the refresh job)
+
+The "won N titles" / "played N seasons" count is computed **live** inside `תבנית:פרופיל כדורגל/הצגת פרטי שחקן` from Cargo data (`סך הכל תארים` = the player's Maccabi seasons ∩ Maccabi's title-winning seasons). MediaWiki does **not** re-parse a profile page when that underlying Cargo data changes, so after a new title is recorded the page keeps emitting its old `שזכו ב-N תארים` category until something forces a reparse. A new top milestone (e.g. `שזכו ב-18 תארים`) then never gains a member — it stays red-linked and absent from the nav strip.
+
+The game-upload purge (`gamesbot.collect_related_pages_from_game`) only refreshes players who **appeared in the uploaded game**, and the trophy itself is a separate `Achievements` row written by a season-page edit that purges no profiles at all — so even a full-time starter goes stale.
+
+The catch-all is `maintenance/football/refresh_by_category.py`, run by a daily cron (`.github/workflows/refresh_player_profiles.yaml`, 01:00) that then runs `sync_navigation_categories` so the repopulated milestone categories get their page + nav template. `sync_navigation_categories` alone can't fix this — it only touches category pages, and a zero-member milestone has none to touch.
+
+**Scope matters for cost.** By default the job refreshes only players from the **two most recent seasons** (~42 pages, ~1.5 min), resolved via Cargo (`Games_Events` joined to `Football_Games`, `Team=1` for Maccabi). That's the exact set whose counts can change, since the template derives titles from *seasons the player played*. Two seasons rather than one because seasons roll over mid-July while a title for the season that just ended is recorded around then — refreshing only the newest season would miss winners who left over the summer. `--all` sweeps every profile (~800 pages, **~28 min**) and is only needed after historical `Achievements` rewrites; run it by hand, not on a schedule. Note `wiki_purge`'s default 50-page chunk overshoots the 45s read timeout on these Cargo-heavy pages, so the job batches in tens ([[project_profile_purge_batch_size]]).
+
 ### Maintenance script
 
 `packages/maccabipediabot/src/maccabipediabot/maintenance/sync_navigation_categories.py` enumerates every category found by `site.allcategories(...)` matching the four patterns, builds the canonical template invocation, and overwrites any page whose wikitext doesn't already match. Then purges all matched pages with `forcelinkupdate=true` so DPL caches refresh. Daily cron (`.github/workflows/sync_navigation_categories.yaml`).

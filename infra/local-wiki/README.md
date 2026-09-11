@@ -4,8 +4,7 @@ Runs a local MediaWiki 1.39.11 + PHP 7.4 + MariaDB mirror of the production
 MaccabiPedia site. MediaWiki itself is built into the image. The default
 MaccabiPedia skin is the `SkinMustache`-based skin vendored at
 `<repo-root>/skins/Maccabipedia/` (its binary banner `assets/` are vendored
-too); the legacy fallback skin is vendored at `<repo-root>/skins/Metrolook/`.
-The prod third-party extensions are baked into the Docker image at build time
+too). The prod third-party extensions are baked into the Docker image at build time
 from `extensions.json` (SHA-pinned), so nothing is pulled from prod to render
 the skin. Site-wide config lives in
 `config/LocalSettings.shared.php` which ships byte-equivalent to prod.
@@ -180,9 +179,8 @@ docker compose down -v       # wipe DB + images + install marker
   (extensions are
   baked into the image; the skin's assets are vendored under
   `skins/Maccabipedia/assets/`; the favicon is a vendored webroot file at
-  `config/favicon.ico`). Use it only to seed real content. The skin sources are
-  vendored at `<repo-root>/skins/Maccabipedia/` and `<repo-root>/skins/Metrolook/`
-  and are NOT touched by this script.
+  `config/favicon.ico`). Use it only to seed real content. The skin source is
+  vendored at `<repo-root>/skins/Maccabipedia/` and is NOT touched by this script.
   `site-scripts` pulls `MediaWiki:Common.css` + `MediaWiki:Common.js` (the
   site-wide CSS/JS that back the `site.styles` bundle, CanvasJS hooks, and
   the fanzine form); kept separate from `starter.manifest` because they're

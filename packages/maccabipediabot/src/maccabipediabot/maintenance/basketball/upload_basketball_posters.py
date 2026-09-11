@@ -31,6 +31,7 @@ from datetime import datetime
 import contextlib
 
 from maccabipediabot.common.logging_setup import setup_logging
+from maccabipediabot.common.maccabipedia_http import MACCABIPEDIA_JSON_HEADERS, build_maccabipedia_session, parse_cargo_rows
 from maccabipediabot.common.wiki_login import get_site
 import pywikibot as pw
 from pywikibot.comms import http as pw_http
@@ -40,6 +41,8 @@ logger = logging.getLogger(__name__)
 
 # Connect to maccabipedia
 site = get_site()
+
+_session = build_maccabipedia_session()
 
 API_URL = 'https://www.maccabipedia.co.il/api.php'
 
@@ -103,16 +106,10 @@ def _get_game_page_name(game_date: datetime) -> str:
         f"&where=Basketball_Games.Date='{formatted_date}'"
     )
 
-    response = requests.get(url)
+    response = _session.get(url)
     response.raise_for_status()
 
-    if 'application/json' not in response.headers.get('Content-Type', ''):
-        raise ValueError(
-            f"Non-JSON response from Cargo API for date {formatted_date}. "
-            f"Response: {response.text[:300]}"
-        )
-
-    data = response.json()
+    data = parse_cargo_rows(response)
 
     if not data:
         raise ValueError(f"No basketball game found for date: {formatted_date}")
@@ -157,7 +154,7 @@ def _upload_file_via_requests(poster_file: Path, text: str) -> None:
         },
         files={'file': ('FAKE-NAME', file_data, mime_type)},
         cookies=cookies,
-        headers={'User-Agent': ua},
+        headers={'User-Agent': ua, **MACCABIPEDIA_JSON_HEADERS},
     )
 
     if 'application/json' not in response.headers.get('Content-Type', ''):

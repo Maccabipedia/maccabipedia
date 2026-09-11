@@ -1,3 +1,20 @@
+## Version 2.69 ##
+
+    Validate the CargoExport response shape before iterating it, and log the raw body
+    when it is wrong. The `Accept: application/json` header added in 2.68 did stop the
+    HTTP 415s, but some crawls still receive a 200 whose body parses as a bare JSON
+    string rather than a row array - an edge/WAF block page. That previously surfaced
+    far from its cause as "'str' object has no attribute 'items'"; it now raises a
+    ValueError naming the real problem and logs the response body, server and
+    content-type so the block can be reported to the host.
+
+## Version 2.68 ##
+
+    Send an explicit `Accept: application/json` header on every maccabipedia Cargo
+    request. The host's Imunify360 WAF returns HTTP 415 to the default wildcard `*/*`
+    Accept header for datacenter IPs, which was failing scheduled crawls. MediaWiki
+    ignores Accept (format is set by `&format=json`), so responses are unchanged.
+
 ## Version 2.67 ##
 
     Skip unfinished maccabi-tlv.co.il matches in the season crawler so the football

@@ -26,10 +26,10 @@ LOCAL_TEAM_NAMES_REPLACER = {
     # put entries here as 'original_team_name': 'modified_team_name'
 }
 
-LEAGUE_TABLE_TEMPLATE_ON_MACCABIPEDIA = 'תבנית:טבלת ליגת כדורעף 2025/26'
+LEAGUE_TABLE_TEMPLATE_ON_MACCABIPEDIA = 'תבנית:טבלת ליגת כדורעף 2026/27'
 _TABLE_STATUS_KEY = 'טבלה'
 
-IVA_LEAGUE_TABLE_URL = 'https://iva.org.il/league/?LeagueId=7505&cYear=2026'
+IVA_LEAGUE_TABLE_URL = 'https://iva.org.il/league/?LeagueId=eaOcdd&cYear=2027'
 
 from maccabipediabot.common.logging_setup import setup_logging
 setup_logging(level=logging.DEBUG)

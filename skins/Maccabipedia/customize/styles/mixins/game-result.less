@@ -1,0 +1,13 @@
+.game-result-colors(@property: background-color) {
+    &.win {
+        @{property}: @background-contrast-regular;
+    }
+
+    &.loose {
+        @{property}: @background-primary-darker;
+    }
+
+    &.tie {
+        @{property}: @background-secondary-lighter;
+    }
+}

@@ -1,0 +1,39 @@
+.stadium-details-page-container.basketball {
+    .entity-profile {
+        .profile-container {
+            .banner-text-section {
+                .text.columns {
+                    display: block;
+
+                    column-count: 2;
+
+                    .viewport-wide-start-from(@viewport-small; {
+                            column-count: 3;
+                        });
+
+                    .viewport-wide-start-from(@viewport-large; {
+                            column-count: 2;
+                        });
+
+                    >* {
+                        break-inside: avoid;
+                    }
+                }
+            }
+        }
+    }
+
+    .details-records-lists-container {
+        .viewport-wide-start-from(@viewport-large; {
+                display: grid;
+                grid-template-columns: repeat(4, 1fr);
+                gap: @space-xLarge;
+            });
+
+        .record-section-container {
+            .title {
+                .title-decorator(@background-contrast-regular, @white, @background-primary);
+            }
+        }
+    }
+}

@@ -157,8 +157,7 @@ def test_regular_user_panel_on_maccabipedia(
 
 def test_edit_mode_shows_back_to_article_link(maccabipedia_edit_mode_html: str) -> None:
     """When ?action=edit is on the URL the edit dropdown should show
-    "חזור לערך" (back to article view) instead of "עריכה" (open editor) —
-    matches Metrolook's behavior."""
+    "חזור לערך" (back to article view) instead of "עריכה" (open editor)."""
     assert ">חזור לערך</a>" in maccabipedia_edit_mode_html, (
         "in action=edit mode, expected back-to-article link in the edit dropdown"
     )

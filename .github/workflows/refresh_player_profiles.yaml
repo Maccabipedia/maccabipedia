@@ -1,0 +1,47 @@
+name: Refresh player profiles
+
+# Player "won N titles" / "played N seasons" categories are computed live from
+# Cargo data and go stale when new titles/seasons are recorded (MediaWiki does
+# not re-parse the profile pages on data change). This job purges the players of
+# the two most recent seasons — the only ones whose counts can change — so those
+# categorylinks refresh, then runs sync_navigation_categories so any freshly
+# populated milestone category gets its page + navigation template.
+# A full sweep (--all, ~28 min) is only needed after historical Achievements
+# rewrites; run that by hand rather than on this schedule.
+# Runs daily at 01:00, before the 03:00 sync cron, so a same-day sync also catches the changes.
+on:
+  schedule:
+    - cron: "0 1 * * *"
+  workflow_dispatch:
+
+jobs:
+  refresh-player-profiles:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: 3.11
+          architecture: x64
+      - uses: astral-sh/setup-uv@v7
+      - name: Install dependencies
+        run: uv sync
+      - name: Refresh football profiles so milestone categories repopulate
+        env:
+          PYWIKIBOT_DIR: packages/maccabipediabot/src/maccabipediabot/pywikibot_configs/
+          MACCABIPEDIA_BOT_USERNAME: ${{ secrets.MACCABIPEDIA_BOT_USERNAME }}
+          MACCABIPEDIA_BOT_PASSWORD: ${{ secrets.MACCABIPEDIA_BOT_PASSWORD }}
+        run: uv run python -m maccabipediabot.maintenance.football.refresh_by_category --live
+      - name: Install navigation templates on the repopulated milestone categories
+        env:
+          PYWIKIBOT_DIR: packages/maccabipediabot/src/maccabipediabot/pywikibot_configs/
+          MACCABIPEDIA_BOT_USERNAME: ${{ secrets.MACCABIPEDIA_BOT_USERNAME }}
+          MACCABIPEDIA_BOT_PASSWORD: ${{ secrets.MACCABIPEDIA_BOT_PASSWORD }}
+        run: uv run python -m maccabipediabot.maintenance.sync_navigation_categories --live
+  workflow-keepalive:
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - uses: liskin/gh-workflow-keepalive@v1

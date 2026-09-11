@@ -34,7 +34,6 @@ services:
       # extensions.json) — nothing is fetched from prod, so a fresh worktree
       # boots with `docker compose up -d --build` and no prod fetch.
       - ../../skins/Maccabipedia:/var/www/html/skins/Maccabipedia:ro
-      - ../../skins/Metrolook:/var/www/html/skins/Metrolook:ro
       - ./config:/mw-config:ro
       - ./config/htaccess:/var/www/html/.htaccess:ro
       - ./config/favicon.ico:/var/www/html/favicon.ico:ro

@@ -7,9 +7,12 @@ from urllib.parse import quote
 import aiohttp
 import mwparserfromhell as mw
 import pywikibot as pw
-import requests
+
+from maccabipediabot.common.maccabipedia_http import build_maccabipedia_session, parse_cargo_rows
 
 logger = logging.getLogger(__name__)
+
+_session = build_maccabipedia_session()
 
 CARGO_BASE = (
     "https://www.maccabipedia.co.il/index.php"
@@ -94,12 +97,10 @@ def format_removal_report(removed: list[BrokenVideo], report_date: date) -> str:
 def _fetch_from_table(table: str, fields: dict[str, str]) -> list[tuple[str, str, str]]:
     """Returns (page_name, url, label) for every non-null video URL in the given table."""
     fields_str = "_pageName," + ",".join(fields.keys())
-    response = requests.get(f"{CARGO_BASE}&tables={table}&fields={fields_str}")
+    response = _session.get(f"{CARGO_BASE}&tables={table}&fields={fields_str}")
     response.raise_for_status()
-    if "application/json" not in response.headers.get("Content-Type", ""):
-        raise ValueError(f"Unexpected Content-Type from Cargo for {table}: {response.text[:200]}")
     result = []
-    for row in response.json():
+    for row in parse_cargo_rows(response):
         page_name = row["_pageName"]
         for field, label in fields.items():
             video_url = row.get(field)

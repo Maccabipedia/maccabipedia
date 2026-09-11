@@ -2,7 +2,7 @@
 
 A dropped ``*`` turns a comment close ``*/`` into a bare ``/``, leaving the
 comment open until the *next* ``*/`` — which silently swallows every rule in
-between. This bit the Metrolook skin when an automated edit changed
+between. This bit a skin once when an automated edit changed
 ``/* --- Top 10 Players Tables --- */`` to ``... --- /``: prod's ``less.php``
 dropped the whole file, taking the ``.slim-tabs`` tab-switching engine with it
 (tabs rendered but stopped switching), while node ``less.js`` in CI/dev tolerated

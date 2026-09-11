@@ -228,9 +228,11 @@
             border-block-start: 0;
 
             .table-row {
-                font-size: @font-size-small-rem;
                 border-block-end: 1px solid @gray-lightest;
+                border-inline-start: 2px solid;
+                font-size: @font-size-small-rem;
                 .transition(@transition-fast, background-color);
+                .game-result-colors(border-inline-color);
 
                 &:hover {
                     background-color: @gray-lightest;

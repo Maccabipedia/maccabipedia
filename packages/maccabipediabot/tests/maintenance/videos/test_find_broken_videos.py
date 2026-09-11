@@ -86,7 +86,7 @@ def test_fetch_from_table_returns_video_entries():
     ]
     fields = {"FullGame": "משחק מלא", "Highlights": "תקציר ראשי", "Highlights2": "תקציר משני"}
     with patch(
-        "maccabipediabot.maintenance.videos.find_broken_videos.requests.get",
+        "maccabipediabot.maintenance.videos.find_broken_videos._session.get",
         return_value=mock_response,
     ):
         entries = _fetch_from_table("Games_Videos", fields)
@@ -108,7 +108,7 @@ def test_fetch_from_table_skips_null_urls():
     ]
     fields = {"FullGame": "משחק מלא", "Highlights": "תקציר ראשי", "Highlights2": "תקציר משני"}
     with patch(
-        "maccabipediabot.maintenance.videos.find_broken_videos.requests.get",
+        "maccabipediabot.maintenance.videos.find_broken_videos._session.get",
         return_value=mock_response,
     ):
         entries = _fetch_from_table("Games_Videos", fields)
@@ -120,7 +120,7 @@ def test_fetch_from_table_raises_on_http_error():
     mock_response = Mock()
     mock_response.raise_for_status.side_effect = requests.HTTPError("500")
     with patch(
-        "maccabipediabot.maintenance.videos.find_broken_videos.requests.get",
+        "maccabipediabot.maintenance.videos.find_broken_videos._session.get",
         return_value=mock_response,
     ):
         with pytest.raises(requests.HTTPError):
@@ -130,13 +130,30 @@ def test_fetch_from_table_raises_on_http_error():
 def test_fetch_from_table_raises_on_non_json_response():
     mock_response = Mock()
     mock_response.raise_for_status = Mock()
-    mock_response.headers = {"Content-Type": "text/html"}
+    mock_response.headers = {"Content-Type": "text/html", "Server": "openresty"}
     mock_response.text = "<html>error</html>"
+    mock_response.json = Mock(side_effect=ValueError("Expecting value: line 1 column 1"))
     with patch(
-        "maccabipediabot.maintenance.videos.find_broken_videos.requests.get",
+        "maccabipediabot.maintenance.videos.find_broken_videos._session.get",
         return_value=mock_response,
     ):
-        with pytest.raises(ValueError, match="Unexpected Content-Type"):
+        with pytest.raises(ValueError, match="CargoExport returned a non-JSON body"):
+            _fetch_from_table("Games_Videos", {"FullGame": "משחק מלא"})
+
+
+def test_fetch_from_table_raises_on_object_instead_of_rows():
+    """``for row in <dict>`` walks the dict's *keys*, so this used to surface as an opaque
+    'string indices must be integers' — one of the WAF-hunt crash signatures."""
+    mock_response = Mock()
+    mock_response.raise_for_status = Mock()
+    mock_response.headers = {"Content-Type": "application/json", "Server": "openresty"}
+    mock_response.text = '{"error": "query failed"}'
+    mock_response.json = Mock(return_value={"error": "query failed"})
+    with patch(
+        "maccabipediabot.maintenance.videos.find_broken_videos._session.get",
+        return_value=mock_response,
+    ):
+        with pytest.raises(ValueError, match="CargoExport returned a bare dict"):
             _fetch_from_table("Games_Videos", {"FullGame": "משחק מלא"})
 
 

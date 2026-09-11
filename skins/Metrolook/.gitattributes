@@ -1,7 +1,0 @@
-# Vendored upstream content — preserve byte-for-byte. The repo-root
-# .gitattributes sets `* text=auto eol=lf` which silently strips CRLF
-# from .less files on commit, diverging us from what's on prod's FTP.
-# `-text` unsets the text classification; `-eol` unsets the line-ending
-# enforcement (without it, `eol=lf` from the parent still implies
-# `text=auto` and re-enables normalization).
-* -text -eol

@@ -150,10 +150,7 @@ $wgNativeImageLazyLoading = true;
 ## names, ie 'vector', 'monobook':
 $wgDefaultSkin = "Maccabipedia";
 
-# Enabled skins. Maccabipedia is the default; Metrolook stays loaded as an
-# opt-in fallback (selectable via ?useskin=metrolook or via
-# Special:Preferences, and for users who already chose it).
-wfLoadSkin('Metrolook');
+# Enabled skins. Maccabipedia is the default and the only loaded skin.
 wfLoadSkin('Maccabipedia');
 
 
@@ -263,8 +260,8 @@ wfLoadExtension('WikiSEO'); // https://www.mediawiki.org/wiki/Extension:WikiSEO,
 $wgWikiSeoDefaultImage = 'File:Maccabipedia logo.png';
 $wgTwitterSiteHandle = '@maccabipedia';
 
-# Core logo. No skin actually uses it (Metrolook + Maccabipedia each render
-# their own app-header logo), but WikiSEO reads it for the schema.org
+# Core logo. No skin actually uses it (Maccabipedia renders its own
+# app-header logo), but WikiSEO reads it for the schema.org
 # publisher logo in its JSON-LD — left unset it falls back to MediaWiki's
 # change-your-logo.svg placeholder. Point it at the same image as
 # $wgWikiSeoDefaultImage above: the uploaded File "Maccabipedia logo.png"
