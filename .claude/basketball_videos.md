@@ -39,6 +39,30 @@ title, so the key is **season + round + opponent**, the round matching the `Leg`
   `translations.canonical_team_name()` is deliberately NOT used here: it rewrites
   towards the spelling used for NEW uploads, away from what the old pages hold.
 
+## The 1-10 confidence score
+
+Every proposed match carries one, and the review page is ordered by it rather than by
+season, so the weak end is where a reviewer starts. It is built from evidence that can
+be checked, weighted towards the one piece that does not come from the title: when the
+video was uploaded.
+
+| score | what it means |
+|---|---|
+| 10 | unique score that season, opponent recognised outright, uploaded within days |
+| 9 | the same, but the upload came weeks or months later |
+| 7 | the same, but an archive upload whose date says nothing either way |
+| 1 | uploaded before the game, so the pairing cannot be right |
+
+Points come off for a score shared by more than one game that season, an opponent name
+that had to be assumed rather than recognised, a name that only matched by containment,
+and a kind guessed from the video's length. `--min-confidence N` refuses to write
+anything below N.
+
+Upload dates come from the watch page's embedded `uploadDate`, one plain concurrent GET
+per video, which is minutes for the whole channel where yt-dlp would be hours. That is
+also why the date can be used to CHOOSE between candidate games, not merely to confirm
+one: a video posted within ten days of exactly one candidate settles it.
+
 ## Where things live
 
 | Path | What |
@@ -49,6 +73,9 @@ title, so the key is **season + round + opponent**, the round matching the `Leg`
 | `basketball/videos/aliases.py` | opponent name comparison |
 | `basketball/videos/matcher.py` | buckets and slot assignment |
 | `basketball/videos/inventory.py`, `rss.py` | the two ways of listing videos |
+| `basketball/videos/upload_dates.py` | bulk upload-date fetch from the watch page |
+| `basketball/videos/dates.py` | game date against upload date |
+| `basketball/videos/confidence.py` | the 1-10 score |
 | `basketball/videos/sampling.py` | the upload-date verification sample |
 | `basketball/videos/report.py` | the review page |
 | `basketball/videos/writing.py` | the writes and the season purge |
