@@ -111,6 +111,7 @@ def _season_section(season: str, matches: list[VideoMatch]) -> str:
 
 _VERDICT_LABELS = {
     "confirmed": "אושר",
+    "late upload": "הועלה באיחור",
     "date mismatch": "תאריך לא תואם",
     "no date signal": "אין אות תאריך",
 }

@@ -30,6 +30,7 @@ DEFAULT_SEED = 20260911
 
 class Verdict(Enum):
     CONFIRMED = "confirmed"
+    LATE_UPLOAD = "late upload"
     DATE_MISMATCH = "date mismatch"
     NO_DATE_SIGNAL = "no date signal"
 
@@ -114,15 +115,22 @@ def _days_between(game_date: str, upload_date: str) -> int | None:
 
 
 def _verdict_for(days_apart: int | None) -> Verdict:
+    """What the upload date says about a match.
+
+    Only a video posted BEFORE the game contradicts the match — that one cannot be
+    this game's video however early it went up. A video posted months afterwards is
+    weak evidence, not a contradiction: the club re-uploads cup finals and classics
+    long after the event, so those are flagged for eyes rather than called wrong.
+    """
     if days_apart is None:
         return Verdict.NO_DATE_SIGNAL
-    # Only a LATE upload can be archival. A video posted before the game was played
-    # cannot be that game's video, however long before, so that stays a mismatch.
+    if days_apart < 0:
+        return Verdict.DATE_MISMATCH
+    if days_apart <= _CONFIRM_WINDOW_DAYS:
+        return Verdict.CONFIRMED
     if days_apart > _ARCHIVAL_THRESHOLD_DAYS:
         return Verdict.NO_DATE_SIGNAL
-    if 0 <= days_apart <= _CONFIRM_WINDOW_DAYS:
-        return Verdict.CONFIRMED
-    return Verdict.DATE_MISMATCH
+    return Verdict.LATE_UPLOAD
 
 
 def verify_sample(sample: list[VideoMatch], rows_by_page: dict[str, GameRow],

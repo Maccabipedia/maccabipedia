@@ -98,13 +98,23 @@ def test_cargo_iso_dates_are_understood():
     ("20241122", Verdict.CONFIRMED),      # same day
     ("20241123", Verdict.CONFIRMED),      # next day
     ("20241125", Verdict.CONFIRMED),      # within the window
-    ("20241220", Verdict.DATE_MISMATCH),  # a month later, same season
-    ("20240101", Verdict.DATE_MISMATCH),  # before the game
+    # Months later is weak evidence, not a contradiction: the club re-uploads cup
+    # finals long after the event. Verified case: the 2010 State Cup final, played
+    # 18-02-2010, went up on 27-05-2010 with a unique score and a matching opponent.
+    ("20241220", Verdict.LATE_UPLOAD),
+    ("20240101", Verdict.DATE_MISMATCH),  # before the game: impossible
 ])
 def test_upload_date_verdicts(upload_date, verdict):
     sample, rows = sample_of_one("22-11-2024")
     [check] = verify_sample(sample, rows, lambda video_id: upload_date)
     assert check.verdict == verdict
+
+
+def test_an_upload_before_the_game_is_always_a_mismatch():
+    """However early: a video cannot show a game that had not been played."""
+    sample, rows = sample_of_one("22-11-2024")
+    [check] = verify_sample(sample, rows, lambda video_id: "20200101")
+    assert check.verdict == Verdict.DATE_MISMATCH
 
 
 def test_an_archival_upload_carries_no_date_signal():

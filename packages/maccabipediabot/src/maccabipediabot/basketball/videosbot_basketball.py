@@ -29,7 +29,9 @@ from maccabipediabot.basketball.videos.matcher import (
 )
 from maccabipediabot.basketball.videos.report import render_report, render_sample_section
 from maccabipediabot.basketball.videos.sampling import choose_verification_sample, verify_sample
+from maccabipediabot.basketball.videos.writing import purge_season_pages, write_matches
 from maccabipediabot.basketball.videos.youtube_metadata import fetch_upload_date
+from maccabipediabot.common.wiki_login import get_site
 
 logger = logging.getLogger(__name__)
 
@@ -123,6 +125,20 @@ def main() -> None:
     parser.add_argument("--sample", type=int, default=0,
                         help="Verify N matches against their real upload date and pin the "
                              "result to the top of the report.")
+    parser.add_argument("--write", action="store_true",
+                        help="Write the exact matches to the wiki. Off by default.")
+    parser.add_argument("--dry-run", action="store_true",
+                        help="With --write: log what would be written and write nothing.")
+    parser.add_argument("--limit", type=int, default=None,
+                        help="With --write: stop after this many pages.")
+    parser.add_argument("--pages", type=Path, default=None,
+                        help="With --write: a file of page titles, one per line, to write "
+                             "only those (used for the canary batch).")
+    parser.add_argument("--progress", type=Path,
+                        default=Path("/tmp/basketball_videos_progress.log"),
+                        help="Per-video record of what has been written, so a killed run resumes.")
+    parser.add_argument("--purge", action="store_true",
+                        help="Purge the season pages of everything written.")
     args = parser.parse_args()
 
     logging.basicConfig(format="%(asctime)s %(levelname)s %(message)s", level=logging.INFO)
@@ -164,6 +180,25 @@ def main() -> None:
             encoding="utf-8",
         )
         logger.info("Report written to %s", args.report)
+
+    if not args.write:
+        return
+
+    pages = None
+    if args.pages:
+        pages = {line.strip() for line in args.pages.read_text(encoding="utf-8").splitlines()
+                 if line.strip()}
+        logger.info("Restricted to %d named pages", len(pages))
+
+    if not args.dry_run:
+        logger.warning("LIVE MODE: pages will be edited on MaccabiPedia")
+    site = get_site()
+    outcome = write_matches(site, matches, progress_path=args.progress,
+                            dry_run=args.dry_run, limit=args.limit, pages=pages)
+
+    if args.purge and not args.dry_run:
+        purged = purge_season_pages(site, outcome.seasons)
+        logger.info("Purged %d season pages", purged)
 
 
 if __name__ == "__main__":
