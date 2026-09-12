@@ -320,7 +320,13 @@ wfLoadExtension('SecureHTML');				#SecureHTML [https://www.mediawiki.org/wiki/Ex
 # $wgSecureHTMLSecrets — set in LocalSettings.env.*.php
 
 wfLoadExtension('Scribunto');
-$wgScribuntoDefaultEngine = 'luastandalone';
+# Prefer the LuaSandbox PHP extension when the host provides it; it runs Lua
+# in-process instead of piping to a standalone `lua` binary. Measured on prod
+# (2026-09-12) the standalone engine costs ~50ms wall per page just to start the
+# interpreter, paid once per parse regardless of how many #invoke calls run.
+# The ternary is deliberate: the local Docker image has no luasandbox, and a
+# host that drops the extension must degrade rather than break every #invoke.
+$wgScribuntoDefaultEngine = extension_loaded('luasandbox') ? 'luasandbox' : 'luastandalone';
 
 require_once "$IP/extensions/UserFunctions/UserFunctions.php"; # User Functions ( {{#ifsysop:}} ) [ https://www.mediawiki.org/wiki/Extension:UserFunctions ]
 $wgUFAllowedNamespaces = array_fill(0, 200, true);
