@@ -36,29 +36,31 @@ def match(*, published=None, opponent_raw="אליצור נתניה", kind=VideoK
 
 def test_the_best_possible_match_scores_ten():
     """Unique score, opponent recognised outright, uploaded the day of the game."""
-    evidence = Evidence(score_unique_in_season=True, opponent_recognised=True,
+    evidence = Evidence(score_unique_in_season=True, opponent_agrees=True,
                         )
     assert score_match(match(published="20241122"), row(), evidence) == MAX_SCORE
 
 
 def test_no_date_costs_points_but_stays_respectable():
-    evidence = Evidence(score_unique_in_season=True, opponent_recognised=True,
+    evidence = Evidence(score_unique_in_season=True, opponent_agrees=True,
                         )
     scored = score_match(match(published=None), row(), evidence)
     assert MIN_SCORE < scored < MAX_SCORE
 
 
 def test_an_archive_upload_scores_below_a_date_confirmed_one():
-    evidence = Evidence(score_unique_in_season=True, opponent_recognised=True,
-                        )
+    """The archive upload must be LATER than the game. An earlier one takes the
+    "uploaded before the game" branch instead, which would make this pass while leaving
+    the archive path untested."""
+    evidence = Evidence(score_unique_in_season=True, opponent_agrees=True)
     confirmed = score_match(match(published="20241122"), row(), evidence)
-    archival = score_match(match(published="20150101"), row(), evidence)
-    assert archival < confirmed
+    archival = score_match(match(published=ARCHIVE_UPLOAD), row(date=ARCHIVE_GAME), evidence)
+    assert MIN_SCORE < archival < confirmed
 
 
 def test_a_date_that_contradicts_scores_the_minimum():
     """Uploaded before the game: whatever else agrees, this pairing cannot be right."""
-    evidence = Evidence(score_unique_in_season=True, opponent_recognised=True,
+    evidence = Evidence(score_unique_in_season=True, opponent_agrees=True,
                         )
     assert score_match(match(published="20200101"), row(), evidence) == MIN_SCORE
 
@@ -66,9 +68,9 @@ def test_a_date_that_contradicts_scores_the_minimum():
 def test_a_shared_score_costs_points_when_the_date_cannot_confirm():
     """Two games that season ended with this score, so the opponent alone chose between
     them, and the archive upload cannot corroborate the choice."""
-    strong = Evidence(score_unique_in_season=True, opponent_recognised=True,
+    strong = Evidence(score_unique_in_season=True, opponent_agrees=True,
                       title_year_agrees=True)
-    weak = Evidence(score_unique_in_season=False, opponent_recognised=True,
+    weak = Evidence(score_unique_in_season=False, opponent_agrees=True,
                     title_year_agrees=True)
     game = row(date=ARCHIVE_GAME)
     assert score_match(match(published=ARCHIVE_UPLOAD), game, weak) < \
@@ -78,14 +80,14 @@ def test_a_shared_score_costs_points_when_the_date_cannot_confirm():
 def test_a_shared_score_costs_nothing_once_the_date_confirms():
     """The opponent picked between two same-score games, and an upload dated to the game
     itself confirms that pick from a direction the title cannot reach."""
-    weak = Evidence(score_unique_in_season=False, opponent_recognised=True)
+    weak = Evidence(score_unique_in_season=False, opponent_agrees=True)
     assert score_match(match(published="20241122"), row(), weak) == MAX_SCORE
 
 
-def test_an_unrecognised_opponent_costs_points():
-    recognised = Evidence(score_unique_in_season=True, opponent_recognised=True,
+def test_an_opponent_that_does_not_agree_costs_points():
+    recognised = Evidence(score_unique_in_season=True, opponent_agrees=True,
                           )
-    passthrough = Evidence(score_unique_in_season=True, opponent_recognised=False,
+    passthrough = Evidence(score_unique_in_season=True, opponent_agrees=False,
                            )
     assert score_match(match(published="20241122"), row(), passthrough) < \
         score_match(match(published="20241122"), row(), recognised)
@@ -95,7 +97,7 @@ def test_a_guessed_kind_does_not_change_the_score():
     """Whether the title stated the kind decides which parameter the link goes in, not
     whether the link belongs to this game. It used to cost a point, which held 655
     otherwise-perfect archive matches a rung below their real confidence."""
-    evidence = Evidence(score_unique_in_season=True, opponent_recognised=True)
+    evidence = Evidence(score_unique_in_season=True, opponent_agrees=True)
     stated = match(published="20241122", kind=VideoKind.HIGHLIGHTS)
     guessed = match(published="20241122", kind=None, kind_override=VideoKind.CONDENSED)
     assert score_match(guessed, row(), evidence) == score_match(stated, row(), evidence)
@@ -105,7 +107,7 @@ def test_an_era_variant_opponent_name_does_not_change_the_score():
     """Cargo spells the same club differently by era, so the alias table maps to the
     distinctive part of the name on purpose; matching by containment is the designed
     path, not a near miss."""
-    evidence = Evidence(score_unique_in_season=True, opponent_recognised=True)
+    evidence = Evidence(score_unique_in_season=True, opponent_agrees=True)
     exact = score_match(match(published="20241122", opponent_raw="אליצור נתניה"),
                         row(opponent="אליצור נתניה"), evidence)
     contained = score_match(match(published="20241122", opponent_raw="נתניה"),
@@ -114,9 +116,9 @@ def test_an_era_variant_opponent_name_does_not_change_the_score():
 
 
 @pytest.mark.parametrize("evidence", [
-    Evidence(score_unique_in_season=False, opponent_recognised=False,
+    Evidence(score_unique_in_season=False, opponent_agrees=False,
              ),
-    Evidence(score_unique_in_season=True, opponent_recognised=True,
+    Evidence(score_unique_in_season=True, opponent_agrees=True,
              ),
 ])
 def test_the_score_always_stays_in_range(evidence):
@@ -126,7 +128,7 @@ def test_the_score_always_stays_in_range(evidence):
 
 
 def archive_evidence(year_agrees):
-    return Evidence(score_unique_in_season=True, opponent_recognised=True,
+    return Evidence(score_unique_in_season=True, opponent_agrees=True,
                     title_year_agrees=year_agrees)
 
 
@@ -174,6 +176,6 @@ def test_title_year_agreement(title, game_date, expected):
 def test_a_match_with_no_page_scores_the_minimum():
     unmatched = VideoMatch(VideoEntry("v", "t", 180, "2024/25", "p", None), None,
                            Bucket.UNMATCHED, "no game", page_name=None)
-    evidence = Evidence(score_unique_in_season=False, opponent_recognised=False,
+    evidence = Evidence(score_unique_in_season=False, opponent_agrees=False,
                         )
     assert score_match(unmatched, None, evidence) == MIN_SCORE

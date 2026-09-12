@@ -153,11 +153,17 @@ def _classify(entry: VideoEntry, parsed: ParsedTitle,
     # The upload date is evidence the title cannot give. When the opponent name fails
     # to settle things, a video uploaded within days of exactly one candidate settles
     # them instead: the club posts a game's video straight after the game.
+    #
+    # This used to return EXACT on the spot, which skipped every check below it — so a
+    # video already on its page could be written to the page's second slot as well, and
+    # an archive title (whose kind comes from its length) was left with no kind at all
+    # and silently never written. It now only chooses the row, and the same guards run.
+    matched_on_date = False
     if len(by_opponent) != 1 and entry.published:
         dated = [row for row in same_score if _uploaded_just_after(entry.published, row.date)]
         if len(dated) == 1:
-            return VideoMatch(entry, parsed, Bucket.EXACT,
-                              "score and upload date agree", page_name=dated[0].page_name)
+            by_opponent = dated
+            matched_on_date = True
 
     if len(by_opponent) != 1:
         if len(by_opponent) > 1:
@@ -201,7 +207,8 @@ def _classify(entry: VideoEntry, parsed: ParsedTitle,
     if entry.url in existing_urls_for_family(chosen, SLOTS[kind]):
         return VideoMatch(entry, parsed, Bucket.ALREADY_PRESENT, "this URL is already on the page",
                           page_name=chosen.page_name, kind_override=kind_override)
-    return VideoMatch(entry, parsed, Bucket.EXACT, "score and opponent agree",
+    reason = "score and upload date agree" if matched_on_date else "score and opponent agree"
+    return VideoMatch(entry, parsed, Bucket.EXACT, reason,
                       page_name=chosen.page_name, kind_override=kind_override)
 
 

@@ -17,7 +17,7 @@ from dataclasses import dataclass
 
 from collections import defaultdict
 
-from maccabipediabot.basketball.videos.aliases import resolve_opponent
+from maccabipediabot.basketball.videos.aliases import opponent_matches
 from maccabipediabot.basketball.videos.cargo import GameRow
 from maccabipediabot.basketball.videos.dates import days_between_game_and_upload, parse_game_date
 from maccabipediabot.basketball.videos.matcher import Bucket, VideoMatch
@@ -50,9 +50,11 @@ class Evidence:
     # Only one game that season ended with this score, so the opponent was not needed
     # to choose between candidates.
     score_unique_in_season: bool
-    # The opponent name was resolved through the translations map rather than assumed
-    # to be already-correct Hebrew.
-    opponent_recognised: bool
+    # The opponent named in the title is the opponent on the page we chose. This has to
+    # be checked against the CHOSEN ROW, not merely be readable: a match made on the
+    # upload date alone can name a club the page does not, and recording only "the name
+    # parsed" let those score a perfect 10 while the two names disagreed.
+    opponent_agrees: bool
     # Whether a year written in the title agrees with the year the game was played, or
     # None when the title names no year. The season used for matching comes from the
     # PLAYLIST, never the title, so this is independent — and it is the only such
@@ -97,8 +99,9 @@ def collect_evidence(match: VideoMatch, row: GameRow, season_rows: list[GameRow]
     parsed = match.parsed
     if parsed is None:
         # A EuroLeague match: its key is the season plus the round, which picks out one
-        # game as sharply as a score does.
-        return Evidence(score_unique_in_season=True, opponent_recognised=True,
+        # game as sharply as a score does, and the matcher already required the opponent
+        # to agree before returning EXACT.
+        return Evidence(score_unique_in_season=True, opponent_agrees=True,
                         title_year_agrees=year_agrees)
 
     score = (parsed.maccabi_points, parsed.opponent_points)
@@ -106,7 +109,7 @@ def collect_evidence(match: VideoMatch, row: GameRow, season_rows: list[GameRow]
                   if (candidate.maccabi_points, candidate.opponent_points) == score]
     return Evidence(
         score_unique_in_season=len(same_score) == 1,
-        opponent_recognised=resolve_opponent(parsed.opponent_raw) is not None,
+        opponent_agrees=opponent_matches(parsed.opponent_raw, row.opponent),
         title_year_agrees=year_agrees,
     )
 
@@ -140,7 +143,7 @@ def score_match(match: VideoMatch, row: GameRow | None, evidence: Evidence) -> i
         # opponent is the sole tie-breaker: an upload dated to the game itself confirms
         # the choice from a direction the title cannot reach, so the doubt is gone.
         score -= 2
-    if not evidence.opponent_recognised:
+    if not evidence.opponent_agrees:
         score -= 1
     return max(MIN_SCORE, min(MAX_SCORE, score))
 

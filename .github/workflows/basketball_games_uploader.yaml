@@ -109,7 +109,8 @@ jobs:
         run: |
           set -o pipefail
           uv run python -m maccabipediabot.basketball.videosbot_basketball \
-            --source rss --seasons current,previous --write --purge 2>&1 | tee -a /tmp/uploader.log
+            --source rss --seasons current,previous --write --purge --min-confidence 9 \
+            2>&1 | tee -a /tmp/uploader.log
 
       # Not a team-mapping failure: report WHICH step died and the real error tail, so the
       # alert points at the actual cause (e.g. a wiki-login TimeoutError) instead of guessing.

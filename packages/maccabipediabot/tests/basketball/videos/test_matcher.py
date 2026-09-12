@@ -87,6 +87,33 @@ def test_the_upload_date_does_not_rescue_an_archive_video():
     assert match.bucket == Bucket.AMBIGUOUS
 
 
+def test_a_date_matched_video_already_on_the_page_is_not_written_twice():
+    """The date shortcut used to return straight away, skipping the already-present
+    check, so the same link could be written into the page's second slot as well."""
+    url = "https://www.youtube.com/watch?v=x1"
+    rows = [row("כדורסל:08-11-2024 א", "הפועל חולון", 80, 77, date="08-11-2024",
+                highlights=(url, "")),
+            row("כדורסל:15-11-2024 ב", "הפועל תל אביב", 80, 77, date="15-11-2024")]
+    match = only_match([dated_entry(
+        "x1", "Highlights: Maccabi Playtika Tel Aviv - Unknown FC 80:77", published="20241109")],
+        rows=rows)
+    assert match.bucket == Bucket.ALREADY_PRESENT
+    assert match.slot is None
+
+
+def test_a_date_matched_archive_video_still_gets_a_kind():
+    """The same early return left archive titles — whose kind comes from their length —
+    with no kind at all, so they were reported as exact and silently never written."""
+    rows = [row("כדורסל:08-11-2024 א", "הפועל חולון", 80, 77, date="08-11-2024"),
+            row("כדורסל:15-11-2024 ב", "הפועל תל אביב", 80, 77, date="15-11-2024")]
+    match = only_match([dated_entry(
+        "x1", "ליגת העל 2024, מח' 5, מכבי ת\"א - יריבה לא ידועה 77:80",
+        published="20241109", duration=7000)], rows=rows)
+    assert match.bucket == Bucket.EXACT
+    assert match.kind is not None
+    assert match.slot == "משחק מלא"
+
+
 def test_the_upload_date_is_ignored_when_it_fits_both_candidates():
     """Both games fall inside the window, so the date cannot choose either."""
     rows = [row("כדורסל:08-11-2024 א", "הפועל חולון", 80, 77, date="08-11-2024"),

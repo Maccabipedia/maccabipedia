@@ -82,16 +82,26 @@ def load_overrides(path: Path | None) -> dict[str, str]:
 
 
 def collect_entries_from_rss(seasons: list[str]) -> list[VideoEntry]:
-    entries: list[VideoEntry] = []
+    """One pass over the channel feed plus the playlist feeds of the wanted seasons.
+
+    Deliberately NOT once per season: the channel feed is the same document each time,
+    and its videos carry their own publish date, from which the season is derived.
+    """
+    playlist_ids_by_season = {}
     for season in seasons:
         playlist_ids = SEASON_PLAYLIST_IDS.get(season)
         if playlist_ids is None:
             logger.warning(
-                "No playlist ids for season %s: falling back to the channel feed alone. "
-                "Add them to SEASON_PLAYLIST_IDS for denser coverage.", season)
-            playlist_ids = []
-        entries.extend(rss.collect_from_feeds(MACCABI_CHANNEL_ID, season, playlist_ids))
-    return entries
+                "No playlist ids for season %s: that season relies on the channel feed "
+                "alone. Add them to SEASON_PLAYLIST_IDS for denser coverage.", season)
+            continue
+        playlist_ids_by_season[season] = playlist_ids
+
+    entries = rss.collect_from_feeds(MACCABI_CHANNEL_ID, playlist_ids_by_season)
+    wanted = set(seasons)
+    kept = [entry for entry in entries if entry.season in wanted]
+    logger.info("RSS: %d of %d videos fall in %s", len(kept), len(entries), sorted(wanted))
+    return kept
 
 
 def build_matches(entries: list[VideoEntry], euroleague_entries: list[VideoEntry],
