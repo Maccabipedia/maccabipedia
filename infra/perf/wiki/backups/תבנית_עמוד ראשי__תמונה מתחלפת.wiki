@@ -1,0 +1,18 @@
+<includeonly><!--
+
+-->{{#arraydefine: תמונות |{{#dpl:
+|category=עמוד ראשי/תמונות מתחלפות
+|format=,%TITLE%,^
+|randomcount=2
+|randomseed={{#time:Ymd}}
+}} |^}}<!--
+-->{{#arrayslice: תמונות |תמונות |0|-1}}<!--
+-->{{#arraysort: תמונות |random}}<!--
+
+
+--><div class="index-image-section-container">
+<div class="title">רגע אחד בהיסטוריה</div>
+{{:{{#arrayindex: תמונות |0}} }}
+</div><!--
+
+--></includeonly>

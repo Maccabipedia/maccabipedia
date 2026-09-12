@@ -1,0 +1,63 @@
+<includeonly><!--
+
+-->{{#vardefine:תאריך עבור מדיה |{{#time:d "ב"F Y|{{{Date|}}} }} }}<!--
+-->{{#arraydefine: תאריך |{{{Date|}}}|-}}<!--
+-->{{#vardefine: תאריך לכרטיס |{{#arrayindex:תאריך |02}}-{{#arrayindex:תאריך |1}}-{{#arrayindex:תאריך |0}} }}<!--
+
+--><div class="games-list-game-container"><!--
+-->[[{{{PageName|}}}|<nowiki> </nowiki>]]<!--
+
+-->{{#תנאי: {{#dpl:
+|category=משחקי זכייה בתואר (כדורעף)
+|titlematch={{#replace: {{{PageName|}}} |כדורעף: |}}
+}} |<span class="thropy-win-game-icon">{{אייקון זכיה כדורעף |מפעל={{{Competition|}}} }}</span>}}<!--
+
+--><div class="games-list-game-header">
+<span class="date">{{המרות/המרות תאריך/תאריך מלא לפורמט הצגה| תאריך={{{Date|}}} }}</span>
+
+<div class="collections">
+{{#קיים: קובץ: כרטיס משחק כדורעף {{#var: תאריך לכרטיס}}.jpg |<i class="fa-solid fa-ticket"></i>}}<!--
+-->{{#קיים: קובץ: כרזת משחק כדורעף {{{תאריך המשחק|}}}.jpg |<i class="fa-solid fa-signs-post"></i>}}<!--
+-->{{#תנאי: {{{FullGameVideo|}}}{{{HighlightsVideo|}}}{{{FansVideo|}}} |<i class="fa-solid fa-video"></i>}}<!--
+-->{{#תנאי: {{הצגת גלריה לפי קטגוריה |שם קטגוריה=תוכנייה למשחק כדורעף מה-{{#var: תאריך עבור מדיה}} |אין תוצאות=}} |<i class="fa-solid fa-book"></i>}}<!--
+-->{{#תנאי: {{הצגת גלריה לפי קטגוריה |שם קטגוריה=עיתונות למשחק כדורעף מה|0-{{#var: תאריך עבור מדיה}} |אין תוצאות=}} |<i class="fa-solid fa-newspaper"></i>}}<!--
+-->{{#תנאי: {{הצגת גלריה לפי קטגוריה |שם קטגוריה=מדיה למשחק כדורעף מה-{{#var: תאריך עבור מדיה}} |אין תוצאות=}} |<i class="fa-solid fa-image"></i>}}
+</div>
+</div>
+
+<div class="competition">
+{{#שווה: {{{ShowCompetition|}}}|"לא"|| <span class="name">{{{Competition|}}}</span>}}
+<span class="leg">{{{Leg|}}}</span>
+</div>
+
+<div class="result-container"><!--
+-->{{#שווה: {{{HomeAway|}}} |חוץ |<div class="home-team {{#שווה: {{{ResultOpt|}}} |3 |win-team}}">
+<span class="team-name">{{{Opponent|}}}</span>
+<span class="team-result">{{#שווה: {{{Technical|}}} |2 |(טכני)}} <!--
+-->{{#תנאי: {{{GoldenSetPointsOpponent|}}}{{{GoldenSetPointsMaccabi|}}} |{{#ifexpr: {{{GoldenSetPointsOpponent|}}} > {{{GoldenSetPointsMaccabi|}}} |(מ"ז) }} }} <!--
+-->{{{TotalSetsOpponent|}}}</span>
+</div>
+<div class="away-team {{#שווה: {{{ResultOpt|}}} |1 |win-team}}">
+<span class="team-name">מכבי תל אביב</span>
+<span class="team-result">{{#שווה: {{{Technical|}}} |1 |(טכני)}} <!--
+-->{{#תנאי: {{{GoldenSetPointsOpponent|}}}{{{GoldenSetPointsMaccabi|}}} |{{#ifexpr: {{{GoldenSetPointsMaccabi|}}} > {{{GoldenSetPointsOpponent|}}} |(מ"ז) }} }} <!--
+-->{{{TotalSetsMaccabi|}}}</span>
+</div><!--
+
+-->|<div class="home-team {{#שווה: {{{ResultOpt|}}} |1 |win-team}}">
+<span class="team-name">מכבי תל אביב</span>
+<span class="team-result">{{#שווה: {{{Technical|}}} |1 |(טכני)}} <!--
+-->{{#תנאי: {{{GoldenSetPointsOpponent|}}}{{{GoldenSetPointsMaccabi|}}} |{{#ifexpr: {{{GoldenSetPointsMaccabi|}}} > {{{GoldenSetPointsOpponent|}}} |(מ"ז) }} }} <!--
+-->{{{TotalSetsMaccabi|}}}</span>
+</div>
+<div class="away-team {{#שווה: {{{ResultOpt|}}} |3 |win-team}}">
+<span class="team-name">{{{Opponent|}}}</span>
+<span class="team-result">{{#שווה: {{{Technical|}}} |2 |(טכני)}} <!--
+-->{{#תנאי: {{{GoldenSetPointsOpponent|}}}{{{GoldenSetPointsMaccabi|}}} |{{#ifexpr: {{{GoldenSetPointsOpponent|}}} > {{{GoldenSetPointsMaccabi|}}} |(מ"ז) }} }} <!--
+-->{{{TotalSetsOpponent|}}}</span>
+</div>}}
+</div><!--
+
+--><div class="result-indicator {{#שווה: {{{ResultOpt|}}} |1 |win |loose}}"></div>
+</div><!--
+--></includeonly>

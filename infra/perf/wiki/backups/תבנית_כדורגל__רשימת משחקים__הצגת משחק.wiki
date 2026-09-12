@@ -1,0 +1,91 @@
+<includeonly><!--
+
+-->{{#vardefine:תאריך עבור מדיה |{{#time:d "ב"F Y|{{{Date|}}} }} }}<!--
+-->{{#arraydefine: תאריך |{{{Date|}}}|-}}<!--
+
+--><div class="games-list-game-container"><!--
+-->[[{{{PageName|}}}|<nowiki> </nowiki>]]<!--
+
+-->{{#תנאי: {{#dpl:
+|category=משחקי זכייה בתואר (כדורגל)
+|titlematch={{{PageName|}}}
+}} |{{#vardefine: משחק זכיה |כן}}
+|{{#vardefine: משחק זכיה}} }}<!--
+
+--><div class="games-list-game-header">
+<span class="date">{{המרות/המרות תאריך/תאריך מלא לפורמט הצגה| תאריך={{{Date|}}} }}</span>
+
+<div class="collections">
+{{#תנאי: {{תיקון פורמט תמונה |תפ-רשימת תמונות=כרטיס משחק {{#var: תאריך עבור מדיה}}.jpg}} |<i class="fa-solid fa-ticket"></i>}}<!--
+{{#תנאי: {{תיקון פורמט תמונה |תפ-רשימת תמונות=כרזת משחק {{#var: תאריך עבור מדיה}}.jpg}} |<i class="fa-solid fa-signs-post"></i>}}<!--
+-->{{#תנאי: {{{Highlights|}}}{{{Highlights2|}}} |<i class="fa-solid fa-video"></i>}}<!--
+-->{{#תנאי: {{{FullGame|}}}{{{FullGame2|}}} |<i class="fa-solid fa-film"></i>}}<!--
+-->{{#תנאי: {{הצגת גלריה לפי קטגוריה |שם קטגוריה={{{PageName|}}}/תוכניית משחק |אין תוצאות=}} |<i class="fa-solid fa-book"></i>}}<!--
+-->{{#תנאי: {{הצגת גלריה לפי קטגוריה |שם קטגוריה=עיתונות למשחק מה-{{#var: תאריך עבור מדיה}} |אין תוצאות=}} |<i class="fa-solid fa-newspaper"></i>}}<!--
+-->{{#תנאי: {{הצגת גלריה לפי קטגוריה |שם קטגוריה={{{PageName|}}}/תמונות |אין תוצאות=}} |<i class="fa-solid fa-image"></i>}}
+</div>
+</div>
+
+<div class="competition">
+{{#שווה: {{{ShowCompetition|}}}|"לא"|| <span class="name">{{{Competition|}}}</span>}}
+<span class="leg">{{{Leg|}}}</span>
+</div>
+
+<div class="result-container"><!--
+-->{{#שווה: {{{HomeAway|}}} |חוץ |<div class="home-team {{#שווה: {{{ResultOpt|}}} |3 |win-team}}"><!--
+--><span class="team-name">{{{Opponent|}}}</span><!--
+--><span class="team-result">{{#בחר: {{{Technical|}}}
+|1=0
+|2=3 (טכני)
+|#ברירת מחדל={{#בחר: {{{Penalties|}}}
+|1
+|2={{{ResultOpponent|}}} ({{{PenaltiesResultOpponent|}}} פ')
+|#ברירת מחדל={{{ResultOpponent|}}}
+}} }}</span>
+</div>
+<div class="away-team {{#שווה: {{{ResultOpt|}}} |1 |win-team}}"><!--
+-->{{#תנאי: {{#var: משחק זכיה}} |<span class="thropy-win-game-icon">{{אייקון זכיה כדורגל |מפעל={{{Competition|}}} }}</span>}}<!--
+--><span class="team-name">מכבי תל אביב</span><!--
+--><span class="team-result">{{#בחר: {{{Technical|}}}
+|1=3 (טכני)
+|2=0
+|#ברירת מחדל={{#בחר: {{{Penalties|}}}
+|1
+|2={{{ResultMaccabi|}}} ({{{PenaltiesResultMaccabi|}}} פ')
+|#ברירת מחדל={{{ResultMaccabi|}}}
+}} }}</span>
+</div><!--
+
+
+-->|<div class="home-team {{#שווה: {{{ResultOpt|}}} |1 |win-team}}"><!--
+-->{{#תנאי: {{#var: משחק זכיה}} |<span class="thropy-win-game-icon">{{אייקון זכיה כדורגל |מפעל={{{Competition|}}} }}</span>}}<!--
+--><span class="team-name">מכבי תל אביב</span><!--
+--><span class="team-result">{{#בחר: {{{Technical|}}}
+|1=3 (טכני)
+|2=0
+|#ברירת מחדל={{#בחר: {{{Penalties|}}}
+|1
+|2={{{ResultMaccabi|}}} ({{{PenaltiesResultMaccabi|}}} פ')
+|#ברירת מחדל={{{ResultMaccabi|}}}
+}} }}</span>
+</div>
+<div class="away-team {{#שווה: {{{ResultOpt|}}} |3 |win-team}}"><!--
+--><span class="team-name">{{{Opponent|}}}</span><!--
+--><span class="team-result">{{#בחר: {{{Technical|}}}
+|1=0
+|2=3 (טכני)
+|#ברירת מחדל={{#בחר: {{{Penalties|}}}
+|1
+|2={{{ResultOpponent|}}} ({{{PenaltiesResultOpponent|}}} פ')
+|#ברירת מחדל={{{ResultOpponent|}}}
+}} }}</span>
+</div>}}
+</div><!--
+
+--><div class="result-indicator {{#בחר: {{{ResultOpt|}}}
+|1=win
+|2=tie
+|3=loose}}">
+</div>
+</div><!--
+--></includeonly>

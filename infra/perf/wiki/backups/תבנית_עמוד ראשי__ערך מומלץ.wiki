@@ -1,0 +1,18 @@
+<includeonly><!--
+
+-->{{#arraydefine: ערכים |{{#dpl:
+|category=ערכים מומלצים
+|format=,%TITLE%,^
+|randomcount=2
+|randomseed={{#time:Ymd}}
+}} |^}}<!--
+-->{{#arrayslice: ערכים |ערכים |0|-1}}<!--
+-->{{#arraysort: ערכים |random}}<!--
+
+
+--><div class="index-recommend-article-section-container">
+<div class="title">כבר יצא לך לקרוא?</div>
+{{:{{#arrayindex: ערכים |0}} }}
+</div><!--
+
+--></includeonly>

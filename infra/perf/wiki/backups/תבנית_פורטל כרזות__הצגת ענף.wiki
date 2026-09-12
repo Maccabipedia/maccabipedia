@@ -1,0 +1,46 @@
+<includeonly><!--
+
+
+-->{{#vardefine: ענף |{{{ענף|}}} }}<!--
+-->{{#arraydefine: עשורים עם כרזות |{{#dpl:
+|category=עשורים עם כרזות משחק {{#var: ענף}}
+|format=,%TITLE%,^}}
+|^}}<!--
+-->{{#arrayunique: עשורים עם כרזות}}<!--
+
+
+--><div class="list-container"><!--
+-->{{#arrayprint: עשורים עם כרזות ||@@@@ |<!--
+-->{{#vardefine: עשור | {{#sub: @@@@ | -7 | 3 }} }}<!--
+-->{{#vardefine: תמונה | {{#dpl:
+category=כרזת משחק {{#var: ענף}}
+|namespace=File
+|titlematch=%{{#var: עשור}}_.%
+|ordermethod=rand
+|count=1
+||format=,%TITLE%,
+}} }}<!--
+
+--><div class="item-container"><!--
+-->[[{{#var: ענף}}: @@@@ |<nowiki> </nowiki>]]<!--
+--><div class="image-container">[[קובץ: {{#var: תמונה}} |link=]]</div><!--
+--><div class="item-title">{{#sub: @@@@ | -7 }}</div><!--
+
+--><div class="rich-info-container">
+<div class="info-cell-container">
+<div class="number">{{#dpl:
+ category=כרזת משחק {{#var: ענף}}
+ |namespace=File
+ |titlematch=%{{#var: עשור}}_.%
+ |format=,,,
+ |resultsfooter=%TOTALPAGES%
+}}</div>
+<div class="description">כרזות</div>
+</div>
+</div><!--
+
+
+--></div>}}<!--
+--></div><!--
+
+--></includeonly>

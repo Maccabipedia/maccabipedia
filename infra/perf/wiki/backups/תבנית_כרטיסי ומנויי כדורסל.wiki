@@ -1,0 +1,59 @@
+<includeonly><!--
+
+
+-->{{#arraydefine: רשימת מנויים |{{#dpl:
+|category=מנויי כדורסל
+|namespace=קובץ
+|format=,%TITLE%,^}}
+|^}}<!--
+
+-->{{#arraysort: רשימת מנויים |asc}}<!--
+-->{{#arrayslice: רשימת מנויים |רשימת מנויים |1}}<!--
+
+-->{{#arraydefine: רשימת עונות עם כרטיס משחק |{{#dpl:
+|category=עונות כדורסל עם כרטיסי משחק
+|format=,%TITLE%,^}}
+|^}}<!--
+-->{{#arraysort: רשימת עונות עם כרטיס משחק |desc}}<!--
+-->{{#arrayslice: רשימת עונות עם כרטיס משחק |רשימת עונות עם כרטיס משחק |0|-1}}<!--
+
+
+--><div class="ticket-list-page-container basketball">
+<div class="responsive-tabs"><shtml hash="2396c980d26dd6c9305ef4cc49decd8272249de0821df7b2391548d23c6ecaec"><input id="bbtickets-single" name="bb-tab-control" checked="" type="radio">
+<input id="bbtickets-seasonal" name="bb-tab-control" type="radio">
+<ul>
+<li title="Tickets"><label for="bbtickets-single" role="button"><i class="fas fa-ticket-alt" aria-hidden="true"></i><span>כרטיסים</span></label></li>
+<li title="Season Tickets"><label for="bbtickets-seasonal" role="button"><i class="fas fa-credit-card" aria-hidden="true"></i><span>מנויים</span></label></li>
+</ul></shtml>
+<div class="slider"><div class="indicator"></div></div>
+<div class="content" id="res-tabs-content"><!--
+
+
+כרטיסים
+--><div id="bbtickets-single"><div class="tab-header">כרטיסים</div><!--
+--><div class="ticket-list-seasons-list-container">
+{{#arrayprint: רשימת עונות עם כרטיס משחק ||@@@@ |<!--
+-->{{#vardefine: עונה נוכחית |{{#replace: @@@@ |כרטיסי משחק כדורסל}} }}<!--
+--><div class="ticket-list-seasons-list-item"><!--
+-->[[כרטיסי משחק כדורסל {{#var: עונה נוכחית}}|<nowiki> </nowiki>]]<!--
+--><span class="item-title">{{#var: עונה נוכחית}}</span><!--
+--><span class="additional-text">({{דפים בקטגוריה: כרטיסי משחק כדורסל מעונת {{#var: עונה נוכחית}}|files}})</span>
+</div>}}
+</div>
+</div><!--
+
+
+מנויים
+--><div id="bbtickets-seasonal"><div class="tab-header">מנויים</div><!--
+--><div>
+אוסף המנויים טרם נפתח לעיון
+</div>
+</div><!--
+
+
+
+--></div>
+</div><!--
+
+
+--></includeonly>

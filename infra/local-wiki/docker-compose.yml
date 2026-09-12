@@ -2,7 +2,10 @@ services:
   mediawiki:
     build: .
     ports:
-      - "8080:80"
+      # Bound to loopback rather than 0.0.0.0 so it cannot collide with
+      # something already serving :8080 on another interface (tailscaled does,
+      # on this host), and so a dev wiki is not exposed to the local network.
+      - "127.0.0.1:8080:80"
     depends_on:
       mariadb:
         condition: service_healthy

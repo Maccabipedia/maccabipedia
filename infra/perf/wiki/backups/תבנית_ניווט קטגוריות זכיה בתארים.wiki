@@ -1,0 +1,35 @@
+<includeonly><!--
+
+-->{{#arraydefine: רשימת קטגוריות |{{#dpl:
+|namespace = Category
+|titleregexp = ^{{#תנאי: {{{האם אנשי צוות|}}} |אנשי צוות |שחקני}} {{{ענף|}}} שזכו ב-[1-9] {{{תואר|}}}$
+|ordermethod = title
+|mode = unordered
+|order = ascending
+|skipthispage = false
+|format=,%TITLE%,^
+}}^{{#dpl:
+|namespace = Category
+|titleregexp = ^{{#תנאי: {{{האם אנשי צוות|}}} |אנשי צוות |שחקני}} {{{ענף|}}} שזכו ב-[1-9][0-9] {{{תואר|}}}$
+|ordermethod = title
+|mode = unordered
+|order = ascending
+|skipthispage = false
+|format=,%TITLE%,^
+}}|^}}<!--
+-->{{#arrayunique: רשימת קטגוריות}}<!--
+
+-->{{#ifexpr: {{#arraysize: רשימת קטגוריות}} > 0 |<!--
+--><div class="trophy-wins-categories-navigation"><!--
+
+--><div class="title">מספר זכיות ב{{{תואר|}}}:</div><!--
+
+--><div class="navigation-list"><!--
+-->{{#arrayprint: רשימת קטגוריות ||@@@@ |<!--
+-->{{#ifexpr: {{PAGESINCATEGORY: @@@@}} > 0 | <span class="link-container {{#שווה: {{PAGENAME}} |@@@@ |active}}">[[:קטגוריה: @@@@|{{#replaceset: @@@@|/[^\d]+/=}}]]}}</span><!--
+-->}}<!--
+--></div><!--
+
+--></div>}}<!--
+
+--></includeonly>

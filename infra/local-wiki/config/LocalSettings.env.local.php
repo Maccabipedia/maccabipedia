@@ -61,6 +61,25 @@ $wgDebugLogGroups = [];
 $wgResourceLoaderDebug = true;
 $wgJobRunRate = 0;
 
+## Heavy pages (season pages especially) exceed PHP's default 30s here, where
+## there is no opcache warmth and no object cache. Raised so they can be
+## rendered and measured at all; prod is unaffected (this file is local-only).
+ini_set('max_execution_time', '300');
+
+## SQL tracing — opt-in, local only. Logs every statement, which is how you find
+## out WHICH queries a page runs (xhprof reports PHP functions, not SQL text).
+## Off by default because it writes every query to disk and slows renders.
+## Enable with MW_TRACE_SQL=1 in docker-compose.yml, then read /tmp/mw-sql.log
+## inside the container. Never set this on prod.
+##
+## Note: Cargo's own data queries do NOT appear here — Cargo uses a separate
+## connection that never gets MediaWiki's debug logger. Its bookkeeping
+## (tableExists, cargo_backlinks) does show.
+if ( getenv( 'MW_TRACE_SQL' ) ) {
+	$wgDebugLogFile = '/tmp/mw-sql.log';
+	$wgDebugDumpSql = true;
+}
+
 ## Verbose error output — local debugging.
 $wgShowExceptionDetails = true;
 $wgShowDBErrorBacktrace = true;

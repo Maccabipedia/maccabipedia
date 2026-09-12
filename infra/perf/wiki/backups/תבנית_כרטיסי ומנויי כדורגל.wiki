@@ -1,0 +1,67 @@
+<includeonly><!--
+
+
+-->{{#arraydefine: רשימת מנויים |{{#dpl:
+|category=מנויים
+|namespace=קובץ
+|format=,%TITLE%,^}}
+|^}}<!--
+
+-->{{#arraysort: רשימת מנויים |asc}}<!--
+-->{{#arrayslice: רשימת מנויים |רשימת מנויים |1}}<!--
+
+-->{{#arraydefine: רשימת עונות עם כרטיס משחק |{{#dpl:
+|category=עונות עם כרטיסי משחק
+|format=,%TITLE%,^}}
+|^}}<!--
+-->{{#arraysort: רשימת עונות עם כרטיס משחק |desc}}<!--
+-->{{#arrayslice: רשימת עונות עם כרטיס משחק |רשימת עונות עם כרטיס משחק |0|-1}}<!--
+
+
+--><div class="ticket-list-page-container football">
+<div class="responsive-tabs"><shtml hash="f225cd57a703fb6037df26ae42c674c6f60f1ddd3b715802ed940aa29c5ee60c"><input id="fbtickets-single" name="fb-tab-control" checked="" type="radio">
+<input id="fbtickets-seasonal" name="fb-tab-control" type="radio">
+<ul>
+<li title="Tickets"><label for="fbtickets-single" role="button"><i class="fas fa-ticket-alt" aria-hidden="true"></i><span>כרטיסים</span></label></li>
+<li title="Season Tickets"><label for="fbtickets-seasonal" role="button"><i class="fas fa-credit-card" aria-hidden="true"></i><span>מנויים</span></label></li>
+</ul></shtml>
+<div class="slider"><div class="indicator"></div></div>
+<div class="content" id="res-tabs-content"><!--
+
+
+כרטיסים
+--><div id="fbtickets-single"><div class="tab-header">כרטיסים</div><!--
+--><div class="ticket-list-seasons-list-container">
+{{#arrayprint: רשימת עונות עם כרטיס משחק ||@@@@ |<!--
+-->{{#vardefine: עונה נוכחית |{{#replace: @@@@ |כרטיסים}} }}<!--
+--><div class="ticket-list-seasons-list-item"><!--
+-->[[כרטיסים {{#var: עונה נוכחית}}|<nowiki> </nowiki>]]<!--
+--><span class="item-title">{{#var: עונה נוכחית}}</span><!--
+--><span class="additional-text">({{דפים בקטגוריה: כרטיסי משחק כדורגל מעונת {{#var: עונה נוכחית}}|files}})</span>
+</div>}}
+</div>
+</div><!--
+
+
+מנויים
+--><div id="fbtickets-seasonal"><div class="tab-header">מנויים</div><!--
+--><div class="ticket-list-seasonal-list-container">
+{{#arrayprint: רשימת מנויים ||@@@@|<!--
+-->{{#vardefine: שם ללא פורמט תמונה|{{#replace: @@@@|.jpg}}}}<!--
+-->{{#arraydefine: הפרדת שם לתצוגה|{{#replace: {{#var: שם ללא פורמט תמונה}}| |^}} |^ }}<!--
+-->{{#vardefine: עונה מוצגת |{{#replace: {{#arrayindex: הפרדת שם לתצוגה |1}}|-|/}} }}<!--
+
+--><div class="ticket-list-item-container"><!--
+-->[[{{#var: עונה מוצגת}}| <nowiki> </nowiki>]]<!--
+--><div class="image-container">[[קובץ: @@@@ |link=]]</div>
+<div class="item-title">מנוי {{#var: עונה מוצגת}}</div>
+</div>
+}}
+</div>
+</div><!--
+
+--></div>
+</div><!--
+
+
+--></includeonly>

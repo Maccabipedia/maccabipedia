@@ -1,0 +1,18 @@
+<includeonly><!--
+
+-->{{#arraydefine: ציטוטים |{{#dpl:
+|category=ציטוטים מכביסטיים
+|format=,%TITLE%,^
+|randomcount=2
+|randomseed={{#time:Ymd}}
+}} |^}}<!--
+-->{{#arrayslice: ציטוטים |ציטוטים |0|-1}}<!--
+-->{{#arraysort: ציטוטים |random}}<!--
+
+
+--><div class="index-quote-section-container">
+<div class="title">המכביסטים מדברים</div>
+{{:{{#arrayindex: ציטוטים |0}} }}
+</div><!--
+
+--></includeonly>
