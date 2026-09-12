@@ -37,6 +37,7 @@ services:
       - ./config:/mw-config:ro
       - ./config/htaccess:/var/www/html/.htaccess:ro
       - ./config/favicon.ico:/var/www/html/favicon.ico:ro
+      - ./config/robots.txt:/var/www/html/robots.txt:ro
       - ./config/apache-allow-override.conf:/etc/apache2/conf-enabled/zz-mw-allow-override.conf:ro
 
   mariadb:

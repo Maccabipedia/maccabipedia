@@ -1,0 +1,94 @@
+# MaccabiPedia robots.txt
+#
+# Prod copy lives at public_html/robots.txt and is uploaded manually by FTP, the
+# same way LocalSettings.shared.php is. THIS file is the source of truth: edit
+# here, then upload.
+#
+# MUST be UTF-8. The version this replaced was Windows-1255 (cp1255), which
+# silently voided the Hebrew rule below — robots.txt is defined as UTF-8, so
+# non-UTF-8 bytes are undefined and ignored. Upload in FileZilla's BINARY mode,
+# never ASCII, or the Hebrew will be mangled again just as silently.
+
+User-agent: *
+# Entry point and action URLs. The previous rule was "/index.php?", which only
+# matched URLs that carried a query string — so bare /index.php was allowed, and
+# it became the single most-crawled path on the site. Without the "?" this
+# prefix covers the bare path and every query form.
+Disallow: /index.php
+Disallow: /api.php
+# Special-page namespace, both spellings. Hebrew is canonical here and is what
+# crawlers actually request: מיוחד:Drilldown/... generates faceted filter
+# combinations, i.e. an effectively infinite URL space. The percent-encoded form
+# is belt-and-braces for crawlers that do not normalise UTF-8 paths themselves.
+Disallow: /Special:
+Disallow: /מיוחד:
+Disallow: /%D7%9E%D7%99%D7%95%D7%97%D7%93:
+Crawl-delay: 10
+
+# --- AI training and bulk-scraping crawlers ------------------------------
+#
+# Deliberately NOT listed: Googlebot and Bingbot. Organic search is the site's
+# only reliably human traffic, so blocking search crawlers would be
+# self-defeating. Google-Extended and Applebot-Extended opt out of AI model
+# training only and have no effect on search ranking.
+#
+# Note: the crawlers flooding this site run headless Chrome from datacenter IPs
+# and do not identify themselves, so they ignore this section entirely. These
+# rules stop the compliant crawlers; stopping the rest needs blocking upstream.
+
+User-agent: GPTBot
+Disallow: /
+
+User-agent: anthropic-ai
+Disallow: /
+
+User-agent: ClaudeBot
+Disallow: /
+
+User-agent: Claude-Web
+Disallow: /
+
+User-agent: CCBot
+Disallow: /
+
+User-agent: Bytespider
+Disallow: /
+
+User-agent: meta-externalagent
+Disallow: /
+
+User-agent: FacebookBot
+Disallow: /
+
+User-agent: Google-Extended
+Disallow: /
+
+User-agent: Applebot-Extended
+Disallow: /
+
+User-agent: Amazonbot
+Disallow: /
+
+User-agent: Diffbot
+Disallow: /
+
+User-agent: ImagesiftBot
+Disallow: /
+
+User-agent: Omgilibot
+Disallow: /
+
+User-agent: omgili
+Disallow: /
+
+User-agent: cohere-ai
+Disallow: /
+
+User-agent: Timpibot
+Disallow: /
+
+User-agent: YouBot
+Disallow: /
+
+User-agent: magpie-crawler
+Disallow: /
