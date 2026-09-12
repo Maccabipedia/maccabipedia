@@ -17,7 +17,11 @@ from dataclasses import dataclass
 
 from collections import defaultdict
 
-from maccabipediabot.basketball.videos.aliases import opponent_matches
+from maccabipediabot.basketball.videos.aliases import (
+    normalize_team_name,
+    opponent_matches,
+    resolve_opponent,
+)
 from maccabipediabot.basketball.videos.cargo import GameRow
 from maccabipediabot.basketball.videos.dates import days_between_game_and_upload, parse_game_date
 from maccabipediabot.basketball.videos.matcher import Bucket, VideoMatch
@@ -55,6 +59,10 @@ class Evidence:
     # upload date alone can name a club the page does not, and recording only "the name
     # parsed" let those score a perfect 10 while the two names disagreed.
     opponent_agrees: bool
+    # The names are the same once normalised, rather than one merely containing the
+    # other. An exact agreement identifies the game as firmly as a unique score does,
+    # which is what lets a shared score stop costing anything.
+    opponent_exact: bool = False
     # Whether a year written in the title agrees with the year the game was played, or
     # None when the title names no year. The season used for matching comes from the
     # PLAYLIST, never the title, so this is independent — and it is the only such
@@ -76,6 +84,22 @@ def date_points(days_apart: int | None) -> int | None:
 
 
 _YEAR_RE = re.compile(r"(?<!\d)(19[5-9]\d|20[0-2]\d)(?!\d)")
+# The channel also writes the season in two digits: "ליגת העל 08/09, מח' 6". Requiring
+# consecutive halves keeps this off scores (96:95 has no slash) and off dates like
+# "16/02". The century is ambiguous, so both readings count — this is corroborating
+# evidence, not an identifier.
+_SHORT_SEASON_RE = re.compile(r"(?<!\d)(\d{2})\s*/\s*(\d{2})(?!\d)")
+
+
+def years_in_title(title: str) -> set[int]:
+    years = {int(year) for year in _YEAR_RE.findall(title)}
+    for first, second in _SHORT_SEASON_RE.findall(title):
+        if int(second) != (int(first) + 1) % 100:
+            continue
+        for century in (1900, 2000):
+            years.add(century + int(first))
+            years.add(century + int(second))
+    return years
 
 
 def title_year_agrees(title: str, game_date: str) -> bool | None:
@@ -84,7 +108,7 @@ def title_year_agrees(title: str, game_date: str) -> bool | None:
     None when the title names no year. A season spans two calendar years, so either
     side of the game's own year counts as agreement.
     """
-    years = {int(year) for year in _YEAR_RE.findall(title)}
+    years = years_in_title(title)
     if not years:
         return None
     game = parse_game_date(game_date or "")
@@ -102,14 +126,17 @@ def collect_evidence(match: VideoMatch, row: GameRow, season_rows: list[GameRow]
         # game as sharply as a score does, and the matcher already required the opponent
         # to agree before returning EXACT.
         return Evidence(score_unique_in_season=True, opponent_agrees=True,
-                        title_year_agrees=year_agrees)
+                        opponent_exact=True, title_year_agrees=year_agrees)
 
     score = (parsed.maccabi_points, parsed.opponent_points)
     same_score = [candidate for candidate in season_rows
                   if (candidate.maccabi_points, candidate.opponent_points) == score]
+    resolved = resolve_opponent(parsed.opponent_raw)
     return Evidence(
         score_unique_in_season=len(same_score) == 1,
         opponent_agrees=opponent_matches(parsed.opponent_raw, row.opponent),
+        opponent_exact=(resolved is not None
+                        and normalize_team_name(resolved) == normalize_team_name(row.opponent)),
         title_year_agrees=year_agrees,
     )
 
@@ -137,11 +164,15 @@ def score_match(match: VideoMatch, row: GameRow | None, evidence: Evidence) -> i
         # a same-day upload, so it is worth less than one — but it is real evidence, and
         # for the archive era it is the only kind there is.
         score += 2
-    if not evidence.score_unique_in_season and not date_confirms:
-        # A score shared by two games that season means the score alone did not identify
-        # the game, and the opponent had to choose. That is a weakness only while the
-        # opponent is the sole tie-breaker: an upload dated to the game itself confirms
-        # the choice from a direction the title cannot reach, so the doubt is gone.
+    settled_independently = date_confirms or evidence.opponent_exact
+    if not evidence.score_unique_in_season and not settled_independently:
+        # A score shared by two games that season is a weakness only while nothing else
+        # settles which game it was. Two things do. An upload dated to the game confirms
+        # the pick from a direction the title cannot reach. So does an opponent name that
+        # matches the page exactly — 1984/85 has two games ending 88:87, against Cibona
+        # Zagreb and against Hapoel Tel Aviv, and a title naming Cibona has identified its
+        # game as firmly as a unique score would. Only a loose or unrecognised name leaves
+        # real doubt.
         score -= 2
     if not evidence.opponent_agrees:
         # Two points, not one. At one point a date-confirmed match whose opponent

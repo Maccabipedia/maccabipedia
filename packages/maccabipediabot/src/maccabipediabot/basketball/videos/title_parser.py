@@ -149,10 +149,15 @@ def parse_game_video_title(title: str) -> ParsedTitle | None:
     if score is None:
         return None
 
-    # Archive titles lead with the competition and stage — "National League 1985,
-    # Round 15, Hapoel Holon - Maccabi Tel Aviv 82:83" — so only the last
-    # comma-separated segment before the score names the teams.
-    teams_part = body[:score.start()].strip().rsplit(",", 1)[-1].strip()
+    # Archive titles lead with the competition and stage, separated from the teams by a
+    # comma OR a colon and sometimes neither consistently:
+    #   "National League 1985, Round 15, Hapoel Holon - Maccabi Tel Aviv 82:83"
+    #   "גביע אירופה 1995 שלב הבתים 1/8 הגמר מח' 2: פנאתניקוס - מכבי ת"א 85:80"
+    # Only the last such segment before the score names the teams; without the colon the
+    # stage text ended up inside the opponent name and no alias could ever match it.
+    teams_part = body[:score.start()].strip()
+    for separator in (",", ":"):
+        teams_part = teams_part.rsplit(separator, 1)[-1].strip()
     sides = _TEAM_SEPARATOR_RE.split(teams_part, maxsplit=1)
     if len(sides) != 2:
         return None

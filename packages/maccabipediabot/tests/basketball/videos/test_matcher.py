@@ -279,6 +279,17 @@ def test_an_override_promotes_an_ambiguous_video():
     assert match.reason == "override"
 
 
+def test_an_override_on_an_archive_title_still_gets_a_slot():
+    """An archive title states no kind. Without one the match gets no slot and is never
+    written, so a human's override would do nothing and say nothing."""
+    page = "כדורסל:08-11-2024 הפועל חולון נגד מכבי תל אביב - ליגת העל"
+    match = only_match([entry("arch", 'ליגה לאומית 2024, מכבי ת"א - יריבה 77:80', duration=7000)],
+                       overrides={"arch": page})
+    assert match.bucket == Bucket.EXACT
+    assert match.kind is not None
+    assert match.slot == "משחק מלא"
+
+
 def test_a_full_game_that_is_too_short_is_flagged():
     match = only_match([entry("x5", 'המשחק המלא: מכבי Rapyd ת"א - אליצור נתניה 92:102', duration=200)])
     assert match.bucket == Bucket.AMBIGUOUS

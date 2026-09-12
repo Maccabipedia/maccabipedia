@@ -144,7 +144,13 @@ def kind_from_duration(duration_seconds: int | None) -> VideoKind:
 def _classify(entry: VideoEntry, parsed: ParsedTitle,
               rows_by_season: dict[str, list[GameRow]], overrides: dict[str, str]) -> VideoMatch:
     if entry.video_id in overrides:
-        return VideoMatch(entry, parsed, Bucket.EXACT, "override", page_name=overrides[entry.video_id])
+        # An archive title states no kind, so without this the match carries kind=None,
+        # gets no slot, and is silently never written — which would make a human's
+        # decision to override do nothing at all, with no log line saying so.
+        kind_override = (kind_from_duration(entry.duration_seconds)
+                         if parsed.kind is None else None)
+        return VideoMatch(entry, parsed, Bucket.EXACT, "override",
+                          page_name=overrides[entry.video_id], kind_override=kind_override)
 
     season_rows = rows_by_season.get(entry.season, [])
     score = (parsed.maccabi_points, parsed.opponent_points)

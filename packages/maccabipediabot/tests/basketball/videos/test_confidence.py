@@ -67,16 +67,39 @@ def test_a_date_that_contradicts_scores_the_minimum():
     assert score_match(match(published="20200101"), row(), evidence) == MIN_SCORE
 
 
-def test_a_shared_score_costs_points_when_the_date_cannot_confirm():
-    """Two games that season ended with this score, so the opponent alone chose between
-    them, and the archive upload cannot corroborate the choice."""
+def test_a_shared_score_costs_points_only_when_the_name_was_loose():
+    """Two games that season ended with this score and the opponent name only matched
+    loosely, so nothing firmly picked between them."""
     strong = Evidence(score_unique_in_season=True, opponent_agrees=True,
-                      title_year_agrees=True)
+                      opponent_exact=True, title_year_agrees=True)
     weak = Evidence(score_unique_in_season=False, opponent_agrees=True,
-                    title_year_agrees=True)
+                    opponent_exact=False, title_year_agrees=True)
     game = row(date=ARCHIVE_GAME)
     assert score_match(match(published=ARCHIVE_UPLOAD), game, weak) < \
         score_match(match(published=ARCHIVE_UPLOAD), game, strong)
+
+
+def test_a_shared_score_costs_nothing_when_the_opponent_matched_exactly():
+    """1984/85 holds two games ending 88:87 — against Cibona Zagreb and against Hapoel
+    Tel Aviv. A title naming Cibona has identified its game as firmly as a unique score
+    would, five months and a different competition away from the other."""
+    evidence = Evidence(score_unique_in_season=False, opponent_agrees=True,
+                        opponent_exact=True, title_year_agrees=True)
+    assert score_match(match(published=ARCHIVE_UPLOAD), row(date=ARCHIVE_GAME), evidence) == 9
+
+
+def test_collect_evidence_marks_an_exact_name_as_exact():
+    game = row(opponent="ציבונה זאגרב")
+    exact = match(published=None, opponent_raw="ציבונה זאגרב")
+    assert collect_evidence(exact, game, season_rows(game)).opponent_exact is True
+
+
+def test_collect_evidence_marks_a_containment_name_as_not_exact():
+    game = row(opponent="אליצור עירוני נתניה")
+    loose = match(published=None, opponent_raw="נתניה")
+    evidence = collect_evidence(loose, game, season_rows(game))
+    assert evidence.opponent_agrees is True
+    assert evidence.opponent_exact is False
 
 
 def test_a_shared_score_costs_nothing_once_the_date_confirms():
@@ -209,6 +232,15 @@ def test_the_year_does_not_add_to_a_date_confirmed_match():
     ("גביע המדינה 2010, משחק הגמר: מכבי - בני השרון 70:77", "2010-02-18", True),
     ("גביע אירופה 1985, מכבי - באנקו רומא 86:95", "1992-03-14", False),
     ("תקציר המשחק: מכבי - אליצור נתניה 92:102", "2024-11-22", None),
+    # The channel writes the season in two digits too. Eighteen archive matches scored 7
+    # instead of 9 purely because this form was not read.
+    ("ליגת העל 08/09, מח' 6: מכבי תל אביב - אשקלון 96:95", "2008-11-17", True),
+    ("ליגת העל 08/09, מח' 6: מכבי תל אביב - אשקלון 96:95", "2009-03-01", True),
+    ("ליגת העל 08/09, מח' 6: מכבי תל אביב - אשקלון 96:95", "2015-03-01", False),
+    ("יורוליג 08/09, בית א', מח' 6: מכבי תל אביב - ציבונה זאגרב 83:88", "2008-11-27", True),
+    # A score is not a season, and neither is a day/month pair.
+    ("תקציר: מכבי - הפועל 96:95", "2008-11-17", None),
+    ("תקציר מ-16/02: מכבי - הפועל 96:95", "2008-11-17", None),
 ])
 def test_title_year_agreement(title, game_date, expected):
     assert title_year_agrees(title, game_date) is expected

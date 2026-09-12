@@ -188,6 +188,14 @@ def test_parses_summary_titles(title, kind, opponent, maccabi, opponent_points):
      "הפועל גליל עליון", 88, 86, "he"),
     ('בני הרצליה - מכבי Rapyd ת"א 114:99 (18 שלשות)',
      "בני הרצליה", 114, 99, "he"),
+    # Stage before a colon rather than a comma. The stage text used to land inside the
+    # opponent name, so no alias could ever match it.
+    # Hebrew, so the first team named takes the SECOND number.
+    ("גביע אירופה 1995 שלב הבתים 1/8 הגמר מח' 2: פנאתניקוס - מכבי ת\"א 85:80",
+     "פנאתניקוס", 85, 80, "he"),
+    ("בית 1/8 הגמר: אורטז - מכבי ת\"א 78:92", "אורטז", 78, 92, "he"),
+    ("יורוליג 1998 שלב הבתים מח' 11: טלקום אנקרה - מכבי ת\"א 70:83",
+     "טלקום אנקרה", 70, 83, "he"),
 ])
 def test_parses_archive_titles_without_a_keyword(title, opponent, maccabi, opponent_points, language):
     parsed = parse_game_video_title(title)
