@@ -479,3 +479,45 @@ minutes).
    `action=query&list=categorymembers&cmprop=sortkeyprefix&cmsort=sortkey`. Compare the
    member count to what it was before — a member that disappeared means a mangled name.
 5. Purge the affected pages; see §14 on the job queue not draining by itself.
+
+## 15. What a Cargo Query Actually Costs
+
+Measured with xhprof on prod, 2026-09-13. A player page issues **~4,200 SQL
+statements**; each takes only 0.7–1.4 ms. The problem is count, never cost.
+
+**Only ~12% are data queries.** Every `#cargo_query` expands to 10–14 statements:
+
+| source | share | why |
+|---|---|---|
+| `SHOW TABLES LIKE` | ~30% | `CargoSQLQuery::run()` calls `tableExists()` per table, per query, only to produce a friendlier error. Not cached; not fixed in Cargo `master`. |
+| link existence | ~18% | `CargoUtils::makeLink` → `LinkRenderer`, one page lookup per uncached title |
+| schema re-reads | ~12% | `CargoUtils::getTableSchemas` per query |
+| **actual data SELECTs** | **~12%** | |
+
+**Non-grouped queries cost double.** `CargoQuery.php` runs a **second SELECT
+with the LIMIT removed** purely to collect `_pageID`s, then a `DELETE` plus one
+`INSERT` per result into `cargo_backlinks` — so a page *view* performs ~1,000
+database **writes**. Guarded by `if ( $groupByStr == '' && tableExists(
+'cargo_backlinks' ) )`, so:
+
+- a query with `group by` skips all of it
+- dropping the `cargo_backlinks` table disables it wiki-wide, at the cost of
+  automatic invalidation when underlying data changes
+
+**Cargo's Lua interface avoids it entirely** — `mw.ext.cargo.query()` calls
+`CargoSQLQuery::run()` directly and never enters `CargoQuery.php`, so no
+backlinks second-query and no writes, grouped or not.
+
+### What this means when writing templates
+
+- **Fewer queries beats cheaper queries.** Conditional joins and
+  `COUNT(DISTINCT)` chase the 12%. Collapsing N lookups into one `group by`
+  query attacks all four rows above at once.
+- **Never render something to test whether it is empty.** Use
+  `{{PAGESINCATEGORY:X|R}}` (reads the count MediaWiki maintains in the
+  `category` table) rather than building a gallery and checking for output —
+  measured 0.654 s → 0.024 s over 171 checks.
+- **Cargo's data queries never appear in `$wgDebugDumpSql`** (separate DB
+  connection, no debug logger). Only its bookkeeping shows.
+
+See `infra/perf/` for the benchmark and `infra/perf/wiki/` for worked examples.

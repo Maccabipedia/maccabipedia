@@ -89,7 +89,7 @@ Every tool call result stays in context forever. Keep all outputs small:
 - **Knowledge files** (`.claude/*.md`): never Read the whole file. Use Grep to find the relevant section, then Read only those lines.
 
 ## 7. Reference Files
-- `.claude/maccabipedia_structure_knowledge.md` — Game pages, player pages, templates, Cargo API
+- `.claude/maccabipedia_structure_knowledge.md` — Game pages, player pages, templates, Cargo API, what a Cargo query actually costs (§15)
 - `.claude/maccabipedia_research_sources.md` — External data sources: rosters, match results, historical records, photos, video
 - `.claude/maccabistats_knowledge.md` — maccabistats Python package API reference
 - `.claude/maccabipedia_youtube_channel.md` — MaccabiPedia YouTube channel conventions + Google Drive backup layout (used by `restore_deleted_football_video`)
