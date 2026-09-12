@@ -47,6 +47,10 @@ _SEASON_ROLLOVER_MONTH = 8
 # and previous season are needed; the channel feed still works without them, at lower
 # signal density. Add the new season here once a year — the run warns when it is missing.
 SEASON_PLAYLIST_IDS: dict[str, list[str]] = {
+    # The 2026/27 playlist is named just "2026-27" on the channel, with no
+    # "Season" or "Highlights" in the title, and held only pre-season material
+    # when this was added on 2026-09-12.
+    "2026/27": ["PLPOt6WSJil6k"],
     "2025/26": ["PLCWRG1vLyuBJUaQ1PPFjaZxPkliR-Rxrx", "PLCWRG1vLyuBLo2wPrw3qKdc-HKwEqPUAF"],
     "2024/25": ["PLCWRG1vLyuBKq5_S6xV8mYE9mxAXBFi6R", "PLCWRG1vLyuBIznrtzPIXDCMawGrr5WPJZ"],
 }

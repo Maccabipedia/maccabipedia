@@ -5,6 +5,7 @@ is invisible in the logs: the video is either dropped as unmatched or, worse, ma
 against a game from the wrong season that happens to share a score and opponent.
 """
 import pytest
+import requests
 
 from maccabipediabot.basketball.videos import rss
 from maccabipediabot.basketball.videos.inventory import VideoEntry
@@ -54,6 +55,29 @@ def test_a_playlist_feed_states_the_season_and_wins(monkeypatch):
     monkeypatch.setattr(rss, "fetch_feed", fake_fetch)
     entries = rss.collect_from_feeds("UC123", {"2025/26": ["PL1"]})
     assert [entry.season for entry in entries] == ["2025/26"]
+
+
+def test_one_failing_feed_does_not_lose_the_others(monkeypatch):
+    def fake_fetch(url, season, playlist):
+        if playlist == "channel":
+            raise requests.HTTPError("404 Client Error")
+        return [VideoEntry("v", "title", None, season, playlist, "2026-09-11T10:52:14+00:00")]
+
+    monkeypatch.setattr(rss, "fetch_feed", fake_fetch)
+    entries = rss.collect_from_feeds("UC123", {"2025/26": ["PL1"]})
+    assert [entry.video_id for entry in entries] == ["v"]
+
+
+def test_every_feed_failing_is_an_error_not_an_empty_run(monkeypatch):
+    """YouTube's feed endpoint began answering 404 for every channel on 2026-09-12,
+    its own included. A run that could read nothing has not established that there is
+    nothing new, and must not pass quietly as a no-op."""
+    def always_fails(url, season, playlist):
+        raise requests.HTTPError("404 Client Error")
+
+    monkeypatch.setattr(rss, "fetch_feed", always_fails)
+    with pytest.raises(rss.NoFeedsAvailable):
+        rss.collect_from_feeds("UC123", {"2025/26": ["PL1"]})
 
 
 def test_the_channel_feed_is_read_once_however_many_seasons_are_wanted(monkeypatch):

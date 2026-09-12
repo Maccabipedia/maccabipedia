@@ -23,6 +23,10 @@ from maccabipediabot.basketball.videos.season_token import (
     ("Game Highlights | 2025/26", "2025/26"),
     ("Highlights 2019/2020", "2019/20"),
     ("Game Highlights: 2024/25", "2024/25"),
+    # The channel named the 2026/27 playlist with the season and nothing else.
+    ("2026-27", "2026/27"),
+    ("2026/27", "2026/27"),
+    (" 2026-27 ", "2026/27"),
     ("Players Highlights 2011/2012", None),
     ("Pre-Season 2010/2011", None),
     ("TSM Condensed Games 25-26", None),

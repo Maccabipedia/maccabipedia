@@ -72,10 +72,30 @@ def parse_feed(xml_text: str, season: str, playlist: str) -> list[VideoEntry]:
     return entries
 
 
+class NoFeedsAvailable(RuntimeError):
+    """Every feed we asked for failed, so this run saw nothing rather than nothing new."""
+
+
 def fetch_feed(url: str, season: str, playlist: str) -> list[VideoEntry]:
     response = requests.get(url, timeout=_REQUEST_TIMEOUT_SECONDS)
     response.raise_for_status()
     return parse_feed(response.text, season=season, playlist=playlist)
+
+
+def _fetch_feed_or_none(url: str, season: str, playlist: str) -> list[VideoEntry] | None:
+    """One feed's entries, or None if that feed could not be read.
+
+    YouTube's feed endpoint is not guaranteed: on 2026-09-12 it began answering 404 for
+    every channel, its own included, while watch pages kept working. One feed failing
+    must not lose the others, but ALL of them failing is not "no new videos" — it is a
+    run that saw nothing, and saying so is the difference between a quiet no-op and a
+    silent stop.
+    """
+    try:
+        return fetch_feed(url, season, playlist)
+    except requests.RequestException as error:
+        logger.warning("Feed unavailable (%s): %s", playlist, error)
+        return None
 
 
 def collect_from_feeds(channel_id: str, playlist_ids_by_season: dict[str, list[str]]) -> list[VideoEntry]:
@@ -91,12 +111,32 @@ def collect_from_feeds(channel_id: str, playlist_ids_by_season: dict[str, list[s
     states the season outright rather than inferring it.
     """
     by_video_id: dict[str, VideoEntry] = {}
-    for entry in fetch_feed(channel_feed_url(channel_id), "", "channel"):
-        by_video_id[entry.video_id] = replace(entry, season=season_of_publish(entry.published))
+    attempted = 0
+    succeeded = 0
+
+    attempted += 1
+    channel_entries = _fetch_feed_or_none(channel_feed_url(channel_id), "", "channel")
+    if channel_entries is not None:
+        succeeded += 1
+        for entry in channel_entries:
+            by_video_id[entry.video_id] = replace(entry,
+                                                  season=season_of_publish(entry.published))
+
     for season, playlist_ids in playlist_ids_by_season.items():
         for playlist_id in playlist_ids:
-            for entry in fetch_feed(playlist_feed_url(playlist_id), season, playlist_id):
+            attempted += 1
+            playlist_entries = _fetch_feed_or_none(playlist_feed_url(playlist_id),
+                                                   season, playlist_id)
+            if playlist_entries is None:
+                continue
+            succeeded += 1
+            for entry in playlist_entries:
                 by_video_id[entry.video_id] = entry
-    logger.info("RSS: %d distinct videos from the channel feed and %d playlist feeds",
-                len(by_video_id), sum(len(ids) for ids in playlist_ids_by_season.values()))
+
+    if succeeded == 0:
+        raise NoFeedsAvailable(
+            f"none of the {attempted} YouTube feeds could be read — the run saw no videos "
+            f"at all, which is not the same as there being none")
+    logger.info("RSS: %d distinct videos from %d of %d feeds",
+                len(by_video_id), succeeded, attempted)
     return list(by_video_id.values())

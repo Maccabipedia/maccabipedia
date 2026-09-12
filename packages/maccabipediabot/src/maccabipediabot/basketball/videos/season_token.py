@@ -33,6 +33,11 @@ def playlist_kind(title: str) -> PlaylistKind | None:
         return PlaylistKind.HIGHLIGHTS
     if "season" in lowered:
         return PlaylistKind.SEASON
+    # A title that is NOTHING but a season — the channel named the 2026/27 playlist
+    # just "2026-27". Requiring the word "season" would have skipped that whole season
+    # the moment it started, silently.
+    if _SEASON_RE.fullmatch(title.strip()):
+        return PlaylistKind.SEASON
     return None
 
 
