@@ -34,6 +34,9 @@ _SPONSOR_TOKENS = frozenset({
 # Words that appear or vanish between eras without changing which club is meant.
 _OPTIONAL_WORDS = frozenset({
     "עירוני", "מ.כ", "בי.סי", "bc", "basket", "basketball", "bv", "sk",
+    # Union Olimpija Ljubljana is written both with and without the "Union": the pages
+    # hold "אוניון אולימפיה" and the titles "אולימפיה לובליאנה".
+    "אוניון",
 })
 
 _ABBREVIATIONS = (
@@ -68,6 +71,7 @@ _HEBREW_SPELLING_VARIANTS = {
     "היראקליס": "איראקליס",
     "בדאלונה": "דאלונה",
     "סארייבו": "סרייבו",
+    "סקאבוליני": "סקבוליני",
 }
 
 

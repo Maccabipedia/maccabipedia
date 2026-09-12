@@ -566,8 +566,10 @@ _VIDEO_TITLE_TEAM_ALIASES: dict[str, str] = {
     "Real Madrid": "ריאל מדריד",
     "Sassari": "ססארי",
     "Dinamo Sassari": "ססארי",
-    "Unicaja": "אוניקאחה",
-    "Unicaja Malaga": "אוניקאחה",
+    # The city, not the sponsor: pages hold both "מלאגה" and "אוניקאחה מאלגה", and only
+    # the city word is common to the two.
+    "Unicaja": "מלאגה",
+    "Unicaja Malaga": "מלאגה",
     "Unics Kazan": "קאזאן",
     "Kazan": "קאזאן",
     "Valencia": "ולנסיה",
