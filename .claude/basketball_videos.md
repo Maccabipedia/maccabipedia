@@ -42,6 +42,13 @@ title, so the key is **season + round + opponent**, the round matching the `Leg`
   towards the spelling used for NEW uploads, away from what the old pages hold. For the
   same reason an alias must never rewrite a Hebrew name to a spelling the pages do not
   use — `מלאגה`→`מאלגה` and `אולימפיה לובליאנה`→`אולימפיה` each broke real matches.
+- **The DESCRIPTION carries the date the archive titles lack.** The club writes it two
+  ways: `נערך ביד אליהו ב-14/1/88` gives a day, `נערך בקלן באוקטובר 1981` only a month.
+  `played_date.py` reads both, resolving a two-digit year against the video's season
+  (`00` is 2000 and `95` is 1995, so no fixed pivot works). A day that agrees scores the
+  match 10; a month scores 9; **a date that disagrees drops it to 2**, and when that
+  fires it is usually the game page that is wrong. Descriptions come from the watch page
+  alongside the upload date, in one request per video (`watch_page.py`).
 - **A name gap is expensive, not cosmetic.** An unrecognised opponent costs two points,
   which drops the match below the write floor and sends it to a human. Fifty-three rows
   sat on the review page purely because of 1980s sponsor prefixes (`Tracer Milano`,

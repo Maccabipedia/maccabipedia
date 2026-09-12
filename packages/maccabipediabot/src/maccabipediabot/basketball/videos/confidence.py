@@ -2,12 +2,15 @@
 
 The point of the score is review order: a human should be able to trust the top of the
 list and spend their attention on the bottom of it. So the score is built only from
-evidence that can be checked, and the heaviest weight goes to the one piece of evidence
-the matcher does NOT read from the video title — when the video was uploaded.
+evidence that can be checked, and the heaviest weight goes to the evidence the matcher
+does NOT read from the video title: when the video was uploaded, and what the club says
+in its description about when the game was played.
 
-    10  unique score in the season, opponent recognised outright, uploaded within days
-     9  the same, but the upload came weeks or months later
-     7  the same, but the video is an archive upload with no usable date
+    10  unique score in the season, opponent recognised outright, and either the upload
+        followed the game within days or the description names the day it was played
+     9  the same, but the corroboration is only a month or a year
+     7  the same, but an archive upload whose description says nothing about the date
+     2  the description or the title dates the game somewhere else entirely
      1  the video was uploaded BEFORE the game: the pairing cannot be right
 
 Everything else sits in between, losing a point per piece of missing evidence.
@@ -25,6 +28,7 @@ from maccabipediabot.basketball.videos.aliases import (
 from maccabipediabot.basketball.videos.cargo import GameRow
 from maccabipediabot.basketball.videos.dates import days_between_game_and_upload, parse_game_date
 from maccabipediabot.basketball.videos.matcher import Bucket, VideoMatch
+from maccabipediabot.basketball.videos.played_date import parse_played_date
 
 MIN_SCORE = 1
 MAX_SCORE = 10
@@ -68,6 +72,14 @@ class Evidence:
     # PLAYLIST, never the title, so this is independent — and it is the only such
     # evidence available for archive uploads, whose dates say nothing.
     title_year_agrees: bool | None = None
+    # Whether the DESCRIPTION's account of when the game was played agrees with the page,
+    # or None when it names no date. This is the club stating the date outright, so it is
+    # the strongest evidence available for an archive upload — and the only evidence that
+    # can prove a pairing WRONG rather than merely unconfirmed.
+    described_date_agrees: bool | None = None
+    # Whether that description gave a day rather than only a month. A month narrows the
+    # field; a day identifies the game.
+    described_day_known: bool = False
 
 
 def date_points(days_apart: int | None) -> int | None:
@@ -117,16 +129,26 @@ def title_year_agrees(title: str, game_date: str) -> bool | None:
     return bool(years & {game.year - 1, game.year, game.year + 1})
 
 
+def described_date_evidence(match: VideoMatch, row: GameRow) -> tuple[bool | None, bool]:
+    """(does the description's date agree with this page, did it give a day)."""
+    described = parse_played_date(match.entry.description or "", match.entry.season)
+    if described is None:
+        return None, False
+    return described.covers(row.date), described.day is not None
+
+
 def collect_evidence(match: VideoMatch, row: GameRow, season_rows: list[GameRow]) -> Evidence:
     """Read off what supports this match, beyond the upload date."""
     year_agrees = title_year_agrees(match.entry.title, row.date)
+    date_agrees, day_known = described_date_evidence(match, row)
     parsed = match.parsed
     if parsed is None:
         # A EuroLeague match: its key is the season plus the round, which picks out one
         # game as sharply as a score does, and the matcher already required the opponent
         # to agree before returning EXACT.
         return Evidence(score_unique_in_season=True, opponent_agrees=True,
-                        opponent_exact=True, title_year_agrees=year_agrees)
+                        opponent_exact=True, title_year_agrees=year_agrees,
+                        described_date_agrees=date_agrees, described_day_known=day_known)
 
     score = (parsed.maccabi_points, parsed.opponent_points)
     same_score = [candidate for candidate in season_rows
@@ -138,6 +160,8 @@ def collect_evidence(match: VideoMatch, row: GameRow, season_rows: list[GameRow]
         opponent_exact=(resolved is not None
                         and normalize_team_name(resolved) == normalize_team_name(row.opponent)),
         title_year_agrees=year_agrees,
+        described_date_agrees=date_agrees,
+        described_day_known=day_known,
     )
 
 
@@ -156,15 +180,29 @@ def score_match(match: VideoMatch, row: GameRow | None, evidence: Evidence) -> i
         # up, something is wrong with the pairing.
         return MIN_SCORE + 1
 
+    if evidence.described_date_agrees is False:
+        # The club's own description says the game was played on a different date. That
+        # outranks a score and a name agreeing, because a score can repeat and a name can
+        # be recorded wrongly — and when it fires it is usually the PAGE that is wrong,
+        # which is worth a human's time in a way an ordinary near-miss is not.
+        return MIN_SCORE + 1
+
     date_confirms = points == 3
+    # The description naming the very day is confirmation of the same weight as an upload
+    # that followed the game, and for the archive era it is the only kind available.
+    description_confirms = bool(evidence.described_date_agrees) and evidence.described_day_known
 
     score = _BASE_SCORE + points
-    if points == 0 and evidence.title_year_agrees:
-        # No usable upload date, but the title's own year backs the match. Coarser than
-        # a same-day upload, so it is worth less than one — but it is real evidence, and
-        # for the archive era it is the only kind there is.
-        score += 2
-    settled_independently = date_confirms or evidence.opponent_exact
+    if points == 0:
+        # No usable upload date: an archive upload. What is left is what the club wrote.
+        if description_confirms:
+            score += 3
+        elif evidence.described_date_agrees or evidence.title_year_agrees:
+            # Coarse corroboration — the right month, or a year written in the title.
+            # These do NOT stack: a month already implies its year, and adding both
+            # would let two vague signals reach the score reserved for a known date.
+            score += 2
+    settled_independently = date_confirms or description_confirms or evidence.opponent_exact
     if not evidence.score_unique_in_season and not settled_independently:
         # A score shared by two games that season is a weakness only while nothing else
         # settles which game it was. Two things do. An upload dated to the game confirms

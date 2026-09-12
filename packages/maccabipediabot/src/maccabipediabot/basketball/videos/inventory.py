@@ -20,7 +20,7 @@ from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 
 from maccabipediabot.basketball.videos.season_token import season_from_playlist_title
-from maccabipediabot.basketball.videos.upload_dates import fetch_upload_dates
+from maccabipediabot.basketball.videos.watch_page import fetch_watch_pages
 
 logger = logging.getLogger(__name__)
 
@@ -57,6 +57,9 @@ class VideoEntry:
     season: str
     playlist: str
     published: str | None = None
+    # The club writes the date an ARCHIVE game was played here and nowhere else; the
+    # titles of those uploads carry no date at all.
+    description: str | None = None
 
     @property
     def url(self) -> str:
@@ -140,19 +143,33 @@ def collect_with_yt_dlp(playlists_url: str = MACCABI_PLAYLISTS_URL,
     return entries
 
 
-def with_upload_dates(entries: list[VideoEntry]) -> list[VideoEntry]:
-    """The same entries with `published` filled in wherever YouTube will say.
+def with_watch_page_facts(entries: list[VideoEntry]) -> list[VideoEntry]:
+    """The same entries with `published` and `description` filled in where YouTube says.
 
-    Kept beside the collectors rather than left to the caller, because the upload date is
-    what lifts a match from "the score and the name agree" to "and it went up the day of
-    the game" — without it every match built from a yt-dlp inventory is capped at 9.
+    Kept beside the collectors rather than left to the caller, because both are what lift
+    a match from "the score and the name agree" to "and the club says it was played that
+    day" — without them every match built from a yt-dlp inventory is capped at 9.
     """
-    missing = sorted({entry.video_id for entry in entries if not entry.published})
+    missing = sorted({entry.video_id for entry in entries
+                      if not entry.published or entry.description is None})
     if not missing:
         return entries
-    dates = fetch_upload_dates(missing)
-    return [replace(entry, published=dates.get(entry.video_id, entry.published))
-            for entry in entries]
+    facts = fetch_watch_pages(missing)
+
+    def enriched(entry: VideoEntry) -> VideoEntry:
+        fact = facts.get(entry.video_id)
+        if fact is None:
+            return entry
+        return replace(
+            entry,
+            published=fact.upload_date or entry.published,
+            # An empty string is kept as an empty string: it means "asked, and the video
+            # has no description", which stops the next run asking again.
+            description=(fact.description if fact.description is not None
+                         else entry.description),
+        )
+
+    return [enriched(entry) for entry in entries]
 
 
 def collect_euroleague_with_yt_dlp(search_url: str = EUROLEAGUE_SEARCH_URL) -> list[VideoEntry]:

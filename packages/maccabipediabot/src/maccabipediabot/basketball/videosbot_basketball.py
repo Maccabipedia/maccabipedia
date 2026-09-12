@@ -21,7 +21,7 @@ from maccabipediabot.basketball.videos.inventory import (
     collect_euroleague_with_yt_dlp,
     collect_with_yt_dlp,
     save_inventory,
-    with_upload_dates,
+    with_watch_page_facts,
     MACCABI_CHANNEL_ID,
     VideoEntry,
     load_inventory,
@@ -103,12 +103,12 @@ def build_inventories(inventory_path: Path | None, euroleague_path: Path | None,
         raise SystemExit("--build-inventory needs --inventory and/or --euroleague-inventory")
 
     if inventory_path is not None:
-        entries = with_upload_dates(collect_with_yt_dlp(seasons=seasons))
+        entries = with_watch_page_facts(collect_with_yt_dlp(seasons=seasons))
         save_inventory(entries, inventory_path)
         logger.info("Club channel: %d videos -> %s", len(entries), inventory_path)
 
     if euroleague_path is not None:
-        entries = with_upload_dates(collect_euroleague_with_yt_dlp())
+        entries = with_watch_page_facts(collect_euroleague_with_yt_dlp())
         save_inventory(entries, euroleague_path)
         logger.info("EuroLeague: %d videos -> %s", len(entries), euroleague_path)
 
@@ -133,7 +133,10 @@ def collect_entries_from_rss(seasons: list[str]) -> list[VideoEntry]:
     wanted = set(seasons)
     kept = [entry for entry in entries if entry.season in wanted]
     logger.info("RSS: %d of %d videos fall in %s", len(kept), len(entries), sorted(wanted))
-    return kept
+    # A feed carries no description, and the description is where the club states the
+    # date the game was played. One extra GET per new video buys evidence the feed and
+    # the title cannot give, and a feed holds at most 15 items.
+    return with_watch_page_facts(kept)
 
 
 def build_matches(entries: list[VideoEntry], euroleague_entries: list[VideoEntry],

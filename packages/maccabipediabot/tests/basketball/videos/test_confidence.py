@@ -28,8 +28,8 @@ def row(opponent="אליצור נתניה", date="2024-11-22"):
 
 
 def match(*, published=None, opponent_raw="אליצור נתניה", kind=VideoKind.HIGHLIGHTS,
-          kind_override=None):
-    entry = VideoEntry("v1", "title", 180, "2024/25", "p", published)
+          kind_override=None, description=None, title="title", season="2024/25"):
+    entry = VideoEntry("v1", title, 180, season, "p", published, description)
     parsed = ParsedTitle(kind, opponent_raw, 102, 92, "he")
     return VideoMatch(entry, parsed, Bucket.EXACT, "score and opponent agree",
                       page_name="כדורסל:22-11-2024 x", slot="תקציר וידאו",
@@ -244,6 +244,52 @@ def test_the_year_does_not_add_to_a_date_confirmed_match():
 ])
 def test_title_year_agreement(title, game_date, expected):
     assert title_year_agrees(title, game_date) is expected
+
+
+_ARCHIVE = {"published": "20200101", "season": "1987/88", "title": "גביע אירופה 1988"}
+
+
+def _archive_row(date="1988-01-14"):
+    return row(date=date)
+
+
+def test_a_description_naming_the_day_settles_an_archive_match():
+    """The club writes the date of an archive game in the description and nowhere else.
+
+    Real case: 'גביע אירופה 1988,בית הגמר, מכבי ת"א - אורטז 78:92' sat at 7 for want of
+    a date, while its description read 'נערך ביד אליהו ב-14/1/88'.
+    """
+    archive = match(description="מחזור 6. נערך ביד אליהו ב-14/1/88. מכבי: מגי 31.",
+                    **_ARCHIVE)
+    evidence = collect_evidence(archive, _archive_row(), [_archive_row()])
+    assert evidence.described_date_agrees is True
+    assert evidence.described_day_known is True
+    assert score_match(archive, _archive_row(), evidence) == MAX_SCORE
+
+
+def test_a_description_dated_elsewhere_refuses_the_match():
+    """A date the club states outright outranks a score and a name that happen to agree."""
+    archive = match(description="מחזור 9. נערך ביד אליהו ב-18/2/88.", **_ARCHIVE)
+    evidence = collect_evidence(archive, _archive_row("1988-03-03"), [])
+    assert evidence.described_date_agrees is False
+    assert score_match(archive, _archive_row("1988-03-03"), evidence) == MIN_SCORE + 1
+
+
+def test_a_month_only_description_narrows_without_settling():
+    archive = match(description="נערך בקלן באוקטובר 1981.",
+                    published="20200101", season="1981/82", title="גביע אירופה 1982")
+    game = row(date="1981-10-22")
+    evidence = collect_evidence(archive, game, [game])
+    assert evidence.described_date_agrees is True
+    assert evidence.described_day_known is False
+    assert score_match(archive, game, evidence) < MAX_SCORE
+
+
+def test_a_description_with_no_date_changes_nothing():
+    archive = match(description="מכבי: מגי 22 ו-10 ריבאונדים.", **_ARCHIVE)
+    evidence = collect_evidence(archive, _archive_row(), [_archive_row()])
+    assert evidence.described_date_agrees is None
+    assert evidence.described_day_known is False
 
 
 def test_a_match_with_no_page_scores_the_minimum():
