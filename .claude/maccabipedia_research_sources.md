@@ -95,6 +95,11 @@ Wiki page with full list: `https://www.maccabipedia.co.il/מקורות_שימו�
 - maccabi.co.il Official Club Site: https://maccabi.co.il/data.asp?id=153&lang=en — rosters back to 1986-87, hall of fame, video archive
 - Wikipedia Past Rosters: https://en.wikipedia.org/wiki/Maccabi_Tel_Aviv_B.C._past_rosters
 
+**Video:**
+- Maccabi Tel Aviv Basketball official YouTube: https://www.youtube.com/channel/UCqxNoI856R_vgs7aQolQhlg — ~6,000 videos in a `Season YYYY/YY` playlist per season, 1979/80 to now, plus dedicated `Games Highlights` / `Full Games` playlists from 2013/14. Titles carry the two teams and the final score but no date. **Hebrew titles read right to left** (the first team named takes the second number); English titles read in order, and the channel publishes both orders for the same game. Pre-2010 uploads use `<competition> <year>, <stage>, <teams> <score>` with no keyword at all. `תרכיז` / "Condensed Game" is a 15-minute condensed replay, distinct from a 3-minute `תקציר`.
+- EuroLeague official YouTube: https://www.youtube.com/@EuroLeague — per-round highlights titled `Maccabi - <opponent> | R24 BASKETBALL HIGHLIGHTS 2025-26`, which match games via the `Leg` column (`מחזור 24`), plus `EUROLEAGUE CLASSIC GAMES` full replays. One channel-search request returns every video mentioning Maccabi.
+- Both are matched to game pages automatically by `basketball/videosbot_basketball.py`; see `.claude/basketball_videos.md`.
+
 **Books:**
 - "The Israeli Basketball Book" by Eliyahu Shochat: https://www.yumpu.com/ar/document/read/61848121/-
 
@@ -128,4 +133,4 @@ For rosters/players, try maccabita.co.il and maccabifans via Wayback Machine (se
 - **Handball**: no stats, no rosters, no video — only fan songs
 - **Volleyball 1960s–2010**: IVA starts at 2010/11, Wincol PDF covers pre-establishment — middle decades undocumented
 - **Football pre-1950s**: RSSSF has tables but no lineups/match details; JPress is the best bet
-- **Basketball video**: no known sources
+- **Basketball video pre-1980**: the club's channel starts at 1979/80, so the 1950s-1970s have no known video source. Later decades are covered — see the Basketball **Video** section above.
