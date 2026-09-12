@@ -87,6 +87,40 @@ def test_unknown_opponent_never_claims_a_match():
     assert opponent_matches("No Such Club FC", "הפועל תל אביב") is False
 
 
+@pytest.mark.parametrize("title_name,cargo_opponent", [
+    # A hyphen joins the halves of one club name the way a space does.
+    ("וילרבאן", "ליון-וילרבאן"),
+    ("לה מאן", "לה-מאן"),
+    # The same club spelled differently by the title and by the page.
+    ("מלאגה", "מלאגה"),
+    ("אפס פלזן", "אפס פילזן"),
+    ("איראקליס", "היראקליס סלוניקי"),
+    ("בנטון טרויזו", "בנטון טרביזו"),
+    ("חובנטוד דאלונה", "חובנטוד בדאלונה"),
+    ("אוסטנד", "אוסטנדה"),
+    # Abbreviations the channel uses and the pages spell out.
+    ("מכבי ראשון לציון", 'ראשל"צ'),
+    ('בנה"ש', "בני השרון"),
+    # 1980s sponsors and appended city names in the English archive uploads.
+    ("Tracer Milano", "אולימפיה מילאנו"),
+    ("Nashua Den Bosch", "דן בוס"),
+    ("Squibb Cantù", "קאנטו"),
+    ("Aris Thessaloniki", "אריס סלוניקי"),
+    ("Synudine Bologna", "וירטוס בולוניה"),
+    ("Union Olimpija", "אולימפיה לובליאנה"),
+    ("Upper Galil", "גליל עליון"),
+    ("טאלין", "קאלב"),
+])
+def test_era_spellings_of_one_club_match(title_name, cargo_opponent):
+    """Each of these pairs names a single club and cost a real match before the fold."""
+    assert opponent_matches(title_name, cargo_opponent) is True
+
+
+def test_hebrew_name_is_not_rewritten_away_from_the_wiki():
+    """Translating 'מלאגה' to 'מאלגה' moved the name off the spelling the pages use."""
+    assert resolve_opponent("מלאגה") == "מלאגה"
+
+
 def test_canonical_rename_does_not_break_a_live_cargo_spelling():
     """canonical_team_name() maps 'פנאתינייקוס' to 'פנאתינאיקוס', but Cargo stores the
     former on 58 rows. Matching must accept the spelling that is actually on the wiki."""

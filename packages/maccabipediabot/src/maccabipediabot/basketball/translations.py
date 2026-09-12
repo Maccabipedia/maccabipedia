@@ -600,11 +600,13 @@ _VIDEO_TITLE_TEAM_ALIASES: dict[str, str] = {
     "ורוצלאב": "ורוצלב",
     "יוגופלסטיקה ספליט": "ספליט",
     "בוסנה סארייבו": "בוסנה",
-    "אולימפיה לובליאנה": "אולימפיה",
+    # Deliberately absent: "מלאגה" and "אולימפיה לובליאנה". Both were rewritten here to a
+    # spelling the game pages do not use ("מאלגה", "אולימפיה"), which moved the name AWAY
+    # from the wiki and broke 9 matches. Hebrew names pass through untranslated and the
+    # spelling folding in videos/aliases.py absorbs the difference.
     "אנטיב": "דאנטיב",
     "קאזרטה": "יובקזרטה",
     "קאחה סן פרננדו": "קחאסול",
-    "מלאגה": "מאלגה",
     "בנטון טרוויזו": "טרביזו",
     "לוליו": "לולאו",
     "באנקו רומא": "רומא",
@@ -623,6 +625,45 @@ _VIDEO_TITLE_TEAM_ALIASES: dict[str, str] = {
     'א.ס. רמה"ש': "רמת השרון",
     "הפועל ים": "הפועל ירושלים",
     "הפועל הרצליה": "הרצליה",
+    # The English archive uploads, where the club is written under its 1980s sponsor or
+    # with the city appended. Each maps to the token the game page actually carries, so
+    # the tolerant comparison can contain one name in the other.
+    "Aris Thessaloniki": "אריס סלוניקי",
+    "Bayer Leverkusen": "לברקוזן",
+    "Billy Milano": "מילאנו",
+    "Bnei HaSharon": "בני השרון",
+    "Bologna": "בולוניה",
+    "Bosna Sarajevo": "בוסנה סרייבו",
+    "Caja Laboral": "קאחה לאבורל",
+    "CSKA": 'צסק"א מוסקבה',
+    "Efes": "אפס",
+    "Efes Pilsen": "אפס",
+    "Elitzur Kiryat Ata": "אליצור קרית אתא",
+    "Fortitudo Skipper Bologna": "סקיפר בולוניה",
+    "Hapoel Be'er Sheva/Dimona": "הפועל באר שבע",
+    "Hapoel Ramat Gan": "הפועל רמת גן",
+    "Iraklis": "איראקליס",
+    "Le Mans": "לה מאן",
+    "Montepaschi Siena": "סיינה",
+    "Nashua Den Bosch": "דן בוס",
+    "Novo Mesto": "נובו מסטו",
+    "PAOK Thessaloniki": "פאוק סלוניקי",
+    "Pesaro": "פזארו",
+    "Roma": "רומא",
+    "Siena": "סיינה",
+    "Squibb Cantù": "קאנטו",
+    "Squibb Cantu": "קאנטו",
+    "Synudine Bologna": "וירטוס בולוניה",
+    "Tao Vitoria": "טאו ויטוריה",
+    "Tau Vitoria": "טאו ויטוריה",
+    "Tracer Milano": "מילאנו",
+    "Union Olimpija": "אולימפיה לובליאנה",
+    "Upper Galil": "גליל עליון",
+    "Zadar": "זאדאר",
+    "Žalgiris": "ז'לגיריס",
+    # Kalev of Tallinn: the titles name the city, the pages name the club.
+    "Tallinn": "קאלב",
+    "טאלין": "קאלב",
 }
 
 

@@ -43,16 +43,31 @@ _ABBREVIATIONS = (
     ('פ"ת', "פתח תקווה"),
     ('י"ם', "ירושלים"),
     ("י-ם", "ירושלים"),
+    ('ראשל"צ', "ראשון לציון"),
+    ("ראשל״צ", "ראשון לציון"),
+    ('בנה"ש', "בני השרון"),
+    ("בנה״ש", "בני השרון"),
 )
 
 _QUOTE_CHARS = str.maketrans("", "", "\"'`״׳")
 
-# Hebrew spellings that differ between eras or between editors for the same club.
+# Hebrew spellings that differ between eras or between editors for the same club. Both
+# sides of the comparison are folded through this, so the pair only has to agree on one
+# spelling — which spelling wins does not matter.
 _HEBREW_SPELLING_VARIANTS = {
     "קריית": "קרית",
     "מונאקו": "מונקו",
     "באסקוניה": "בסקוניה",
     "ז'אלגריס": "ז'לגיריס",
+    "מאלגה": "מלאגה",
+    "ארמאני": "ארמני",
+    "אוסטנדה": "אוסטנד",
+    "פילזן": "פלזן",
+    "טרויזו": "טרביזו",
+    "טרוויזו": "טרביזו",
+    "היראקליס": "איראקליס",
+    "בדאלונה": "דאלונה",
+    "סארייבו": "סרייבו",
 }
 
 
@@ -61,7 +76,9 @@ def normalize_team_name(name: str) -> str:
     text = html.unescape(name)
     for abbreviation, expansion in _ABBREVIATIONS:
         text = text.replace(abbreviation, expansion)
-    text = text.translate(_QUOTE_CHARS).replace("/", " ")
+    # A hyphen joins two halves of one name as often as a space does — "ליון-וילרבאן",
+    # "לה-מאן", "גלבוע/עפולה" — so both it and the slash become word breaks.
+    text = text.translate(_QUOTE_CHARS).replace("/", " ").replace("-", " ")
     words = [
         _HEBREW_SPELLING_VARIANTS.get(word, word)
         for word in text.split()

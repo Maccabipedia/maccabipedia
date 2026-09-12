@@ -39,7 +39,15 @@ title, so the key is **season + round + opponent**, the round matching the `Leg`
   `מכבי ראשון לציון` and `ראשל"צ` for one club, so names are compared by significant
   word containment, and the alias table maps to the distinctive part of the name.
   `translations.canonical_team_name()` is deliberately NOT used here: it rewrites
-  towards the spelling used for NEW uploads, away from what the old pages hold.
+  towards the spelling used for NEW uploads, away from what the old pages hold. For the
+  same reason an alias must never rewrite a Hebrew name to a spelling the pages do not
+  use — `מלאגה`→`מאלגה` and `אולימפיה לובליאנה`→`אולימפיה` each broke real matches.
+- **A name gap is expensive, not cosmetic.** An unrecognised opponent costs two points,
+  which drops the match below the write floor and sends it to a human. Fifty-three rows
+  sat on the review page purely because of 1980s sponsor prefixes (`Tracer Milano`,
+  `Nashua Den Bosch`), an appended city (`Aris Thessaloniki`), a hyphen (`ליון-וילרבאן`)
+  or one letter (`מאלגה`/`מלאגה`). Hyphen and slash are word breaks, spelling variants
+  fold both sides of the comparison, and each sponsor era needs its own alias.
 
 ## The 1-10 confidence score
 
