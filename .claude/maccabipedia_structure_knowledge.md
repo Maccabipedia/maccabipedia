@@ -433,9 +433,31 @@ Two things to know about `#time` here:
 - `#time` reads `16-02-2017` as day-month-year, because PHP treats dash-separated dates as
   European. That is why the raw parameter can be fed straight in with no reformatting.
 
-Expansion cost is not a reason to choose between the two forms: a game page with 179
-category assignments reports `ppvisitednodes 16613/1000000` and
-`postexpandincludesize 222955/8388608`. There is room either way.
+### Is a sort key on many categories expensive?
+
+No. Measured by parsing the same 179 category assignments three ways via `action=parse`
+(nothing saved), 2026-09-12:
+
+| variant | ppvisitednodes | postexpandincludesize | cputime |
+|---|---|---|---|
+| no sort key | 1 | 0 | 0.012 |
+| inlined `#time` per category | 359 | 1790 | 0.019 |
+| one `#vardefine`, read by each | 184 | 1800 | 0.016 |
+
+Against budgets of 1,000,000 nodes and 8,388,608 bytes that is 0.04% and 0.02%. A whole
+game page renders in 16,613 nodes / 0.333s, so the keys are ~2% of its own cost either way.
+`#time` is **not** an expensive parser function — `expensivefunctioncount` stays 0, so the
+separate 10,000 limit is untouched.
+
+The variable form is about half the nodes of inlining (184 vs 359), because the date is
+computed once per page instead of once per category. Both are negligible; pick the form on
+the plumbing argument above, not on cost.
+
+Storage is unaffected in practice: MediaWiki stores a collation key in `categorylinks` for
+every page-category pair regardless, and the prefix adds ~10 characters to each row.
+
+The only heavy part is one-time — re-rendering the pages afterwards (10,122 pages, ~40
+minutes).
 
 ### Checklist for a sort-key change
 
