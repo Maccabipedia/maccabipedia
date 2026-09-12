@@ -386,6 +386,8 @@ $wgTabberNeueParseTabName = true;
 
 wfLoadExtension('GTag');
 # $wgGTagAnalyticsId — set in LocalSettings.env.*.php
+# Editors browsing their own wiki is not reader traffic: gtag-exempt makes GTag skip the tracking code for them entirely.
+$wgGroupPermissions['sysop']['gtag-exempt'] = true;
 // require_once "$IP/extensions/googleAnalytics/googleAnalytics.php"; # https://www.mediawiki.org/wiki/Extension:Google_Analytics_Integration
 // $wgGoogleAnalyticsAccount = 'UA-123078340-2';  # MaccabiPedi
 
