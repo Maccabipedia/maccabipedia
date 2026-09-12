@@ -128,9 +128,15 @@ def season_page_titles(seasons: set[str]) -> list[str]:
     return sorted(f"{BASKETBALL_SEASON_PAGE_PREFIX}{season}" for season in seasons if season)
 
 
+# A season page runs a Cargo query over a whole season's games, so forcing a link
+# update on a batch of them is slow server-side. Forty-five at once read-timed out at
+# 45 seconds during the backfill, the same size limit the profile purge ran into.
+_SEASON_PURGE_CHUNK_SIZE = 10
+
+
 def purge_season_pages(site: pw.Site, seasons: set[str], dry_run: bool = False) -> int:
     """Refresh the season pages so their Cargo queries pick the new videos up."""
     titles = season_page_titles(seasons)
     if not titles:
         return 0
-    return purge_pages(site, titles, dry_run=dry_run)
+    return purge_pages(site, titles, dry_run=dry_run, chunk_size=_SEASON_PURGE_CHUNK_SIZE)

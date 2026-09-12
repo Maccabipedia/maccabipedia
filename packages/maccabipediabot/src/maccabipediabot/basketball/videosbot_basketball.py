@@ -32,6 +32,8 @@ from maccabipediabot.basketball.videos.report import render_report, render_sampl
 from maccabipediabot.basketball.videos.sampling import choose_verification_sample, verify_sample
 from maccabipediabot.basketball.videos.writing import purge_season_pages, write_matches
 from maccabipediabot.basketball.videos.youtube_metadata import fetch_upload_date
+import pywikibot as pw
+
 from maccabipediabot.common.wiki_login import get_site
 
 logger = logging.getLogger(__name__)
@@ -158,6 +160,10 @@ def main() -> None:
                         help="Purge the season pages of everything written.")
     parser.add_argument("--min-confidence", type=int, default=None,
                         help="With --write: refuse anything scored below this (1-10).")
+    parser.add_argument("--throttle", type=float, default=None,
+                        help="Seconds to wait between page saves. The config ships with no "
+                             "delay, which is fine for the handful of writes a scheduled run "
+                             "makes but hammers the site over a backfill of a thousand pages.")
     args = parser.parse_args()
 
     logging.basicConfig(format="%(asctime)s %(levelname)s %(message)s", level=logging.INFO)
@@ -211,6 +217,9 @@ def main() -> None:
 
     if not args.dry_run:
         logger.warning("LIVE MODE: pages will be edited on MaccabiPedia")
+    if args.throttle is not None:
+        pw.config.put_throttle = args.throttle
+        logger.info("Pacing saves at %.1fs apart", args.throttle)
     site = get_site()
     outcome = write_matches(site, matches, progress_path=args.progress,
                             dry_run=args.dry_run, limit=args.limit, pages=pages,
