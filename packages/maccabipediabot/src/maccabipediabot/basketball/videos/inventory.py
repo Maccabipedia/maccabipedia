@@ -16,10 +16,11 @@ import logging
 import os
 import shlex
 import subprocess
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 
 from maccabipediabot.basketball.videos.season_token import season_from_playlist_title
+from maccabipediabot.basketball.videos.upload_dates import fetch_upload_dates
 
 logger = logging.getLogger(__name__)
 
@@ -137,6 +138,21 @@ def collect_with_yt_dlp(playlists_url: str = MACCABI_PLAYLISTS_URL,
         logger.info("Playlist %r (season %s): %d videos", playlist_title, season, len(found))
         entries.extend(found)
     return entries
+
+
+def with_upload_dates(entries: list[VideoEntry]) -> list[VideoEntry]:
+    """The same entries with `published` filled in wherever YouTube will say.
+
+    Kept beside the collectors rather than left to the caller, because the upload date is
+    what lifts a match from "the score and the name agree" to "and it went up the day of
+    the game" — without it every match built from a yt-dlp inventory is capped at 9.
+    """
+    missing = sorted({entry.video_id for entry in entries if not entry.published})
+    if not missing:
+        return entries
+    dates = fetch_upload_dates(missing)
+    return [replace(entry, published=dates.get(entry.video_id, entry.published))
+            for entry in entries]
 
 
 def collect_euroleague_with_yt_dlp(search_url: str = EUROLEAGUE_SEARCH_URL) -> list[VideoEntry]:

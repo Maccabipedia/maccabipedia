@@ -18,6 +18,10 @@ from maccabipediabot.basketball.videos import rss
 from maccabipediabot.basketball.videos.cargo import fetch_basketball_game_rows
 from maccabipediabot.basketball.videos.confidence import MAX_SCORE, score_all
 from maccabipediabot.basketball.videos.inventory import (
+    collect_euroleague_with_yt_dlp,
+    collect_with_yt_dlp,
+    save_inventory,
+    with_upload_dates,
     MACCABI_CHANNEL_ID,
     VideoEntry,
     load_inventory,
@@ -85,6 +89,28 @@ def load_overrides(path: Path | None) -> dict[str, str]:
                 overrides[row[0].strip()] = row[1].strip()
     logger.info("Loaded %d overrides from %s", len(overrides), path)
     return overrides
+
+
+def build_inventories(inventory_path: Path | None, euroleague_path: Path | None,
+                      seasons: list[str] | None) -> None:
+    """Build the inventory files the backfill reads, upload dates included.
+
+    Upload dates are fetched here rather than left to the caller because without them
+    every match is capped at a confidence of 9: the date is the only evidence that does
+    not come from the video's own title.
+    """
+    if inventory_path is None and euroleague_path is None:
+        raise SystemExit("--build-inventory needs --inventory and/or --euroleague-inventory")
+
+    if inventory_path is not None:
+        entries = with_upload_dates(collect_with_yt_dlp(seasons=seasons))
+        save_inventory(entries, inventory_path)
+        logger.info("Club channel: %d videos -> %s", len(entries), inventory_path)
+
+    if euroleague_path is not None:
+        entries = with_upload_dates(collect_euroleague_with_yt_dlp())
+        save_inventory(entries, euroleague_path)
+        logger.info("EuroLeague: %d videos -> %s", len(entries), euroleague_path)
 
 
 def collect_entries_from_rss(seasons: list[str]) -> list[VideoEntry]:
@@ -164,6 +190,10 @@ def main() -> None:
                         help="Purge the season pages of everything written.")
     parser.add_argument("--min-confidence", type=int, default=None,
                         help="With --write: refuse anything scored below this (1-10).")
+    parser.add_argument("--build-inventory", action="store_true",
+                        help="Walk the channel with yt-dlp, fetch each video's upload date, "
+                             "and write --inventory / --euroleague-inventory. Do this before "
+                             "a backfill; everything else reads the files it leaves.")
     parser.add_argument("--throttle", type=float, default=None,
                         help="Seconds to wait between page saves. The config ships with no "
                              "delay, which is fine for the handful of writes a scheduled run "
@@ -172,6 +202,10 @@ def main() -> None:
 
     logging.basicConfig(format="%(asctime)s %(levelname)s %(message)s", level=logging.INFO)
     seasons = resolve_seasons(args.seasons)
+
+    if args.build_inventory:
+        build_inventories(args.inventory, args.euroleague_inventory, seasons)
+        return
 
     if args.source == "rss":
         if seasons is None:

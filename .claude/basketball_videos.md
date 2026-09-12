@@ -18,10 +18,12 @@ title, so the key is **season + round + opponent**, the round matching the `Leg`
 ## Title traps, all of them found the hard way
 
 - **Hebrew titles read right to left.** In `מכבי ת"א - הפועל ת"א 80:74` Maccabi scored
-  74, not 80. English titles read in order. Verified across the channel: 780 of 785
-  Hebrew titles read this way. The channel published both `74:80` and `80:74` in
-  English for one and the same game, so when both orders match a game against the same
-  opponent the matcher refuses rather than guessing.
+  74, not 80. English titles read in order. Verified against Cargo across the whole
+  channel: before the fix, 234 of 236 parseable Hebrew titles matched only the reversed
+  score while 482 of 495 English ones matched as written; after it, 780 of 785 Hebrew
+  titles match as written. The channel published both `74:80` and `80:74` in English for
+  one and the same game, so when both orders match a game against the same opponent the
+  matcher refuses rather than guessing.
 - **The home team is written first**, so the score order follows the teams, not Maccabi.
   Which side is the club is decided by name — and several opponents are themselves
   named Maccabi, so a bare "Maccabi" only counts when nothing else is left in the name.
@@ -53,10 +55,17 @@ video was uploaded.
 | 7 | the same, but an archive upload whose date says nothing either way |
 | 1 | uploaded before the game, so the pairing cannot be right |
 
-Points come off for a score shared by more than one game that season, an opponent name
-that had to be assumed rather than recognised, a name that only matched by containment,
-and a kind guessed from the video's length. `--min-confidence N` refuses to write
-anything below N.
+Points come off for two things only: a score shared by more than one game that season
+(unless the upload date confirms the pick anyway), and an opponent name that does not
+agree with the page chosen. A year in the title that contradicts the game's year sinks
+the score outright. `--min-confidence N` refuses to write anything below N; the scheduled
+job uses 9.
+
+Two things deliberately do NOT affect it, each pinned by a test. Whether the title stated
+the kind of video decides which parameter the link goes in, not whether the link is right.
+Whether the opponent matched exactly or by containment is the designed-for case, since the
+alias table maps each club to the distinctive part of its name. Counting either cost 655
+sound archive matches a rung of confidence they had earned.
 
 Upload dates come from the watch page's embedded `uploadDate`, one plain concurrent GET
 per video, which is minutes for the whole channel where yt-dlp would be hours. That is
@@ -83,12 +92,20 @@ one: a video posted within ten days of exactly one candidate settles it.
 
 ## Running it
 
-Backfill, from a workstation. yt-dlp on PATH may be too old — an out-of-date build
-stops after the first 100 videos of a playlist and says so nowhere, which is why the
-inventory refuses a short listing:
+Backfill, from a workstation, in two steps. Build the inventory first — yt-dlp on PATH may
+be too old, and an out-of-date build stops after the first 100 videos of a playlist and
+says so nowhere, which is why the inventory refuses a short listing:
 
 ```
 YT_DLP_COMMAND="uvx yt-dlp@latest" uv run python -m maccabipediabot.basketball.videosbot_basketball \
+  --build-inventory --inventory inventory.json --euroleague-inventory euroleague_inventory.json
+```
+
+That also fetches every video's upload date, which takes a few minutes and is what makes a
+confidence of 10 reachable at all. Then match and report:
+
+```
+uv run python -m maccabipediabot.basketball.videosbot_basketball \
   --source file --inventory inventory.json --euroleague-inventory euroleague_inventory.json \
   --seasons all --sample 20 --report ~/served_reports/basketball_videos.html
 ```

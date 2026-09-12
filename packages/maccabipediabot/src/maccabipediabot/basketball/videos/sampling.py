@@ -12,7 +12,7 @@ import logging
 import random
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
-from datetime import datetime
+from maccabipediabot.basketball.videos.dates import days_between_game_and_upload
 from enum import Enum
 
 from maccabipediabot.basketball.videos.cargo import GameRow
@@ -90,28 +90,10 @@ def choose_verification_sample(matches: Iterable[VideoMatch], rows_by_page: dict
     return chosen
 
 
-# Cargo returns dates as "2026-05-17"; page titles and the bots use "17-05-2026".
-_GAME_DATE_FORMATS = ("%Y-%m-%d", "%d-%m-%Y")
-
-
-def _parse_game_date(game_date: str) -> datetime | None:
-    for date_format in _GAME_DATE_FORMATS:
-        try:
-            return datetime.strptime(game_date, date_format)
-        except ValueError:
-            continue
-    return None
-
-
-def _days_between(game_date: str, upload_date: str) -> int | None:
-    game = _parse_game_date(game_date)
-    if game is None:
-        return None
-    try:
-        upload = datetime.strptime(upload_date, "%Y%m%d")
-    except ValueError:
-        return None
-    return (upload - game).days
+# Date handling lives in dates.py. This module used to carry its own copy, which only
+# understood the compact "20261122" spelling — so an RSS-style timestamp silently gave
+# no answer here while working everywhere else.
+_days_between = days_between_game_and_upload
 
 
 def _verdict_for(days_apart: int | None) -> Verdict:
