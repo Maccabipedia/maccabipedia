@@ -110,7 +110,19 @@ jobs:
           set -o pipefail
           uv run python -m maccabipediabot.basketball.videosbot_basketball \
             --source rss --seasons current,previous --write --purge --min-confidence 9 \
-            2>&1 | tee -a /tmp/uploader.log
+            --report /tmp/basketball_videos_report.html 2>&1 | tee -a /tmp/uploader.log
+
+      # Matches scored below the write floor are held back on purpose, but without this
+      # nobody ever sees them: the run logs a count and exits, and the next run drops the
+      # same ones again. The report is the only record of what was not written and why.
+      - name: Keep the video match report
+        if: always() && steps.attach_videos.outcome != 'skipped'
+        uses: actions/upload-artifact@v4
+        with:
+          name: basketball-video-matches
+          path: /tmp/basketball_videos_report.html
+          if-no-files-found: ignore
+          retention-days: 30
 
       # Not a team-mapping failure: report WHICH step died and the real error tail, so the
       # alert points at the actual cause (e.g. a wiki-login TimeoutError) instead of guessing.

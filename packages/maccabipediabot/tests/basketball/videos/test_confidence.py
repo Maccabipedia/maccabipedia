@@ -11,6 +11,8 @@ from maccabipediabot.basketball.videos.confidence import (
     Evidence,
     MAX_SCORE,
     MIN_SCORE,
+    collect_evidence,
+    score_all,
     score_match,
     title_year_agrees,
 )
@@ -93,26 +95,65 @@ def test_an_opponent_that_does_not_agree_costs_points():
         score_match(match(published="20241122"), row(), recognised)
 
 
+def season_rows(*rows):
+    return list(rows)
+
+
 def test_a_guessed_kind_does_not_change_the_score():
     """Whether the title stated the kind decides which parameter the link goes in, not
     whether the link belongs to this game. It used to cost a point, which held 655
-    otherwise-perfect archive matches a rung below their real confidence."""
-    evidence = Evidence(score_unique_in_season=True, opponent_agrees=True)
+    otherwise-perfect archive matches a rung below their real confidence.
+
+    Goes through collect_evidence, so reintroducing a kind penalty there would fail this
+    — asserting it against a hand-built Evidence would not."""
+    game = row()
     stated = match(published="20241122", kind=VideoKind.HIGHLIGHTS)
     guessed = match(published="20241122", kind=None, kind_override=VideoKind.CONDENSED)
-    assert score_match(guessed, row(), evidence) == score_match(stated, row(), evidence)
+    stated_score = score_match(stated, game, collect_evidence(stated, game, season_rows(game)))
+    guessed_score = score_match(guessed, game, collect_evidence(guessed, game, season_rows(game)))
+    assert stated_score == guessed_score == MAX_SCORE
 
 
 def test_an_era_variant_opponent_name_does_not_change_the_score():
     """Cargo spells the same club differently by era, so the alias table maps to the
     distinctive part of the name on purpose; matching by containment is the designed
-    path, not a near miss."""
-    evidence = Evidence(score_unique_in_season=True, opponent_agrees=True)
-    exact = score_match(match(published="20241122", opponent_raw="אליצור נתניה"),
-                        row(opponent="אליצור נתניה"), evidence)
-    contained = score_match(match(published="20241122", opponent_raw="נתניה"),
-                            row(opponent="אליצור עירוני נתניה"), evidence)
+    path, not a near miss. This exercises the real containment logic through
+    collect_evidence rather than asserting a hand-set flag."""
+    exact_game = row(opponent="אליצור נתניה")
+    variant_game = row(opponent="אליצור עירוני נתניה")
+    exact_match = match(published="20241122", opponent_raw="אליצור נתניה")
+    variant_match = match(published="20241122", opponent_raw="נתניה")
+    exact = score_match(exact_match, exact_game,
+                        collect_evidence(exact_match, exact_game, season_rows(exact_game)))
+    contained = score_match(variant_match, variant_game,
+                            collect_evidence(variant_match, variant_game, season_rows(variant_game)))
     assert contained == exact == MAX_SCORE
+
+
+def test_collect_evidence_reads_the_opponent_off_the_chosen_page():
+    """Not merely whether the name parsed: a match made on the upload date alone can name
+    a club the page does not, and that has to show up as evidence against."""
+    game = row(opponent="הפועל חולון")
+    disagreeing = match(published="20241122", opponent_raw="הפועל ירושלים")
+    evidence = collect_evidence(disagreeing, game, season_rows(game))
+    assert evidence.opponent_agrees is False
+
+
+def test_a_contradicted_opponent_cannot_reach_the_unattended_write_floor():
+    """The scheduled job writes at 9 with no human in the loop. A match whose title names
+    a different club than the page must land below that however well the date lines up."""
+    game = row(opponent="הפועל חולון")
+    disagreeing = match(published="20241122", opponent_raw="הפועל ירושלים")
+    scored = score_match(disagreeing, game, collect_evidence(disagreeing, game, season_rows(game)))
+    assert scored < 9
+
+
+def test_score_all_attaches_a_score_and_the_day_gap():
+    game = row()
+    scored_match = match(published="20241122")
+    score_all([scored_match], [game])
+    assert scored_match.confidence == MAX_SCORE
+    assert scored_match.days_after_game == 0
 
 
 @pytest.mark.parametrize("evidence", [

@@ -11,6 +11,7 @@ import pytest
 
 from maccabipediabot.basketball.videos.cargo import GameRow
 from maccabipediabot.basketball.videos.inventory import VideoEntry
+from maccabipediabot.basketball.videos.confidence import score_all
 from maccabipediabot.basketball.videos.matcher import Bucket, match_videos
 
 
@@ -112,6 +113,52 @@ def test_a_date_matched_archive_video_still_gets_a_kind():
     assert match.bucket == Bucket.EXACT
     assert match.kind is not None
     assert match.slot == "משחק מלא"
+
+
+def test_the_date_never_overrules_an_opponent_that_names_its_own_game():
+    """Three games share the score: two against Holon, one against Jerusalem. The title
+    says Holon, but neither Holon game is in the upload window. Filtering every same-score
+    row by date used to discard the recognised opponent's games and hand the video to the
+    Jerusalem game instead."""
+    rows = [row("כדורסל:01-10-2024 א", "הפועל חולון", 80, 77, date="01-10-2024"),
+            row("כדורסל:01-12-2024 ב", "הפועל חולון", 80, 77, date="01-12-2024"),
+            row("כדורסל:09-11-2024 ג", "הפועל ירושלים", 80, 77, date="09-11-2024")]
+    match = only_match([dated_entry(
+        "x", "Highlights: Maccabi Playtika Tel Aviv - Hapoel Holon 80:77",
+        published="20241110")], rows=rows)
+    assert "ירושלים" not in (match.page_name or "")
+    assert match.bucket == Bucket.AMBIGUOUS
+
+
+def test_a_date_match_whose_opponent_disagrees_says_so_and_scores_below_the_write_floor():
+    """The title says Jerusalem and the date points at the Holon game. This is allowed to
+    match — the wiki spells one club several ways, so a disagreeing name is usually a
+    variant — but it must carry both names in its reason and score below the 9 the
+    unattended job writes at, so a human sees it first."""
+    rows = [row("כדורסל:08-11-2024 א", "הפועל חולון", 80, 77, date="08-11-2024"),
+            row("כדורסל:15-11-2024 ב", "הפועל תל אביב", 80, 77, date="15-11-2024")]
+    matches = match_videos([dated_entry(
+        "x", 'תקציר: מכבי תל אביב - הפועל ירושלים 77:80', published="20241109")], rows, {})
+    score_all(matches, rows)
+    match = matches[0]
+    assert "הפועל ירושלים" in match.reason and "הפועל חולון" in match.reason
+    assert match.confidence < 9
+
+
+def test_an_era_spelling_the_wiki_does_not_use_still_matches_on_the_date():
+    """The counterpart: "Hapoel Eilat" against a page reading "פתאל אילת" is the same club
+    under that season's sponsor name, and no other game could be meant, so the date is
+    allowed to settle it. Thirty real matches depend on this."""
+    rows = [row("כדורסל:08-11-2024 א", "פתאל אילת", 80, 77, date="08-11-2024"),
+            row("כדורסל:15-11-2024 ב", "הפועל תל אביב", 80, 77, date="15-11-2024")]
+    match = only_match([dated_entry(
+        "x", "Highlights: Maccabi FOX Tel Aviv - Hapoel Eilat 80:77",
+        published="20241109")], rows=rows)
+    assert match.bucket == Bucket.EXACT
+    assert match.page_name.startswith("כדורסל:08-11-2024")
+    # The reason must name both sides, so a reviewer sees the disagreement rather than
+    # a bare "score and upload date agree".
+    assert "Hapoel Eilat" in match.reason and "פתאל אילת" in match.reason
 
 
 def test_the_upload_date_is_ignored_when_it_fits_both_candidates():

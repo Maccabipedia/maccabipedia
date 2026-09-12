@@ -144,7 +144,11 @@ def score_match(match: VideoMatch, row: GameRow | None, evidence: Evidence) -> i
         # the choice from a direction the title cannot reach, so the doubt is gone.
         score -= 2
     if not evidence.opponent_agrees:
-        score -= 1
+        # Two points, not one. At one point a date-confirmed match whose opponent
+        # CONTRADICTS the page still scored 9 — and 9 is the floor the unattended job
+        # writes at, so the single piece of evidence pointing the other way was worth
+        # nothing in practice. These now land at 8 and wait for a human.
+        score -= 2
     return max(MIN_SCORE, min(MAX_SCORE, score))
 
 

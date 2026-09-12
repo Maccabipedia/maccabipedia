@@ -93,7 +93,11 @@ def _fetch_feed_or_none(url: str, season: str, playlist: str) -> list[VideoEntry
     """
     try:
         return fetch_feed(url, season, playlist)
-    except requests.RequestException as error:
+    except (requests.RequestException, ElementTree.ParseError) as error:
+        # ParseError matters as much as a network failure here: a feed can answer 200
+        # with an interstitial or a truncated body, and letting that escape would abort
+        # the whole collection — losing every other feed, which is the one thing this
+        # wrapper exists to prevent.
         logger.warning("Feed unavailable (%s): %s", playlist, error)
         return None
 

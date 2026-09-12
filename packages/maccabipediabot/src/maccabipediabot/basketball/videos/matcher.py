@@ -109,6 +109,16 @@ def _uploaded_just_after(published: str, game_date: str) -> bool:
     return days_apart is not None and 0 <= days_apart <= _UPLOAD_WINDOW_DAYS
 
 
+# A date-matched video whose opponent name disagrees with the page is NOT refused here.
+# The obvious guard — "does the named club have its own game that season?" — was tried and
+# removed: the wiki uses both "פתאל אילת" and "הפועל אילת" for the same club within one
+# season, so the guard read one club as two and refused 12 correct matches. What protects
+# against a genuinely wrong pairing instead is the confidence score, which now takes two
+# points for a contradicted opponent, putting it at 8 — below the 9 the unattended job
+# writes at. Such a match reaches a human, with both names in its reason, rather than the
+# wiki.
+
+
 def _duration_is_sane(entry: VideoEntry, kind: VideoKind) -> bool:
     if not entry.duration_seconds:
         return True  # unknown duration: nothing to check against
@@ -160,7 +170,12 @@ def _classify(entry: VideoEntry, parsed: ParsedTitle,
     # and silently never written. It now only chooses the row, and the same guards run.
     matched_on_date = False
     if len(by_opponent) != 1 and entry.published:
-        dated = [row for row in same_score if _uploaded_just_after(entry.published, row.date)]
+        # Narrow the rows the opponent already agreed with, if there were several; only
+        # fall back to every same-score row when the opponent agreed with none. Filtering
+        # `same_score` unconditionally threw away a recognised opponent's own games and
+        # let the date pick a game against somebody else.
+        candidates = by_opponent if len(by_opponent) > 1 else same_score
+        dated = [row for row in candidates if _uploaded_just_after(entry.published, row.date)]
         if len(dated) == 1:
             by_opponent = dated
             matched_on_date = True
@@ -207,7 +222,15 @@ def _classify(entry: VideoEntry, parsed: ParsedTitle,
     if entry.url in existing_urls_for_family(chosen, SLOTS[kind]):
         return VideoMatch(entry, parsed, Bucket.ALREADY_PRESENT, "this URL is already on the page",
                           page_name=chosen.page_name, kind_override=kind_override)
-    reason = "score and upload date agree" if matched_on_date else "score and opponent agree"
+    if not matched_on_date:
+        reason = "score and opponent agree"
+    elif opponent_matches(parsed.opponent_raw, chosen.opponent):
+        reason = "score, opponent and upload date agree"
+    else:
+        # Say so plainly: a reviewer scanning this row needs to know the title named a
+        # club the page does not, even though the date lines up.
+        reason = (f"score and upload date agree; the title says {parsed.opponent_raw!r} "
+                  f"and the page says {chosen.opponent!r}")
     return VideoMatch(entry, parsed, Bucket.EXACT, reason,
                       page_name=chosen.page_name, kind_override=kind_override)
 
