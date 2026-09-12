@@ -20,15 +20,31 @@ def parse_game_date(game_date: str) -> datetime | None:
     return None
 
 
+def parse_upload_date(upload_date: str) -> datetime | None:
+    """A video's publish time, however the source spells it.
+
+    The two sources disagree: the watch page and yt-dlp give "20261122", while an RSS
+    feed gives "2026-11-22T10:52:14+00:00". Taking the first eight characters works for
+    the first and silently fails for the second, which would leave every video in the
+    scheduled run with no date evidence at all.
+    """
+    text = upload_date.strip()
+    if len(text) >= 10 and text[4] == "-" and text[7] == "-":
+        text = text[:10].replace("-", "")
+    else:
+        text = text[:8]
+    try:
+        return datetime.strptime(text, "%Y%m%d")
+    except ValueError:
+        return None
+
+
 def days_between_game_and_upload(game_date: str, upload_date: str | None) -> int | None:
     """How many days after the game the video went up, or None if either is unreadable."""
     if not upload_date:
         return None
     game = parse_game_date(game_date or "")
-    if game is None:
-        return None
-    try:
-        upload = datetime.strptime(upload_date[:8], "%Y%m%d")
-    except ValueError:
+    upload = parse_upload_date(upload_date)
+    if game is None or upload is None:
         return None
     return (upload - game).days
