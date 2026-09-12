@@ -47,8 +47,11 @@ equivalent, unlike the counters (`action=parse&prop=limitreportdata`).
 `pages.py` picks pages from live Cargo so the set tracks the real data
 distribution as the wiki grows:
 
-- players with the most / mid-range / fewest `Games_Events` rows, which shows
-  whether cost scales with row count
+- three players spanning the cost curve — the most events, a high-but-not-extreme
+  one, and the median *among players that have pages*. That last qualifier
+  matters: `Games_Events` holds opponent players too, so the wiki-wide median
+  name has ~2 events and usually no article. Picking a plain median would give
+  two near-identical light pages and show nothing about scaling.
 - the earliest season and the latest **complete** season — a season that has
   only just started has almost no games and would be a misleading "heavy" page
 - the most recent game page, the most numerous page type on the wiki

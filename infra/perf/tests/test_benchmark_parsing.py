@@ -42,9 +42,27 @@ def test_db_wait_is_none_when_the_page_has_no_limit_report():
     assert result.db_wait is None
 
 
-def test_ttfb_median_and_p90_from_samples():
+def test_ttfb_median_and_worst_from_samples():
     result = PageResult(label="home", title="עמוד ראשי")
     result.ttfb_samples = [0.169, 0.185, 0.171, 0.180, 2.919]
     assert result.ttfb_median == pytest.approx(0.180)
-    # p90 must surface the cold-parse outlier, not average it away.
-    assert result.ttfb_p90 == pytest.approx(2.919)
+    # The outlier is a parser-cache expiry caught mid-run; it must survive to
+    # the report rather than be averaged away.
+    assert result.ttfb_worst == pytest.approx(2.919)
+
+
+def test_total_median_is_separate_from_ttfb():
+    result = PageResult(label="season_recent", title="עונת 2025/26")
+    result.ttfb_samples = [0.20, 0.21, 0.19]
+    result.total_samples = [0.31, 0.33, 0.29]
+    assert result.total_median == pytest.approx(0.31)
+    # total - ttfb is body-transfer cost, which the 301 KB season page has and
+    # the 38 KB one does not.
+    assert result.total_median > result.ttfb_median
+
+
+def test_empty_samples_do_not_raise():
+    result = PageResult(label="skipped", title="X")
+    assert result.ttfb_median != result.ttfb_median  # nan
+    assert result.ttfb_worst != result.ttfb_worst
+    assert result.total_median != result.total_median
