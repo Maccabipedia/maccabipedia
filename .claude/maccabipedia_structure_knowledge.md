@@ -314,3 +314,168 @@ Two side effects worth knowing:
 - `כדורסל` — אליפויות, גביעי מדינה, גביעי אירופה, הגביע הבין יבשתי, etc.
 - `כדורעף` — אליפויות, גביעי מדינה, etc.
 
+
+## 14. Game Category Sort Keys
+
+Every category a game page lands in is sorted by a **year-month-day** key, so category
+listings read chronologically.
+
+### The key
+
+Each sport's main template defines it once, next to its other `#vardefine` calls:
+
+```
+{{#vardefine: מפתח מיון |{{#תנאי: {{{תאריך המשחק|}}} |{{#time:Y-m-d|{{{תאריך המשחק}}} }} }} }}
+```
+
+Every category assignment then ends `|{{#var: מפתח מיון}}]]`. Sub-templates render on the
+same page after the main template runs, so they read the same variable — no parameter
+plumbing. The `#תנאי` guard matters: `{{#time:Y-m-d|}}` on an empty date returns *today*,
+which would stamp dateless games with the day they were last rendered.
+
+### Why a key is needed at all
+
+`תאריך המשחק` is `DD-MM-YYYY`, and so is the page title (`כדורסל:16-02-2017 ...`). Both the
+default title sort and a raw `|{{{תאריך המשחק|}}}` key therefore sort by **day of month**
+first. Before this was fixed (2026-09-11) every game category in all three sports was
+mis-ordered, e.g. 01-05-2003 → 03-05-1982 → 04-04-1994.
+
+### Where it is applied
+
+| Template | assignments keyed |
+|---|---|
+| `תבנית:משחק כדורסל` | 55 of 56 |
+| `תבנית:קטלוג משחקים` (football) | 40 of 40 |
+| `תבנית:משחק כדורעף` | 53 of 54 |
+| 15 sub-templates of the three | 31 |
+
+Two deliberate exclusions: `משחקי כדורסל ללא תאריך המשחק` and its volleyball twin, whose
+members have no date by definition. `תבניות עזר לקטלוג משחקים` is also skipped — it tags
+template pages, not games.
+
+The six `משחקי זכייה בתואר` assignments previously keyed by `{{{עונה|}}}` now use the date
+key too: identical order across seasons, and it fixes the within-season tie-break that
+used to fall back to day-of-month.
+
+### TRAP: a category name can contain a pipe
+
+`[[קטגוריה: משחקי זכייה ב{{{מפעל|}}} (כדורסל)|...]]` — the name itself holds
+`{{{param|default}}}`. Splitting a category body on its *first* `|` truncates the name to
+`משחקי זכייה ב{{{מפעל` and silently points the page at a different (or no) category. Any
+script that rewrites sort keys must split only on a pipe at **brace depth zero**. Three
+lines in `משחק כדורסל` were broken this way and repaired the same day; the tell is
+unbalanced braces inside the category body, so assert `body.count("{") == body.count("}")`
+after every rewrite.
+
+### Applying a change
+
+Editing these templates re-categorizes every game page. **The job queue on this host does
+not drain on its own** — measured 2026-09-11, a category sat at 10 of 47 re-rendered
+fifteen minutes after the edit and did not move. Plan on purging the pages yourself with
+`action=purge` + `forcelinkupdate`, in batches of 10 (50 blows the 45s API timeout). The
+full sweep was 10,122 pages and took about 40 minutes.
+
+Enumerate by title prefix and namespace, not by category — no single category holds every
+football game, and in the custom namespaces the prefix must **exclude** the namespace name
+or `allpages` silently returns nothing:
+
+| sport | namespace | prefix |
+|---|---|---|
+| football | 0 | `משחק:` |
+| basketball | 3003 | *(empty)* |
+| volleyball | 3001 | *(empty)* |
+
+Until a sweep finishes, a category legitimately shows a mix of date-keyed and title-keyed
+entries. That half-migrated state looks worse to a reader than the original bug, so finish
+the sweep in the same sitting as the template edit.
+
+## 14b. Sort Keys In General
+
+The rule the game templates are one instance of.
+
+### Set a sort key deliberately, everywhere
+
+MediaWiki's default sort key is the page title. On MaccabiPedia that is almost never the
+order anyone wants, because game titles start with `DD-MM-YYYY` — relying on the default
+is exactly how all three sports ended up ordered by day of month. Treat "no sort key" as a
+decision you have to justify, not as the safe option.
+
+### Use `yyyy-mm-dd` whenever the member has a date
+
+Zero-padded and fixed width, so lexicographic order *is* chronological, with no locale
+ambiguity and no century wraparound. Never sort on the `DD-MM-YYYY` that the page titles
+and the `תאריך המשחק` parameter carry — that is the bug, not the fix.
+
+### When the member has no date
+
+Sort by whatever a reader scans for. People, venues and opponents read by name, and the
+page title already *is* the name, so the default is acceptable there — player categories
+carry no sort key today and that is fine.
+
+One open question, not yet decided: people currently sort by **first** name, because the
+title is `גיורא שפיגל`. Sorting by surname would match how a reader looks someone up, and
+would need a `|שפיגל, גיורא` style key on the profile template. Separate change, separate
+discussion.
+
+### How to add one
+
+Inline, when the date is in scope on that template:
+
+```
+[[קטגוריה: <שם הקטגוריה>|{{#time:Y-m-d|{{{תאריך המשחק}}} }}]]
+```
+
+Through a variable, when many assignments share the key or when sub-templates need it —
+what the game templates do, because 11 of their 15 category-assigning sub-templates receive
+no date parameter at all and plumbing one into each would be a wider change than the sort
+key itself:
+
+```
+{{#vardefine: מפתח מיון |{{#תנאי: {{{תאריך המשחק|}}} |{{#time:Y-m-d|{{{תאריך המשחק}}} }} }} }}
+...
+[[קטגוריה: <שם הקטגוריה>|{{#var: מפתח מיון}}]]
+```
+
+Two things to know about `#time` here:
+
+- **Always guard the empty case.** `{{#time:Y-m-d|}}` returns *today*, so an unguarded key
+  stamps a dateless page with whatever day it was last rendered.
+- `#time` reads `16-02-2017` as day-month-year, because PHP treats dash-separated dates as
+  European. That is why the raw parameter can be fed straight in with no reformatting.
+
+### Is a sort key on many categories expensive?
+
+No. Measured by parsing the same 179 category assignments three ways via `action=parse`
+(nothing saved), 2026-09-12:
+
+| variant | ppvisitednodes | postexpandincludesize | cputime |
+|---|---|---|---|
+| no sort key | 1 | 0 | 0.012 |
+| inlined `#time` per category | 359 | 1790 | 0.019 |
+| one `#vardefine`, read by each | 184 | 1800 | 0.016 |
+
+Against budgets of 1,000,000 nodes and 8,388,608 bytes that is 0.04% and 0.02%. A whole
+game page renders in 16,613 nodes / 0.333s, so the keys are ~2% of its own cost either way.
+`#time` is **not** an expensive parser function — `expensivefunctioncount` stays 0, so the
+separate 10,000 limit is untouched.
+
+The variable form is about half the nodes of inlining (184 vs 359), because the date is
+computed once per page instead of once per category. Both are negligible; pick the form on
+the plumbing argument above, not on cost.
+
+Storage is unaffected in practice: MediaWiki stores a collation key in `categorylinks` for
+every page-category pair regardless, and the prefix adds ~10 characters to each row.
+
+The only heavy part is one-time — re-rendering the pages afterwards (10,122 pages, ~40
+minutes).
+
+### Checklist for a sort-key change
+
+1. Split category bodies **only at brace depth zero** — a category *name* can contain a
+   pipe (see the trap in §14).
+2. Assert `body.count("{") == body.count("}")` on every rewritten line before saving.
+3. Edit **one** template first, purge a handful of its pages, and confirm before the rest.
+4. Verify against the live wiki, not the template text:
+   `action=query&list=categorymembers&cmprop=sortkeyprefix&cmsort=sortkey`. Compare the
+   member count to what it was before — a member that disappeared means a mangled name.
+5. Purge the affected pages; see §14 on the job queue not draining by itself.
