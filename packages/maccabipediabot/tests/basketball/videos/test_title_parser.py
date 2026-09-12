@@ -121,6 +121,11 @@ def test_parses_alternate_title_shapes(title, kind, opponent, maccabi, opponent_
     'תקציר משחק אימון: מכבי Rapyd ת"א - הפועל ירושלים 87:80',
     "Highlights: Maccabi vs. Herzliya 87:100 | תקציר משחק אימון: מכבי מול בני הרצליה",
     "Condensed Game: Maccabi Playtika Tel Aviv vs Fenerbahce 82:78 (Preseason) | תרכיז: מכבי נגד פנרבחצ'ה",
+    # These two reached the matcher and each picked an unrelated game whose score agreed:
+    # the friendly marker sits at the end of one title and opens the other.
+    "תקציר: מכבי Rapyd תל אביב - זניט סנט פטרסבורג 77:102 (הכנה)",
+    "טרום עונה 09/10: נאנסי - מכבי תל אביב 89:86",
+    "Condensed Game: Maccabi Playtika Tel Aviv vs Holon 89:68 | התרכיז: כל הסלים של מכבי נגד חולון בהכנה",
 ])
 def test_rejects_friendlies_and_training_games(title):
     """These have two teams and a score but no Cargo row, so a match would be a false one."""

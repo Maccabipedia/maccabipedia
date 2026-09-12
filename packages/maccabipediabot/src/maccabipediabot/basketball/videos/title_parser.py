@@ -82,8 +82,12 @@ _SUFFIX_RES: tuple[tuple[re.Pattern[str], VideoKind, str], ...] = tuple(
 
 # Friendlies and training games have teams and a score but no Cargo row, so they must
 # never reach the matcher — a match there would be a false one.
+# "הכנה" on its own, because the channel marks a friendly in every position: "משחק
+# הכנה:", a trailing "(הכנה)", "בהכנה" inside a sentence. Listing only the longer
+# phrases let two friendlies through, and each then matched an unrelated game whose
+# score happened to agree.
 _NON_COMPETITIVE_TOKENS = (
-    "משחק ההכנה", "משחק הכנה", "משחק אימון", "משחקי הכנה", "קדם עונה",
+    "הכנה", "משחק אימון", "קדם עונה", "טרום עונה",
     "preseason", "pre-season", "friendly", "training match",
 )
 
