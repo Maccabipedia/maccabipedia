@@ -576,12 +576,30 @@ raw name returns zero rows and no error:
 
 ### Two Cargo behaviours that bite when you write SQL by hand
 
-**Entities are decoded in the WHERE, after you escape it.**
+**A literal quote queries fine. An HTML entity does not.** This is the root of
+the "you get an error when you query a name with `"`" convention, and the cause
+is usually misplaced: the error comes from the entity, not the quote.
+`{{PAGENAME}}` hands a template `בית&#34;ר ירושלים`, and
 `CargoSQLQuery::newFromValues` runs `htmlspecialchars_decode($whereStr,
-ENT_QUOTES)`, and `CargoLuaLibrary` shares that path, so an entity in a
-parameter becomes a raw quote *inside* the query. Proven read-only:
-`Opponents.OriginalName = "x&#x22; OR 1=1 OR ""` returned all 289 rows, the
-same as `where=1=1`. Decode every spelling yourself and refuse a surviving `&`.
+ENT_QUOTES)` on the finished WHERE, turning it back into a bare `"` *inside*
+the string literal. Measured, all against `בית"ר ירושלים`:
+
+| WHERE form | result |
+|---|---|
+| `= "בית\"ר ירושלים"` (backslash) | returns the row |
+| `= "בית""ר ירושלים"` (doubled) | returns the row |
+| `= 'בית"ר ירושלים'` (single-quoted) | returns the row |
+| `= "בית&quot;ר ירושלים"` (entity) | **MWException** |
+| `LIKE 'בית%ר ירושלים'` | returns the row |
+
+So stripping before querying avoids the crash — no quote, no entity — which is
+why the templates do it, and the price is that a stripped value can never match
+the raw `Opponents.OriginalName`. The alternative, which works: decode the
+entity yourself, escape the literal, and **refuse a surviving `&`**. That last
+part is not optional, because the same decode makes an unrecognised entity an
+injection: `Opponents.OriginalName = "x&#x22; OR 1=1 OR ""` returned all 289
+rows, identical to `where=1=1`. `CargoLuaLibrary` shares this path, so it is
+not an API-only concern.
 
 **Values come back escaped from the API and decoded in Lua.**
 `CargoSQLQuery::run()` applies `htmlspecialchars()`, which is why the JSON API
