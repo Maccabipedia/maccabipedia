@@ -260,6 +260,58 @@ check('grouping raises rather than returning nils', function(FootballQueries)
 	end)
 end)
 
+-- The sport's facts come from the schema, and these two tests are the only
+-- proof of it: while football is the only sport, a hardcoded 'Football_Games'
+-- or a hardcoded side value of 1 behaves identically, so no ordinary test can
+-- tell the difference. Patching the schema can.
+check('the base table comes from the schema', function()
+	stub.install()
+	stub.dataPatch = function(data)
+		data.baseTable = 'Basketball_Games'
+		data.tables['Basketball_Games'] = { base = true }
+		data.filters['עונה'].column = 'Basketball_Games.Season'
+		data.columns['Basketball_Games.Season'] = 'strip'
+	end
+	local FootballQueries = stub.loadModule()
+
+	stub.willReturn({ { c1 = '1' } })
+	FootballQueries.aggregate({ ['עונה'] = '2024/25' },
+		{ cell('games', {}, 'game') })
+	equals(stub.calls[1].tables, 'Basketball_Games', 'tables follow the schema')
+	equals(stub.calls[1].fields,
+		'COUNT(DISTINCT CASE WHEN 1=1 THEN Basketball_Games._pageID END)=c1',
+		'and so does the game-grain field')
+end)
+
+check('the side value comes from the schema - volleyball uses 2', function()
+	stub.install()
+	stub.dataPatch = function(data)
+		data.sides.maccabi = 2
+	end
+	local FootballQueries = stub.loadModule()
+
+	stub.willReturn({ { c1 = '1' } })
+	FootballQueries.aggregate({ ['שחקן'] = 'מישהו' }, {
+		cell('goals', { ['מספר אירוע'] = '3' }),
+	})
+	equals(stub.calls[1].fields,
+		'SUM(CASE WHEN Games_Events.EventType IN (3)'
+		.. ' AND Games_Events.Team = 2 THEN 1 ELSE 0 END)=c1',
+		'the default side is whatever the schema says')
+end)
+
+check('a plain query takes its side value from the schema too', function()
+	stub.install()
+	stub.dataPatch = function(data)
+		data.sides.maccabi = 2
+	end
+	local FootballQueries = stub.loadModule()
+
+	equals(FootballQueries.build({ ['שחקן'] = 'מישהו' }).where,
+		'Games_Events.PlayerName = "מישהו" AND Games_Events.Team = 2',
+		'the single-query path, not just the merge')
+end)
+
 check('the same block always builds identical SQL', function(FootballQueries)
 	local first
 	for _ = 1, 10 do

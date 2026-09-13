@@ -235,6 +235,42 @@ check('a bare ampersand raises rather than reaching the query',
 		end)
 	end)
 
+-- The drop-in used to accept every filter the layer knows, so a player name
+-- would join the events table and return an EVENT count where the call site
+-- says "number of games" - no error, plausible number, wrong number.
+check('the game-count shim refuses a filter its template never had',
+	function(FootballQueries)
+		local frame = { args = {}, getParent = function()
+			return { args = { ['שחקן'] = 'ערן זהבי', ['עונה'] = '2021/22' } }
+		end }
+		expectError('does not take the filter "שחקן"', function()
+			FootballQueries.gameDataCount(frame)
+		end)
+	end)
+
+check('the game-count shim refuses an option its template never had',
+	function(FootballQueries)
+		local frame = { args = {}, getParent = function()
+			return { args = { ['עונה'] = '2021/22', ['הגבלה'] = '10' } }
+		end }
+		expectError('does not take "הגבלה"', function()
+			FootballQueries.gameDataCount(frame)
+		end)
+	end)
+
+check('the game-count shim still takes every filter its template had',
+	function(FootballQueries)
+		stub.willReturn({ { n = '5' } })
+		local frame = { args = {}, getParent = function()
+			return { args = {
+				['עונה'] = '2021/22', ['קטגוריית מפעל'] = 'ליגה',
+				['מאמן'] = 'אבי נמני', ['אצטדיון'] = '', ['יריבות'] = '',
+				['תוצאה'] = 'ניצחון', ['סט מדים'] = '', ['שופט'] = '',
+			} }
+		end }
+		equals(FootballQueries.gameDataCount(frame), '5', 'accepted')
+	end)
+
 -- M9: the rounding test used 150.0000, where floor, ceil and round agree.
 check('SUM is rounded half-up, not truncated', function(FootballQueries)
 	stub.willReturn({ { n = '150.5' } })

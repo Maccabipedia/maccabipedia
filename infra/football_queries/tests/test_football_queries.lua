@@ -302,7 +302,10 @@ end)
 -- The trap this entry point exists to close.
 check('a filter the layer does not support still raises through the shim',
 	function(FootballQueries)
-		expectError('unsupported filter "בית או חוץ"', function()
+		-- The entry point's own list rejects it first, with a message naming
+		-- the template rather than the layer. Both are refusals; this one
+		-- tells the page author which template they are calling.
+		expectError('does not take the filter "בית או חוץ"', function()
 			FootballQueries.gameDataCount(frameWithParent({
 				['בית או חוץ'] = 'בית',
 			}))

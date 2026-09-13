@@ -16,7 +16,26 @@ not translated; everything else in this layer is English.
 ]]
 
 return {
-	-- Which tables exist and how each reaches Football_Games.
+	-- The sport's own facts, named by ROLE so the logic module contains no
+	-- table, column or value belonging to football. This is what makes a second
+	-- sport a new data page instead of an edit to shared code - the tables
+	-- differ per sport anyway, and so do the side values: football marks
+	-- Maccabi's events with 1 and the opponent's with 0, while volleyball uses
+	-- 2. A logic module that hardcodes either is a football module wearing a
+	-- general name.
+	baseTable = 'Football_Games',
+	roles = {
+		events = 'Games_Events',
+		sideColumn = 'Games_Events.Team',
+	},
+	sides = {
+		maccabi = 1,
+		opponent = 0,
+		-- The parameter value that asks for the opponent's side.
+		opponentValue = 'לא',
+	},
+
+	-- Which tables exist and how each reaches the base table.
 	--
 	-- Cargo emits LEFT JOIN for `join on`, verified on production: a game whose
 	-- competition has no Competitions row survives with NULL columns (82 such
@@ -171,6 +190,33 @@ return {
 		['כמות משחקים'] = 'COUNT(*)',
 		['כיבושים'] = 'SUM(Football_Games.ResultMaccabi)',
 		['ספיגות'] = 'SUM(Football_Games.ResultOpponent)',
+	},
+
+	-- What each #invoke entry point is allowed to be asked.
+	--
+	-- Every entry point used to accept the union of all 24 filters, which meant
+	-- the drop-in for כמות נתוני משחק also accepted שחקן - and a player filter
+	-- joins the events table, so it returned an EVENT count where the call
+	-- site, its label and its documentation all say "number of games". No
+	-- error, plausible number, wrong number.
+	--
+	-- So a replacement declares exactly the parameters of the template it
+	-- replaces, taken from that template's own source, and anything else
+	-- raises. `count` is the open entry point for new callers and has no list.
+	entryPoints = {
+		gameDataCount = {
+			replaces = 'תבנית:סטטיסטיקה/שליפות/מתקדמות/כמות נתוני משחק',
+			filters = {
+				'אצטדיון', 'אצטדיונים', 'יריבה', 'יריבות', 'מאמן',
+				'מפעל מקורי', 'מפעל נוכחי', 'מפעלים', 'סט מדים', 'עוזר שופט',
+				'עונה', 'פורמט תאריך', 'קטגוריית מפעל', 'שופט', 'תאריך',
+				'תוצאה', 'תוצאה יריבה', 'תוצאה מכבי',
+			},
+			-- נתון משחק chooses the aggregate. הגבלה is NOT here: the template
+			-- has no such parameter, and accepting one this entry point then
+			-- ignores is the same sin in the other direction.
+			options = { 'נתון משחק' },
+		},
 	},
 
 	-- Cargo truncates at the row limit silently, so every query the layer runs

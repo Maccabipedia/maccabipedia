@@ -42,11 +42,11 @@ MUTATIONS = [
     ('numberNotEqual becomes equal', LOGIC,
      "addComparison(spec.column, '!=', value)",
      "addComparison(spec.column, '=', value)"),
-    ('Team default flipped to 0', LOGIC,
-     "builder:addComparison('Games_Events.Team', '=', 1)",
-     "builder:addComparison('Games_Events.Team', '=', 0)"),
+    ('Team default flipped to the opponent', LOGIC,
+     "builder:addComparison(Fields.roles.sideColumn, '=', Fields.sides.maccabi)",
+     "builder:addComparison(Fields.roles.sideColumn, '=', Fields.sides.opponent)"),
     ('Team default removed', LOGIC,
-     'if builder.tables.Games_Events and not builder.teamConstrained\n'
+     'if builder.tables[Fields.roles.events] and not builder.teamConstrained\n'
      '\t\t\tand not skipDefaults then',
      'if false then'),
     ('backslash escape removed', LOGIC,
@@ -112,6 +112,31 @@ MUTATIONS = [
     # already governs the returned names, so the knob had no observable effect
     # and a mutation of it could never be killed. Dead configuration that can
     # disagree with `columns` is worse than no configuration.
+    # Sport facts read from the schema, so a second sport is a data page and
+    # not an edit to shared code.
+    ('base table hardcoded again', LOGIC,
+     'local tableNames = { Fields.baseTable }',
+     "local tableNames = { 'Football_Games' }"),
+    ('side value hardcoded again', LOGIC,
+     "builder:addComparison(Fields.roles.sideColumn, '=', Fields.sides.maccabi)",
+     "builder:addComparison('Games_Events.Team', '=', 1)"),
+    ('opponent side value flipped', FIELDS, 'opponent = 0,', 'opponent = 1,'),
+    ('maccabi side value flipped', FIELDS, 'maccabi = 1,', 'maccabi = 0,'),
+    ('events role repointed', FIELDS,
+     "events = 'Games_Events',", "events = 'Games_Referees',"),
+    # Per-entry-point filter sets.
+    ('entry point filter list ignored', LOGIC,
+     'if allowedFilters and not allowedFilters[name]',
+     'if false and not allowedFilters[name]'),
+    ('entry point option list ignored', LOGIC,
+     'if allowedOptions and not allowedOptions[name] then',
+     'if false then'),
+    ('shim stops declaring its entry point', LOGIC,
+     "separate(frame:getParent().args, 'gameDataCount')",
+     'separate(frame:getParent().args)'),
+    ('a filter the template lacks is added to the shim', FIELDS,
+     "'תוצאה', 'תוצאה יריבה', 'תוצאה מכבי',",
+     "'תוצאה', 'תוצאה יריבה', 'תוצאה מכבי', 'שחקן',"),
     ('HOLDS becomes equals', LOGIC,
      "'%s HOLDS %s', spec.column", "'%s = %s', spec.column"),
     # The merge. Each of these is a plausible-looking wrong number in a block.
@@ -140,8 +165,8 @@ MUTATIONS = [
      "if grain ~= nil and grain ~= 'event' and grain ~= 'game' then"),
     # The four a review found surviving. Each is a wrong number on a page.
     ('Team default gated on shared instead of the union', LOGIC,
-     'local teamDefaultNeeded = unionBuilder.tables.Games_Events',
-     'local teamDefaultNeeded = sharedBuilder.tables.Games_Events'),
+     'local teamDefaultNeeded = unionBuilder.tables[Fields.roles.events]',
+     'local teamDefaultNeeded = sharedBuilder.tables[Fields.roles.events]'),
     ('Team default moved back into the WHERE', LOGIC,
      "if teamDefaultNeeded and grain == 'event'",
      "if false and grain == 'event'"),

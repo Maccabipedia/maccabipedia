@@ -147,7 +147,9 @@ local Builder = {}
 Builder.__index = Builder
 
 local function newBuilder()
-	return setmetatable({ conditions = {}, tables = { Football_Games = true } }, Builder)
+	local tables = {}
+	tables[Fields.baseTable] = true
+	return setmetatable({ conditions = {}, tables = tables }, Builder)
 end
 
 function Builder:needs(column)
@@ -270,7 +272,11 @@ end
 
 handlers.maccabiSide = function(builder, spec, value)
 	-- מכבי=לא asks for the opponent's events; anything else means Maccabi's.
-	builder:addComparison(spec.column, '=', normalise(value) == 'לא' and 0 or 1)
+	-- Both values come from the schema: they are 1 and 0 in football and the
+	-- opponent is 2 in volleyball.
+	local side = normalise(value) == Fields.sides.opponentValue
+		and Fields.sides.opponent or Fields.sides.maccabi
+	builder:addComparison(spec.column, '=', side)
 	builder.teamConstrained = true
 end
 
@@ -380,9 +386,9 @@ local function buildInto(filters, skipDefaults, modifiers)
 	-- opponent's events too. Measured: a league goals count for one player
 	-- returns 152 without this and 150 with it, because two rows on that page
 	-- belong to the opposing side.
-	if builder.tables.Games_Events and not builder.teamConstrained
+	if builder.tables[Fields.roles.events] and not builder.teamConstrained
 			and not skipDefaults then
-		builder:addComparison('Games_Events.Team', '=', 1)
+		builder:addComparison(Fields.roles.sideColumn, '=', Fields.sides.maccabi)
 	end
 
 	return builder
@@ -392,7 +398,7 @@ end
 local function tablesAndJoin(builder)
 	local joined = {}
 	for name in pairs(builder.tables) do
-		if name ~= 'Football_Games' then
+		if name ~= Fields.baseTable then
 			joined[#joined + 1] = name
 		end
 	end
@@ -400,7 +406,7 @@ local function tablesAndJoin(builder)
 
 	-- Only the tables the filters actually reached. Cargo's join on is a LEFT
 	-- JOIN, so omitting an unused table cannot change a row count.
-	local tableNames = { 'Football_Games' }
+	local tableNames = { Fields.baseTable }
 	local joins = {}
 	for _, name in ipairs(joined) do
 		tableNames[#tableNames + 1] = name
@@ -478,7 +484,7 @@ function FootballQueries.aggregate(shared, cells, options)
 	-- So the default goes into each event cell's own CASE instead, where it
 	-- constrains the events being counted without touching the row set.
 	local sharedBuilder = buildInto(shared, true)
-	local teamDefaultNeeded = unionBuilder.tables.Games_Events
+	local teamDefaultNeeded = unionBuilder.tables[Fields.roles.events]
 		and not sharedBuilder.teamConstrained
 
 	local fields = {}
@@ -516,7 +522,8 @@ function FootballQueries.aggregate(shared, cells, options)
 
 		if teamDefaultNeeded and grain == 'event'
 				and not cellBuilder.teamConstrained then
-			conditions[#conditions + 1] = 'Games_Events.Team = 1'
+			conditions[#conditions + 1] = string.format('%s = %s',
+				Fields.roles.sideColumn, Fields.sides.maccabi)
 		end
 
 		local condition = #conditions > 0
@@ -537,8 +544,8 @@ function FootballQueries.aggregate(shared, cells, options)
 
 		if grain == 'game' then
 			fields[index] = string.format(
-				'COUNT(DISTINCT CASE WHEN %s THEN Football_Games._pageID END)=%s',
-				condition, alias)
+				'COUNT(DISTINCT CASE WHEN %s THEN %s._pageID END)=%s',
+				condition, Fields.baseTable, alias)
 		else
 			fields[index] = string.format(
 				'SUM(CASE WHEN %s THEN 1 ELSE 0 END)=%s', condition, alias)
@@ -634,13 +641,47 @@ end
 
 --- Splits template parameters into filters and query options, rejecting
 --- anything that is neither.
-local function separate(args)
+---
+--- `entryPoint` names a declaration in Fields.entryPoints. When given, only
+--- the parameters that entry point declares are accepted: a replacement for a
+--- template must not answer questions that template could not be asked, or it
+--- answers a different question and looks right doing it.
+local function separate(args, entryPoint)
+	local allowedFilters, allowedOptions
+	if entryPoint then
+		local declaration = Fields.entryPoints[entryPoint]
+		if not declaration then
+			error(string.format(
+				'FootballQueries: no entry point declared as "%s"', entryPoint), 0)
+		end
+		allowedFilters, allowedOptions = {}, {}
+		for _, name in ipairs(declaration.filters) do
+			allowedFilters[name] = true
+		end
+		for _, name in ipairs(declaration.options) do
+			allowedOptions[name] = true
+		end
+	end
+
 	local filters, options = {}, {}
 	for name, value in pairs(args) do
 		local option = Fields.optionParams[name]
 		if option then
+			if allowedOptions and not allowedOptions[name] then
+				error(string.format(
+					'FootballQueries: %s does not take "%s" - the template it '
+					.. 'replaces has no such parameter', entryPoint, name), 0)
+			end
 			options[option] = value
 		else
+			if allowedFilters and not allowedFilters[name]
+					and mw.text.trim(tostring(value)) ~= '' then
+				error(string.format(
+					'FootballQueries: %s does not take the filter "%s" - the '
+					.. 'template it replaces has no such parameter, and '
+					.. 'answering it would answer a different question',
+					entryPoint, name), 0)
+			end
 			filters[name] = value
 		end
 	end
@@ -715,7 +756,7 @@ function FootballQueries.gameDataCount(frame)
 			0)
 	end
 
-	local filters, options = separate(frame:getParent().args)
+	local filters, options = separate(frame:getParent().args, 'gameDataCount')
 
 	local requested = options.aggregate and mw.text.trim(options.aggregate) or ''
 	local aggregate = 'COUNT(*)'

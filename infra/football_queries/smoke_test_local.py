@@ -51,8 +51,18 @@ CASES = [
     ),
 ]
 
+# Cases the game-count shim must REFUSE, because the template it replaces has
+# no such parameter. Passing one would answer a different question: שחקן joins
+# the events table, so the answer would be a count of events, not of games.
+SHIM_REFUSES = [
+    ('a player filter', {'שחקן': 'ערן זהבי'}, 'does not take the filter'),
+    ('an event filter', {'מספר אירוע': '3'}, 'does not take the filter'),
+    # Rendered output HTML-escapes the quotes around the parameter name.
+    ('a limit the template lacks', {'הגבלה': '10'},
+     'does not take &quot;הגבלה'),
+]
+
 ERROR_CASES = [
-    ('unsupported filter', {'כרטיסים צהובים': '1'}, 'unsupported filter'),
     ('unknown competition category', {'קטגוריית מפעל': 'שטות'},
      'unknown קטגוריית מפעל'),
     ('ampersand refused', {'יריבות': 'x&#0034; OR 1=1'}, 'ampersand'),
@@ -117,12 +127,23 @@ def main() -> None:
 
     print('--- numbers through a template shim, vs a direct Cargo query ---')
     for label, arguments, query in CASES:
+        # The shim only accepts what its template accepts, so the player cases
+        # go through the open entry point below instead.
+        if any(name in arguments for name in ['שחקן', 'מספר אירוע']):
+            continue
         expected = cargo_number(query)
         actual = invoke(arguments)
         ok = actual == expected
         failures += 0 if ok else 1
         print(f'{"OK  " if ok else "FAIL"}  {label}: module={actual!r} '
               f'cargo={expected!r}')
+
+    print('\n--- the shim refuses what its template cannot be asked ---')
+    for label, arguments, expected_text in SHIM_REFUSES:
+        output = invoke(dict(arguments, **{'עונה': '2021/22'}))
+        ok = expected_text in output
+        failures += 0 if ok else 1
+        print(f'{"OK  " if ok else "FAIL"}  {label}: {output[:90]!r}')
 
     print('\n--- the same filters through the direct entry point ---')
     for label, arguments, query in CASES:
