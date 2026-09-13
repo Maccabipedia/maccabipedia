@@ -228,6 +228,7 @@ end
 handlers.maccabiSide = function(builder, spec, value)
 	-- מכבי=לא asks for the opponent's events; anything else means Maccabi's.
 	builder:addComparison(spec.column, '=', normalise(value) == 'לא' and 0 or 1)
+	builder.teamConstrained = true
 end
 
 handlers.resultWord = function(builder, spec, value)
@@ -304,6 +305,16 @@ function FootballQueries.build(filters)
 		if value ~= nil and mw.text.trim(tostring(value)) ~= '' then
 			handlers[spec.kind](builder, spec, value, filters)
 		end
+	end
+
+	-- Every query template that touches Games_Events constrains Team: most
+	-- hardcode `AND Team = 1`, the rest default the מכבי parameter to it. So an
+	-- events query without it is not "unfiltered", it is wrong - it counts the
+	-- opponent's events too. Measured: a league goals count for one player
+	-- returns 152 without this and 150 with it, because two rows on that page
+	-- belong to the opposing side.
+	if builder.tables.Games_Events and not builder.teamConstrained then
+		builder:addComparison('Games_Events.Team', '=', 1)
 	end
 
 	local joined = {}

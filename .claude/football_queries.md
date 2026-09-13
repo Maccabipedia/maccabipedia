@@ -98,6 +98,13 @@ template's own parameters:
 - **`תוצאה` in words maps to `ResultOpt`** as ניצחון=1, תיקו=2, הפסד=3, read
   from the `Games_Results` table. `תבנית:המרות/תוצאת משחק למספר` spends a Cargo
   query on those three constant rows; this layer does not.
+- **An events query must constrain `Games_Events.Team`.** Every query template
+  that touches that table does — most hardcode `AND Team = 1`, the rest default
+  the `מכבי` parameter to it — so a query without it counts the opposing side's
+  events too. One player's league goals come back as **152 without it and 150
+  with it**, because two rows on that page belong to the opponent. The layer
+  applies `Team = 1` whenever `Games_Events` is joined and `מכבי` did not say
+  otherwise.
 - **`HomeAway` has four values**, not two: `בית` 1656, `חוץ` 1721, `נייטרלי`
   102, `רדיוס` 12, plus 13 NULL. A `ביתחוץ` filter passes the value through.
 - **Alias expansion is not symmetrical.** Stadiums relate rows by `_pageID` and

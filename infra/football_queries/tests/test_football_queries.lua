@@ -59,9 +59,39 @@ check('a player filter reaches Games_Events, and only it', function(FootballQuer
 	equals(query.tables, 'Football_Games,Games_Events', 'tables')
 	equals(query.join, 'Football_Games._pageID = Games_Events._pageID', 'join')
 	equals(query.where,
-		'Games_Events.EventType IN (3) AND Games_Events.PlayerName = "ערן זהבי"',
-		'where')
+		'Games_Events.EventType IN (3) AND Games_Events.PlayerName = "ערן זהבי"'
+		.. ' AND Games_Events.Team = 1', 'where')
 end)
+
+-- Without this the count includes the opposing side's events: 152 instead of
+-- 150 league goals for one real player.
+check('an events query constrains Team to Maccabi by default',
+	function(FootballQueries)
+		local query = FootballQueries.build({
+			['שחקן'] = 'ערן זהבי',
+			['מספר אירוע'] = '3',
+		})
+		equals(query.where,
+			'Games_Events.EventType IN (3) AND Games_Events.PlayerName = "ערן זהבי"'
+			.. ' AND Games_Events.Team = 1', 'default')
+	end)
+
+check('מכבי overrides the default rather than adding to it',
+	function(FootballQueries)
+		local query = FootballQueries.build({
+			['שחקן'] = 'ערן זהבי',
+			['מכבי'] = 'לא',
+		})
+		equals(query.where,
+			'Games_Events.Team = 0 AND Games_Events.PlayerName = "ערן זהבי"',
+			'override')
+	end)
+
+check('a query that never touches Games_Events gets no Team condition',
+	function(FootballQueries)
+		equals(FootballQueries.build({ ['עונה'] = '2021/22' }).where,
+			'Football_Games.Season = "2021/22"', 'no team')
+	end)
 
 check('קטגוריית מפעל brings in Competitions', function(FootballQueries)
 	local query = FootballQueries.build({ ['קטגוריית מפעל'] = 'ליגה' })
@@ -99,7 +129,9 @@ end)
 -- Games_Events.PlayerName keeps apostrophes; Football_Games.Opponent does not.
 check('quoting follows the column, not the value', function(FootballQueries)
 	local query = FootballQueries.build({ ['שחקן'] = "אביעזר ז'נו" })
-	equals(query.where, 'Games_Events.PlayerName = "אביעזר ז\'נו"', 'kept')
+	equals(query.where,
+		'Games_Events.PlayerName = "אביעזר ז\'נו" AND Games_Events.Team = 1',
+		'kept')
 
 	query = FootballQueries.build({ ['יריבות'] = 'בית"ר ירושלים' })
 	equals(query.where, 'Football_Games.Opponent IN ("ביתר ירושלים")', 'stripped')
