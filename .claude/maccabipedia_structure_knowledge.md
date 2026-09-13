@@ -549,15 +549,21 @@ whose stored name has a quote the two never meet, the template returns
 Verified live: `בית"ר ירושלים`, `בית&#34;ר ירושלים` and `ביתר ירושלים` all
 return `ללא תוצאות`, while `הפועל תל אביב` returns itself.
 
-**37 clubs and 332 games sit behind that**, Beitar alone being 173. The
-`יריבות` (list) parameter is unaffected, because it strips each value and
-compares it to the already-stripped games column — both sides normalised.
+**This is a latent trap, not a live defect — checked, not assumed.** 37 clubs
+carry a quote in `Opponents.OriginalName`, but the club pages do not reach that
+lookup with the raw name: `בית"ר ירושלים` renders `משחקים 173, ניצחונות 76,
+תיקו 43, הפסדים 54` — the correct figures — and contains no `ללא תוצאות`
+anywhere. The `יריבות` (list) parameter is safe by construction too, because it
+strips each value and compares it to the already-stripped games column.
 
-Fix options, none applied yet: add an `Opponents` row per affected club whose
-`OriginalName` is the normalised spelling under the same `CanonicalName`
-(additive, fixes templates and Lua at once); or match normalised in Lua, since
-**Cargo rejects `REPLACE()` in a `where`** (verified: MWException), so the
-comparison cannot be normalised in SQL.
+So **nothing needs fixing today.** What to avoid is *introducing* a caller that
+passes the raw page name to that lookup — it will return nothing, silently.
+
+If a caller ever needs the raw form, note that **Cargo rejects `REPLACE()` in a
+`where`** (verified: MWException), so the comparison cannot be normalised in
+SQL; it has to be normalised in the caller, or the club needs a second
+`Opponents` row carrying the normalised spelling under the same
+`CanonicalName`.
 
 ### Which columns keep quote characters
 

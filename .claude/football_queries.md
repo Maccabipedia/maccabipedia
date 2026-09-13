@@ -118,8 +118,10 @@ template's own parameters:
   mergers (271 ids over 289 rows; 10 ids carry several names; no name maps to
   two ids) — and **neither column holds the normalised spelling**. Normalisation
   is a write-time transform that only the games table carries, which is why a
-  lookup that strips its input finds nothing for the 37 quote-bearing clubs
-  (332 games, Beitar 173).
+  lookup that strips its input finds nothing for the 37 quote-bearing clubs.
+  That is a **latent trap, not a live defect**: the club pages do not reach the
+  lookup with the raw name, and `בית"ר ירושלים` renders its 173 games
+  correctly. Do not introduce a caller that passes the raw page name to it.
 
 ## Testing
 
@@ -190,9 +192,12 @@ comparison reports it.
      zeros today, which makes this a re-baseline too, not a rounding edge.
   3. `מפעלים` no longer strips apostrophes, because
      `Football_Games.Competition` keeps them.
-  4. **The opponent alias keeps the quote when looking a club up.** Today
-     `יריבה=בית"ר ירושלים` produces an empty list and therefore 0 for every
-     Beitar statistic; through this layer it matches **173 games**.
+  4. **The opponent alias keeps the quote when looking a club up**, so
+     `יריבה=בית"ר ירושלים` resolves where the template returns nothing. **This
+     changes no published number** — the club pages do not call the lookup with
+     the raw name, and Beitar's page already renders its 173 games correctly.
+     It removes a trap rather than fixing a live bug, so it needs no
+     re-baseline.
   5. **A player name containing a quote works.** `כמות אירועי שחקן`
      interpolates `PlayerName= "{{{שחקן}}}"` raw, which Cargo's entity decode
      turns into invalid SQL for the 14 quote-bearing `Games_Events.PlayerName`
