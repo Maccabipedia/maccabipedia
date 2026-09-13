@@ -1,0 +1,16 @@
+# Overlay for performance measurement only. Not part of a normal local wiki.
+#
+# Without MW_DISABLE_FOREIGN_IMAGES the wiki resolves every image from
+# production over HTTP mid-render, so page timings measure network latency to
+# prod rather than parse cost. It is not the default because the foreign repo
+# is a real local-wiki feature (test_foreign_image_repo.py covers it).
+#
+#   docker compose -f docker-compose.yml -f docker-compose.measure.yml up -d
+services:
+  mediawiki:
+    environment:
+      MW_DISABLE_FOREIGN_IMAGES: "1"
+      # Writes every statement to /tmp/mw-sql.log inside the container. Cargo's
+      # own data queries use a separate connection and never appear; what does
+      # appear is its per-query bookkeeping, which scales with the query count.
+      MW_TRACE_SQL: "1"

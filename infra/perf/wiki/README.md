@@ -9,20 +9,33 @@ in the repo, so this directory is where the source lives.
 
 ## Measuring locally
 
-Two environment variables matter, both set in `infra/local-wiki/docker-compose.yml`
-under the `mediawiki` service:
+Bring the wiki up with the measurement overlay, which sets both variables:
 
-```yaml
-MW_DISABLE_FOREIGN_IMAGES: "1"   # required for stable timings
-MW_TRACE_SQL: "1"                # optional, to count SQL per render
+```bash
+docker compose -f infra/local-wiki/docker-compose.yml \
+               -f infra/local-wiki/docker-compose.measure.yml up -d
+```
+
+`MW_TRACE_SQL` writes `/tmp/mw-sql.log` inside the container. **The container's
+entrypoint creates that file as root, and Apache runs as `www-data`, so web
+requests log nothing until it is made writable** — an empty delta looks exactly
+like "this page issues no SQL":
+
+```bash
+docker exec local-wiki-mediawiki-1 sh -c 'rm -f /tmp/mw-sql.log; \
+  touch /tmp/mw-sql.log; chmod 666 /tmp/mw-sql.log'
 ```
 
 **`MW_DISABLE_FOREIGN_IMAGES` is not optional for measurement.** Without it the
 local wiki resolves every image from production over HTTP mid-render, so page
-timings measure network latency to prod — and image-heavy pages blow PHP's
-30-second limit and return HTTP 500. It is off by default because the foreign
-repo is a real local-wiki feature (and `test_foreign_image_repo.py` covers it);
-turn it on only while measuring.
+timings measure network latency to prod — the same six pages took 15.1s / 3.5s /
+2.3s / 5.4s / 4.2s / 11.8s with it off and 1.7s / 2.4s / 1.8s / 4.4s / 4.2s /
+3.3s with it on — and image-heavy pages blow PHP's 30-second limit and return
+HTTP 500.
+
+Drop the overlay when you are done: it is not the default because the foreign
+repo is a real local-wiki feature, and
+`infra/local-wiki/tests/test_foreign_image_repo.py` fails while it is on.
 
 Heavy pages also need more than PHP's default 30 s locally; that limit is raised
 in `LocalSettings.env.local.php`.
@@ -51,7 +64,7 @@ season *lists*, while the game page itself renders through `קטלוג משחק�
 Verification: 85 statistics on player and season pages identical before/after,
 and all 1,080 leaderboard record values on the portal identical.
 
-## The five changes
+## The seven changes
 
 ### 1. One `#invoke` per stats column, not one per statistic
 
@@ -120,7 +133,57 @@ same page gave three different top-10 lists.** The module breaks ties by name.
 Record values are identical; only which tied player takes the last slot changed,
 and it is now stable.
 
-### 6. Parser cache TTL: 3600 → 86400 on every page
+### 6. A whole records block per query, not per tab
+
+Item 5 replaced one leaderboard query with a shared one. It did not touch what
+*asks* for those leaderboards, and that turned out to be where the queries were.
+
+Each of the four display templates (`שיאני הופעות`, `כיבושים`, `בישולים`,
+`מוצהבים`) holds four competition tabs, and each tab ran **two** queries: the
+top-10 table, and then the identical query again with `|הצגה=list |הגבלה=2000`
+purely to print "34 כובשים שונים" in the tab header. Eight per template, and a
+records page transcludes all four — **32**.
+
+`Module:שיאנים|section` renders an entire display template, four tabs and their
+four counts, from one query. The page's own filter goes straight to that query,
+so this works on the pages that item 5's dispatcher had to route past:
+
+| page | queries |
+|---|---|
+| stadium / opponent / season / referee | 32 → **4** |
+| portal / category (no filter) | 32 → **1** (the four share `mw.loadData`) |
+
+Measured on the local wiki, values verified identical on all six:
+
+| page | SQL | nodes | render |
+|---|---|---|---|
+| קטגוריה:שחקנים | 4,567 → 2,291 −50% | 12,427 → 1,875 −85% | 2.40s → **0.72s** |
+| אצטדיון בלומפילד | 7,996 → 5,871 −27% | 14,608 → 3,256 −78% | 1.78s → 1.55s |
+| פורטל שחקנים | 11,042 → 8,688 −21% | 19,714 → 9,162 −54% | 1.69s → 1.14s |
+| בית"ר ירושלים | 11,770 → 9,973 −15% | 20,786 → 11,396 −45% | 4.15s → 3.82s |
+| מכבי חיפה | 13,504 → 12,219 −10% | 22,467 → 13,543 −40% | 4.36s → 4.01s |
+| עונת 2021/22 | 18,620 → 16,394 −12% | 40,793 → 30,420 −25% | 3.27s → 3.05s |
+
+The opponent pages barely move because their remaining cost is a different
+cluster (`כמות נתוני משחק`), not the records block.
+
+Two things this had to get right:
+
+- **The signed `<shtml>` tab header is copied through byte-for-byte.** Its hash
+  covers its exact content. Only the *contents* of the tabs moved into Lua; the
+  radio inputs and labels that need raw HTML stayed in wikitext.
+- **Quote characters are stored inconsistently in Cargo, and that is load
+  bearing.** `Opponent`, `Stadium` and `Competition` are stored stripped
+  (`ביתר ירושלים`), while `PlayerName` and `Refs` keep the apostrophe
+  (`אביעזר ז'נו`). The original template encoded this by wrapping *some* of its
+  lists in `תבנית:המרות/שם ללא גרש וגרשיים` and not others. Missing it emptied
+  every records table on `בית"ר ירושלים` — caught because the row count went to
+  zero, not because anything errored.
+
+The `עוד` link under each table was generated by the Cargo query itself, so the
+module rebuilds it from the same conditions; all 16 survive on a stadium page.
+
+### 7. Parser cache TTL: 3600 → 86400 on every page
 
 Two separate causes, both fixed:
 
