@@ -17,11 +17,19 @@ stub.calls = {}
 -- queries return no rows.
 stub.responses = {}
 
+local PAGES = {
+	['Module:FootballQueries/Fields'] =
+		'infra/football_queries/Module_FootballQueries_Fields.lua',
+	['Module:FootballStatsBlocks'] =
+		'infra/football_queries/Module_FootballStatsBlocks.lua',
+	['Module:FootballQueries'] =
+		'infra/football_queries/Module_FootballQueries.lua',
+	['Module:FootballPlayerEvents'] =
+		'infra/football_queries/Module_FootballPlayerEvents.lua',
+}
+
 local function loadDataFor(name)
-	local paths = {
-		['Module:FootballQueries/Fields'] =
-			'infra/football_queries/Module_FootballQueries_Fields.lua',
-	}
+	local paths = PAGES
 	local path = paths[name]
 	if not path then
 		error('stub_mw: no local file registered for ' .. name, 0)
@@ -46,6 +54,16 @@ function stub.install()
 	stub.calls = {}
 	stub.responses = {}
 	stub.dataPatch = nil
+
+	-- Scribunto's require takes a wiki page name; Lua's does not. A renderer
+	-- that requires the query module needs this to run outside the wiki.
+	local realRequire = require
+	require = function(name)
+		if PAGES[name] then
+			return stub.loadModule(name)
+		end
+		return realRequire(name)
+	end
 
 	mw = {
 		text = {
@@ -73,10 +91,16 @@ function stub.willReturn(rows)
 	stub.responses[#stub.responses + 1] = rows
 end
 
---- Load a fresh copy of the module under test.
-function stub.loadModule()
-	local chunk, message = loadfile(
-		'infra/football_queries/Module_FootballQueries.lua')
+--- Load a fresh copy of a module by its wiki page name, defaulting to the
+--- query module. Scribunto's `require` takes page names, so the stub maps them
+--- to files the same way mw.loadData does.
+function stub.loadModule(page)
+	local path = PAGES[page or 'Module:FootballQueries']
+	if not path then
+		error('stub_mw: no local file registered for ' .. tostring(page), 0)
+	end
+
+	local chunk, message = loadfile(path)
 	if not chunk then
 		error('stub_mw: ' .. tostring(message), 0)
 	end

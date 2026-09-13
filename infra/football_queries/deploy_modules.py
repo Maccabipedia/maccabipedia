@@ -27,6 +27,8 @@ SUMMARY = 'Deployed from infra/football_queries (repo is source of truth)'
 MODULES = {
     'Module_FootballQueries.lua': 'Module:FootballQueries',
     'Module_FootballQueries_Fields.lua': 'Module:FootballQueries/Fields',
+    'Module_FootballStatsBlocks.lua': 'Module:FootballStatsBlocks',
+    'Module_FootballPlayerEvents.lua': 'Module:FootballPlayerEvents',
 }
 SOURCE_DIR = Path('infra/football_queries')
 

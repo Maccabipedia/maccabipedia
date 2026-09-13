@@ -1,0 +1,162 @@
+--[[
+Module:FootballPlayerEvents - a player's events block from one query.
+
+Wiki page: Module:FootballPlayerEvents
+
+Replaces תבנית:סטטיסטיקה/תצוגה/שחקנים/סיכום אירועים לפי מפעל, which asks
+כמות אירועי שחקן for eight numbers one at a time - 32 queries for the four
+tabs above it. This asks once.
+
+Template body:
+    <includeonly>{{#invoke:FootballPlayerEvents|block}}</includeonly>
+
+The output must be byte-identical to the template's, so the oddities are
+reproduced deliberately and are marked where they are not obvious: the space
+before "(" on the appearances row and its absence on the last one, the space
+before ")" in "ספסולים )", and MediaWiki's own number formatting.
+]]
+
+local FootballQueries = require('Module:FootballQueries')
+
+local BLOCK = 'player-events'
+
+--- Copies a table out of an mw.loadData proxy.
+---
+--- mw.loadData does not return a plain table: it returns a proxy whose fields
+--- are served through a metatable, so `#` reports 0 and `ipairs` stops at the
+--- first element however many there are. Measured in Scribunto - the block
+--- rendered "aggregate needs at least one cell" while the data page held
+--- eight. Key lookups work, `pairs` works, lengths do not, so the arrays are
+--- materialised once here.
+---
+--- The page is still read with loadData, so it is parsed once per page rather
+--- than once per #invoke; only this copy is per call, and it is eight rows.
+local function materialise(value)
+	if type(value) ~= 'table' then
+		return value
+	end
+	local copy = {}
+	for key, entry in pairs(value) do
+		copy[key] = materialise(entry)
+	end
+	return copy
+end
+
+local Blocks = materialise(mw.loadData('Module:FootballStatsBlocks'))
+
+--- The value of a cell the block declared, or an error.
+---
+--- A nil here means the row data names a cell the cell list does not produce -
+--- a typo between two data pages. Defaulting it to 0 would print a plausible
+--- number for a broken block, which is the failure this layer exists to avoid.
+local function need(cells, name)
+	local value = cells[name]
+	if value == nil then
+		error(string.format(
+			'FootballPlayerEvents: the block has no cell named "%s"', name), 0)
+	end
+	return value
+end
+
+--- An integer the way the template prints one.
+local function integer(value)
+	return string.format('%d', math.floor(value + 0.5))
+end
+
+--- A number the way {{#חשב: … round 2}} prints one: half away from zero, and
+--- trailing zeros omitted, so 0.5 is "0.5" and 1 is "1" rather than "1.00".
+local function expression(value)
+	local rounded = math.floor(value * 100 + 0.5) / 100
+	local text = string.format('%.2f', rounded)
+	if text:find('%.') then
+		text = text:gsub('0+$', ''):gsub('%.$', '')
+	end
+	return text
+end
+
+local formatters = {}
+
+formatters.plain = function(cells, row)
+	return integer(need(cells, row.cell))
+end
+
+formatters.appearancesWithSubstitutions = function(cells)
+	return string.format('%s (%s חילופים)',
+		integer(need(cells, 'appearances')),
+		integer(need(cells, 'substitutions')))
+end
+
+formatters.goalsWithRatio = function(cells)
+	local appearances = need(cells, 'appearances')
+	local goals = need(cells, 'goals')
+
+	-- The template guards division by zero with #שווה and prints a bare 0 in
+	-- that branch - not 0.00, and not 0.0.
+	local ratio = '0'
+	if appearances ~= 0 then
+		ratio = expression(goals / appearances)
+	end
+	return string.format('%s (%s שערים למשחק, %s פנדלים)',
+		integer(goals), ratio, integer(need(cells, 'penaltyGoals')))
+end
+
+formatters.benchStartsWithBenchings = function(cells)
+	-- No space before "(" here, and one before ")", exactly as the template
+	-- emits it. Both are load bearing for a byte-identical comparison.
+	local benchStarts = need(cells, 'benchStarts')
+	local benchings = benchStarts - need(cells, 'substitutions')
+	return string.format('%s(%s ספסולים )',
+		integer(benchStarts), integer(benchings))
+end
+
+local function renderRows(cells)
+	local block = Blocks[BLOCK]
+	local lines = {}
+
+	for index, row in ipairs(block.rows) do
+		local formatter = formatters[row.format]
+		if not formatter then
+			error(string.format(
+				'FootballPlayerEvents: no formatter named "%s"', row.format), 0)
+		end
+		lines[index] = string.format(
+			'<div class="Top10Row"><div class="Top10RowName">%s</div>'
+			.. '<span class="Top10RowStat">%s</span></div>',
+			row.label, formatter(cells, row))
+	end
+
+	return table.concat(lines, '\n')
+end
+
+--- Reads the calling template's parameters, so nothing is forwarded by name
+--- and nothing can be dropped. See the same guard in Module:FootballQueries.
+local function parentArguments(frame)
+	local direct = false
+	for _ in pairs(frame.args) do
+		direct = true
+		break
+	end
+	if direct then
+		error('FootballPlayerEvents: block reads the calling template\'s '
+			.. 'parameters and takes none of its own - put it in a template '
+			.. 'body as {{#invoke:FootballPlayerEvents|block}}', 0)
+	end
+
+	local filters = {}
+	for name, value in pairs(frame:getParent().args) do
+		filters[name] = value
+	end
+	return filters
+end
+
+local function block(frame)
+	local cells = FootballQueries.aggregate(
+		parentArguments(frame), Blocks[BLOCK].cells)
+	return renderRows(cells)
+end
+
+return {
+	block = block,
+	-- Exposed for the test suite, which asserts the HTML without a frame.
+	renderRows = renderRows,
+}

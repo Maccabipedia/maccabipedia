@@ -105,8 +105,21 @@ def call(template: str, params: dict) -> str:
     return '{{' + template + arguments + '}}'
 
 
+RENDERER_BODY = '<includeonly>{{#invoke:FootballPlayerEvents|block}}</includeonly>'
+
+
+def build_renderer_candidate() -> None:
+    """The renderer path: the whole block from one query, in Lua.
+
+    This is the real target - not the query template swapped out underneath the
+    template, but the block itself replaced. Byte-identical output is the
+    requirement, so the candidate is simply the invoke.
+    """
+    write_local(SANDBOX_BLOCK, RENDERER_BODY)
+
+
 def build_candidate(corrupt: bool = False) -> None:
-    """The module path: the block, with its query template swapped for the shim."""
+    """The shim path: the block, with its query template swapped for the shim."""
     write_local(SANDBOX_QUERY, SANDBOX_QUERY_BODY)
 
     original = read_local(BLOCK)
@@ -140,6 +153,15 @@ def compare(params: dict) -> tuple[bool, str]:
     return False, '\n'.join(list(diff)[:14])
 
 
+def assert_renderer_is_in_the_path() -> None:
+    body = read_local(SANDBOX_BLOCK) or ''
+    if 'FootballPlayerEvents' not in body:
+        raise SystemExit(
+            'the candidate block does not invoke the renderer - this '
+            'comparison would be the template path against itself')
+    print('  (renderer is the candidate)')
+
+
 def assert_module_is_in_the_path() -> None:
     """Refuse to report anything until the module is proven to be in the loop.
 
@@ -163,8 +185,11 @@ def assert_module_is_in_the_path() -> None:
     print(f'  (module reachable: shim returned {number})')
 
 
-def run_cases() -> int:
-    assert_module_is_in_the_path()
+def run_cases(renderer: bool = False) -> int:
+    if renderer:
+        assert_renderer_is_in_the_path()
+    else:
+        assert_module_is_in_the_path()
     failures = 0
     for params in CASES:
         label = ' '.join(f'{name}={value}' for name, value in params.items())
@@ -184,6 +209,8 @@ def main() -> None:
     parser.add_argument('--selftest', action='store_true',
                         help='prove the comparison passes when identical and '
                              'fails when a single cell is wrong')
+    parser.add_argument('--renderer', action='store_true',
+                        help='compare the Lua renderer instead of the shim')
     options = parser.parse_args()
 
     if options.seed:
@@ -208,8 +235,12 @@ def main() -> None:
         print('\nSELFTEST FAILED: this harness is not evidence')
         sys.exit(1)
 
-    build_candidate()
-    failures = run_cases()
+    if options.renderer:
+        build_renderer_candidate()
+        failures = run_cases(renderer=True)
+    else:
+        build_candidate()
+        failures = run_cases()
     print(f'\n{len(CASES) - failures}/{len(CASES)} blocks byte-identical')
     sys.exit(1 if failures else 0)
 
