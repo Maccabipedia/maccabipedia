@@ -155,8 +155,97 @@ local function block(frame)
 	return renderRows(cells)
 end
 
+-- #vardefine variables live for the whole page parse and share one namespace
+-- with every template on it, which already defines plain Hebrew names like
+-- הופעות and שערים. So the names are prefixed and carry the entity, or a
+-- second block on the same page - a comparison page, say - would overwrite the
+-- first and the tabs would show the other player's numbers under the right
+-- labels.
+local VAR_PREFIX = 'FootballPlayerEvents'
+
+local function variableName(entity, tab)
+	return string.format('%s/%s/%s', VAR_PREFIX, entity, tab)
+end
+
+--- Renders all four tabs from ONE query and stashes each in a page variable.
+---
+--- Called once, before the tab strip:
+---   {{#invoke:FootballPlayerEvents|prime}}
+---
+--- The strip itself is signed <shtml> whose hash is an HMAC under a per-wiki
+--- secret, so it is never rebuilt - it stays in the template and this only
+--- fills in what goes inside it. Eight cells times four overlapping
+--- categories is 32 conditional aggregates in a single query, where the
+--- template runs 32 queries.
+local function prime(frame)
+	local shared = parentArguments(frame)
+	local entity = shared['שחקן']
+	if not entity or mw.text.trim(entity) == '' then
+		error('FootballPlayerEvents: prime needs שחקן to key its variables', 0)
+	end
+
+	local block = Blocks[BLOCK]
+	local cells = {}
+	for _, tab in ipairs(block.tabs) do
+		for _, cell in ipairs(block.cells) do
+			local filters = {}
+			for name, value in pairs(cell.filters or {}) do
+				filters[name] = value
+			end
+			-- The tab's category joins the cell's own conditions, so it lands
+			-- inside the CASE rather than the WHERE - which is what lets four
+			-- overlapping categories share one query.
+			filters['קטגוריית מפעל'] = tab
+			cells[#cells + 1] = {
+				name = tab .. '/' .. cell.name,
+				filters = filters,
+				grain = cell.grain,
+			}
+		end
+	end
+
+	local values = FootballQueries.aggregate(shared, cells)
+
+	for _, tab in ipairs(block.tabs) do
+		local tabCells = {}
+		for _, cell in ipairs(block.cells) do
+			tabCells[cell.name] = values[tab .. '/' .. cell.name]
+		end
+		frame:callParserFunction('#vardefine',
+			{ variableName(entity, tab), renderRows(tabCells) })
+	end
+
+	return ''
+end
+
+--- Reads one tab that prime already rendered:
+---   {{#invoke:FootballPlayerEvents|tab|קטגוריית מפעל=ליגה|שחקן={{{שחקן}}}}}
+---
+--- Raises when the variable is missing rather than rendering empty. An empty
+--- block looks like a player with no record, which is the kind of silence this
+--- layer exists to remove.
+local function tab(frame)
+	local entity = frame.args['שחקן']
+	local category = frame.args['קטגוריית מפעל']
+	if not entity or not category then
+		error('FootballPlayerEvents: tab needs שחקן and קטגוריית מפעל', 0)
+	end
+
+	local name = variableName(mw.text.trim(entity), mw.text.trim(category))
+	local value = frame:callParserFunction('#var', { name })
+	if not value or mw.text.trim(value) == '' then
+		error(string.format(
+			'FootballPlayerEvents: nothing primed for %s - call '
+			.. '{{#invoke:FootballPlayerEvents|prime}} before the tab strip',
+			name), 0)
+	end
+	return value
+end
+
 return {
 	block = block,
+	prime = prime,
+	tab = tab,
 	-- Exposed for the test suite, which asserts the HTML without a frame.
 	renderRows = renderRows,
 }

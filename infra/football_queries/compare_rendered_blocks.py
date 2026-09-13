@@ -34,8 +34,18 @@ SANDBOX_BLOCK = BLOCK + '/ארגז חול מודול'
 SANDBOX_QUERY_BODY = '<includeonly>{{#invoke:FootballQueries|gameDataCount}}</includeonly>'
 
 # Pages the block needs, fetched from production when --seed is given.
-DEPENDENCIES = [BLOCK, QUERY_TEMPLATE, 'תבנית:סטטיסטיקה/יחס',
+DEPENDENCIES = [BLOCK, QUERY_TEMPLATE, 'תבנית:סטטיסטיקה/תצוגה/שחקנים/סיכום אירועים', 'תבנית:סטטיסטיקה/יחס',
                 'תבנית:סטטיסטיקה/אחוזים', 'תבנית:המרות/שם ללא גרש וגרשיים']
+
+# The four-tab parent: 8 queries per tab, 32 for the page.
+TABS_TEMPLATE = 'תבנית:סטטיסטיקה/תצוגה/שחקנים/סיכום אירועים'
+SANDBOX_TABS = TABS_TEMPLATE + '/ארגז חול מודול'
+TAB_CASES = [
+    {'שחקן': 'ערן זהבי'},
+    {'שחקן': 'גבי קניקובסקי'},
+    {'שחקן': 'דור פרץ'},
+    {'שחקן': "דור תורג'מן"},
+]
 
 # Players present in the local seed (football 2021/22-2024/25).
 CASES = [
@@ -118,6 +128,38 @@ def build_renderer_candidate() -> None:
     write_local(SANDBOX_BLOCK, RENDERER_BODY)
 
 
+def build_tabs_candidate() -> None:
+    """The whole four-tab block from one query.
+
+    The signed <shtml> strip is copied through byte-for-byte from the page on
+    this wiki - its hash is an HMAC under a per-wiki secret and cannot be
+    regenerated, so it is never rebuilt, only surrounded. `prime` runs before
+    it and each tab body becomes a variable read.
+    """
+    original = read_local(TABS_TEMPLATE)
+    if not original:
+        raise SystemExit(
+            f'{TABS_TEMPLATE} is not on the local wiki - run with --seed')
+
+    body = original.replace(
+        '<includeonly>\n',
+        '<includeonly>{{#invoke:FootballPlayerEvents|prime}}\n', 1)
+    if body == original:
+        raise SystemExit('could not place prime before the tab strip')
+
+    # Each tab call becomes a variable read for that category.
+    for category in ['רשמי', 'ליגה', 'גביע', 'בינלאומי']:
+        call = ('{{תבנית: סטטיסטיקה/תצוגה/שחקנים/סיכום אירועים לפי מפעל| '
+                f'קטגוריית מפעל={category}| שחקן={{{{{{שחקן}}}}}} }}}}')
+        replacement = ('{{#invoke:FootballPlayerEvents|tab|'
+                       f'קטגוריית מפעל={category}|שחקן={{{{{{שחקן}}}}}}}}}}')
+        if call not in body:
+            raise SystemExit(f'tab call for {category} not found as expected')
+        body = body.replace(call, replacement, 1)
+
+    write_local(SANDBOX_TABS, body)
+
+
 def build_candidate(corrupt: bool = False) -> None:
     """The shim path: the block, with its query template swapped for the shim."""
     write_local(SANDBOX_QUERY, SANDBOX_QUERY_BODY)
@@ -141,9 +183,10 @@ def build_candidate(corrupt: bool = False) -> None:
     write_local(SANDBOX_BLOCK, body)
 
 
-def compare(params: dict) -> tuple[bool, str]:
-    before = render(call(BLOCK, params))
-    after = render(call(SANDBOX_BLOCK, params))
+def compare(params: dict, original: str = BLOCK,
+            candidate: str = SANDBOX_BLOCK) -> tuple[bool, str]:
+    before = render(call(original, params))
+    after = render(call(candidate, params))
     if before == after:
         return True, ''
 
@@ -211,6 +254,8 @@ def main() -> None:
                              'fails when a single cell is wrong')
     parser.add_argument('--renderer', action='store_true',
                         help='compare the Lua renderer instead of the shim')
+    parser.add_argument('--tabs', action='store_true',
+                        help='compare the whole four-tab block: 32 queries vs 1')
     options = parser.parse_args()
 
     if options.seed:
@@ -234,6 +279,21 @@ def main() -> None:
             sys.exit(0)
         print('\nSELFTEST FAILED: this harness is not evidence')
         sys.exit(1)
+
+    if options.tabs:
+        build_tabs_candidate()
+        failures = 0
+        for params in TAB_CASES:
+            label = ' '.join(f'{n}={v}' for n, v in params.items())
+            identical, diff = compare(params, TABS_TEMPLATE, SANDBOX_TABS)
+            if identical:
+                print(f'OK    {label}  (4 tabs, one query)')
+            else:
+                failures += 1
+                print(f'DIFF  {label}\n{diff}')
+        print(f'\n{len(TAB_CASES) - failures}/{len(TAB_CASES)} four-tab blocks '
+              'byte-identical')
+        sys.exit(1 if failures else 0)
 
     if options.renderer:
         build_renderer_candidate()

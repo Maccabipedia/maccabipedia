@@ -91,6 +91,37 @@ function stub.willReturn(rows)
 	stub.responses[#stub.responses + 1] = rows
 end
 
+--- A frame whose parser functions behave like the page's #vardefine / #var:
+--- variables persist across calls, as they do for the rest of a page parse.
+function stub.newFrame(parentArgs, directArgs)
+	stub.variables = {}
+	return stub.newFrameKeepingVariables(parentArgs, directArgs)
+end
+
+--- Another frame on the same page: the variables prime set are still there,
+--- which is exactly how #vardefine behaves for the rest of a page parse.
+function stub.newFrameKeepingVariables(parentArgs, directArgs)
+	stub.variables = stub.variables or {}
+	local frame
+	frame = {
+		args = directArgs or {},
+		getParent = function()
+			return { args = parentArgs or {} }
+		end,
+		callParserFunction = function(_, name, arguments)
+			if name == '#vardefine' then
+				stub.variables[arguments[1]] = arguments[2]
+				return ''
+			end
+			if name == '#var' then
+				return stub.variables[arguments[1]] or ''
+			end
+			error('stub_mw: unexpected parser function ' .. tostring(name), 0)
+		end,
+	}
+	return frame
+end
+
 --- Load a fresh copy of a module by its wiki page name, defaulting to the
 --- query module. Scribunto's `require` takes page names, so the stub maps them
 --- to files the same way mw.loadData does.

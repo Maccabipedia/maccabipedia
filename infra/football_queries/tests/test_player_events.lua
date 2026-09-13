@@ -150,5 +150,106 @@ check('arguments on the invoke itself are refused', function(Events)
 	end
 end)
 
+--- Rows for one 32-cell query: eight cells times four tabs, named tab/cell.
+local function thirtyTwoCells(perTab)
+	local row = {}
+	local index = 0
+	for _, tabName in ipairs({ 'ליגה', 'גביע', 'בינלאומי', 'רשמי' }) do
+		for _, cell in ipairs({ 'appearances', 'substitutions', 'goals',
+		                        'penaltyGoals', 'assists', 'yellows', 'reds',
+		                        'benchStarts' }) do
+			index = index + 1
+			row['c' .. index] = tostring(perTab[tabName][cell])
+		end
+	end
+	return row
+end
+
+local PER_TAB = {
+	['ליגה'] = { appearances = 100, substitutions = 23, goals = 52,
+	             penaltyGoals = 6, assists = 11, yellows = 12, reds = 1,
+	             benchStarts = 26 },
+	['גביע'] = { appearances = 12, substitutions = 3, goals = 8,
+	             penaltyGoals = 1, assists = 2, yellows = 1, reds = 0,
+	             benchStarts = 4 },
+	['בינלאומי'] = { appearances = 20, substitutions = 5, goals = 9,
+	                 penaltyGoals = 0, assists = 3, yellows = 2, reds = 0,
+	                 benchStarts = 6 },
+	['רשמי'] = { appearances = 132, substitutions = 31, goals = 69,
+	             penaltyGoals = 7, assists = 16, yellows = 15, reds = 1,
+	             benchStarts = 36 },
+}
+
+check('prime renders all four tabs from one query', function(Events)
+	stub.willReturn({ thirtyTwoCells(PER_TAB) })
+	local frame = stub.newFrame({ ['שחקן'] = 'ערן זהבי' })
+
+	equals(Events.prime(frame), '', 'prime outputs nothing')
+	equals(#stub.calls, 1, 'one query for 32 cells')
+
+	local fields = stub.calls[1].fields
+	local count = 0
+	for _ in fields:gmatch('SUM%(CASE WHEN') do
+		count = count + 1
+	end
+	equals(count, 32, '32 conditional aggregates')
+end)
+
+check('each tab reads back its own numbers', function(Events)
+	stub.willReturn({ thirtyTwoCells(PER_TAB) })
+	local frame = stub.newFrame({ ['שחקן'] = 'ערן זהבי' })
+	Events.prime(frame)
+
+	for _, tabName in ipairs({ 'ליגה', 'גביע', 'בינלאומי', 'רשמי' }) do
+		-- tab takes its arguments on the invoke itself, not from the parent.
+		local html = Events.tab(stub.newFrameKeepingVariables({}, {
+			['שחקן'] = 'ערן זהבי', ['קטגוריית מפעל'] = tabName,
+		}))
+		local expected = PER_TAB[tabName]
+		equals(statOfRow(html, 1),
+			string.format('%d (%d חילופים)', expected.appearances,
+				expected.substitutions), tabName)
+	end
+end)
+
+check('a tab with nothing primed raises rather than rendering empty',
+	function(Events)
+		local frame = stub.newFrame({}, { ['שחקן'] = 'ערן זהבי',
+		                                  ['קטגוריית מפעל'] = 'ליגה' })
+		local ok, message = pcall(Events.tab, frame)
+		if ok then
+			error('expected an error, none raised', 0)
+		end
+		if not tostring(message):find('nothing primed', 1, true) then
+			error('wrong error: ' .. tostring(message), 0)
+		end
+	end)
+
+check('variables are namespaced per entity, so two players cannot collide',
+	function(Events)
+		stub.willReturn({ thirtyTwoCells(PER_TAB) })
+		local frame = stub.newFrame({ ['שחקן'] = 'ערן זהבי' })
+		Events.prime(frame)
+
+		local names = {}
+		for name in pairs(stub.variables) do
+			names[#names + 1] = name
+		end
+		table.sort(names)
+		equals(#names, 4, 'four variables')
+		equals(names[1]:find('FootballPlayerEvents/ערן זהבי/', 1, true), 1,
+			'prefixed and keyed by player')
+	end)
+
+check('prime without a player raises', function(Events)
+	local ok, message = pcall(Events.prime, stub.newFrame({}))
+	if ok then
+		error('expected an error, none raised', 0)
+	end
+	if not tostring(message):find('needs שחקן', 1, true) then
+		error('wrong error: ' .. tostring(message), 0)
+	end
+end)
+
 print(string.format('\n%d passed, %d failed', passed, failed))
 os.exit(failed > 0 and 1 or 0)
