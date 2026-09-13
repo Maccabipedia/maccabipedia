@@ -32,6 +32,32 @@ MODULES = {
 }
 SOURCE_DIR = Path('infra/football_queries')
 
+# Wikitext pages that go with the modules.
+#
+# The four /doc pages are written and ready in wiki_pages/ but are NOT deployed,
+# because on this wiki the whole Module namespace is Scribunto content -
+# `Module:X/doc` reports contentmodel "Scribunto" too, so wikitext cannot be
+# saved there: edit.php answers "Lua error: unexpected symbol". The usual
+# MediaWiki arrangement, where a /doc subpage is wikitext and carries the
+# category, needs the doc-subpage exemption in site configuration, and there is
+# no changeContentModel.php in this install to convert a page after the fact.
+#
+# Until that is decided, a module cannot carry a category at all here.
+WIKI_PAGES = {
+    'Category_Lua_modules.wiki': 'קטגוריה:יחידות לואה',
+    'Category_Football_statistics_modules.wiki':
+        'קטגוריה:יחידות לואה/סטטיסטיקת כדורגל',
+}
+BLOCKED_DOC_PAGES = {
+    'Module_FootballQueries_doc.wiki': 'Module:FootballQueries/doc',
+    'Module_FootballQueries_Fields_doc.wiki':
+        'Module:FootballQueries/Fields/doc',
+    'Module_FootballStatsBlocks_doc.wiki': 'Module:FootballStatsBlocks/doc',
+    'Module_FootballPlayerEvents_doc.wiki':
+        'Module:FootballPlayerEvents/doc',
+}
+WIKI_PAGES_DIR = SOURCE_DIR / 'wiki_pages'
+
 
 def compose(*args: str, stdin: str | None = None) -> subprocess.CompletedProcess:
     command = ['docker', 'compose', '-f', str(COMPOSE_FILE), 'exec', '-T',
@@ -79,9 +105,13 @@ def main() -> None:
             'the local wiki container is not reachable - '
             f'docker compose -f {COMPOSE_FILE} up -d')
 
+    everything = [(SOURCE_DIR / name, title)
+                  for name, title in MODULES.items()]
+    everything += [(WIKI_PAGES_DIR / name, title)
+                   for name, title in WIKI_PAGES.items()]
+
     changed = 0
-    for filename, title in MODULES.items():
-        source = SOURCE_DIR / filename
+    for source, title in everything:
         wanted = source.read_text(encoding='utf-8')
 
         if options.delete:
