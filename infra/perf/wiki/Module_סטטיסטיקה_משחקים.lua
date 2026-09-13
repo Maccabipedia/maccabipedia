@@ -10,6 +10,14 @@ local cargo = mw.ext.cargo
 
 local cache = {}
 
+-- תקרת שורות לשליפות המקובצות. Cargo חותך בתקרה בשקט - בלי שגיאה ובלי
+-- אזהרה - ולכן מספר שנחשב מנתונים קטועים ייראה תקין לחלוטין. בייצור
+-- הצבירות כאן הן 241 ו-15 שורות, רחוק מהתקרה, אבל הבדיקה נשארת כי
+-- הוויקי גדל. ראו check_query_limits.py.
+local ROW_LIMIT = 20000
+local TRUNCATED = 'יחידה:סטטיסטיקה משחקים — השליפה הגיעה לתקרת ' .. ROW_LIMIT ..
+                  ' שורות וייתכן שנקטעה. יש להעלות את ROW_LIMIT.'
+
 -- כל פרמטר שהתבנית המקורית מקבלת. פרמטר לא מוכר יחזיר שגיאה גלויה במקום
 -- מספר שגוי שנראה סביר.
 local SUPPORTED = {
@@ -94,7 +102,7 @@ local function fetchGames(args)
 			          'Competitions.International,Competitions.Official,' ..
 			          'Football_Games.ResultOpt,Football_Games.ResultMaccabi,' ..
 			          'Football_Games.ResultOpponent',
-			limit = 20000,
+			limit = ROW_LIMIT,
 		}
 	) or {}
 	return cache[key]
@@ -129,8 +137,11 @@ function p.gameStat(frame)
 	local wantScored = args['תוצאה מכבי']
 	local category = args['קטגוריית מפעל']
 
+	local rows = fetchGames(args)
+	if #rows >= ROW_LIMIT then return TRUNCATED end
+
 	local total = 0
-	for _, row in ipairs(fetchGames(args)) do
+	for _, row in ipairs(rows) do
 		local ok = matchesCategory(row, category)
 		if ok and wantResult and row.resultOpt ~= wantResult then ok = false end
 		if ok and wantConceded and wantConceded ~= ''
@@ -192,7 +203,7 @@ local function fetchCards(args)
 			groupBy = 'Competitions.League,Competitions.Trophy,' ..
 			          'Competitions.International,Competitions.Official,' ..
 			          'Games_Events.SubType',
-			limit = 20000,
+			limit = ROW_LIMIT,
 		}) or {}
 end
 
@@ -279,6 +290,9 @@ function p.numbersBlock(frame)
 	local args = frame.args
 	local games = fetchGames(args)
 	local cards = fetchCards(args)
+	if #games >= ROW_LIMIT or #cards >= ROW_LIMIT then
+		return TRUNCATED
+	end
 
 	local parts = {}
 	for _, tab in ipairs(TABS) do

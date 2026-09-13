@@ -132,6 +132,15 @@ end
 
 --- כל ספירות האירועים לכל שחקן, תחת הסינון שהדף מבקש. שליפה אחת.
 --- ללא סינון -- דרך mw.loadData, כך שכל הטבלאות בדף חולקות אותה.
+-- תקרת שורות לשליפה המקובצת. נכון לעכשיו הצבירה הגדולה ביותר בייצור היא
+-- 9,569 שורות, כלומר כמחצית מהתקרה - אבל Cargo חותך בשקט כשמגיעים אליה,
+-- בלי שגיאה ובלי אזהרה, והתוצאה היא טבלאות שיאנים שגויות שנראות תקינות.
+-- לכן נבדוק: אם חזר בדיוק מספר השורות המקסימלי, ייתכן שהנתונים חסרים,
+-- ועדיף להציג שגיאה גלויה מאשר מספר שקרי. ראו check_query_limits.py.
+local ROW_LIMIT = 20000
+local TRUNCATED = 'יחידה:שיאנים — השליפה הגיעה לתקרת ' .. ROW_LIMIT ..
+                  ' שורות וייתכן שנקטעה. יש להעלות את ROW_LIMIT.'
+
 local TABLES = 'Football_Games,Games_Events,Competitions'
 local JOIN = 'Football_Games._pageID=Games_Events._pageID,' ..
              'Football_Games.Competition=Competitions.OriginalName'
@@ -162,8 +171,17 @@ local function fetchRows(args)
 			groupBy = 'Games_Events.PlayerName,Games_Events.EventType,' ..
 			          'Games_Events.SubType,Competitions.League,' ..
 			          'Competitions.Trophy,Competitions.International',
-			limit = 20000,
+			limit = ROW_LIMIT,
 		}) or {}
+end
+
+--- שורות הדף, או nil ומחרוזת שגיאה אם ייתכן שהשליפה נקטעה.
+local function safeRows(args)
+	local rows = fetchRows(args)
+	if #rows >= ROW_LIMIT then
+		return nil, TRUNCATED
+	end
+	return rows, nil
 end
 
 --- סכימת האירועים לכל שחקן מתוך שורות שכבר נשלפו.
@@ -259,15 +277,18 @@ end
 function p.top(frame)
 	local args = frame.args
 	local limit = tonumber(args['הגבלה']) or 10
-	local rows = fetchRows(args)
+	local rows, err = safeRows(args)
+	if err then return err end
 	return renderTop(sorted(totals(rows, args, args['קטגוריית מפעל'])), limit)
 end
 
 --- מספר השחקנים השונים שעונים על הסינון (ל"כובשים שונים" וכד').
 function p.distinctPlayers(frame)
 	local args = frame.args
+	local rows, err = safeRows(args)
+	if err then return err end
 	local count = 0
-	for _ in pairs(totals(fetchRows(args), args, args['קטגוריית מפעל'])) do
+	for _ in pairs(totals(rows, args, args['קטגוריית מפעל'])) do
 		count = count + 1
 	end
 	return count
@@ -280,7 +301,8 @@ function p.section(frame)
 	local args = frame.args
 	local limit = tonumber(args['הגבלה']) or 10
 	local noun = args['כינוי'] or 'שחקנים שונים'
-	local rows = fetchRows(args)
+	local rows, err = safeRows(args)
+	if err then return err end
 
 	local parts = {}
 	for _, tab in ipairs(TABS) do

@@ -26,6 +26,7 @@ local rows = mw.ext.cargo.query(
 		groupBy = 'Games_Events.PlayerName,Games_Events.EventType,' ..
 		          'Games_Events.SubType,Competitions.League,' ..
 		          'Competitions.Trophy,Competitions.International',
+		-- חייב להישאר זהה ל-ROW_LIMIT ב[[יחידה:שיאנים]], שבודקת קטיעה.
 		limit = 20000,
 	}) or {}
 
