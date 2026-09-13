@@ -154,6 +154,22 @@ proves it can fail.
   96 goals. Putting the Team constraint in the WHERE broke exactly this, taking
   3,504 games down to 3,439.
 
+## Documenting and categorising a module
+
+A module page holds Lua, not wikitext, so it cannot carry a category itself.
+The documentation subpage does, and Scribunto shows it at the top of the module
+page. Three things to know, each of which cost an attempt:
+
+- **The doc page name is localised.** `scribunto-doc-page-name` here is
+  `Module:$1/תיעוד`, so `/doc` is **not** a documentation page — it stays
+  Scribunto content and saving wikitext on it fails with "Lua error: unexpected
+  symbol". `/תיעוד` reports `contentmodel: wikitext`, as it should.
+- **The category must sit inside `<includeonly>`** so it lands on the *module*
+  page rather than on the doc page.
+- **The module page must then be purged.** Editing a doc does not re-parse the
+  module, so the category stays empty and looks broken.
+  `deploy_modules.py` purges after writing.
+
 ## Testing
 
 There is no Lua interpreter in MediaWiki's path here, so tests run against a
