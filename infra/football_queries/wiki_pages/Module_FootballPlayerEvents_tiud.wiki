@@ -1,0 +1,31 @@
+מרנדר את בלוק אירועי השחקן — ארבע לשוניות, שמונה מספרים בכל אחת — בשאילתה אחת.
+התבנית שהוא מחליף מריצה 32.
+
+הפלט חייב להיות זהה בית־בית לתבנית שהוא מחליף, כולל הרווחים שלה.
+
+== דוגמאות ==
+
+בלוק אחד, בגוף תבנית התצוגה:
+
+<pre><includeonly>{{#invoke:FootballPlayerEvents|block}}</includeonly></pre>
+
+ארבע לשוניות מאותה שאילתה. <code>prime</code> מחשב את כולן ושומר כל אחת
+במשתנה עמוד, וכל לשונית קוראת את המשתנה שלה:
+
+<pre><includeonly>{{#invoke:FootballPlayerEvents|prime}}
+<div class="slim-tabs"><shtml ...>...</shtml><div class="content">
+<div id="tab1-content">
+{{#invoke:FootballPlayerEvents|tab|קטגוריית מפעל=רשמי|שחקן={{{שחקן}}}}}</div>
+<div id="tab2-content">
+{{#invoke:FootballPlayerEvents|tab|קטגוריית מפעל=ליגה|שחקן={{{שחקן}}}}}</div>
+</div></div></includeonly></pre>
+
+רצועת הלשוניות חתומה ב־<code>shtml</code> שאי אפשר לחתום מחדש (החתימה היא HMAC
+עם סוד של הוויקי), ולכן היא לעולם לא נבנית מחדש אלא רק מוקפת.
+
+<code>prime</code> חייב לרוץ לפני הלשוניות. לשונית בלי <code>prime</code>
+זורקת שגיאה ואינה מרנדרת בלוק ריק, כי בלוק ריק נראה כמו שחקן בלי היסטוריה.
+
+הקוד: <code>infra/football_queries/Module_FootballPlayerEvents.lua</code>.
+
+<includeonly>[[קטגוריה:יחידות לואה/סטטיסטיקת כדורגל]]</includeonly><noinclude>[[קטגוריה:דפי תיעוד של יחידות]]</noinclude>

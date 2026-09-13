@@ -34,27 +34,26 @@ SOURCE_DIR = Path('infra/football_queries')
 
 # Wikitext pages that go with the modules.
 #
-# The four /doc pages are written and ready in wiki_pages/ but are NOT deployed,
-# because on this wiki the whole Module namespace is Scribunto content -
-# `Module:X/doc` reports contentmodel "Scribunto" too, so wikitext cannot be
-# saved there: edit.php answers "Lua error: unexpected symbol". The usual
-# MediaWiki arrangement, where a /doc subpage is wikitext and carries the
-# category, needs the doc-subpage exemption in site configuration, and there is
-# no changeContentModel.php in this install to convert a page after the fact.
+# The documentation subpage is the standard MediaWiki arrangement: Scribunto
+# shows it at the top of the module page, and because it is wikitext it can
+# carry the category that the module page itself cannot.
 #
-# Until that is decided, a module cannot carry a category at all here.
+# Its name is LOCALISED. The `scribunto-doc-page-name` message on this wiki is
+# `Module:$1/תיעוד`, so `/doc` is not a doc page here - it stays Scribunto
+# content and wikitext cannot be saved on it at all, which is what "Lua error:
+# unexpected symbol" means when saving one. `/תיעוד` reports contentmodel
+# wikitext, as it should.
 WIKI_PAGES = {
     'Category_Lua_modules.wiki': 'קטגוריה:יחידות לואה',
     'Category_Football_statistics_modules.wiki':
         'קטגוריה:יחידות לואה/סטטיסטיקת כדורגל',
-}
-BLOCKED_DOC_PAGES = {
-    'Module_FootballQueries_doc.wiki': 'Module:FootballQueries/doc',
-    'Module_FootballQueries_Fields_doc.wiki':
-        'Module:FootballQueries/Fields/doc',
-    'Module_FootballStatsBlocks_doc.wiki': 'Module:FootballStatsBlocks/doc',
-    'Module_FootballPlayerEvents_doc.wiki':
-        'Module:FootballPlayerEvents/doc',
+    'Module_FootballQueries_tiud.wiki': 'Module:FootballQueries/תיעוד',
+    'Module_FootballQueries_Fields_tiud.wiki':
+        'Module:FootballQueries/Fields/תיעוד',
+    'Module_FootballStatsBlocks_tiud.wiki':
+        'Module:FootballStatsBlocks/תיעוד',
+    'Module_FootballPlayerEvents_tiud.wiki':
+        'Module:FootballPlayerEvents/תיעוד',
 }
 WIKI_PAGES_DIR = SOURCE_DIR / 'wiki_pages'
 
@@ -88,6 +87,29 @@ def delete_page(title: str) -> None:
     if result.returncode != 0:
         raise SystemExit(
             f'deleteBatch.php failed for {title}:\n{result.stderr.strip()[:400]}')
+
+
+def purge_modules() -> None:
+    """Re-parse the module pages so the category from their doc applies."""
+    import json
+    import urllib.parse
+    import urllib.request
+
+    titles = '|'.join(MODULES.values())
+    data = urllib.parse.urlencode({
+        'action': 'purge', 'forcelinkupdate': 1, 'titles': titles,
+        'format': 'json',
+    }).encode('utf-8')
+    try:
+        with urllib.request.urlopen(
+                urllib.request.Request('http://localhost:8080/api.php',
+                                       data=data), timeout=60) as response:
+            purged = json.loads(response.read().decode('utf-8'))
+        count = len(purged.get('purge', []))
+        print(f'purged {count} module page(s) so their category applies')
+    except Exception as error:  # noqa: BLE001 - report, do not fail the deploy
+        print(f'could not purge ({error}) - the category may look empty until '
+              'the module pages are re-parsed')
 
 
 def main() -> None:
@@ -136,8 +158,16 @@ def main() -> None:
 
     if options.status or options.dry_run:
         print(f'\n{changed} page(s) would change')
-    else:
-        print(f'\n{changed} page(s) written')
+        return
+
+    print(f'\n{changed} page(s) written')
+
+    if changed:
+        # A documentation page carries the module's category inside
+        # <includeonly>, so the category only lands on the module page when
+        # that page is re-parsed. Editing the doc does not re-parse it, so
+        # without this the category stays empty and looks broken.
+        purge_modules()
 
 
 if __name__ == '__main__':
