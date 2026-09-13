@@ -90,6 +90,7 @@ Every tool call result stays in context forever. Keep all outputs small:
 
 ## 7. Reference Files
 - `.claude/maccabipedia_structure_knowledge.md` — Game pages, player pages, templates, Cargo API, what a Cargo query actually costs (§15)
+- `.claude/maccabipedia_lua_modules.md` — the wiki's Lua modules (source of truth is `infra/perf/wiki/*.lua`, not the wiki): why Lua, what survives between `#invoke` calls, the modules, guidelines (English comments, Hebrew identifiers), and how to verify a change against production
 - `.claude/maccabipedia_research_sources.md` — External data sources: rosters, match results, historical records, photos, video
 - `.claude/maccabistats_knowledge.md` — maccabistats Python package API reference
 - `.claude/maccabipedia_youtube_channel.md` — MaccabiPedia YouTube channel conventions + Google Drive backup layout (used by `restore_deleted_football_video`)

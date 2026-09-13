@@ -1,23 +1,27 @@
--- יחידה:שיאנים -- טבלאות שיאנים (מובילי כיבושים, בישולים, הופעות וכו').
+-- יחידה:שיאנים -- leaderboards (top scorers, assists, appearances, cards).
 --
--- מחליפה [[תבנית:סטטיסטיקה/שליפות/מתקדמות/שיאני כמות אירועי שחקן/עיצוב חדש]].
+-- Replaces [[תבנית:סטטיסטיקה/שליפות/מתקדמות/שיאני כמות אירועי שחקן/עיצוב חדש]].
+-- Output is identical to [[תבנית:סטטיסטיקות/הצגת שיאנים/הצגת שחקן/כדורגל]].
 --
--- למה זה שווה: בדף שיאנים טיפוסי (פורטל שחקנים, דף אצטדיון, דף יריבה) יש
--- ארבע תבניות תצוגה, ולכל אחת ארבעה לשוניות; כל לשונית הריצה שתי שליפות --
--- אחת לטבלה ואחת רק כדי לספור כמה שחקנים שונים יש בה. 32 שליפות לדף.
--- p.section מרנדרת תבנית תצוגה שלמה -- ארבע הלשוניות והספירות שלהן --
--- משליפה אחת, ולכן הדף יורד ל-4. כשאין סינון כלל, ארבע השליפות האלה
--- מתאחדות גם הן לאחת דרך [[יחידה:שיאנים/נתונים]] (mw.loadData).
+-- Why it exists: a records page (players portal, stadium, opponent) shows four
+-- display templates, each with four competition tabs, and every tab ran TWO
+-- queries -- one for the table and one that re-ran the same query capped at
+-- 2000 rows purely to count the distinct players named in the tab header.
+-- 32 queries per page.
 --
--- הפלט זהה ל[[תבנית:סטטיסטיקות/הצגת שיאנים/הצגת שחקן/כדורגל]].
+-- p.section renders a whole display template -- four tabs and their four counts
+-- -- from one query, so a filtered page drops to 4. With no filter at all those
+-- four collapse to 1 as well, through [[יחידה:שיאנים/נתונים]] and mw.loadData,
+-- which is the only Scribunto cache that survives between #invoke calls.
 --
--- שינוי מכוון אחד: המיון כאן יציב. התבנית מיינה לפי COUNT(*) בלבד, כך
--- ששחקנים שווי-ניקוד הופיעו בסדר אקראי ושתי טעינות של אותו דף החזירו שמות
--- שונים. כאן שובר-שוויון הוא שם השחקן.
+-- One deliberate behaviour change: ordering is stable. The template sorted by
+-- COUNT(*) alone, so players on equal totals came back in whatever order the
+-- database chose and two loads of the same page listed different names. Ties
+-- break by player name here.
 
 local p = {}
 
--- ארבע הלשוניות, זהות בכל ארבע תבניות התצוגה.
+-- The four competition tabs, identical across all four display templates.
 local TABS = {
 	{ id = 'tab1-content', label = 'משחקים רשמיים', category = 'רשמי' },
 	{ id = 'tab2-content', label = 'ליגה', category = 'ליגה' },
@@ -25,17 +29,19 @@ local TABS = {
 	{ id = 'tab4-content', label = 'בינלאומי', category = 'בינלאומי' },
 }
 
--- סינונים שהיחידה יודעת לתרגם לשליפה. אלה כל הסינונים שתבניות התצוגה
--- מקבלות בפועל: דף קטגוריה/פורטל שולח שחקנים, דף אצטדיון שולח אצטדיונים,
--- דף יריבה שולח יריבות, דף עונה שולח עונה ודף שופט שולח שופטים.
--- היחיד שנשאר בחוץ הוא "עוזר שופט" (דורש צירוף ל-Games_Referees עם HOLDS),
--- ולו יש ממילא תבנית תצוגה נפרדת.
+-- Filters this module can push into SQL. These are every filter the display
+-- templates are actually handed: a category or portal page sends שחקנים, a
+-- stadium sends אצטדיונים, an opponent sends יריבות, a season sends עונה and a
+-- referee page sends שופטים. The one left out is עוזר שופט, which needs a
+-- HOLDS join to Games_Referees and has its own display template anyway.
 --
--- strip=true היכן שהערך נשמר ב-Cargo בלי גרש וגרשיים. זו אינה בחירה
--- אסתטית: Opponent, Stadium ו-Competition נשמרים מנוקים (בקארגו יש
--- "ביתר ירושלים", לא 'בית"ר ירושלים'), בעוד PlayerName ו-Refs שומרים את
--- הגרש כמו שהוא ("אביעזר ז'נו"). התבנית המקורית עשתה בדיוק את ההבחנה הזו
--- כשעטפה חלק מהרשימות ב[[תבנית:המרות/שם ללא גרש וגרשיים]] ולא את כולן.
+-- strip=true marks the columns Cargo stores WITHOUT quote characters. This is
+-- not cosmetic: Opponent, Stadium and Competition are stored cleaned -- Cargo
+-- holds "ביתר ירושלים", never 'בית"ר ירושלים' -- while PlayerName and Refs keep
+-- the apostrophe as written ("אביעזר ז'נו"). Query a stripped column with the
+-- raw page name and you get zero rows and no error. The original template
+-- encoded the same distinction by wrapping SOME of its IN lists in
+-- [[תבנית:המרות/שם ללא גרש וגרשיים]] and not others.
 local FILTERS = {
 	['שחקנים'] = { column = 'Games_Events.PlayerName' },
 	['שופטים'] = { column = 'Football_Games.Refs' },
@@ -45,7 +51,7 @@ local FILTERS = {
 	['מפעלים'] = { column = 'Football_Games.Competition', strip = true },
 }
 
---- פיצול רשימה מופרדת בפסיקים לערכים מספריים/קצרים (סוגי אירוע ותתי-אירוע).
+--- Split a comma-separated list of short values (event and sub-event ids).
 local function toSet(csv)
 	local set, any = {}, false
 	for item in tostring(csv or ''):gmatch('[^,%s]+') do
@@ -55,11 +61,12 @@ local function toSet(csv)
 	return any and set or nil
 end
 
---- פיצול רשימת שמות. בניגוד ל-toSet שמות מכילים רווחים, ומגיעים בשלושה
---- פורמטים שונים לפי מי שבנה את הרשימה: חשופים, עטופים במרכאות (כך בונה
---- אותם [[תבנית:סטטיסטיקה/שמות דפים מקטגוריה מופרדים לשליפה]]), ולעיתים
---- כשכל הרשימה עטופה בסוגריים (כך מחזירות תבניות ההמרה, שבנו את הרשימה
---- מוכנה לאופרטור IN).
+--- Split a list of names. Unlike toSet these contain spaces, and they arrive
+--- in three different shapes depending on which template built the list: bare,
+--- individually quoted (that is how
+--- [[תבנית:סטטיסטיקה/שמות דפים מקטגוריה מופרדים לשליפה]] emits them), or with
+--- the whole list wrapped in parentheses (the המרות templates return it ready
+--- for an SQL IN operator).
 local function toNames(csv, strip)
 	local names = {}
 	local list = tostring(csv or ''):match('^%s*%((.*)%)%s*$') or csv or ''
@@ -67,7 +74,7 @@ local function toNames(csv, strip)
 		local name = item:match('^%s*(.-)%s*$')
 		name = name:match("^'(.*)'$") or name:match('^"(.*)"$') or name
 		if strip then
-			-- גם בקידוד HTML: כך מגיע השם מ-{{PAGENAME}}.
+			-- HTML-encoded too: that is how {{PAGENAME}} hands the name over.
 			name = name:gsub('&#34;', ''):gsub('&quot;', '')
 			           :gsub('&#39;', ''):gsub('&apos;', '')
 			           :gsub("'", ''):gsub('"', '')
@@ -79,8 +86,9 @@ local function toNames(csv, strip)
 	return #names > 0 and names or nil
 end
 
---- רשימת ערכים ל-IN, עם בריחה נכונה של גרש. התבנית המקורית פשוט מחקה
---- גרשיים מהשם, מה שלא התאים לערך השמור ב-Cargo.
+--- Values for an SQL IN list, with apostrophes escaped properly. The original
+--- template simply deleted them from the name, which stopped matching whatever
+--- Cargo had stored.
 local function sqlList(names)
 	local quoted = {}
 	for index, name in ipairs(names) do
@@ -89,7 +97,7 @@ local function sqlList(names)
 	return '(' .. table.concat(quoted, ',') .. ')'
 end
 
---- רשימת ערכים ל-IN מתוך פרמטר מספרי (סוגי אירוע, תתי-אירוע).
+--- Values for an SQL IN list from a numeric parameter (event, sub-event).
 local function sqlNumbers(csv)
 	local values = {}
 	for item in tostring(csv or ''):gmatch('[^,%s]+') do
@@ -98,8 +106,8 @@ local function sqlNumbers(csv)
 	return #values > 0 and ('(' .. table.concat(values, ',') .. ')') or nil
 end
 
---- תנאי הסינון של הדף, כפי שהם נראים ב-SQL. משמשים גם לשליפה עצמה וגם
---- לבניית הקישור "עוד" שמוביל ל-Special:CargoQuery.
+--- The page's filter conditions as SQL. Used both for the query itself and to
+--- build the "עוד" link that leads to Special:CargoQuery.
 local function filterConditions(args)
 	local conditions = {}
 	for name, filter in pairs(FILTERS) do
@@ -108,7 +116,8 @@ local function filterConditions(args)
 			table.insert(conditions, filter.column .. ' IN ' .. sqlList(names))
 		end
 	end
-	table.sort(conditions)  -- סדר יציב, כדי שהקישור "עוד" ייראה זהה בכל טעינה
+	table.sort(conditions)  -- stable order, so the "עוד" link URL does not
+	                        -- change between renders of the same page
 	return conditions
 end
 
@@ -123,20 +132,21 @@ local function matchesCategory(row, category)
 	if category == 'ליגה' then return row.league == '1' end
 	if category == 'גביע' then return row.trophy == '1' end
 	if category == 'בינלאומי' then return row.intl == '1' end
-	if category == 'רשמי' then return true end  -- הנתונים כבר מסוננים ל-Official
+	-- 'רשמי' needs no test here: BASE_WHERE already restricts the query to
+	-- Competitions.Official=1, so every row in hand is official.
+	if category == 'רשמי' then return true end
 	if category == 'יתר רשמי' or category == 'יתר-רשמיים' then
 		return row.league ~= '1' and row.trophy ~= '1' and row.intl ~= '1'
 	end
 	return true
 end
 
---- כל ספירות האירועים לכל שחקן, תחת הסינון שהדף מבקש. שליפה אחת.
---- ללא סינון -- דרך mw.loadData, כך שכל הטבלאות בדף חולקות אותה.
--- תקרת שורות לשליפה המקובצת. נכון לעכשיו הצבירה הגדולה ביותר בייצור היא
--- 9,569 שורות, כלומר כמחצית מהתקרה - אבל Cargo חותך בשקט כשמגיעים אליה,
--- בלי שגיאה ובלי אזהרה, והתוצאה היא טבלאות שיאנים שגויות שנראות תקינות.
--- לכן נבדוק: אם חזר בדיוק מספר השורות המקסימלי, ייתכן שהנתונים חסרים,
--- ועדיף להציג שגיאה גלויה מאשר מספר שקרי. ראו check_query_limits.py.
+-- Row cap for the grouped query. The largest aggregate in production is 9,569
+-- rows, about half of this -- but Cargo truncates AT the cap silently, with no
+-- error and no warning, and a leaderboard computed from a cut-off result looks
+-- like a perfectly ordinary table of wrong numbers. So if a query comes back
+-- holding exactly ROW_LIMIT rows, the data may be incomplete and the module
+-- says so instead. Measure the real sizes with check_query_limits.py.
 local ROW_LIMIT = 20000
 local TRUNCATED = 'יחידה:שיאנים — השליפה הגיעה לתקרת ' .. ROW_LIMIT ..
                   ' שורות וייתכן שנקטעה. יש להעלות את ROW_LIMIT.'
@@ -175,7 +185,8 @@ local function fetchRows(args)
 		}) or {}
 end
 
---- שורות הדף, או nil ומחרוזת שגיאה אם ייתכן שהשליפה נקטעה.
+--- The page's rows, or nil plus an error string if the query may have been
+--- truncated.
 local function safeRows(args)
 	local rows = fetchRows(args)
 	if #rows >= ROW_LIMIT then
@@ -184,7 +195,7 @@ local function safeRows(args)
 	return rows, nil
 end
 
---- סכימת האירועים לכל שחקן מתוך שורות שכבר נשלפו.
+--- Sum each player's events from rows that have already been fetched.
 local function totals(rows, args, category)
 	local wantEvents = toSet(args['מספר אירוע'])
 	local wantSubs = toSet(args['תת אירוע'])
@@ -210,7 +221,7 @@ local function sorted(byPlayer)
 	end
 	table.sort(list, function(a, b)
 		if a.count ~= b.count then return a.count > b.count end
-		return a.player < b.player  -- שובר שוויון יציב
+		return a.player < b.player  -- stable tiebreak
 	end)
 	return list
 end
@@ -226,9 +237,10 @@ local function playerRow(player, count)
 	       '</span></div>\n</div>\n'
 end
 
---- הקישור "עוד" שמתחת לטבלה. השליפה בנתה אותו בעצמה כשקיבלה
---- |more results text=, וכאן הוא נבנה מאותם תנאים בדיוק כדי ששום דף לא יאבד
---- אותו. הוא מוביל לשליפה המלאה - כל השחקנים, לא רק העשרה הראשונים.
+--- The "עוד" link under each table. The Cargo query used to emit this itself
+--- when handed |more results text=, so it is rebuilt here from the same
+--- conditions rather than quietly dropped. It leads to the full result -- every
+--- player, not just the top ten.
 local function moreLink(args, category, text)
 	if text == nil or text == '' then return '' end
 
@@ -259,8 +271,9 @@ local function moreLink(args, category, text)
 		['order by'] = 'COUNT(*) DESC',
 		limit = '100',
 	})
-	-- קישור חיצוני בתחביר ויקי, לא <a>: פלט של #invoke עובר ניתוח ויקיטקסט,
-	-- ותגית <a> גולמית הייתה מוברחת. השליפה עצמה יכלה לפלוט HTML ישירות.
+	-- A wikitext external link, not an <a> tag: #invoke output is parsed as
+	-- wikitext and a raw <a> would be escaped. The query could emit HTML
+	-- directly; Lua cannot.
 	return '[' .. tostring(url) .. ' ' .. text .. ']'
 end
 
@@ -272,8 +285,8 @@ local function renderTop(list, limit)
 	return table.concat(parts)
 end
 
---- טבלת שיאנים בודדת (נשארת בשימוש קריאות שמבקשות לשונית אחת בלבד).
---- פרמטרים: מספר אירוע, תת אירוע, ללא תת אירוע, קטגוריית מפעל, הגבלה
+--- A single leaderboard table, for callers that want one tab only.
+--- Parameters: מספר אירוע, תת אירוע, ללא תת אירוע, קטגוריית מפעל, הגבלה
 function p.top(frame)
 	local args = frame.args
 	local limit = tonumber(args['הגבלה']) or 10
@@ -282,7 +295,7 @@ function p.top(frame)
 	return renderTop(sorted(totals(rows, args, args['קטגוריית מפעל'])), limit)
 end
 
---- מספר השחקנים השונים שעונים על הסינון (ל"כובשים שונים" וכד').
+--- How many distinct players match the filter (the "N כובשים שונים" count).
 function p.distinctPlayers(frame)
 	local args = frame.args
 	local rows, err = safeRows(args)
@@ -294,9 +307,9 @@ function p.distinctPlayers(frame)
 	return count
 end
 
---- גוש שיאנים שלם: ארבע הלשוניות והספירות שלהן, משליפה אחת.
---- פרמטרים: כינוי (למשל "כובשים שונים"), מספר אירוע, תת אירוע,
---- ללא תת אירוע, הגבלה, ואחד מסינוני FILTERS.
+--- A whole records block: four tabs and their four counts, from one query.
+--- Parameters: כינוי (the noun for the count, e.g. "כובשים שונים"),
+--- מספר אירוע, תת אירוע, ללא תת אירוע, הגבלה, and one of the FILTERS keys.
 function p.section(frame)
 	local args = frame.args
 	local limit = tonumber(args['הגבלה']) or 10

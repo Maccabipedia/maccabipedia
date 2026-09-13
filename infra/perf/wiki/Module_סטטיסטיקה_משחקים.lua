@@ -1,25 +1,32 @@
--- יחידה:סטטיסטיקה משחקים -- מספרים מצטברים ברמת המשחק.
+-- יחידה:סטטיסטיקה משחקים -- aggregate numbers at game level.
 --
--- מחליפה קריאות חוזרות ל[[תבנית:סטטיסטיקה/שליפות/מתקדמות/כמות נתוני משחק]].
--- עמוד עונה קורא לה 6 פעמים לכל קטגוריית מפעל (ניצחונות, תיקו, הפסדים,
--- כיבושים, ספיגות, שער נקי) - 24 שליפות בסך הכל. כאן נעשית שליפה אחת
--- המקובצת לפי כל הממדים הרלוונטיים, וכל המספרים מחושבים ממנה בזיכרון.
+-- Replaces repeated calls to
+-- [[תבנית:סטטיסטיקה/שליפות/מתקדמות/כמות נתוני משחק]]. A season page asked it
+-- six times per competition category (wins, draws, losses, goals, conceded,
+-- clean sheets) -- 24 queries. Here one query groups by every dimension the
+-- template filters on and all the numbers are computed from it in memory.
 
 local p = {}
 local cargo = mw.ext.cargo
 
 local cache = {}
 
--- תקרת שורות לשליפות המקובצות. Cargo חותך בתקרה בשקט - בלי שגיאה ובלי
--- אזהרה - ולכן מספר שנחשב מנתונים קטועים ייראה תקין לחלוטין. בייצור
--- הצבירות כאן הן 241 ו-15 שורות, רחוק מהתקרה, אבל הבדיקה נשארת כי
--- הוויקי גדל. ראו check_query_limits.py.
+-- Row cap for the grouped queries. Cargo truncates AT the cap silently -- no
+-- error, no warning -- so a number computed from a cut-off result looks
+-- entirely normal. In production these aggregates are 241 and 15 rows, nowhere
+-- near it, but the check stays because the wiki grows.
+-- Measure the real sizes with check_query_limits.py.
 local ROW_LIMIT = 20000
 local TRUNCATED = 'יחידה:סטטיסטיקה משחקים — השליפה הגיעה לתקרת ' .. ROW_LIMIT ..
                   ' שורות וייתכן שנקטעה. יש להעלות את ROW_LIMIT.'
 
--- כל פרמטר שהתבנית המקורית מקבלת. פרמטר לא מוכר יחזיר שגיאה גלויה במקום
--- מספר שגוי שנראה סביר.
+-- Every parameter the original template accepts. An unknown one returns a
+-- visible error rather than a plausible-looking wrong number.
+--
+-- Note this guard only fires for parameters the module is HANDED. A wrapper
+-- template that forwards a fixed list silently drops the rest before the guard
+-- ever sees them -- that shipped once, and an opponent page asking for its own
+-- yellow cards was handed the wiki-wide total. See check_shim_parity.py.
 local SUPPORTED = {
 	['עונה'] = true, ['יריבות'] = true, ['קטגוריית מפעל'] = true,
 	['תוצאה'] = true, ['תוצאה יריבה'] = true, ['תוצאה מכבי'] = true,
@@ -32,8 +39,9 @@ local function sanitize(value)
 	return (tostring(value or ''):gsub('["\\]', ''))
 end
 
---- רשימת יריבות ל-IN. Opponent נשמר ב-Cargo בלי גרש וגרשיים
---- (יש בו "ביתר ירושלים"), ולכן גם כאן צריך לנקות לפני ההשוואה.
+--- Opponent names for an SQL IN list. Cargo stores Opponent without quote
+--- characters -- it holds "ביתר ירושלים" -- so the name has to be cleaned the
+--- same way before it will match anything.
 local function opponentList(csv)
 	local quoted = {}
 	local list = tostring(csv or ''):match('^%s*%((.*)%)%s*$') or csv or ''
@@ -50,7 +58,8 @@ local function opponentList(csv)
 	return #quoted > 0 and ('(' .. table.concat(quoted, ',') .. ')') or nil
 end
 
---- תנאי ה-WHERE של הדף: עונה (דף עונה) או יריבות (דף יריבה).
+--- The page's WHERE conditions: עונה on a season page, יריבות on an
+--- opponent page.
 local function pageConditions(args)
 	local conditions = {}
 	local season = args['עונה']
@@ -76,7 +85,8 @@ local function unsupportedArgs(args)
 	return unknown
 end
 
---- שליפה אחת לסינון הדף, מקובצת לפי כל הממדים שהתבנית מסננת לפיהם.
+--- One query per page filter, grouped by every dimension the template
+--- filters on.
 local function fetchGames(args)
 	local conditions = pageConditions(args)
 	local key = table.concat(conditions, ' AND ')
@@ -121,8 +131,8 @@ local function matchesCategory(row, category)
 	return true
 end
 
---- מספר משחקים, שערים או ספיגות לפי הסינון שהתקבל.
---- נתון משחק: "כיבושים" לשערים, "ספיגות" לספיגות, ריק לספירת משחקים.
+--- Games, goals or goals conceded under the given filter.
+--- נתון משחק: "כיבושים" for goals, "ספיגות" for conceded, empty to count games.
 function p.gameStat(frame)
 	local args = frame.args
 	local unknown = unsupportedArgs(args)
@@ -163,13 +173,14 @@ function p.gameStat(frame)
 end
 
 -- ==========================================================================
--- גוש "מספרים כלליים": ארבע לשוניות, תשע שורות בכל אחת, בשתי שליפות.
+-- The "general numbers" block: four tabs, nine rows each, from two queries.
 --
--- דף יריבה ודף עונה מציגים את אותו גוש בדיוק, ושניהם בנו אותו כך: שש
--- קריאות ל[[תבנית:סטטיסטיקה/שליפות/מתקדמות/כמות נתוני משחק]] ועוד שתיים
--- ל[[תבנית:סטטיסטיקה/שליפות/מתקדמות/כמות אירועי שחקן]] לכל קטגוריית מפעל --
--- 32 שליפות לדף. כאן: שליפה אחת למשחקים, אחת לכרטיסים, וכל 36 המספרים
--- מחושבים מהן.
+-- Opponent pages and season pages show exactly the same block, and both built
+-- it the same way: six calls to
+-- [[תבנית:סטטיסטיקה/שליפות/מתקדמות/כמות נתוני משחק]] plus two to
+-- [[תבנית:סטטיסטיקה/שליפות/מתקדמות/כמות אירועי שחקן]] per competition category
+-- -- 32 queries per page. Here: one query for games, one for cards, and all 36
+-- numbers computed from them.
 -- ==========================================================================
 
 local TABS = {
@@ -181,7 +192,7 @@ local TABS = {
 
 local YELLOW, REDS = '71', { ['72'] = true, ['73'] = true }
 
---- כרטיסים של מכבי, מקובצים לפי אותם ממדים כמו שליפת המשחקים.
+--- Maccabi's cards, grouped by the same dimensions as the games query.
 local function fetchCards(args)
 	local conditions = pageConditions(args)
 	table.insert(conditions, 'Games_Events.Team=1')
@@ -207,8 +218,8 @@ local function fetchCards(args)
 		}) or {}
 end
 
---- עיגול כלפי מעלה בחצי, כמו #expr ו-#number_format. string.format ב-Lua
---- מעגל חצי לזוגי, ולכן 0.125 היה הופך ל-0.12 במקום ל-0.13.
+--- Round half up, the way #expr and #number_format do. Lua's string.format
+--- rounds half to even, so 0.125 would render 0.12 where MediaWiki shows 0.13.
 local function roundTo(value, places)
 	local factor = 10 ^ places
 	return math.floor(value * factor + 0.5) / factor
@@ -218,8 +229,10 @@ local function decimals(value, places)
 	return string.format('%.' .. places .. 'f', roundTo(value, places))
 end
 
---- אחוז, בדיוק כמו [[תבנית:סטטיסטיקה/אחוזים]] ואחריה #number_format:
---- קודם עיגול לשתי ספרות, ואז לפי הדיוק המבוקש.
+--- A percentage, reproducing [[תבנית:סטטיסטיקה/אחוזים]] followed by
+--- #number_format: round to two places FIRST, then to the displayed precision.
+--- That is two roundings, and a single %.0f gives a different answer at the
+--- boundary.
 local function percent(part, whole, places)
 	if whole == 0 then return '0' end
 	local value = roundTo(part / whole * 100, 2)
@@ -239,7 +252,7 @@ local function statRow(label, value, note)
 	})
 end
 
---- גוש המספרים של קטגוריית מפעל אחת, מתוך שורות שכבר נשלפו.
+--- The numbers for one competition category, from rows already fetched.
 local function numbersList(games, cards, category)
 	local total = { wins = 0, draws = 0, losses = 0, scored = 0,
 	                conceded = 0, cleanSheets = 0, yellow = 0, red = 0 }
@@ -285,7 +298,7 @@ local function numbersList(games, cards, category)
 	}, '<!--\n\n-->') .. '\n</div>'
 end
 
---- ארבע הלשוניות של גוש המספרים הכלליים. פרמטרים: עונה או יריבות.
+--- All four tabs of the general-numbers block. Parameters: עונה or יריבות.
 function p.numbersBlock(frame)
 	local args = frame.args
 	local games = fetchGames(args)

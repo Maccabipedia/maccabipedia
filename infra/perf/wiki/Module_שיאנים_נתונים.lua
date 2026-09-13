@@ -1,10 +1,20 @@
--- יחידה:שיאנים/נתונים -- ספירות אירועים לכל שחקן, בשליפה אחת לכל הדף.
+-- יחידה:שיאנים/נתונים -- per-player event counts, one query for the whole page.
 --
--- יחידת נתונים הנטענת דרך mw.loadData, ולכן השליפה רצה פעם אחת בלבד גם אם
--- יש בדף עשרות טבלאות שיאנים. משתנה מקומי ביחידה רגילה לא היה עוזר - מצב
--- של יחידה אינו נשמר בין קריאות #invoke.
+-- A DATA module, loaded through mw.loadData, which is why the query below runs
+-- once per page no matter how many leaderboards are on it. Scribunto executes a
+-- loadData module once per parse and caches the table for the rest of it.
 --
--- עמוד שיאנים טיפוסי (פורטל שחקנים) הריץ 32 שליפות נפרדות; כאן אחת.
+-- A plain module-local variable would not help: module state does NOT survive
+-- between #invoke calls. Measured -- 1 call 0.035s CPU, 5 calls 0.100s, 20 calls
+-- 0.341s, 65 calls 0.968s, exactly linear. mw.loadData is the only Scribunto
+-- cache that crosses that boundary.
+--
+-- The catch is that it caches by MODULE NAME and a data module takes no
+-- arguments, so this serves unfiltered pages only. A page that filters by
+-- stadium, opponent, season or referee has nowhere to put the filter and runs
+-- its own query in [[יחידה:שיאנים]] instead.
+--
+-- A players-portal render used to issue 32 separate queries. It issues this one.
 
 local rows = mw.ext.cargo.query(
 	'Football_Games,Games_Events,Competitions',
@@ -26,11 +36,11 @@ local rows = mw.ext.cargo.query(
 		groupBy = 'Games_Events.PlayerName,Games_Events.EventType,' ..
 		          'Games_Events.SubType,Competitions.League,' ..
 		          'Competitions.Trophy,Competitions.International',
-		-- חייב להישאר זהה ל-ROW_LIMIT ב[[יחידה:שיאנים]], שבודקת קטיעה.
+		-- Must match ROW_LIMIT in [[יחידה:שיאנים]], which checks for truncation.
 		limit = 20000,
 	}) or {}
 
--- mw.loadData מחזירה טבלה פשוטה בלבד: ללא פונקציות וללא מטא-טבלאות.
+-- mw.loadData returns plain data only: no functions, no metatables.
 local out = {}
 for index, row in ipairs(rows) do
 	out[index] = {
