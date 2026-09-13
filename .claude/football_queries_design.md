@@ -54,6 +54,44 @@ A dropped filter does not look like a failure. It looks like a number.
 | 5 | **Byte-identical HTML** for the display block | The harness can diff whole rendered pages, so any difference at all is a defect. The Lua reproduces existing markup including its oddities. |
 | 6 | **Local wiki until the vertical is proven**, then one low-traffic page | Nothing reaches production until the query layer and the block are complete and byte-identical locally. Prod-scale parity still needs a read-only shadow check, because the local wiki seeds only football 2021/22–2024/25 (222 games, 15,540 events). |
 
+## 2b. Live callers — measured 2026-09-13, and it re-ranks the work
+
+§1 ranked targets by how often the display templates call the query templates:
+fan-out **inside** the template tree. That says nothing about whether anything
+calls the display templates at all, and it turns out that **41 of the 72
+statistics templates have no callers, including 30 of the 46 display
+templates**.
+
+| callers | template | namespaces |
+|---|---|---|
+| 3,000+ | `סטטיסטיקה/אחוזים` | ns0 1,395 · ns3001 387 · ns3003 620 · ns3010 598 |
+| 2,542 | `שליפות/מתקדמות/כמות נתוני משחק` | ns0 1,844 · ns3010 698 |
+| 2,127 | `שליפות/מתקדמות/כמות אירועי שחקן` | ns0 1,429 · ns3010 698 |
+| 2,057 | `שליפות/כמות רשומות` | ns0 1,344 · ns14 15 · ns3010 698 |
+| ~805 each | four player-page query templates | ns0 805 |
+| **366 each** | **`תצוגה/ימים/סיכום תוצאות`** and `…/לפי מפעל` | ns0 366 |
+| **0** | **`תצוגה/שחקנים/סיכום אירועים`** and `…/לפי מפעל` | — |
+
+**The block this spec carried end-to-end has no callers.** The 32 → 1 merge,
+the byte-identical comparison and the 650 → 149 ms are all real, and they are
+real on a block nothing renders. `תבנית:פרופיל כדורגל` — 805 player pages —
+reaches the query templates through its own subpages and never through that
+block.
+
+What this changes:
+
+- the **query layer** is where the live value is: the two biggest query
+  templates have 2,542 and 2,127 callers, which is exactly what the
+  `gameDataCount` drop-in and the per-entry-point filter set already address;
+- the first **display** family to merge is **`ימים`**, at 366 calendar pages —
+  not the player one, which is a proof of the primitive rather than a win;
+- any migration inventory must start from live callers. Building one for the
+  player block would have inventoried a block with none.
+
+The lesson is recorded rather than buried: importance was inferred from
+internal fan-out and never checked against `embeddedin`, which takes one call
+per template.
+
 ## 3. Architecture
 
 **Four** module pages, dependencies pointing one way only.

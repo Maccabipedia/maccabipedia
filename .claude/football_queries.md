@@ -15,6 +15,20 @@ here, never edited on the wiki and copied back.
 as `יחידה`, and the API normalises `Module:X` to `יחידה:X`. Either spelling
 reaches the same page, so code and docs use `Module:`.
 
+## Which templates are actually rendered
+
+Measured 2026-09-13 with `embeddedin`, one call per template: **41 of the 72
+statistics templates have no callers**, 30 of them display templates. Ranked by
+live callers: `אחוזים` 3,000+, `כמות נתוני משחק` 2,542, `כמות אירועי שחקן`
+2,127, `כמות רשומות` 2,057, four player-page query templates ~805 each, the
+`ימים` display pair 366 each — and `תצוגה/שחקנים/סיכום אירועים`, the block this
+layer was first built against, **0**.
+
+So the delivered renderer is a proof of the merge, not a live win. The live
+value is in the query templates, and the first display family worth merging is
+`ימים` (366 calendar pages). Full table in
+`.claude/football_queries_design.md` §2b.
+
 ## Why it exists
 
 The statistics templates issue **one Cargo query per number**: the player
