@@ -114,8 +114,9 @@ template's own parameters:
   on `OriginalName`. The reason is in
   `maccabipedia_structure_knowledge.md` §15: for `Stadiums` the two name columns
   are identical in all 199 rows, so grouping has to use the page, while
-  `Opponents.CanonicalName` is a real grouping label across eras (28 of 289
-  rows) — and **neither column holds the normalised spelling**. Normalisation
+  `Opponents.CanonicalName` is a genuine club **identity** across renames and
+  mergers (271 ids over 289 rows; 10 ids carry several names; no name maps to
+  two ids) — and **neither column holds the normalised spelling**. Normalisation
   is a write-time transform that only the games table carries, which is why a
   lookup that strips its input finds nothing for the 37 quote-bearing clubs
   (332 games, Beitar 173).

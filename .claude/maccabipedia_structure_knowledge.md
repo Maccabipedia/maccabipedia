@@ -492,29 +492,43 @@ every statistic.
 | spelling | where it lives | example |
 |---|---|---|
 | **raw** — as displayed, quotes intact | `Opponents.OriginalName`, `Stadiums.OriginalName`, wiki page titles | `בית"ר ירושלים` |
-| **grouping** — one label per club across eras | `Opponents.CanonicalName` | `בית"ר תל אביב רמלה (מרכז)` |
+| **identity** — one id per club across renames and mergers | `Opponents.CanonicalName` | `בית"ר תל אביב רמלה (מרכז)` |
 | **normalised** — quotes and gershayim removed | **no column anywhere**; produced at write time by `תבנית:המרות/שם ללא גרש וגרשיים` and stored in `Football_Games.Opponent` / `.Stadium` | `ביתר ירושלים` |
 
 **The normalised spelling is a transform, not a column.** It is applied when a
 game page is written, so the games table holds it, and no lookup table does.
 
-### What CanonicalName is and is not
+### CanonicalName is a club identity, not an escaping aid
 
-It is **not** the escaped-safe or normalised form. Of the 37 `Opponents` rows
-whose `OriginalName` carries a quote, **0** have a quote-free `CanonicalName` —
-both columns keep the quote.
+It is the club's **id across renames and mergers** — the thing that stays put
+while the name changes. It is emphatically **not** the escape-safe or
+normalised form: of the 37 `Opponents` rows whose `OriginalName` carries a
+quote, **0** have a quote-free `CanonicalName`. Both columns keep the quote.
 
-What it does is group name variants under one label, in 28 of 289 rows:
+Measured shape: 289 rows, **271 distinct ids**, of which **10 collect more than
+one name** (28 rows). And the identity property holds — **0 names map to more
+than one id** — so a name determines a club unambiguously and code may rely on
+that.
 
-    בית"ר רמלה             ┐
-    בית"ר תל אביב          ├─→  בית"ר תל אביב רמלה (מרכז)
-    בית"ר תל אביב רמלה     ┘
+    בית"ר רמלה   בית"ר תל אביב   בית"ר תל אביב רמלה
+    הפועל בת ים  מכבי בת ים            ──→  בית"ר תל אביב רמלה (מרכז)
 
-    הכח מכבי רמת גן   הכח עמידר רמת גן
-    הכח רמת גן        הכח תל אביב        ──→  הכח רמת גן (משוכלל)
+    הכח מכבי רמת גן  הכח עמידר רמת גן  הכח רמת גן
+    הכח תל אביב      מכבי רמת עמידר    ──→  הכח רמת גן (משוכלל)
 
-The `(מרכז)` and `(משוכלל)` suffixes mean the label is sometimes not a real
-club name — never display `CanonicalName`, only group by it.
+Note those groups are **mergers as well as renames** — `הפועל בת ים` and
+`מכבי בת ים` are not spellings of one name.
+
+For the 261 single-name clubs the id is simply a copy of the name. For all 10
+multi-name clubs the id is a synthetic label suffixed `(מרכז)` or `(משוכלל)`
+and is **deliberately not any of the real names** — which is the right design,
+since picking one era's name as the id would make the other eras look like
+aliases of it. The consequence for code: **group by `CanonicalName`, never
+display it.**
+
+This is also why a filter on one club name must expand to every name that club
+ever carried: "games against this club" spans the renames, and that is what the
+alias self-join produces.
 
 For **`Stadiums` the pair carries no information at all**: 199 rows, and
 `OriginalName <> CanonicalName` in **zero** of them. Venue variants are grouped
