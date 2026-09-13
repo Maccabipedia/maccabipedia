@@ -273,16 +273,25 @@ def apply_cheap_category_check() -> None:
         print(f"  icons  {GAME_ROW} ({count} emptiness checks)")
 
 
-def apply_leaderboards() -> None:
-    """Delegate to apply_leaderboards.py, which owns the dispatcher wiring."""
+# Changes big enough to own their own script. Each is idempotent on its own, so
+# this stays a plain delegation -- but they must run from here too, or a local
+# wiki rebuilt with apply_wiki_optimisations.py silently comes back without them.
+DELEGATES = {
+    "apply_leaderboards.py": "leader",
+    "apply_record_sections.py": "records",
+    "apply_numbers_blocks.py": "numbers",
+}
+
+
+def delegate(script: str, label: str) -> None:
     import subprocess
     result = subprocess.run(
-        [sys.executable, str(Path(__file__).parent / "apply_leaderboards.py")],
+        [sys.executable, str(Path(__file__).parent / script)],
         capture_output=True, text=True, env={**os.environ, "MW_LOCAL_URL": BASE})
     if result.returncode != 0:
-        raise SystemExit(f"apply_leaderboards failed:\n{result.stdout}\n{result.stderr}")
+        raise SystemExit(f"{script} failed:\n{result.stdout}\n{result.stderr}")
     for line in result.stdout.strip().splitlines():
-        print(f"  leader {line}")
+        print(f"  {label} {line}")
 
 
 GAME_STATS_MODULE = "יחידה:סטטיסטיקה משחקים"
@@ -400,7 +409,8 @@ def apply_all(token: str) -> None:
         save(DISPLAY, DISPLAY_WIKITEXT)
         print(f"  column {DISPLAY}")
 
-    apply_leaderboards()
+    for script, label in DELEGATES.items():
+        delegate(script, label)
     apply_cheap_category_check()
     apply_age_module()
     apply_game_stats()
