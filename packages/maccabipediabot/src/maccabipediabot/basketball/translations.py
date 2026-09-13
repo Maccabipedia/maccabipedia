@@ -465,6 +465,240 @@ def is_known_team_name(name: str) -> bool:
     return name in _TEAM_NAMES
 
 
+# Short club names as the YouTube channels write them in video titles, mapped to the
+# most DISTINCTIVE part of the Hebrew name rather than a full canonical one. Matching
+# against Basketball_Games compares significant words by containment, and the stored
+# name varies by era ("בסקוניה" / "בסקוניה ויטוריה", "מילאנו" / "ארמאני מילאנו" /
+# "אולימפיה מילאנו"), so the shared token is what makes every era match.
+# Grown from the names the matcher reported as unresolved over both channels' listings.
+_VIDEO_TITLE_TEAM_ALIASES: dict[str, str] = {
+    # Israeli clubs
+    "Bnei Herzliya": "הרצליה",
+    "Bnei Hertzliya": "הרצליה",
+    "Herzliya": "הרצליה",
+    "Be'er Sheva": "באר שבע",
+    "Hapoel Be'er Sheva": "באר שבע",
+    "Hapoel Beer Sheva": "באר שבע",
+    "Hapoel Eilat": "הפועל אילת",
+    "Hapoel Haifa": "הפועל חיפה",
+    "Hapoel Holon": "חולון",
+    "Holon": "חולון",
+    "Hapoel HaEmek": "העמק",
+    "Hapoel Emek": "העמק",
+    "Hapoel Tel Aviv": "הפועל תל אביב",
+    "Hapoel Tel-Aviv": "הפועל תל אביב",
+    "Galil Elyon": "גליל עליון",
+    "Hapoel Galil Elyon": "גליל עליון",
+    "Gilboa/Galil": "גלבוע גליל",
+    "Galil/Gilboa": "גלבוע גליל",
+    "Gilboa Galil": "גלבוע גליל",
+    "Hapoel Gilboa/Galil": "גלבוע גליל",
+    "Hapoel Galil Gilboa": "גלבוע גליל",
+    "Kiryat Ata": "קרית אתא",
+    "Ironi Kiryat Ata": "קרית אתא",
+    "Maccabi Ashdod": "מכבי אשדוד",
+    "Maccabi Haifa": "מכבי חיפה",
+    "Maccabi Kiryat Gat": "קרית גת",
+    "Maccabi Ra'anana": "מכבי רעננה",
+    "Maccabi Raanana": "מכבי רעננה",
+    "Maccabi Rishon Lezion": "ראשון לציון",
+    "Maccabi Rishon LeZion": "ראשון לציון",
+    "Maccabi Rishin Lezion": "ראשון לציון",
+    "Maccabi Rison LeZion": "ראשון לציון",
+    "Rishon LeZion": "ראשון לציון",
+    "Rishon Lezion": "ראשון לציון",
+    "Nahariya": "נהריה",
+    "Ironi Nahariya": "נהריה",
+    "Nes Ziona": "נס ציונה",
+    "Ness Ziona": "נס ציונה",
+    "Ironi Nes Ziona": "נס ציונה",
+    "Ironi Ness Ziona": "נס ציונה",
+    "Irony Ness Ziona": "נס ציונה",
+    "Ironi Ramat Gan": "רמת גן",
+    "Elitzur Netanya": "נתניה",
+    "Barak Netanya": "ברק נתניה",
+    # European clubs
+    "ALBA Berlin": "אלבה ברלין",
+    "Alba Berlin": "אלבה ברלין",
+    "Anadolu Efes": "אפס",
+    "Efes": "אפס",
+    "ASVEL Villeurbanne": "וילרבאן",
+    "ASVEL": "וילרבאן",
+    "Asvel Villeurbanne": "וילרבאן",
+    "Bamberg": "באמברג",
+    "Brose Bamberg": "באמברג",
+    "Barcelona": "ברצלונה",
+    "Barca": "ברצלונה",
+    "Baskonia": "בסקוניה",
+    "Bayern Munich": "באיירן מינכן",
+    "FC Bayern Munich": "באיירן מינכן",
+    "Crvena Zvezda": "הכוכב האדום",
+    "Red Star Belgrade": "הכוכב האדום",
+    "CSKA Moscow": "צסקא מוסקבה",
+    "Darussafaka": "דרושפאקה",
+    "Dubai": "דובאי",
+    "Fenerbahce": "פנרבחצ'ה",
+    "Fenerbahçe": "פנרבחצ'ה",
+    "Fenerbahce Istanbul": "פנרבחצ'ה",
+    "Galatasaray": "גלאטסראיי",
+    "Gran Canaria": "גראן קנריה",
+    "Khimki": "חימקי",
+    "Khimki Moscow": "חימקי",
+    "Laboral Vitoria": "ויטוריה",
+    "Lietuvos Rytas Vilnius": "ריטאס",
+    "Rytas Vilnius": "ריטאס",
+    "Limoges": "לימוז'",
+    "Limoges CSP": "לימוז'",
+    "Lokomotiv Kuban": "לוקומוטיב",
+    "Nizhny Novgorod": "ניז'ני נובגורוד",
+    "Milan": "מילאנו",
+    "Milano": "מילאנו",
+    "Armani Milano": "מילאנו",
+    "Olimpia Milano": "מילאנו",
+    "Monaco": "מונקו",
+    "Olimpija Ljubljana": "לובליאנה",
+    "Ljubljana": "לובליאנה",
+    "Olympiacos": "אולימפיאקוס",
+    "Panathinaikos": "פנאתינייקוס",
+    "Panathinaikos Athens": "פנאתינייקוס",
+    "Partizan": "פרטיזן",
+    "Partizan Belgrade": "פרטיזן",
+    "Real Madrid": "ריאל מדריד",
+    "Sassari": "ססארי",
+    "Dinamo Sassari": "ססארי",
+    # The city, not the sponsor: pages hold both "מלאגה" and "אוניקאחה מאלגה", and only
+    # the city word is common to the two.
+    "Unicaja": "מלאגה",
+    "Unicaja Malaga": "מלאגה",
+    "Unics Kazan": "קאזאן",
+    "Kazan": "קאזאן",
+    "Valencia": "ולנסיה",
+    "Valencia Basket": "ולנסיה",
+    "Virtus": "וירטוס",
+    "Virtus Bologna": "וירטוס",
+    "Zalgiris": "ז'לגיריס",
+    "Zenit": "זניט",
+    "Zenit St Petersburg": "זניט",
+    # European clubs as the archive titles spell them: mostly the sponsor of the day,
+    # sometimes a different transliteration. Each maps to the distinctive part of the
+    # name the wiki uses. Taken from the titles the matcher could not place, not guessed.
+    "פנאתניקוס": "פנאתינייקוס",
+    "פנאתניקוס אתונה": "פנאתינייקוס",
+    "פנאיוניוס": "פאניוניוס",
+    "פניוניוס": "פאניוניוס",
+    # Three different Bologna clubs, so these must not collapse to "בולוניה".
+    "סינודינה בולוניה": "וירטוס",
+    "קינדר בולוניה": "וירטוס",
+    "קנור בולוניה": "וירטוס",
+    "גראנארולו בולוניה": "וירטוס",
+    "באקלר בולוניה": "וירטוס",
+    "טים סיסטם בולוניה": "פורטיטודו",
+    # Olimpia Milano under each sponsor.
+    "טרסר מילאנו": "מילאנו",
+    "סטפנל מילאנו": "מילאנו",
+    "סטפאנל מילאנו": "מילאנו",
+    "סימאק מילאנו": "מילאנו",
+    "בילי מילאנו": "מילאנו",
+    "ורוצלאב": "ורוצלב",
+    "יוגופלסטיקה ספליט": "ספליט",
+    "בוסנה סארייבו": "בוסנה",
+    # Deliberately absent: "מלאגה" and "אולימפיה לובליאנה". Both were rewritten here to a
+    # spelling the game pages do not use ("מאלגה", "אולימפיה"), which moved the name AWAY
+    # from the wiki and broke 9 matches. Hebrew names pass through untranslated and the
+    # spelling folding in videos/aliases.py absorbs the difference.
+    "אנטיב": "דאנטיב",
+    "קאזרטה": "יובקזרטה",
+    "קאחה סן פרננדו": "קחאסול",
+    "בנטון טרוויזו": "טרביזו",
+    "לוליו": "לולאו",
+    "באנקו רומא": "רומא",
+    "בנקו רומא": "רומא",
+    "אולקר": "פנרבחצ'ה",
+    "אולקר איסטנבול": "פנרבחצ'ה",
+    "טלקום אנקרה": "טורק טלקום",
+    "אורטז": "אורטז",
+    "פזארו": "פזארו",
+    "פריסטרי": "פרישטרי",
+    "ס.ס.ו אולם": "אולם",
+    "קינגסטון": "קינגס",
+    "סודרטליה": "סודרטליה",
+    "בלינזונה": "פידפיננץ",
+    "שארלואה": "ולוניה",
+    'א.ס. רמה"ש': "רמת השרון",
+    "הפועל ים": "הפועל ירושלים",
+    "הפועל הרצליה": "הרצליה",
+    # The English archive uploads, where the club is written under its 1980s sponsor or
+    # with the city appended. Each maps to the token the game page actually carries, so
+    # the tolerant comparison can contain one name in the other.
+    "Aris Thessaloniki": "אריס סלוניקי",
+    "Bayer Leverkusen": "לברקוזן",
+    "Billy Milano": "מילאנו",
+    "Bnei HaSharon": "בני השרון",
+    "Bologna": "בולוניה",
+    "Bosna Sarajevo": "בוסנה סרייבו",
+    "Caja Laboral": "קאחה לאבורל",
+    "CSKA": 'צסק"א מוסקבה',
+    "Efes": "אפס",
+    "Efes Pilsen": "אפס",
+    "Elitzur Kiryat Ata": "אליצור קרית אתא",
+    "Fortitudo Skipper Bologna": "סקיפר בולוניה",
+    "Hapoel Be'er Sheva/Dimona": "הפועל באר שבע",
+    "Hapoel Ramat Gan": "הפועל רמת גן",
+    "Iraklis": "איראקליס",
+    "Le Mans": "לה מאן",
+    "Montepaschi Siena": "סיינה",
+    "Nashua Den Bosch": "דן בוס",
+    "Novo Mesto": "נובו מסטו",
+    "PAOK Thessaloniki": "פאוק סלוניקי",
+    "Pesaro": "פזארו",
+    "Roma": "רומא",
+    "Siena": "סיינה",
+    "Squibb Cantù": "קאנטו",
+    "Squibb Cantu": "קאנטו",
+    "Synudine Bologna": "וירטוס בולוניה",
+    "Tao Vitoria": "טאו ויטוריה",
+    "Tau Vitoria": "טאו ויטוריה",
+    "Tracer Milano": "מילאנו",
+    "Union Olimpija": "אולימפיה לובליאנה",
+    "Upper Galil": "גליל עליון",
+    "Zadar": "זאדאר",
+    "Žalgiris": "ז'לגיריס",
+    # Kalev of Tallinn: the titles name the city, the pages name the club.
+    "Tallinn": "קאלב",
+    "טאלין": "קאלב",
+}
+
+
+def _alias_lookup_key(name: str) -> str:
+    """Fold case and punctuation, so the channel's typos still resolve.
+
+    Real examples from the listings: "DInamo Sassari", "Crvena zvezda", "UNICS Kazan",
+    "Hapoel Gilboa-Galil", "Zenit St. Petersburg".
+    """
+    return re.sub(r"[\s.\-/']+", " ", name).strip().lower()
+
+
+_VIDEO_TITLE_ALIASES_BY_KEY: dict[str, str] = {
+    _alias_lookup_key(alias): hebrew for alias, hebrew in _VIDEO_TITLE_TEAM_ALIASES.items()
+}
+_TEAM_NAMES_BY_KEY: dict[str, str] = {
+    _alias_lookup_key(name): hebrew for name, hebrew in _TEAM_NAMES.items()
+}
+
+
+def video_title_team_to_hebrew(name: str) -> str | None:
+    """Hebrew name for a club as a YouTube video title spells it, or None if unknown.
+
+    Consults the video-title aliases first, then the crawler's EN->HE map. Returns None
+    rather than passing an unknown name through: a video whose opponent cannot be
+    identified must reach a human, not a guess.
+    """
+    key = _alias_lookup_key(name)
+    if key in _VIDEO_TITLE_ALIASES_BY_KEY:
+        return _VIDEO_TITLE_ALIASES_BY_KEY[key]
+    return _TEAM_NAMES_BY_KEY.get(key)
+
+
 def person_name_to_hebrew(name: str) -> str:
     return _PERSON_NAMES.get(name, name)
 

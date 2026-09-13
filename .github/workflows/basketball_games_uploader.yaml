@@ -95,6 +95,35 @@ jobs:
             echo "found=false" >> "$GITHUB_OUTPUT"
           fi
 
+      # Videos appear on the club's YouTube channel hours to days after the game, so this
+      # cannot run at upload time — it revisits games of the current and previous season
+      # whose video parameters are still empty and fills whatever it can match. Reads
+      # YouTube's public RSS feeds: no API key, no proxy, and unlike yt-dlp they answer
+      # datacenter IPs.
+      - name: Attach game videos from the official channel
+        id: attach_videos
+        env:
+          PYWIKIBOT_DIR: packages/maccabipediabot/src/maccabipediabot/pywikibot_configs/
+          MACCABIPEDIA_BOT_USERNAME: ${{ secrets.MACCABIPEDIA_BOT_USERNAME }}
+          MACCABIPEDIA_BOT_PASSWORD: ${{ secrets.MACCABIPEDIA_BOT_PASSWORD }}
+        run: |
+          set -o pipefail
+          uv run python -m maccabipediabot.basketball.videosbot_basketball \
+            --source rss --seasons current,previous --write --purge --min-confidence 9 \
+            --report /tmp/basketball_videos_report.html 2>&1 | tee -a /tmp/uploader.log
+
+      # Matches scored below the write floor are held back on purpose, but without this
+      # nobody ever sees them: the run logs a count and exits, and the next run drops the
+      # same ones again. The report is the only record of what was not written and why.
+      - name: Keep the video match report
+        if: always() && steps.attach_videos.outcome != 'skipped'
+        uses: actions/upload-artifact@v4
+        with:
+          name: basketball-video-matches
+          path: /tmp/basketball_videos_report.html
+          if-no-files-found: ignore
+          retention-days: 30
+
       # Not a team-mapping failure: report WHICH step died and the real error tail, so the
       # alert points at the actual cause (e.g. a wiki-login TimeoutError) instead of guessing.
       # Each python step tees its combined output to /tmp/uploader.log. Before sending we
@@ -112,6 +141,7 @@ jobs:
           elif [ "${{ steps.upload_basket.outcome }}" = "failure" ]; then failed_step="Upload basket.co.il games"
           elif [ "${{ steps.crawl_euroleague.outcome }}" = "failure" ]; then failed_step="Crawl Euroleague"
           elif [ "${{ steps.upload_euroleague.outcome }}" = "failure" ]; then failed_step="Upload Euroleague games"
+          elif [ "${{ steps.attach_videos.outcome }}" = "failure" ]; then failed_step="Attach game videos"
           else failed_step="setup / a non-crawl step"
           fi
           echo "step=$failed_step" >> "$GITHUB_OUTPUT"
