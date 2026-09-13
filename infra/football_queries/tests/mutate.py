@@ -18,6 +18,7 @@ FIELDS = Path('infra/football_queries/Module_FootballQueries_Fields.lua')
 SUITES = [
     'infra/football_queries/tests/test_football_queries.lua',
     'infra/football_queries/tests/test_coverage_gaps.lua',
+    'infra/football_queries/tests/test_aggregate.lua',
 ]
 
 # (label, file, find, replace). `find` must appear exactly once, or the harness
@@ -41,7 +42,8 @@ MUTATIONS = [
      "builder:addComparison('Games_Events.Team', '=', 1)",
      "builder:addComparison('Games_Events.Team', '=', 0)"),
     ('Team default removed', LOGIC,
-     'if builder.tables.Games_Events and not builder.teamConstrained then',
+     'if builder.tables.Games_Events and not builder.teamConstrained\n'
+     '\t\t\tand not skipDefaults then',
      'if false then'),
     ('backslash escape removed', LOGIC,
      """value:gsub('\\\\', '\\\\\\\\'):gsub('"', '\\\\"')""",
@@ -108,6 +110,27 @@ MUTATIONS = [
     # disagree with `columns` is worse than no configuration.
     ('HOLDS becomes equals', LOGIC,
      "'%s HOLDS %s', spec.column", "'%s = %s', spec.column"),
+    # The merge. Each of these is a plausible-looking wrong number in a block.
+    ('merge drops the Team default', LOGIC,
+     'if unionBuilder.tables.Games_Events and not sharedBuilder.teamConstrained then',
+     'if false then'),
+    ('merge derives joins from the shared filters only', LOGIC,
+     'local unionBuilder = buildInto(union)',
+     'local unionBuilder = buildInto(shared)'),
+    ('merge puts cell conditions in the WHERE too', LOGIC,
+     'local sharedBuilder = buildInto(shared, true)',
+     'local sharedBuilder = buildInto(union, true)'),
+    ('game grain counts rows instead of distinct games', LOGIC,
+     "if grain == 'game' then", 'if false then'),
+    ('grain validation removed', LOGIC,
+     "if grain ~= 'event' and grain ~= 'game' then", 'if false then'),
+    ('cell conditions dropped from the aggregate', LOGIC,
+     "local condition = #cellBuilder.conditions > 0\n\t\t\tand table.concat("
+     "cellBuilder.conditions, ' AND ') or '1=1'",
+     "local condition = '1=1'"),
+    ('cell values no longer default to zero', LOGIC,
+     "values[entry.name] = tonumber(row[entry.alias]) or 0",
+     "values[entry.name] = tonumber(row[entry.alias])"),
 ]
 
 

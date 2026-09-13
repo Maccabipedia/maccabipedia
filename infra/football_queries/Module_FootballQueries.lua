@@ -327,8 +327,13 @@ end
 -- Consumed by another handler, contributes no condition of its own.
 handlers.modifier = function() end
 
---- Turns a filter set into the tables, join and where of one query.
-function FootballQueries.build(filters)
+--- Runs the handlers for one filter set and returns the builder.
+---
+--- `skipDefaults` leaves out row-level defaults such as the Team constraint.
+--- The merge needs that: a cell's own conditions go into the FIELDS as a
+--- conditional aggregate, and a row-level default belongs in the WHERE once,
+--- not repeated inside every cell.
+local function buildInto(filters, skipDefaults)
 	local builder = newBuilder()
 
 	-- Sorted, so the same filter set always produces byte-identical SQL: it
@@ -370,10 +375,16 @@ function FootballQueries.build(filters)
 	-- opponent's events too. Measured: a league goals count for one player
 	-- returns 152 without this and 150 with it, because two rows on that page
 	-- belong to the opposing side.
-	if builder.tables.Games_Events and not builder.teamConstrained then
+	if builder.tables.Games_Events and not builder.teamConstrained
+			and not skipDefaults then
 		builder:addComparison('Games_Events.Team', '=', 1)
 	end
 
+	return builder
+end
+
+--- Turns a builder's tables into the tables and join of a query.
+local function tablesAndJoin(builder)
 	local joined = {}
 	for name in pairs(builder.tables) do
 		if name ~= 'Football_Games' then
@@ -391,12 +402,130 @@ function FootballQueries.build(filters)
 		joins[#joins + 1] = Fields.tables[name].join
 	end
 
-	return {
-		tables = table.concat(tableNames, ','),
-		join = table.concat(joins, ','),
-		where = #builder.conditions > 0
-			and table.concat(builder.conditions, ' AND ') or '1=1',
-	}
+	return table.concat(tableNames, ','), table.concat(joins, ',')
+end
+
+local function whereOf(builder)
+	return #builder.conditions > 0
+		and table.concat(builder.conditions, ' AND ') or '1=1'
+end
+
+--- Turns a filter set into the tables, join and where of one query.
+function FootballQueries.build(filters)
+	local builder = buildInto(filters)
+	local tables, join = tablesAndJoin(builder)
+	return { tables = tables, join = join, where = whereOf(builder) }
+end
+
+--- Every cell of a block from ONE query.
+---
+--- `shared` are the filters the whole block has in common (the player, the
+--- competition category). `cells` is a list of
+---   { name = 'goals', filters = { … }, grain = 'event' | 'game' }
+--- and each cell's own filters become a conditional aggregate in the SELECT
+--- rather than a second query. The block that motivates this runs 8 queries
+--- per tab and 32 per page; this is 1.
+---
+--- Two things the merge has to get right, and neither is optional:
+---
+---  * **Row-level conditions stay in the WHERE.** The Team constraint and the
+---    join set are derived from the union of every cell's filters, so a
+---    condition that belongs to the whole row set is applied once, and a table
+---    only a cell mentions is still joined. Deriving them from the shared
+---    filters alone silently drops both.
+---  * **Grain is declared, not guessed.** Joining Games_Events multiplies a
+---    game into one row per event - up to 43x, measured. So a cell counting
+---    events sums rows, while a cell counting games must count DISTINCT game
+---    pages. Mixing the two without saying so inflates the game cell by the
+---    number of events, which looks like a plausible number.
+function FootballQueries.aggregate(shared, cells, options)
+	options = options or {}
+	if #cells == 0 then
+		error('FootballQueries: aggregate needs at least one cell', 0)
+	end
+
+	-- The union decides what is joined and whether Team must be constrained.
+	local union = {}
+	for name, value in pairs(shared) do
+		union[name] = value
+	end
+	for _, cell in ipairs(cells) do
+		for name, value in pairs(cell.filters or {}) do
+			union[name] = value
+		end
+	end
+
+	local unionBuilder = buildInto(union)
+	local tables, join = tablesAndJoin(unionBuilder)
+
+	-- The WHERE carries the shared filters plus the row-level default, which
+	-- buildInto adds when the union reaches Games_Events.
+	local sharedBuilder = buildInto(shared, true)
+	if unionBuilder.tables.Games_Events and not sharedBuilder.teamConstrained then
+		sharedBuilder:addComparison('Games_Events.Team', '=', 1)
+	end
+
+	local fields = {}
+	local aliases = {}
+	for index, cell in ipairs(cells) do
+		if not cell.name then
+			error('FootballQueries: every cell needs a name', 0)
+		end
+		local grain = cell.grain or 'event'
+		if grain ~= 'event' and grain ~= 'game' then
+			error(string.format(
+				'FootballQueries: cell "%s" has unknown grain "%s" - it must say '
+				.. 'whether it counts events or games', cell.name, grain), 0)
+		end
+
+		local cellBuilder = buildInto(cell.filters or {}, true)
+		local condition = #cellBuilder.conditions > 0
+			and table.concat(cellBuilder.conditions, ' AND ') or '1=1'
+
+		-- Aliases are positional: a Hebrew cell name is not a safe SQL alias.
+		local alias = 'c' .. index
+		aliases[index] = { alias = alias, name = cell.name }
+
+		if grain == 'game' then
+			fields[index] = string.format(
+				'COUNT(DISTINCT CASE WHEN %s THEN Football_Games._pageID END)=%s',
+				condition, alias)
+		else
+			fields[index] = string.format(
+				'SUM(CASE WHEN %s THEN 1 ELSE 0 END)=%s', condition, alias)
+		end
+	end
+
+	local rows = runCargo(tables, table.concat(fields, ','), {
+		join = join,
+		where = whereOf(sharedBuilder),
+		groupBy = options.groupBy,
+		orderBy = options.orderBy,
+		having = options.having,
+		limit = options.limit or 2,
+	})
+
+	-- Without groupBy the answer is one row of cells; with it, one row per
+	-- group, and the caller needs the group value alongside them.
+	local function unpackRow(row)
+		local values = {}
+		for _, entry in ipairs(aliases) do
+			-- Cargo returns SUM as a float and an empty group as nil.
+			values[entry.name] = tonumber(row[entry.alias]) or 0
+		end
+		return values
+	end
+
+	if not options.groupBy then
+		return rows[1] and unpackRow(rows[1]) or {}
+	end
+
+	local grouped = {}
+	for index, row in ipairs(rows) do
+		grouped[index] = { group = row[options.groupAlias or 'g'],
+		                   cells = unpackRow(row) }
+	end
+	return grouped
 end
 
 --- Rows for one filter set. `options` is this module's own interface and is
@@ -472,6 +601,43 @@ local function separate(args)
 		end
 	end
 	return filters, options
+end
+
+--- Proves the merge against real data from wikitext, before a display module
+--- exists to consume it:
+---   {{#invoke:FootballQueries|aggregateProbe|cells=goals:3,assists:4
+---     |שחקן=ערן זהבי|קטגוריית מפעל=ליגה}}
+---
+--- `cells` is name:eventType pairs, comma separated. Diagnostic only - a real
+--- block gets its cells from the block data page, not from wikitext.
+function FootballQueries.aggregateProbe(frame)
+	local shared = {}
+	for name, value in pairs(frame.args) do
+		if name ~= 'cells' then
+			shared[name] = value
+		end
+	end
+
+	local cells = {}
+	for pair in tostring(frame.args.cells or ''):gmatch('[^,]+') do
+		local name, eventType = pair:match('^%s*(%w+)%s*:%s*([%d;]+)%s*$')
+		if not name then
+			error(string.format(
+				'FootballQueries: cells must be name:eventType pairs, got "%s"',
+				pair), 0)
+		end
+		cells[#cells + 1] = {
+			name = name,
+			filters = { ['מספר אירוע'] = eventType:gsub(';', ',') },
+		}
+	end
+
+	local values = FootballQueries.aggregate(shared, cells)
+	local output = {}
+	for _, cell in ipairs(cells) do
+		output[#output + 1] = cell.name .. '=' .. tostring(values[cell.name])
+	end
+	return table.concat(output, ' ')
 end
 
 --- Drop-in body for a query template, replacing its whole #cargo_query:
