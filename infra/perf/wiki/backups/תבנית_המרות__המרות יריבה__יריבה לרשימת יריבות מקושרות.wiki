@@ -1,0 +1,17 @@
+<includeonly><!--
+
+
+-->{{#arraydefine: footballOpponentsTeams|
+{{#cargo_query:
+table=Opponents=Opponents1, Opponents=Opponents2
+|join on=Opponents1.CanonicalName=Opponents2.CanonicalName
+|where=1=1
+AND Opponents1.OriginalName="{{המרות/שם ללא גרש וגרשיים| שם={{{יריבה}}} }}"
+|fields=Opponents2.OriginalName
+|no html
+}}
+}}<!--
+
+-->{{#arrayprint: footballOpponentsTeams|,  |@ |"@" }}</includeonly><noinclude>
+[[קטגוריה:המרות יריבה]]
+</noinclude>

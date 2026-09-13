@@ -33,9 +33,21 @@ SHIMS = {
         f"<includeonly>{{{{#invoke:סטטיסטיקה שחקן|count{ARGS}}}}}</includeonly>",
     "תבנית:סטטיסטיקה/שליפות/מתקדמות/כמות משחקים המכילים אירוע שחקן":
         f"<includeonly>{{{{#invoke:סטטיסטיקה שחקן|countGames{ARGS}}}}}</includeonly>",
+    # Alias lookups go through יחידה:המרות, which shares one Cargo query across
+    # every call on the page via mw.loadData -- the only Scribunto mechanism
+    # that survives between #invoke calls. Measured over 32 lookups:
+    # template 0.110s CPU, module 0.037s.
     "תבנית:המרות/המרות אצטדיון/אצטדיון לרשימת אצטדיונים מקושרים":
-        "<includeonly>{{#invoke:סטטיסטיקה שחקן|stadiumAliases"
+        "<includeonly>{{#invoke:המרות|stadiumAliases"
         "|אצטדיון={{{אצטדיון|}}}}}</includeonly>",
+    "תבנית:המרות/המרות יריבה/יריבה לרשימת יריבות מקושרות":
+        "<includeonly>{{#invoke:המרות|opponentAliases"
+        "|יריבה={{{יריבה|}}}}}</includeonly>",
+}
+
+CONVERSION_MODULES = {
+    "יחידה:המרות/נתונים": Path(__file__).parent / "Module_המרות_נתונים.lua",
+    "יחידה:המרות": Path(__file__).parent / "Module_המרות.lua",
 }
 
 # The stats column, rendered by a single module call.
@@ -222,6 +234,18 @@ def apply_cheap_category_check() -> None:
         print(f"  icons  {GAME_ROW} ({count} emptiness checks)")
 
 
+def apply_leaderboards() -> None:
+    """Delegate to apply_leaderboards.py, which owns the dispatcher wiring."""
+    import subprocess
+    result = subprocess.run(
+        [sys.executable, str(Path(__file__).parent / "apply_leaderboards.py")],
+        capture_output=True, text=True, env={**os.environ, "MW_LOCAL_URL": BASE})
+    if result.returncode != 0:
+        raise SystemExit(f"apply_leaderboards failed:\n{result.stdout}\n{result.stderr}")
+    for line in result.stdout.strip().splitlines():
+        print(f"  leader {line}")
+
+
 GAME_STATS_MODULE = "יחידה:סטטיסטיקה משחקים"
 GAME_STATS_SOURCE = Path(__file__).parent / "Module_סטטיסטיקה_משחקים.lua"
 SEASON_NUMBERS = "תבנית:עונת כדורגל/הצגת מספרים עונתיים/הצגה לפי מפעל"
@@ -310,6 +334,13 @@ def apply_all(token: str) -> None:
     save(MODULE_TITLE, MODULE_SOURCE.read_text(encoding="utf-8"), token, keep_backup=False)
     print(f"module: {MODULE_TITLE}")
 
+    for title, path in CONVERSION_MODULES.items():
+        if get_text(title) != path.read_text(encoding="utf-8"):
+            api(action="edit", title=title, text=path.read_text(encoding="utf-8"),
+                contentmodel="Scribunto", summary="local perf experiment",
+                token=_token["csrf"])
+            print(f"  alias  {title}")
+
     for title, text in SHIMS.items():
         if get_text(title) != text:
             save(title, text, token)
@@ -319,13 +350,16 @@ def apply_all(token: str) -> None:
         save(DISPLAY, DISPLAY_WIKITEXT)
         print(f"  column {DISPLAY}")
 
+    apply_leaderboards()
     apply_cheap_category_check()
     apply_age_module()
     apply_game_stats()
     apply_extension_list()
 
     changed = 0
-    for title in all_pages(10) + all_pages(0):
+    # Namespace 14 (Category) matters too: portals transclude category pages,
+    # and a #dpl there caps the transcluding page just the same.
+    for title in all_pages(10) + all_pages(0) + all_pages(14):
         text = get_text(title)
         if not text or "#dpl:" not in text:
             continue

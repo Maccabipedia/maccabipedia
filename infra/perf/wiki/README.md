@@ -29,21 +29,27 @@ in `LocalSettings.env.local.php`.
 
 ## Measured on the local wiki
 
-Football 2021/22–2024/25 seeded: 222 games, 15,540 events.
+Football 2021/22–2024/25 seeded: 222 games, 15,540 events. **Every page type in
+the benchmark**, not just the ones that improved:
 
-| | ערן זהבי (player) | עונת 2021/22 (season) |
-|---|---|---|
-| render, median of 7 | 2.51 s → **1.19 s** (−52%) | 4.34 s → **3.35 s** (−23%) |
-| SQL statements | 2,455 → 1,281 (−48%) | 4,613 → 2,414 (−48%) |
-| `SHOW TABLES` | 391 → 60 (−85%) | 481 → 277 (−42%) |
-| preprocessor nodes | 19,152 → 5,860 (−69%) | 74,755 → 41,657 (−44%) |
-| post-expand size | 601,215 → 166,563 (−72%) | 1,130,777 → 953,546 (−16%) |
-| template arg size | 457,280 → 37,657 (−92%) | — |
-| expensive functions | 8 → 8 | 2,176 → 661 (−70%) |
-| **parser cache TTL** | **3600 → 86400** | **3600 → 86400** |
+| page | SQL | nodes | cache TTL | render |
+|---|---|---|---|---|
+| **ערן זהבי** (player) | 2,457 → 1,248 −49% | 19,152 → 5,833 −70% | 3600 → 86400 | 2.67s → **1.30s** −51% |
+| **עונת 2021/22** (season) | 4,614 → 2,356 −49% | 74,755 → 43,929 −41% | 3600 → 86400 | 4.56s → **3.43s** −25% |
+| **פורטל שחקנים** (portal) | 1,261 → 1,034 −18% | 21,527 → 15,106 −30% | 3600 → 86400 | 1.61s → 1.57s −3% |
+| פורטל אנשי צוות | 385 → 385 | 609 → 610 | **3600 → 86400** | — |
+| משחק (game page) | 938 → 939 | 17,957 → 17,963 | already 86400 | **untouched** |
+| עמוד ראשי (home) | 281 → 282 | 3 → 3 | already 86400 | empty locally |
+| פורטל מדים / מפעלים / מתקנים | unchanged | unchanged | already 86400 | already cheap |
 
-Every rendered statistic was compared before and after: 85 values across both
-pages, all identical.
+**Three pages materially improved; four gained the cache TTL fix; two are still
+untouched.** The game page is the notable gap — it is the most numerous page
+type on the wiki (8,367 pages) and none of this work reaches it, because the
+gallery and image-format fixes went into `הצגת משחק`, the row template used in
+season *lists*, while the game page itself renders through `קטלוג משחקים`.
+
+Verification: 85 statistics on player and season pages identical before/after,
+and all 1,080 leaderboard record values on the portal identical.
 
 ## The five changes
 
@@ -95,13 +101,35 @@ season page, so that fallback ran 38 `#ifexist` calls per lookup, 58 lookups per
 page. Mixed-case permutations match nothing real; the list also contained `PNG`
 twice. **Expensive parser functions 2,176 → 661.**
 
-### 5. Parser cache TTL: 3600 → 86400 on every page
+### 5. Leaderboards: 32 queries → 1, and a non-determinism bug fixed
+
+Leaderboards (`שיאני כיבושים`, `שיאני הופעות`, …) each ran their own grouped
+query — 32 per portal render, since the portal transcludes three category pages
+each holding four leaderboards across four competition tabs.
+
+`Module:שיאנים` computes all of them from one aggregate shared through
+`mw.loadData`. The template is **not** replaced outright: it becomes a
+dispatcher, because opponent, stadium and season pages call it with filters the
+module does not implement (opponent, stadium, referee, coach, season, result).
+Those still route to the original query, preserved as
+`…/שיאני כמות אירועי שחקן/שליפה מלאה`.
+
+This also fixed a real bug. The template sorted by `COUNT(*)` with no
+tiebreak, so tied players appeared in arbitrary order — **three renders of the
+same page gave three different top-10 lists.** The module breaks ties by name.
+Record values are identical; only which tied player takes the last slot changed,
+and it is now stable.
+
+### 6. Parser cache TTL: 3600 → 86400 on every page
 
 Two separate causes, both fixed:
 
 - **`{{#dpl:}}`** calls `updateCacheExpiry(cacheperiod ?? 3600)`. There is no
   global setting in any DPL3 version (checked against `master`), so
-  `|cacheperiod=86400` was added to all 27 call sites.
+  `|cacheperiod=86400` was added to all 28 call sites — including **category
+  pages** (namespace 14), which portals transclude. Scanning only templates and
+  articles left `פורטל אנשי צוות` capped at 3600 via
+  `{{:קטגוריה: אנשי צוות כדורגל}}`.
 - **`תבנית:גיל`** used `{{שנה נוכחית}}` / `{{חודש נוכחי}}` / `{{יום נוכחי}}`,
   marking every player page time-dependent — for a number that changes once a
   year. `Module:גיל` computes it with `os.date`, which carries no

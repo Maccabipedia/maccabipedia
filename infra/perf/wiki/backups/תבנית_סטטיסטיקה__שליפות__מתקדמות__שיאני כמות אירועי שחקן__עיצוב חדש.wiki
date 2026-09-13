@@ -1,0 +1,56 @@
+<includeonly><!--
+
+-->{{#arraydefine: מפעלים |{{{מפעלים}}} }}<!--
+-->{{#arraydefine: אצטדיונים |{{{אצטדיונים}}} }}<!--
+-->{{#arraydefine: שופטים |{{{שופטים|}}} }}<!--
+
+-->{{#vardefine:SameStadiums|{{המרות/המרות אצטדיון/אצטדיון לרשימת אצטדיונים מקושרים| אצטדיון={{{אצטדיון|}}} }} }}<!--
+-->{{#vardefine:SameOpponents|{{המרות/המרות יריבה/יריבה לרשימת יריבות מקושרות|יריבה={{{יריבה|}}} }} }}<!--
+-->{{#vardefine:resultInt|{{תבנית: המרות/תוצאת משחק למספר|תוצאה={{{תוצאה|}}} }} }}<!--
+-->{{#vardefine:fieldToOrderBy| {{#בחר:{{{שיאנים|}}} | מאמנים=Football_Games.CoachMaccabi| מפעלים=Football_Games.Competition | שופטים=Football_Games.Refs| עונות=Football_Games.Season|  Games_Events.PlayerName }} }}<!--
+
+
+-->{{#cargo_query:
+tables=Football_Games, Games_Events, Games_Referees, Competitions
+|join on=Football_Games._pageID=Games_Events._pageID,
+Football_Games.Competition=Competitions.OriginalName,
+Football_Games._pageID = Games_Referees._pageID
+|where=1=1
+AND Team=1
+AND Competitions.Official = 1
+
+{{#if: {{{מספר אירוע|}}} | AND Games_Events.EventType IN ({{{מספר אירוע}}}) }}
+{{#if: {{{שחקן|}}} |  AND Games_Events.PlayerName= "{{{שחקן}}}" }}
+{{#if: {{{שחקנים|}}} |  AND Games_Events.PlayerName IN ({{{שחקנים}}}) }}
+{{#if: {{{מפעל מקורי|}}}| AND Competitions.OriginalName = "{{{מפעל מקורי|}}}" }}
+{{#if: {{{מפעל נוכחי|}}}| AND Competitions.CurrentName = "{{{מפעל נוכחי|}}}" }}
+{{#ifeq: {{{קטגוריית מפעל|}}}| רשמי| AND Competitions.Official = 1 }}
+{{#ifeq: {{{קטגוריית מפעל|}}}| ליגה| AND Competitions.League=1 }}
+{{#ifeq: {{{קטגוריית מפעל|}}}| גביע| AND Competitions.Trophy=1 }}
+{{#ifeq: {{{קטגוריית מפעל|}}}| בינלאומי| AND Competitions.International=1 }}
+{{#ifeq: {{{קטגוריית מפעל|}}}| יתר רשמי| AND Competitions.League=0 AND Competitions.Trophy=0 AND Competitions.International=0 AND Competitions.Official = 1 }}
+{{#if: {{{יריבות|}}} | AND Football_Games.Opponent IN ({{#arrayprint: יריבות|, |@@@@ |"{{המרות/שם ללא גרש וגרשיים |שם=@@@@}}"}}) |{{#if: {{{יריבה|}}} | AND Football_Games.Opponent IN ({{#var:SameOpponents}}) }} }}<!-- the "()" around the SameOpponents required for "IN" operator, list is wrapped with () -->
+{{#if: {{{אצטדיון|}}} |  AND Football_Games.Stadium IN ({{#var:SameStadiums}}) }}<!-- the "()" around the SameStadiums required for "IN" operator, list is wrapped with () -->
+{{#if: {{{מפעלים|}}} | AND Football_Games.Competition IN ({{#arrayprint: מפעלים |, |@@@@ |'{{המרות/שם ללא גרש וגרשיים |שם=@@@@}}'}}) }}
+{{#if: {{{אצטדיונים|}}} | AND Football_Games.Stadium IN ({{#arrayprint: אצטדיונים |, |@@@@ |'{{המרות/שם ללא גרש וגרשיים |שם=@@@@}}'}}) }}
+{{#if: {{{שופטים|}}} | AND Football_Games.Refs IN ({{#arrayprint: שופטים|, |@@@@ |"@@@@"}}) }}
+{{#if: {{{עוזר שופט|}}} | AND Games_Referees.AssistantReferees HOLDS "{{{עוזר שופט|}}}" }}
+{{#if: {{{ללא תת אירוע|}}} | AND Games_Events.SubType != {{{ללא תת אירוע}}} }} 
+{{#if: {{{תת אירוע|}}} | AND Games_Events.SubType IN ({{{תת אירוע}}}) }}
+{{#if: {{{עונה|}}} |  AND Football_Games.Season = "{{{עונה}}}" }}
+{{#if: {{{תוצאה|}}} |  AND Football_Games.ResultOpt={{#var:resultInt}} }}
+{{#if: {{{תוצאה מכבי|}}} | AND Football_Games.ResultMaccabi = '{{{תוצאה מכבי|}}}' }}
+{{#if: {{{תוצאה יריבה|}}} | AND Football_Games.ResultOpponent = '{{{תוצאה יריבה|}}}' }}
+{{#if: {{{מאמן|}}} |  AND Football_Games.CoachMaccabi="{{{מאמן}}}" }}
+|fields={{#if: {{{תצוגת יחיד|}}} | CONCAT( {{#var: fieldToOrderBy}} , ' ^ ', COUNT(*) )| {{#var: fieldToOrderBy}}, COUNT(*) }}
+|group by={{#var: fieldToOrderBy}}
+|order by=Count(*) DESC
+|format={{#if: {{{תצוגת יחיד|}}} | | {{#if: {{{הצגה|}}} |{{{הצגה|}}} | template}}}}
+|limit={{#if: {{{הגבלה|}}} | {{{הגבלה}}} | 10 }}
+|template=סטטיסטיקות/הצגת שיאנים/הצגת שחקן/כדורגל
+|no html
+|more results text={{{עוד תוצאות|}}}
+|default=
+}}<!--
+
+--></includeonly>
