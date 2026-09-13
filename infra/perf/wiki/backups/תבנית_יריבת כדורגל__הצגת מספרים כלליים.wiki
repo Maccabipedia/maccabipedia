@@ -1,0 +1,26 @@
+<includeonly><!--
+
+--><div class="slim-tabs"><shtml hash="5bc0d4d00771b14c68e2f34abe9799f294dc92813b6165a97ea594df391b54ea"><input type="radio" id="team-general-stats-tab1" name="tab-control-team-general-stats" checked>
+<input type="radio" id="team-general-stats-tab2" name="tab-control-team-general-stats">
+<input type="radio" id="team-general-stats-tab3" name="tab-control-team-general-stats">
+<input type="radio" id="team-general-stats-tab4" name="tab-control-team-general-stats">
+<ul>
+<li title="משחקים רשמיים"><label for="team-general-stats-tab1" role="button"><i class="far fa-circle" aria-hidden="true"></i></label></li>
+<li title="ליגה"><label for="team-general-stats-tab2" role="button"><i class="fas fa-home" aria-hidden="true"></i></label></li>
+<li title="גביע"><label for="team-general-stats-tab3" role="button"><i class="fas fa-trophy" aria-hidden="true"></i></label></li>
+<li title="בינלאומי"><label for="team-general-stats-tab4" role="button"><i class="fas fa-euro-sign" aria-hidden="true"></i></label></li>
+</ul></shtml><!--
+
+
+--><div class="content" id="res-tabs-content">
+<div id="tab1-content"><div class="tab-header">משחקים רשמיים</div>
+{{יריבת כדורגל/הצגת מספרים כלליים/הצגה לפי מפעל |יריבות לשליפה={{{יריבות לשליפה|}}} |קטגוריית מפעל=רשמי}}</div>
+<div id="tab2-content"><div class="tab-header">ליגה</div>
+{{יריבת כדורגל/הצגת מספרים כלליים/הצגה לפי מפעל |יריבות לשליפה={{{יריבות לשליפה|}}} |קטגוריית מפעל=ליגה}}</div>
+<div id="tab3-content"><div class="tab-header">גביע</div>
+{{יריבת כדורגל/הצגת מספרים כלליים/הצגה לפי מפעל |יריבות לשליפה={{{יריבות לשליפה|}}} |קטגוריית מפעל=גביע}}</div>
+<div id="tab3-content"><div class="tab-header">בינלאומי</div>
+{{יריבת כדורגל/הצגת מספרים כלליים/הצגה לפי מפעל |יריבות לשליפה={{{יריבות לשליפה|}}} |קטגוריית מפעל=בינלאומי}}</div>
+</div></div><!--
+
+--></includeonly>
