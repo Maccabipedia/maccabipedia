@@ -41,6 +41,7 @@ function initMaccabipediaSpecificClassScripts($, $pageContainer) {
 
 function initMaccabipediaCommonScripts($, $pageContainer) {
     initAppHeaderListener($)
+    initGameSearchUrlStrip()
 }
 
 

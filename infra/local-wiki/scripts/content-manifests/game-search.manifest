@@ -1,0 +1,13 @@
+# The Special:RunQuery game-search pages, so the search form can be exercised
+# locally. The landing page embeds all three sport forms; the Form: pages are
+# listed explicitly because RunQuery references them by name rather than
+# transcluding them, so Special:Export's templates=1 does not pull them in.
+# The query templates themselves ARE transcluded, hence their helper chain
+# (המרות/..., פרק) arrives automatically.
+חיפוש משחק
+טופס:חיפוש משחק כדורגל
+טופס:חיפוש משחק כדורסל
+טופס:חיפוש משחק כדורעף
+תבנית:QueryGamesTemplate
+תבנית:SearchBasketballGames
+תבנית:SearchVolleyballGames
