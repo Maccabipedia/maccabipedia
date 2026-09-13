@@ -111,7 +111,14 @@ template's own parameters:
   102, `רדיוס` 12, plus 13 NULL. A `ביתחוץ` filter passes the value through.
 - **Alias expansion is not symmetrical.** Stadiums relate rows by `_pageID` and
   match on `CanonicalName`; opponents relate rows by `CanonicalName` and match
-  on `OriginalName`.
+  on `OriginalName`. The reason is in
+  `maccabipedia_structure_knowledge.md` §15: for `Stadiums` the two name columns
+  are identical in all 199 rows, so grouping has to use the page, while
+  `Opponents.CanonicalName` is a real grouping label across eras (28 of 289
+  rows) — and **neither column holds the normalised spelling**. Normalisation
+  is a write-time transform that only the games table carries, which is why a
+  lookup that strips its input finds nothing for the 37 quote-bearing clubs
+  (332 games, Beitar 173).
 
 ## Testing
 

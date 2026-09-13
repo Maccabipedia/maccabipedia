@@ -46,6 +46,7 @@ A dropped filter does not look like a failure. It looks like a number.
 
 | # | Decision | Consequence |
 |---|---|---|
+| 0 | **Several low-level primitives, not one signature.** A one-row multi-cell aggregate and a grouped leaderboard are different use cases, as they were in the wikitext templates; each gets its own function on the query module rather than one function growing options | Settles C2: the leaderboard shape does not have to fit through `aggregate`, so freezing that signature now costs nothing |
 | 1 | Spec covers the query layer **plus one display vertical** (`סיכום אירועים לפי מפעל`, 32 queries → 1) | The interface meets a real consumer before eight more families are built on it. Each remaining display family gets its own short spec. |
 | 2 | **Bug-for-bug parity first**; known bugs fixed later as separate, visible changes | Any diff the harness reports is a regression, needing no human judgement. Costs a deliberate quirk-reproduction register (§7). |
 | 3 | **All sports eventually, football now.** The tables differ per sport anyway | Sport facts live in data from day one; the engine carries **no** football literals — base table and table roles come from the schema. |
