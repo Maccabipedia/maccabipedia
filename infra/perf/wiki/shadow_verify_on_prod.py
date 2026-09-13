@@ -37,6 +37,12 @@ SUMMARY = ("shadow verification for the performance work -- not called by any "
            "template; see infra/perf/wiki/README.md")
 
 RECORD = re.compile(r'<span class="record">([^<]*)</span>')
+# The "N כובשים שונים" count in each tab header. Worth comparing separately:
+# the module counts distinct players in memory, while the template ran a second
+# query capped at 2000 rows to get it -- so the two can legitimately disagree
+# once a category holds more than 2000 distinct players, and that is exactly
+# the kind of difference that must not be discovered on production.
+TAB_HEADER = re.compile(r'<div class="tab-header">\s*(.*?)\s*</div>', re.S)
 
 # Each leaderboard section on the page, and the module arguments that should
 # reproduce it -- taken from the display template each section renders.
@@ -93,6 +99,56 @@ def cleanup() -> None:
         print(f"  deleted  {title}")
 
 
+# Each page type hands the display templates a different filter, and each
+# wrapper builds it its own way. These reproduce the wrappers' own expressions
+# -- reconstructing them any other way gets a plausible but different list.
+ALIAS_LIST = (
+    "{{{{#arraydefine: שמות בהיסטוריה |}}}}"
+    "{{{{{wrapper} |שם קבוצה={{{{PAGENAME}}}} |שם יריבה מרכזת={{{{PAGENAME}}}} }}}}"
+    "{{{{#arraydefine: לשליפה |{{{{#arrayprint: שמות בהיסטוריה}}}}, {{{{PAGENAME}}}} }}}}"
+    "{{{{#arrayunique: לשליפה}}}}{{{{#arrayprint: לשליפה}}}}"
+)
+REFEREE_NAME = "{{#replaceset: {{PAGENAME}} |כדורגל:|(שופט)}}"
+CATEGORY_PLAYERS = ("{{סטטיסטיקה/שמות דפים מקטגוריה מופרדים לשליפה "
+                    "|שם קטגוריה={{שם הדף}} }}")
+
+
+def expand(api: WikiApi, title: str, wikitext: str) -> str:
+    return api.get(action="expandtemplates", text=wikitext, prop="wikitext",
+                   title=title, formatversion=2)["expandtemplates"]["wikitext"]
+
+
+def wrappers_on(api: WikiApi, title: str) -> set[str]:
+    """Which wrapper templates this page uses -- the page TYPE, told by the wiki.
+
+    Guessing from the title does not work: מגרש הדקלים and קריית שלום are
+    stadium pages whose names say nothing of the sort.
+    """
+    payload = api.get(action="query", prop="templates", titles=title,
+                      tllimit=500, formatversion=2)["query"]["pages"][0]
+    return {entry["title"] for entry in payload.get("templates", [])}
+
+
+def filter_for(api: WikiApi, title: str) -> str:
+    """The module arguments that should reproduce this page's blocks."""
+    if title.startswith("עונת "):
+        return "|עונה=" + title.removeprefix("עונת ").strip()
+
+    used = wrappers_on(api, title)
+    if "תבנית:אצטדיון כדורגל" in used:
+        return "|אצטדיונים=" + expand(api, title, ALIAS_LIST.format(
+            wrapper="אצטדיון כדורגל/שמירת שמות האצטדיון")).strip()
+    if "תבנית:שופט כדורגל" in used:
+        return "|שופטים=" + expand(api, title, REFEREE_NAME).strip()
+    if "תבנית:קטגוריית שחקני כדורגל" in used:
+        return "|שחקנים=" + expand(api, title, CATEGORY_PLAYERS).strip()
+    if title.startswith("קטגוריה:") or title.startswith("פורטל"):
+        # These call the display templates bare. No filter is the only path
+        # that reaches mw.loadData -- the 32 queries to 1 case.
+        return ""
+    return "|יריבות=" + ",".join(opponent_aliases(api, title))
+
+
 def numbers_from(text: str) -> list[list[str]]:
     blocks = [[clean(value) for _, value in PAIR.findall(chunk)]
               for chunk in BLOCK.findall(text)]
@@ -106,22 +162,33 @@ def render(api: WikiApi, title: str, wikitext: str) -> str:
                    formatversion=2)["parse"]["text"]
 
 
-def live(api: WikiApi, title: str) -> str:
-    return api.get(action="parse", page=title, prop="text",
-                   formatversion=2)["parse"]["text"]
+def live(api: WikiApi, title: str) -> str | None:
+    """The page as production renders it, or None if there is no such page.
+
+    Cargo holds seasons and opponents that have no article -- עונת 1938 is a
+    season in the data with no page -- and aborting the whole sweep on the first
+    one loses every result after it.
+    """
+    try:
+        return api.get(action="parse", page=title, prop="text",
+                       formatversion=2)["parse"]["text"]
+    except Exception as error:
+        if "doesn't exist" in str(error) or "missingtitle" in str(error):
+            return None
+        raise
 
 
 def verify(pages: list[str]) -> int:
     api = WikiApi(PROD, pace_seconds=0.4)
     failures = 0
 
+    skipped = []
     for title in pages:
-        if title.startswith("עונת "):
-            filter_arg = "|עונה=" + title.removeprefix("עונת ").strip()
-        else:
-            filter_arg = "|יריבות=" + ",".join(opponent_aliases(api, title))
-
         page_html = live(api, title)
+        if page_html is None:
+            skipped.append(title)
+            continue
+        filter_arg = filter_for(api, title)
         want = numbers_from(page_html)
         got = numbers_from(render(
             api, title,
@@ -151,20 +218,28 @@ def verify(pages: list[str]) -> int:
         # the template left it to the database -- so comparing player names
         # would flag the very change this work intends.
         for section, noun, events in LEADERBOARDS:
-            mine = RECORD.findall(render(
+            module_html = render(
                 api, title,
                 "{{#invoke:שיאנים|section|כינוי=" + noun + events +
-                filter_arg + "|הגבלה=10}}"))
-            theirs = RECORD.findall(live_section(page_html, section))
-            ok = mine == theirs
-            failures += not ok
-            detail = f"{len(mine)} values" if ok else \
-                f"module {len(mine)} vs page {len(theirs)}"
-            print(f"  records/{section:14s} {'ok' if ok else 'MISMATCH'}  {detail}")
-            if not ok:
-                print(f"      module: {mine[:12]}")
-                print(f"      page:   {theirs[:12]}")
+                filter_arg + "|הגבלה=10}}")
+            page_section = live_section(page_html, section)
 
+            for what, pattern in (("values", RECORD), ("headers", TAB_HEADER)):
+                mine = pattern.findall(module_html)
+                theirs = pattern.findall(page_section)
+                ok = mine == theirs
+                failures += not ok
+                detail = f"{len(mine)} {what}" if ok else \
+                    f"module {len(mine)} vs page {len(theirs)}"
+                print(f"  {section}/{what:8s} "
+                      f"{'ok' if ok else 'MISMATCH'}  {detail}")
+                if not ok:
+                    print(f"      module: {mine[:6]}")
+                    print(f"      page:   {theirs[:6]}")
+
+    if skipped:
+        print(f"\nskipped {len(skipped)} titles with no page: "
+              f"{', '.join(skipped[:8])}{' …' if len(skipped) > 8 else ''}")
     return failures
 
 
