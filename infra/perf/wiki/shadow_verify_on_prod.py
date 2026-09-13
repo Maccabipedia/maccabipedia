@@ -106,6 +106,14 @@ def cleanup() -> None:
         if not page.exists():
             print(f"  gone already  {title}")
             continue
+        # Once a template invokes one of these they stop being inert, and
+        # deleting them takes out every page that transcludes that template.
+        users = [user.title() for user in page.getReferences(only_template_inclusion=True)]
+        if users:
+            raise SystemExit(
+                f"{title} is now used by {len(users)} pages "
+                f"(e.g. {users[0]}) -- deleting it would break them. "
+                f"Revert the templates first: canary_on_prod.py revert")
         page.delete(reason="shadow verification finished", prompt=False)
         print(f"  deleted  {title}")
 
