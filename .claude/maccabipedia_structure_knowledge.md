@@ -521,3 +521,39 @@ backlinks second-query and no writes, grouped or not.
   connection, no debug logger). Only its bookkeeping shows.
 
 See `infra/perf/` for the benchmark and `infra/perf/wiki/` for worked examples.
+
+## 16. Quote Characters In Cargo Values — Which Columns Strip
+
+§5 notes that name fields pass through `תבנית:המרות/שם ללא גרש וגרשיים`. Only
+**some** do, and knowing which is load bearing when you write a query by hand:
+
+| column | stored as | example |
+|---|---|---|
+| `Football_Games.Opponent` | stripped | `ביתר ירושלים` |
+| `Football_Games.Stadium` | stripped | — |
+| `Football_Games.Competition` | stripped | — |
+| `Games_Events.PlayerName` | **kept** | `אביעזר ז'נו` |
+| `Football_Games.Refs` | **kept** | `ג'ון ביטון` |
+
+Templates encode this by wrapping *some* of their `IN (…)` lists in
+`שם ללא גרש וגרשיים` and not others — that is not sloppiness, it is the rule
+above.
+
+Query a stripped column with the raw page name and you get **zero rows, no
+error**: `בית"ר ירושלים` never matches the stored `ביתר ירושלים`. Page names
+also arrive HTML-encoded from `{{PAGENAME}}`, so `&#34;` / `&quot;` / `&#39;` /
+`&apos;` have to be handled alongside the literal characters.
+
+Verify rather than assume — `infra/perf/wiki/probe_quoted_values.py` asks each
+column directly with `LIKE '%''%' OR LIKE '%"%'`.
+
+## 17. Finding Which Templates Call A Template
+
+`list=embeddedin` does **not** work for this. Almost every template wraps its
+body in `<includeonly>`, so the template page's own render never expands its
+calls and no templatelink is recorded — `embeddedin` returns the hundreds of
+*articles* correctly and zero templates, which reads like a real answer.
+
+Read namespace 10 instead: `list=allpages&apnamespace=10`, then `prop=revisions`
+in batches of ~12 (Hebrew titles percent-encode to ~10×; 50 per GET returns HTTP
+414) and match the source. `insource:` is unavailable — no CirrusSearch.
