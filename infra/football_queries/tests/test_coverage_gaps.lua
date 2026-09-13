@@ -192,6 +192,49 @@ check('all four quote entities are normalised', function(FootballQueries)
 	end
 end)
 
+-- Cargo decodes entities in the WHERE clause AFTER this module escapes it, so
+-- an entity spelling the module does not know becomes a raw quote inside the
+-- SQL. This exact value returned every row in the table on production.
+-- The payload that returned every row on production. Decoded to literal
+-- quotes, which the column rule then strips, so nothing reaches the SQL as a
+-- quote. The condition below is inert, not an injection.
+check('the proven injection payload becomes an inert literal',
+	function(FootballQueries)
+		equals(FootballQueries.build({
+			['יריבות'] = 'x&#x22; OR 1=1 OR &#x22;',
+		}).where, 'Football_Games.Opponent IN ("x OR 1=1 OR ")', 'defanged')
+	end)
+
+-- The catch-all: a spelling the table does not know must not reach Cargo,
+-- which would decode it back into a quote inside the query.
+check('an unknown entity spelling raises instead of reaching Cargo',
+	function(FootballQueries)
+		for _, payload in ipairs({ 'x&#0034; OR 1=1', 'x&#X0022; OR 1=1',
+		                           'x&QUOT; OR 1=1' }) do
+			expectError('contains an ampersand', function()
+				FootballQueries.build({ ['יריבות'] = payload })
+			end)
+		end
+	end)
+
+check('every quote entity spelling is decoded, including hex',
+	function(FootballQueries)
+		for _, entity in ipairs({ '&#34;', '&#x22;', '&#X22;', '&quot;',
+		                          '&#39;', '&#x27;', '&#X27;', '&apos;' }) do
+			local query = FootballQueries.build({
+				['יריבות'] = 'בית' .. entity .. 'ר',
+			})
+			equals(query.where, 'Football_Games.Opponent IN ("ביתר")', entity)
+		end
+	end)
+
+check('a bare ampersand raises rather than reaching the query',
+	function(FootballQueries)
+		expectError('contains an ampersand', function()
+			FootballQueries.build({ ['שחקן'] = 'A&B' })
+		end)
+	end)
+
 -- M9: the rounding test used 150.0000, where floor, ceil and round agree.
 check('SUM is rounded half-up, not truncated', function(FootballQueries)
 	stub.willReturn({ { n = '150.5' } })

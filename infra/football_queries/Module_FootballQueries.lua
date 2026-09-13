@@ -34,17 +34,46 @@ local Fields = mw.loadData('Module:FootballQueries/Fields')
 -- decision about quoting is made.
 local ENTITIES = {
 	['&#34;'] = '"',
+	['&#x22;'] = '"',
+	['&#X22;'] = '"',
 	['&quot;'] = '"',
 	['&#39;'] = "'",
+	['&#x27;'] = "'",
+	['&#X27;'] = "'",
 	['&apos;'] = "'",
 }
 
+--- Decodes the quote spellings, then refuses anything still carrying an
+--- ampersand.
+---
+--- This is load bearing, not tidiness. CargoSQLQuery::newFromValues runs
+--- htmlspecialchars_decode(whereStr, ENT_QUOTES) on the WHERE clause AFTER
+--- this module has quoted and escaped it, and that path is shared by
+--- CargoLuaLibrary. So any entity spelling this table does not know survives
+--- escaping, reaches Cargo, and is turned back into a raw quote INSIDE the
+--- SQL. Proven read-only against production: a value of
+---   x&#x22; OR 1=1 OR &#x22;
+--- returned every row in the table instead of raising - the wiki-wide-total
+--- bug, reappearing inside the module written to prevent it.
+---
+--- Refusing a surviving ampersand is safe rather than restrictive: no value in
+--- any quote-bearing column on production contains one (LIKE '%&%' -> 0 rows),
+--- so a name that needs it does not exist, while a query that smuggles one is
+--- always a mistake or an attack.
 local function normalise(value)
 	value = tostring(value)
 	for entity, character in pairs(ENTITIES) do
 		value = value:gsub(entity, character)
 	end
-	return mw.text.trim(value)
+	value = mw.text.trim(value)
+
+	if value:find('&', 1, true) then
+		error(string.format(
+			'FootballQueries: value contains an ampersand, which Cargo would '
+			.. 'decode inside the query: %s', value), 0)
+	end
+
+	return value
 end
 
 local function quoteRuleFor(column)

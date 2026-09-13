@@ -56,6 +56,13 @@ MUTATIONS = [
     ('sort removed', LOGIC, 'table.sort(names)', ''),
     ('entity table loses &quot;', LOGIC, """['&quot;'] = '"',""", ''),
     ('entity table loses &#39;', LOGIC, """['&#39;'] = "'",""", ''),
+    ('entity table loses the hex quote', LOGIC,
+     """['&#x22;'] = '"',""", ''),
+    # Cargo decodes entities in the WHERE after this module escapes it, so this
+    # guard is the only thing standing between a crafted parameter and the
+    # unfiltered total. It was missing entirely until the arbitration.
+    ('surviving-ampersand guard removed', LOGIC,
+     "if value:find('&', 1, true) then", 'if false then'),
     ('aggregate whitelist bypassed', LOGIC,
      'aggregate = Fields.aggregates[mw.text.trim(requested)]',
      'aggregate = mw.text.trim(requested)'),

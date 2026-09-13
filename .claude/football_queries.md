@@ -138,8 +138,26 @@ comparison reports it.
 - Nothing is installed on any wiki. The stub proves the SQL shape, not that the
   numbers match; that needs the module running against real data.
 - No display module yet, so nothing renders a block.
-- Three deliberate departures from the templates, which will show as real diffs
-  against the golden fixture: `יתר-רשמיים` filters instead of being ignored,
-  dates are quoted inside `DATE_FORMAT` instead of interpolated bare, and
-  `מפעלים` no longer strips apostrophes because `Football_Games.Competition`
-  keeps them.
+- Departures from the templates, which will show as real diffs against the
+  golden fixture. The first three were chosen; the last two were discovered
+  afterwards, and both are **re-baselines** — they change published numbers from
+  wrong to right, so each needs a before *and* an after fixture rather than a
+  parity diff:
+
+  1. `יתר-רשמיים` filters instead of being silently ignored.
+  2. Dates are quoted inside `DATE_FORMAT` instead of interpolated bare. The
+     bare form is arithmetic, so `2021-08-22` evaluates to 1991 and
+     `DATE_FORMAT(1991, …)` is NULL — the days family is very likely rendering
+     zeros today, which makes this a re-baseline too, not a rounding edge.
+  3. `מפעלים` no longer strips apostrophes, because
+     `Football_Games.Competition` keeps them.
+  4. **The opponent alias keeps the quote when looking a club up.** Today
+     `יריבה=בית"ר ירושלים` produces an empty list and therefore 0 for every
+     Beitar statistic; through this layer it matches **173 games**.
+  5. **A player name containing a quote works.** `כמות אירועי שחקן`
+     interpolates `PlayerName= "{{{שחקן}}}"` raw, which Cargo's entity decode
+     turns into invalid SQL for the 14 quote-bearing `Games_Events.PlayerName`
+     rows; the module escapes it.
+- An unknown `קטגוריית מפעל` value adds no condition in the templates — a typo
+  silently returns the unfiltered total — while this layer raises. Better
+  behaviour, but a behaviour change across ~34 call sites.

@@ -55,41 +55,55 @@ A dropped filter does not look like a failure. It looks like a number.
 
 ## 3. Architecture
 
-Five module pages, dependencies pointing one way only. `Module` is the
+**Four** module pages, dependencies pointing one way only.
+
+An earlier draft of this section proposed five, splitting a sport-agnostic
+engine from a football binding. Arbitration killed that split: the ~500 pages
+depend on `{{#invoke:FootballQueries|<name>}}`, not on the internals, so
+extracting an engine later costs exactly what extracting it now costs — while
+every extra **code** page is re-executed per `#invoke`, which is this design's
+own §6 fact working against the only goal it has. The sport boundary is funded
+by putting the sport's constants in the schema (decision 3), not by a second
+code page. `Module` is the
 canonical name of namespace 828; the wiki displays it localised as `יחידה` and
 the API normalises `Module:X` → `יחידה:X`, so either spelling reaches the page.
 
 ```
-Module:FootballPlayerEvents      renderer: cells → byte-identical HTML
+Module:FootballPlayerEvents           renderer: cells → byte-identical HTML
     │  reads
-    ├── Module:FootballStatsBlocks    data: cell definitions + formatting
+    ├── Module:FootballStatsBlocks         data: cell definitions + format NAMES
     │  calls
-    └── Module:FootballQueries        binding: football's public API
-            │  reads
-            ├── Module:FootballSchema     data: tables, columns, filters
-            │  calls
-            └── Module:CargoQuery         engine: SQL building + execution
+    └── Module:FootballQueries             SQL building, execution, guards,
+            │  reads                       alias expansion, #invoke entries
+            └── Module:FootballQueries/Fields   data: tables, columns, filters,
+                                                sport constants
 ```
 
-- **Nothing depends upward.** A display module never touches `Module:CargoQuery`
-  directly; it only knows `Module:FootballQueries`.
+`format` in the block data is a **name**; the formatter itself lives in the
+renderer. A `loadData` page rejects functions, so describing that page as
+holding "formatting" would invite one.
+
+- **Nothing depends upward.** The renderer reads block data and calls
+  `Module:FootballQueries`; the query module knows nothing about blocks.
 - **The two data pages are read with `mw.loadData`.** That is one of only two
   caches that survive the `#invoke` boundary, so the schema and the cell
   definitions are parsed once per page however many blocks render. They must
   contain no functions and no metatables.
-- **`Module:CargoQuery` holds no sport literals.** Every table name, column,
-  filter and role arrives in the schema table it is handed. This is what makes
-  a second sport a new data page rather than surgery on a module ~500 pages
-  depend on.
+- **The query module holds no sport constants.** Table names, columns, filters
+  and the side values (`מכבי` = 1 for Maccabi and 0 for the opponent in
+  football; volleyball uses **2**) all live in the schema, so a second sport is
+  a new data page rather than an edit to shared code. This is the whole of what
+  funds decision 3 — the earlier five-module draft claimed a separate engine
+  page did it, and it did not, because the sport semantics were sitting in the
+  handlers.
 
-### Why five and not three
+### Why four and not two
 
-The engine/binding split is the only one that is arguably premature, and it is
-the one that pays for decision 3: extracting an engine later means editing a
-live module under load. The data/logic splits are free — `loadData` pages cost
-nothing extra to parse and let the harness check 32 cell definitions without
-rendering anything. Separating cell *definitions* from *rendering* is what
-makes the block testable at all.
+The data/logic splits are free: `loadData` pages cost nothing extra to parse
+and let the harness check 32 cell definitions without rendering anything.
+Separating cell *definitions* from *rendering* is what makes the block testable
+at all. Collapsing further would put the block definitions in executable code,
+re-parsed per `#invoke`, and make the definitions undiffable.
 
 ### Repository layout
 
@@ -238,15 +252,46 @@ HTML byte-identical.
 All measured against production on 2026-09-13, not assumed. If any of these is
 wrong, the design changes.
 
-- **Cargo's `join on` emits a LEFT JOIN.** A game whose competition has no
-  `Competitions` row survives with NULL columns — 82 such games (`ידידות` 81,
-  `גביע מלצ'ט` 1). Therefore resolving joins from what was asked for **cannot
-  change a row count**; it is a cost decision only. This is what makes step 3
-  above safe.
+- **Pruning unused joins is safe here — but not for the reason first written
+  down.** Cargo's `join on` emits a LEFT JOIN, so unmatched rows survive with
+  NULL columns (82 such games: `ידידות` 81, `גביע מלצ'ט` 1). That rules out row
+  **loss** and says nothing about row **multiplication**, which a LEFT JOIN
+  does whenever the right side has several matching rows. Measured
+  right-side cardinality:
+
+  | join | rows | distinct keys | multiplies |
+  |---|---|---|---|
+  | `Games_Referees` on `_pageID` | 1,460 | 1,460 | no |
+  | `Football_Games_Uniforms` on `_pageID` | 1,790 | 1,790 | no |
+  | `Competitions` on `Competition=OriginalName` | 23 | 23 | no |
+  | `Games_Events` on `_pageID` | 149,574 | 3,453 pages | **yes, up to 43×** |
+
+  End to end, the exact four-table shape of `כמות נתוני משחק` returns
+  `COUNT(*)=3504, SUM(ResultMaccabi)=6602`, and the pruned single-table query
+  returns the same (59/102 both ways for `עונה=2021/22`). So for those three
+  joins there is no quirk to reproduce. **`Games_Events` is the exception**, and
+  it is exactly why an entry point that accepts `שחקן` where its template never
+  did returns an event count instead of a game count.
 - **Conditional aggregates work.** `CASE WHEN`, `IF()`, bare boolean `SUM` and
   `GROUP BY` on a flag all return correct values through the Cargo API. The
   pattern is already in use on the wiki — `מספרים עונתיים` builds its numbers
   with `SUM(CASE WHEN … THEN 1 ELSE 0 END)`. The merge is therefore not novel.
+- **Cargo decodes HTML entities in the WHERE clause *after* the module has
+  quoted and escaped it.** `CargoSQLQuery::newFromValues` runs
+  `htmlspecialchars_decode($whereStr, ENT_QUOTES)`, and that path is shared by
+  `CargoLuaLibrary`, so it is not an API-only artifact. Any entity spelling the
+  module fails to decode therefore becomes a raw quote *inside* the SQL:
+  proven read-only on production, `Opponents.OriginalName = "x&#x22; OR 1=1 OR ""`
+  returned all 289 rows, identical to `where=1=1`. The module decodes the named,
+  decimal and hex spellings and **raises on any surviving `&`** — safe rather
+  than restrictive, since no value in either quote-bearing column contains one.
+- **Values arrive in Lua decoded.** `CargoSQLQuery::run()` applies
+  `htmlspecialchars()` on output, which is why the JSON API shows
+  `בית&quot;ר ירושלים`, while `CargoLuaLibrary::cargoQuery` returns
+  `htmlspecialchars_decode(...)`. The database holds the literal `"`
+  (`LIKE '%quot%'` → 0 rows), so the per-column rule needs two states, not
+  three. Still owed: one Scribunto smoke run on the local wiki, since this is
+  read from Cargo's source rather than observed from inside Lua.
 - **Quote-keeping is per column**, and the table in `maccabipedia_structure_knowledge.md`
   §16 (on the unmerged `wiki-perf-optimisations` branch) is wrong about the most
   important one. Keeps quotes: `Football_Games.Competition` (`גביע מלצ'ט`),
