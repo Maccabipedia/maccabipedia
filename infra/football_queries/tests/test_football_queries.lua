@@ -225,7 +225,7 @@ end)
 
 check('count returns the number', function(FootballQueries)
 	stub.willReturn({ { n = '220' } })
-	equals(FootballQueries.count({ ['שחקן'] = 'ערן זהבי' }), 220, 'count')
+	equals(FootballQueries.countFilters({ ['שחקן'] = 'ערן זהבי' }), 220, 'count')
 end)
 
 check('the same filter set always builds identical SQL', function(FootballQueries)

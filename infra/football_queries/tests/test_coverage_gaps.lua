@@ -307,7 +307,7 @@ end)
 check('an aggregate from wikitext cannot reach the field list',
 	function(FootballQueries)
 		expectError('unknown aggregate', function()
-			FootballQueries.countFromFrame({
+			FootballQueries.count({
 				args = { aggregate = 'COUNT(*)) OR 1=1 -- ' },
 			})
 		end)

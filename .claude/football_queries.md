@@ -133,8 +133,39 @@ luac5.1 -p infra/football_queries/*.lua                          # syntax only
 ```
 
 The suite asserts generated SQL, so it is fast and needs no wiki. **Confirm it
-fails before trusting a pass** — flipping `Games_Events.PlayerName` from `keep`
-to `strip`, or the row-limit guard from `>=` to `>`, must turn it red.
+fails before trusting a pass** — and not by picking two mutations, which is how
+10 of 18 escaped once:
+
+```bash
+uv run python infra/football_queries/tests/mutate.py   # 33 mutations, 0 may survive
+```
+
+Then run it for real, because the stub cannot tell you anything about Cargo or
+Scribunto:
+
+```bash
+uv run python infra/football_queries/deploy_modules.py --dry-run   # repo -> local wiki
+uv run python infra/football_queries/deploy_modules.py
+uv run python infra/football_queries/smoke_test_local.py           # module vs Cargo
+```
+
+`deploy_modules.py` writes through `maintenance/edit.php` inside the local wiki
+container, so it needs no credentials and cannot reach production.
+`smoke_test_local.py` computes every expectation with a direct Cargo query, so
+the module is compared against the database rather than against itself.
+
+### What only a real Scribunto run revealed
+
+- **`next()` does not work on `frame.args`.** Scribunto populates it lazily
+  behind a metatable, so a guard written as `next(frame.args) ~= nil` never
+  fires. Use `pairs`.
+- **`gameDataCount` reads the *parent* frame**, so invoking it directly from
+  wikitext passes it nothing — and it answered `222`, every game, for every
+  filtered query. It now raises and names the entry point to use instead.
+- **The frame entry point is `count`; the Lua API is `countFilters`.** When
+  Scribunto handed a frame to a function expecting a filter table, the module
+  iterated the frame's fields and blamed a filter called `"args"`, which sends
+  the reader somewhere else entirely.
 
 `capture_golden_numbers.py` records what the current templates render on
 production into `fixtures/golden_numbers.json`, as the baseline the rewrite has

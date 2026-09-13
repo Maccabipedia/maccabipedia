@@ -416,7 +416,16 @@ function FootballQueries.query(filters, options)
 end
 
 --- One number for one filter set, for the counts that make up a stats block.
-function FootballQueries.count(filters, aggregate)
+--- Lua callers only: an `#invoke` reaches `count` below, which unpacks a frame.
+function FootballQueries.countFilters(filters, aggregate)
+	if type(filters) == 'table' and filters.getParent ~= nil then
+		-- Handed a frame instead of a filter set. Without this the frame's own
+		-- fields are read as filter names and the error blames a filter called
+		-- "args", which sends the reader looking in the wrong place entirely.
+		error('FootballQueries: countFilters takes a filter table, not a '
+			.. 'frame - from wikitext use {{#invoke:FootballQueries|count|…}}',
+			0)
+	end
 	local rows = FootballQueries.query(filters, {
 		fields = (aggregate or 'COUNT(*)') .. '=n',
 		limit = 2,
@@ -427,7 +436,7 @@ end
 --- #invoke entry point, so a count can be compared against the template it
 --- replaces before any display module exists:
 ---   {{#invoke:FootballQueries|count|שחקן=ערן זהבי|קטגוריית מפעל=ליגה}}
-function FootballQueries.countFromFrame(frame)
+function FootballQueries.count(frame)
 	local filters = {}
 	for name, value in pairs(frame.args) do
 		if name ~= 'aggregate' then
@@ -447,7 +456,7 @@ function FootballQueries.countFromFrame(frame)
 		end
 	end
 
-	return FootballQueries.count(filters, aggregate)
+	return FootballQueries.countFilters(filters, aggregate)
 end
 
 --- Splits template parameters into filters and query options, rejecting
@@ -474,6 +483,28 @@ end
 --- an opponent page asking for its own yellow cards was handed the wiki-wide
 --- total. Enumerating no parameters is the only way the guard stays honest.
 function FootballQueries.gameDataCount(frame)
+	-- This entry point deliberately reads the PARENT frame, so arguments given
+	-- to the #invoke itself would be ignored - and an ignored filter returns
+	-- the wiki-wide total, which is the failure this module exists to prevent.
+	-- Measured on the local wiki: called directly with עונה=2021/22 it returned
+	-- 222, every game, instead of 59.
+	-- `next` does not work on frame.args: Scribunto populates it lazily behind
+	-- a metatable, so next() reports empty however many parameters were given.
+	-- Measured: the guard below never fired until it was written with pairs.
+	local hasDirectArgs = false
+	for _ in pairs(frame.args) do
+		hasDirectArgs = true
+		break
+	end
+
+	if hasDirectArgs then
+		error('FootballQueries: gameDataCount reads the calling template\'s '
+			.. 'parameters, so it takes none of its own. Put it in a template '
+			.. 'body as {{#invoke:FootballQueries|gameDataCount}}, or use '
+			.. '{{#invoke:FootballQueries|count|…}} to pass filters directly.',
+			0)
+	end
+
 	local filters, options = separate(frame:getParent().args)
 
 	local requested = options.aggregate and mw.text.trim(options.aggregate) or ''
@@ -486,7 +517,7 @@ function FootballQueries.gameDataCount(frame)
 		end
 	end
 
-	local value = FootballQueries.count(filters, aggregate)
+	local value = FootballQueries.countFilters(filters, aggregate)
 	-- The template rounds SUM's float back to an integer with #number_format
 	-- and then strips the thousands separators again; the result is a bare
 	-- integer, rounded half-up.
