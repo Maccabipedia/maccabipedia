@@ -91,6 +91,12 @@ check('the ratio is formatted the way #expr formats it', function(Events)
 		{ goals = 1, appearances = 3, expected = '0.33' },
 		{ goals = 2, appearances = 3, expected = '0.67' },
 		{ goals = 150, appearances = 220, expected = '0.68' },
+		-- Boundaries where binary representation and PHP's rounding disagree.
+		-- 29/200 is 0.145: the template prints 0.15, and without the epsilon
+		-- this printed 0.14. 26 pairs under 700 appearances diverge like this.
+		{ goals = 29, appearances = 200, expected = '0.15' },
+		{ goals = 23, appearances = 40, expected = '0.58' },
+		{ goals = 1, appearances = 8, expected = '0.13' },
 	}
 	for _, case in ipairs(cases) do
 		local stat = statOfRow(Events.renderRows(cellsWith({
@@ -239,6 +245,68 @@ check('variables are namespaced per entity, so two players cannot collide',
 		equals(#names, 4, 'four variables')
 		equals(names[1]:find('FootballPlayerEvents/ערן זהבי/', 1, true), 1,
 			'prefixed and keyed by player')
+	end)
+
+-- A mutation that made prime put one constant category in every cell survived
+-- the first suite: all four tabs then show the same numbers, which looks like
+-- a player who only ever played in one competition.
+check('each tab filters on its own category', function(Events)
+	stub.willReturn({ thirtyTwoCells(PER_TAB) })
+	Events.prime(stub.newFrame({ ['שחקן'] = 'ערן זהבי' }))
+
+	local fields = stub.calls[1].fields
+	for _, condition in ipairs({ 'Competitions.League = 1',
+	                             'Competitions.Trophy = 1',
+	                             'Competitions.International = 1',
+	                             'Competitions.Official = 1' }) do
+		local count = 0
+		for _ in fields:gmatch(condition:gsub('%.', '%%.')) do
+			count = count + 1
+		end
+		equals(count, 8, condition .. ' appears once per cell')
+	end
+end)
+
+-- mw.loadData returns a proxy whose length is 0; a materialise that returned
+-- it uncopied left the block with no cells, and the first suite did not notice
+-- because a plain table behaves.
+check('the block data survives an mw.loadData-style proxy', function()
+	stub.install()
+	stub.proxyLoadData = true
+	local Events = stub.loadModule('Module:FootballPlayerEvents')
+	stub.willReturn({ thirtyTwoCells(PER_TAB) })
+
+	Events.prime(stub.newFrame({ ['שחקן'] = 'ערן זהבי' }))
+	local count = 0
+	for _ in stub.calls[1].fields:gmatch('SUM%(CASE WHEN') do
+		count = count + 1
+	end
+	equals(count, 32, '32 cells through a proxy')
+end)
+
+-- The cells are data, and a filter quietly dropped from one of them is a wrong
+-- number with no other symptom. These are the eight the template asks for.
+check('every block cell asks for exactly what the template asks for',
+	function(Events)
+		stub.willReturn({ thirtyTwoCells(PER_TAB) })
+		Events.prime(stub.newFrame({ ['שחקן'] = 'ערן זהבי' }))
+		local fields = stub.calls[1].fields
+
+		local expected = {
+			'Games_Events.EventType IN (1, 5)',      -- appearances
+			'Games_Events.EventType IN (5)',         -- substitutions
+			'Games_Events.EventType IN (3)',         -- goals
+			'Games_Events.SubType IN (35)',          -- penalty goals
+			'Games_Events.EventType IN (4)',         -- assists
+			'Games_Events.SubType IN (71)',          -- yellows
+			'Games_Events.SubType IN (72, 73)',      -- reds
+			'Games_Events.EventType IN (2)',         -- bench starts
+		}
+		for _, condition in ipairs(expected) do
+			if not fields:find(condition, 1, true) then
+				error('missing from the query: ' .. condition, 0)
+			end
+		end
 	end)
 
 check('prime without a player raises', function(Events)

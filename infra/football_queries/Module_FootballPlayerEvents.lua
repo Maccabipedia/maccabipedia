@@ -66,7 +66,12 @@ end
 --- A number the way {{#חשב: … round 2}} prints one: half away from zero, and
 --- trailing zeros omitted, so 0.5 is "0.5" and 1 is "1" rather than "1.00".
 local function expression(value)
-	local rounded = math.floor(value * 100 + 0.5) / 100
+	-- The epsilon is not cosmetic. MediaWiki's #expr rounds through PHP, which
+	-- corrects for binary representation; Lua's floor does not. 29 goals in 200
+	-- appearances is 0.145, stored as slightly under, so the template printed
+	-- 0.15 and this printed 0.14 - one of 26 diverging pairs under 700
+	-- appearances, 23/40 among them.
+	local rounded = math.floor(value * 100 + 0.5 + 1e-9) / 100
 	local text = string.format('%.2f', rounded)
 	if text:find('%.') then
 		text = text:gsub('0+$', ''):gsub('%.$', '')

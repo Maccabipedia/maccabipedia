@@ -3,7 +3,8 @@ Tests for the merge primitive: every cell of a block from one query.
 
 This is the piece the whole design exists for - 32 queries become 1 - and it is
 also where a wrong number hides best, because a conditional aggregate that
-filters on the wrong thing still returns a plausible integer.
+filters on the wrong thing still returns a plausible integer. Several of the
+tests below exist because a review found exactly that.
 
 Run from the repository root:
     lua5.1 infra/football_queries/tests/test_aggregate.lua
@@ -43,19 +44,20 @@ local function expectError(pattern, body)
 	end
 end
 
+local function cell(name, filters, grain)
+	return { name = name, filters = filters, grain = grain or 'event' }
+end
+
 -- The real block: eight cells, each a different event or subtype.
 local PLAYER_CELLS = {
-	{ name = 'appearances', filters = { ['מספר אירוע'] = '1,5' } },
-	{ name = 'substitutions', filters = { ['מספר אירוע'] = '5' } },
-	{ name = 'goals', filters = { ['מספר אירוע'] = '3' } },
-	{ name = 'penaltyGoals',
-	  filters = { ['מספר אירוע'] = '3', ['תת אירוע'] = '35' } },
-	{ name = 'assists', filters = { ['מספר אירוע'] = '4' } },
-	{ name = 'yellows',
-	  filters = { ['מספר אירוע'] = '7', ['תת אירוע'] = '71' } },
-	{ name = 'reds',
-	  filters = { ['מספר אירוע'] = '7', ['תת אירוע'] = '72,73' } },
-	{ name = 'benchStarts', filters = { ['מספר אירוע'] = '2' } },
+	cell('appearances', { ['מספר אירוע'] = '1,5' }),
+	cell('substitutions', { ['מספר אירוע'] = '5' }),
+	cell('goals', { ['מספר אירוע'] = '3' }),
+	cell('penaltyGoals', { ['מספר אירוע'] = '3', ['תת אירוע'] = '35' }),
+	cell('assists', { ['מספר אירוע'] = '4' }),
+	cell('yellows', { ['מספר אירוע'] = '7', ['תת אירוע'] = '71' }),
+	cell('reds', { ['מספר אירוע'] = '7', ['תת אירוע'] = '72,73' }),
+	cell('benchStarts', { ['מספר אירוע'] = '2' }),
 }
 
 check('a whole block is one query', function(FootballQueries)
@@ -73,80 +75,152 @@ end)
 check('each cell becomes its own conditional aggregate', function(FootballQueries)
 	stub.willReturn({ { c1 = '1', c2 = '2' } })
 	FootballQueries.aggregate({ ['שחקן'] = 'ערן זהבי' }, {
-		{ name = 'goals', filters = { ['מספר אירוע'] = '3' } },
-		{ name = 'assists', filters = { ['מספר אירוע'] = '4' } },
+		cell('goals', { ['מספר אירוע'] = '3' }),
+		cell('assists', { ['מספר אירוע'] = '4' }),
 	})
 	equals(stub.calls[1].fields,
-		'SUM(CASE WHEN Games_Events.EventType IN (3) THEN 1 ELSE 0 END)=c1,'
-		.. 'SUM(CASE WHEN Games_Events.EventType IN (4) THEN 1 ELSE 0 END)=c2',
+		'SUM(CASE WHEN Games_Events.EventType IN (3)'
+		.. ' AND Games_Events.Team = 1 THEN 1 ELSE 0 END)=c1,'
+		.. 'SUM(CASE WHEN Games_Events.EventType IN (4)'
+		.. ' AND Games_Events.Team = 1 THEN 1 ELSE 0 END)=c2',
 		'fields')
 end)
 
--- The A4 finding: derive these from the shared filters alone and the merge
--- silently counts the opponent's events and drops a needed join.
-check('the Team constraint stays in the WHERE, once', function(FootballQueries)
-	stub.willReturn({ { c1 = '1' } })
-	FootballQueries.aggregate({ ['שחקן'] = 'ערן זהבי' }, {
-		{ name = 'goals', filters = { ['מספר אירוע'] = '3' } },
+-- Team belongs in the CASE, not the WHERE. In the WHERE it discards the NULL
+-- row a LEFT JOIN makes for a game with no events, so a game-grain cell
+-- undercounts - 3,439 instead of 3,504 games, measured on production.
+check('the Team default goes into each event cell, not the WHERE',
+	function(FootballQueries)
+		stub.willReturn({ { c1 = '1' } })
+		FootballQueries.aggregate({ ['שחקן'] = 'ערן זהבי' }, {
+			cell('goals', { ['מספר אירוע'] = '3' }),
+		})
+		equals(stub.calls[1].options.where,
+			'Games_Events.PlayerName = "ערן זהבי"', 'where has no Team')
+		equals(stub.calls[1].fields:find('Games_Events.Team = 1', 1, true) ~= nil,
+			true, 'the cell has it')
+	end)
+
+check('a game-grain cell gets no Team condition', function(FootballQueries)
+	stub.willReturn({ { c1 = '1', c2 = '2' } })
+	FootballQueries.aggregate({ ['עונה'] = '2021/22' }, {
+		cell('goals', { ['מספר אירוע'] = '3' }),
+		cell('games', {}, 'game'),
 	})
-	equals(stub.calls[1].options.where,
-		'Games_Events.PlayerName = "ערן זהבי" AND Games_Events.Team = 1',
-		'where')
-	-- and not repeated inside the cell
-	equals(stub.calls[1].fields:find('Team', 1, true), nil, 'not in fields')
+	local fields = stub.calls[1].fields
+	local gameField = fields:match('COUNT%(DISTINCT[^,]+')
+	equals(gameField:find('Team', 1, true), nil, 'no Team in the game cell')
+	equals(gameField,
+		'COUNT(DISTINCT CASE WHEN 1=1 THEN Football_Games._pageID END)=c2',
+		'distinct games')
 end)
 
-check('a table only a cell mentions is still joined', function(FootballQueries)
-	stub.willReturn({ { c1 = '1' } })
-	-- The shared filters touch only Football_Games; the cell needs the events
-	-- table, so the join has to come from the union.
-	FootballQueries.aggregate({ ['עונה'] = '2021/22' }, {
-		{ name = 'goals', filters = { ['מספר אירוע'] = '3' } },
-	})
-	equals(stub.calls[1].tables, 'Football_Games,Games_Events', 'tables')
-	equals(stub.calls[1].options.join,
-		'Football_Games._pageID = Games_Events._pageID', 'join')
-end)
+-- The contradiction a review found: the WHERE demanded Team = 1 while the
+-- cell demanded Team = 0, so the cell could only ever be 0.
+check('a cell asking for the opponent side is not contradicted',
+	function(FootballQueries)
+		stub.willReturn({ { c1 = '5', c2 = '3' } })
+		FootballQueries.aggregate({ ['שחקן'] = 'ערן זהבי' }, {
+			cell('ours', { ['מספר אירוע'] = '3' }),
+			cell('theirs', { ['מספר אירוע'] = '3', ['מכבי'] = 'לא' }),
+		})
+		local fields = stub.calls[1].fields
+		equals(fields:find('Games_Events.Team = 0', 1, true) ~= nil, true,
+			'the opponent cell asks for 0')
+		equals(stub.calls[1].options.where:find('Team', 1, true), nil,
+			'and the WHERE does not demand 1')
+	end)
+
+check('a shared מכבי still constrains the whole row set',
+	function(FootballQueries)
+		stub.willReturn({ { c1 = '1' } })
+		FootballQueries.aggregate({ ['שחקן'] = 'ערן זהבי', ['מכבי'] = 'לא' }, {
+			cell('goals', { ['מספר אירוע'] = '3' }),
+		})
+		equals(stub.calls[1].options.where,
+			'Games_Events.Team = 0 AND Games_Events.PlayerName = "ערן זהבי"',
+			'where')
+		equals(stub.calls[1].fields:find('Team', 1, true), nil,
+			'no per-cell default when shared said so')
+	end)
+
+-- A modifier can sit in the shared filters while the filter it modifies sits
+-- in a cell. Read from the cell alone, פורמט תאריך vanished and the cell asked
+-- a different question.
+check('a modifier in the shared filters reaches a cell filter',
+	function(FootballQueries)
+		stub.willReturn({ { c1 = '1' } })
+		FootballQueries.aggregate({ ['פורמט תאריך'] = '"%d-%m"' }, {
+			cell('onThisDay', { ['תאריך'] = '2021-08-22' }, 'game'),
+		})
+		equals(stub.calls[1].fields,
+			'COUNT(DISTINCT CASE WHEN DATE_FORMAT("2021-08-22", "%d-%m")'
+			.. ' = DATE_FORMAT(Football_Games.Date, "%d-%m")'
+			.. ' THEN Football_Games._pageID END)=c1', 'fields')
+	end)
+
+-- Both halves matter, and only this shape shows it: the shared filters touch
+-- no event table, so a Team default derived from them alone never appears, and
+-- the join a cell needs is never made.
+check('a table only a cell mentions is still joined, and Team still applies',
+	function(FootballQueries)
+		stub.willReturn({ { c1 = '1' } })
+		FootballQueries.aggregate({ ['עונה'] = '2021/22' }, {
+			cell('goals', { ['מספר אירוע'] = '3' }),
+		})
+		equals(stub.calls[1].tables, 'Football_Games,Games_Events', 'tables')
+		equals(stub.calls[1].options.join,
+			'Football_Games._pageID = Games_Events._pageID', 'join')
+		equals(stub.calls[1].fields,
+			'SUM(CASE WHEN Games_Events.EventType IN (3)'
+			.. ' AND Games_Events.Team = 1 THEN 1 ELSE 0 END)=c1',
+			'the event cell still carries the Team default')
+	end)
 
 check('the shared filters still constrain the rows', function(FootballQueries)
 	stub.willReturn({ { c1 = '1' } })
 	FootballQueries.aggregate(
 		{ ['עונה'] = '2021/22', ['קטגוריית מפעל'] = 'ליגה' },
-		{ { name = 'games', filters = {}, grain = 'game' } })
+		{ cell('games', {}, 'game') })
 	equals(stub.calls[1].options.where,
 		'Football_Games.Season = "2021/22" AND Competitions.League = 1', 'where')
 end)
 
--- The A5 finding: a game-grain cell among event-grain cells.
-check('a game-grain cell counts distinct games, not rows',
-	function(FootballQueries)
-		stub.willReturn({ { c1 = '3', c2 = '2' } })
-		local cells = FootballQueries.aggregate({ ['שחקן'] = 'ערן זהבי' }, {
-			{ name = 'goals', filters = { ['מספר אירוע'] = '3' } },
-			{ name = 'gamesScoredIn', filters = { ['מספר אירוע'] = '3' },
-			  grain = 'game' },
-		})
-		equals(stub.calls[1].fields,
-			'SUM(CASE WHEN Games_Events.EventType IN (3) THEN 1 ELSE 0 END)=c1,'
-			.. 'COUNT(DISTINCT CASE WHEN Games_Events.EventType IN (3)'
-			.. ' THEN Football_Games._pageID END)=c2', 'fields')
-		equals(cells.goals, 3, 'goals')
-		equals(cells.gamesScoredIn, 2, 'games scored in')
+check('grain must be declared', function(FootballQueries)
+	expectError('must declare grain', function()
+		FootballQueries.aggregate({}, { { name = 'x', filters = {} } })
 	end)
-
-check('an unknown grain raises instead of guessing', function(FootballQueries)
-	expectError('unknown grain', function()
+	expectError('must declare grain', function()
 		FootballQueries.aggregate({}, {
 			{ name = 'x', filters = {}, grain = 'season' },
 		})
 	end)
 end)
 
+check('two cells with the same name raise', function(FootballQueries)
+	expectError('both named "goals"', function()
+		FootballQueries.aggregate({}, {
+			cell('goals', { ['מספר אירוע'] = '3' }),
+			cell('goals', { ['מספר אירוע'] = '4' }),
+		})
+	end)
+end)
+
+-- Cargo rewrites HOLDS only in the where, so one in a field reaches MySQL.
+check('a HOLDS filter in a cell raises with an explanation',
+	function(FootballQueries)
+		expectError('only rewrites in the where', function()
+			FootballQueries.aggregate({}, {
+				cell('withAssistant', { ['עוזר שופט'] = 'ג\'ון ביטון' }, 'game'),
+			})
+		end)
+	end)
+
 check('an unsupported filter inside a cell still raises',
 	function(FootballQueries)
 		expectError('unsupported filter "כרטיסים צהובים"', function()
 			FootballQueries.aggregate({ ['שחקן'] = 'ערן זהבי' }, {
-				{ name = 'x', filters = { ['כרטיסים צהובים'] = '1' } },
+				cell('x', { ['כרטיסים צהובים'] = '1' }),
 			})
 		end)
 	end)
@@ -155,9 +229,10 @@ check('a cell with no filters counts every row in scope',
 	function(FootballQueries)
 		stub.willReturn({ { c1 = '59' } })
 		local cells = FootballQueries.aggregate({ ['עונה'] = '2021/22' },
-			{ { name = 'all', filters = {} } })
+			{ cell('all', {}, 'game') })
 		equals(stub.calls[1].fields,
-			'SUM(CASE WHEN 1=1 THEN 1 ELSE 0 END)=c1', 'fields')
+			'COUNT(DISTINCT CASE WHEN 1=1 THEN Football_Games._pageID END)=c1',
+			'fields')
 		equals(cells.all, 59, 'all')
 	end)
 
@@ -174,24 +249,20 @@ check('no cells at all is an error', function(FootballQueries)
 	end)
 end)
 
-check('grouping returns one entry per group', function(FootballQueries)
-	stub.willReturn({
-		{ g = 'ערן זהבי', c1 = '150' },
-		{ g = 'אבי כהן', c1 = '5' },
-	})
-	local groups = FootballQueries.aggregate({ ['קטגוריית מפעל'] = 'ליגה' }, {
-		{ name = 'goals', filters = { ['מספר אירוע'] = '3' } },
-	}, { groupBy = 'Games_Events.PlayerName', groupAlias = 'g', limit = 50 })
-
-	equals(#groups, 2, 'two groups')
-	equals(groups[1].group, 'ערן זהבי', 'first group')
-	equals(groups[1].cells.goals, 150, 'first value')
-	equals(stub.calls[1].options.groupBy, 'Games_Events.PlayerName', 'groupBy')
+-- The grouped case was accepted and could not work: it never selected the
+-- group column, so every group came back nil. It raises until the leaderboard
+-- primitive is written.
+check('grouping raises rather than returning nils', function(FootballQueries)
+	expectError('cannot group', function()
+		FootballQueries.aggregate({ ['קטגוריית מפעל'] = 'ליגה' }, {
+			cell('goals', { ['מספר אירוע'] = '3' }),
+		}, { groupBy = 'Games_Events.PlayerName' })
+	end)
 end)
 
 check('the same block always builds identical SQL', function(FootballQueries)
 	local first
-	for iteration = 1, 10 do
+	for _ = 1, 10 do
 		stub.install()
 		stub.willReturn({ { c1 = '1' } })
 		local module = stub.loadModule()

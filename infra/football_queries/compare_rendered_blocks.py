@@ -103,6 +103,24 @@ def seed_from_production() -> None:
         print(f'  seeded {len(page.text.encode("utf-8")):>6} bytes  {title}')
 
 
+def assert_wiki_matches_repo() -> None:
+    """Refuse to report a result about code that is not the code in the repo.
+
+    Without this, a green comparison can describe modules deployed three edits
+    ago - the harness would be measuring something nobody can review.
+    """
+    result = subprocess.run(
+        ['uv', 'run', 'python', 'infra/football_queries/deploy_modules.py',
+         '--status'], capture_output=True, text=True)
+    if result.returncode != 0:
+        raise SystemExit(f'could not check deployment: {result.stderr[:300]}')
+    if '0 page(s) would change' not in result.stdout:
+        raise SystemExit(
+            'the wiki modules differ from the repo - run deploy_modules.py '
+            'before comparing:\n' + result.stdout)
+    print('  (deployed modules match the repo)')
+
+
 def render(wikitext: str) -> str:
     parsed = api(action='parse', text=wikitext, title='עונת 2021/22',
                  contentmodel='wikitext', prop='text', formatversion=2,
@@ -262,7 +280,7 @@ def main() -> None:
         print('seeding from production:')
         seed_from_production()
 
-    if options.selftest:
+    if options.selftest and not options.tabs:
         print('--- part 1: identical input must report no difference ---')
         build_candidate(corrupt=False)
         clean_failures = run_cases()
@@ -281,16 +299,54 @@ def main() -> None:
         sys.exit(1)
 
     if options.tabs:
+        assert_wiki_matches_repo()
+
+        def run_tabs() -> int:
+            # The baseline must be the template, not another copy of the
+            # module: comparing the module with itself passes for free.
+            baseline = read_local(TABS_TEMPLATE) or ''
+            if 'FootballPlayerEvents' in baseline:
+                raise SystemExit(
+                    'the baseline template already invokes the module - this '
+                    'would be the module compared with itself')
+            candidate = read_local(SANDBOX_TABS) or ''
+            if 'FootballPlayerEvents' not in candidate:
+                raise SystemExit('the candidate does not invoke the module')
+
+            inner = 0
+            for params in TAB_CASES:
+                label = ' '.join(f'{n}={v}' for n, v in params.items())
+                identical, diff = compare(params, TABS_TEMPLATE, SANDBOX_TABS)
+                if identical:
+                    print(f'OK    {label}  (4 tabs, one query)')
+                else:
+                    inner += 1
+                    print(f'DIFF  {label}\n{diff}')
+            return inner
+
+        if options.selftest:
+            print('--- part 1: the real candidate must match ---')
+            build_tabs_candidate()
+            clean = run_tabs()
+            print(f'  {clean} difference(s); expected 0')
+
+            print('\n--- part 2: one wrong tab must be reported ---')
+            build_tabs_candidate()
+            broken = (read_local(SANDBOX_TABS) or '').replace(
+                'קטגוריית מפעל=גביע', 'קטגוריית מפעל=ליגה', 1)
+            write_local(SANDBOX_TABS, broken)
+            corrupt = run_tabs()
+            print(f'  {corrupt} difference(s); expected at least 1')
+
+            build_tabs_candidate()
+            if clean == 0 and corrupt > 0:
+                print('\nSELFTEST PASSED: the tab comparison can pass and fail')
+                sys.exit(0)
+            print('\nSELFTEST FAILED: this comparison is not evidence')
+            sys.exit(1)
+
         build_tabs_candidate()
-        failures = 0
-        for params in TAB_CASES:
-            label = ' '.join(f'{n}={v}' for n, v in params.items())
-            identical, diff = compare(params, TABS_TEMPLATE, SANDBOX_TABS)
-            if identical:
-                print(f'OK    {label}  (4 tabs, one query)')
-            else:
-                failures += 1
-                print(f'DIFF  {label}\n{diff}')
+        failures = run_tabs()
         print(f'\n{len(TAB_CASES) - failures}/{len(TAB_CASES)} four-tab blocks '
               'byte-identical')
         sys.exit(1 if failures else 0)

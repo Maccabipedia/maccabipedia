@@ -47,13 +47,62 @@ local function loadDataFor(name)
 	if stub.dataPatch then
 		stub.dataPatch(data)
 	end
+	if stub.proxyLoadData then
+		return stub.asProxy(data)
+	end
 	return data
+end
+
+--- Wraps a table the way mw.loadData does: fields served through a metatable,
+--- so `#` reports 0 and ipairs stops at once, while key lookups and pairs
+--- work. Code that reads lengths off a loadData result is broken on the wiki
+--- and fine in a plain-table test, so the tests need this shape available.
+function stub.asProxy(value)
+	if type(value) ~= 'table' then
+		return value
+	end
+
+	local inner = {}
+	for key, entry in pairs(value) do
+		inner[key] = stub.asProxy(entry)
+	end
+
+	local proxy = setmetatable({}, {
+		__index = function(_, key)
+			return inner[key]
+		end,
+		__pairs = function()
+			return pairs(inner)
+		end,
+		__len = function()
+			return 0
+		end,
+	})
+	-- Lua 5.1 has no __pairs, and Scribunto patches pairs to honour it; the
+	-- suite runs on 5.1, so expose the same behaviour through a global pairs
+	-- that checks for the metamethod.
+	stub.proxies[proxy] = inner
+	return proxy
 end
 
 function stub.install()
 	stub.calls = {}
 	stub.responses = {}
 	stub.dataPatch = nil
+	stub.proxyLoadData = nil
+	stub.proxies = {}
+
+	-- Scribunto's pairs honours __pairs; Lua 5.1's does not. The proxy shape
+	-- above is only faithful with it, so patch pairs the same way.
+	local realPairs = stub.realPairs or pairs
+	stub.realPairs = realPairs
+	pairs = function(value)
+		local inner = stub.proxies and stub.proxies[value]
+		if inner then
+			return realPairs(inner)
+		end
+		return realPairs(value)
+	end
 
 	-- Scribunto's require takes a wiki page name; Lua's does not. A renderer
 	-- that requires the query module needs this to run outside the wiki.

@@ -19,7 +19,11 @@ SUITES = [
     'infra/football_queries/tests/test_football_queries.lua',
     'infra/football_queries/tests/test_coverage_gaps.lua',
     'infra/football_queries/tests/test_aggregate.lua',
+    # Omitted once, which let three mutations in the renderer survive unseen.
+    'infra/football_queries/tests/test_player_events.lua',
 ]
+PLAYER_EVENTS = Path('infra/football_queries/Module_FootballPlayerEvents.lua')
+BLOCKS = Path('infra/football_queries/Module_FootballStatsBlocks.lua')
 
 # (label, file, find, replace). `find` must appear exactly once, or the harness
 # says so instead of silently mutating the wrong place - which is how a broken
@@ -111,9 +115,6 @@ MUTATIONS = [
     ('HOLDS becomes equals', LOGIC,
      "'%s HOLDS %s', spec.column", "'%s = %s', spec.column"),
     # The merge. Each of these is a plausible-looking wrong number in a block.
-    ('merge drops the Team default', LOGIC,
-     'if unionBuilder.tables.Games_Events and not sharedBuilder.teamConstrained then',
-     'if false then'),
     ('merge derives joins from the shared filters only', LOGIC,
      'local unionBuilder = buildInto(union)',
      'local unionBuilder = buildInto(shared)'),
@@ -125,12 +126,48 @@ MUTATIONS = [
     ('grain validation removed', LOGIC,
      "if grain ~= 'event' and grain ~= 'game' then", 'if false then'),
     ('cell conditions dropped from the aggregate', LOGIC,
-     "local condition = #cellBuilder.conditions > 0\n\t\t\tand table.concat("
-     "cellBuilder.conditions, ' AND ') or '1=1'",
-     "local condition = '1=1'"),
+     "for _, condition in ipairs(cellBuilder.conditions) do",
+     "for _, condition in ipairs({}) do"),
     ('cell values no longer default to zero', LOGIC,
-     "values[entry.name] = tonumber(row[entry.alias]) or 0",
-     "values[entry.name] = tonumber(row[entry.alias])"),
+     "values[entry.name] = tonumber(rows[1][entry.alias]) or 0",
+     "values[entry.name] = tonumber(rows[1][entry.alias])"),
+    ('duplicate cell names allowed', LOGIC,
+     'if seen[cell.name] then', 'if false then'),
+    ('HOLDS in a cell allowed through', LOGIC,
+     "if condition:find(' HOLDS ', 1, true) then", 'if false then'),
+    ('grain defaults to event again', LOGIC,
+     "if grain ~= 'event' and grain ~= 'game' then",
+     "if grain ~= nil and grain ~= 'event' and grain ~= 'game' then"),
+    # The four a review found surviving. Each is a wrong number on a page.
+    ('Team default gated on shared instead of the union', LOGIC,
+     'local teamDefaultNeeded = unionBuilder.tables.Games_Events',
+     'local teamDefaultNeeded = sharedBuilder.tables.Games_Events'),
+    ('Team default moved back into the WHERE', LOGIC,
+     "if teamDefaultNeeded and grain == 'event'",
+     "if false and grain == 'event'"),
+    ('modifiers read from the cell alone', LOGIC,
+     'local cellBuilder = buildInto(cell.filters or {}, true, union)',
+     'local cellBuilder = buildInto(cell.filters or {}, true)'),
+    # Renderer and block data.
+    ('prime uses one constant category for every tab', PLAYER_EVENTS,
+     "filters['קטגוריית מפעל'] = tab", "filters['קטגוריית מפעל'] = 'ליגה'"),
+    ('materialise returns the proxy uncopied', PLAYER_EVENTS,
+     'local function materialise(value)\n\tif type(value) ~= \'table\' then\n'
+     '\t\treturn value\n\tend',
+     'local function materialise(value)\n\tif true then\n\t\treturn value\n\tend'),
+    ('the rounding epsilon is removed', PLAYER_EVENTS,
+     'math.floor(value * 100 + 0.5 + 1e-9)', 'math.floor(value * 100 + 0.5)'),
+    ('the zero-denominator guard is removed', PLAYER_EVENTS,
+     'if appearances ~= 0 then', 'if true then'),
+    ('a missing cell defaults to zero again', PLAYER_EVENTS,
+     'if value == nil then', 'if false then'),
+    ('tab renders empty instead of raising', PLAYER_EVENTS,
+     "if not value or mw.text.trim(value) == '' then", 'if false then'),
+    ('variables lose the entity from their name', PLAYER_EVENTS,
+     "return string.format('%s/%s/%s', VAR_PREFIX, entity, tab)",
+     "return string.format('%s/%s', VAR_PREFIX, tab)"),
+    ('a block cell loses its subtype filter', BLOCKS,
+     "['מספר אירוע'] = '3', ['תת אירוע'] = '35'", "['מספר אירוע'] = '3'"),
 ]
 
 

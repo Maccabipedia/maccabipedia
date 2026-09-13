@@ -15,9 +15,10 @@ Cells are the numbers to fetch. Rows are what the block displays; they are not
 one-to-one, because one row can show several cells (appearances with
 substitutions in brackets) and some show a value derived from others.
 
-`grain` says whether a cell counts events or games. Omitted means events.
-Getting it wrong multiplies a count by the number of events on the page, so it
-is declared per cell rather than inferred.
+`grain` says whether a cell counts events or games, and it is REQUIRED - an
+omitted grain raises rather than defaulting. Guessing "event" would multiply a
+game count by the number of events on the page, up to 43x, and the result looks
+like a plausible number.
 ]]
 
 return {
@@ -29,17 +30,22 @@ return {
 		tabs = { 'ליגה', 'גביע', 'בינלאומי', 'רשמי' },
 
 		cells = {
-			{ name = 'appearances', filters = { ['מספר אירוע'] = '1,5' } },
-			{ name = 'substitutions', filters = { ['מספר אירוע'] = '5' } },
-			{ name = 'goals', filters = { ['מספר אירוע'] = '3' } },
-			{ name = 'penaltyGoals',
+			{ name = 'appearances', grain = 'event',
+			  filters = { ['מספר אירוע'] = '1,5' } },
+			{ name = 'substitutions', grain = 'event',
+			  filters = { ['מספר אירוע'] = '5' } },
+			{ name = 'goals', grain = 'event',
+			  filters = { ['מספר אירוע'] = '3' } },
+			{ name = 'penaltyGoals', grain = 'event',
 			  filters = { ['מספר אירוע'] = '3', ['תת אירוע'] = '35' } },
-			{ name = 'assists', filters = { ['מספר אירוע'] = '4' } },
-			{ name = 'yellows',
+			{ name = 'assists', grain = 'event',
+			  filters = { ['מספר אירוע'] = '4' } },
+			{ name = 'yellows', grain = 'event',
 			  filters = { ['מספר אירוע'] = '7', ['תת אירוע'] = '71' } },
-			{ name = 'reds',
+			{ name = 'reds', grain = 'event',
 			  filters = { ['מספר אירוע'] = '7', ['תת אירוע'] = '72,73' } },
-			{ name = 'benchStarts', filters = { ['מספר אירוע'] = '2' } },
+			{ name = 'benchStarts', grain = 'event',
+			  filters = { ['מספר אירוע'] = '2' } },
 		},
 
 		-- The rows, in the order the template emits them. `format` names a

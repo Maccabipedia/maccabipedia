@@ -333,8 +333,13 @@ handlers.modifier = function() end
 --- The merge needs that: a cell's own conditions go into the FIELDS as a
 --- conditional aggregate, and a row-level default belongs in the WHERE once,
 --- not repeated inside every cell.
-local function buildInto(filters, skipDefaults)
+--- `modifiers` is where handlers look up parameters that modify another
+--- filter rather than producing a condition - פורמט תאריך for תאריך. It
+--- defaults to `filters`, and the merge passes the union, because the modifier
+--- can sit in the shared filters while the filter it modifies sits in a cell.
+local function buildInto(filters, skipDefaults, modifiers)
 	local builder = newBuilder()
+	modifiers = modifiers or filters
 
 	-- Sorted, so the same filter set always produces byte-identical SQL: it
 	-- keeps the generated query diffable and comparable between runs.
@@ -365,7 +370,7 @@ local function buildInto(filters, skipDefaults)
 		-- Templates pass every parameter whether or not it was set, so an empty
 		-- value means "not provided" rather than "match the empty string".
 		if value ~= nil and mw.text.trim(tostring(value)) ~= '' then
-			handlers[spec.kind](builder, spec, value, filters)
+			handlers[spec.kind](builder, spec, value, modifiers)
 		end
 	end
 
@@ -458,29 +463,73 @@ function FootballQueries.aggregate(shared, cells, options)
 	local unionBuilder = buildInto(union)
 	local tables, join = tablesAndJoin(unionBuilder)
 
-	-- The WHERE carries the shared filters plus the row-level default, which
-	-- buildInto adds when the union reaches Games_Events.
+	-- The WHERE carries the shared filters only, and deliberately NOT the Team
+	-- default. Putting Team in the WHERE of a merged query is wrong twice over,
+	-- both measured:
+	--
+	--  * a cell asking for the opponent's side (מכבי=לא) can never match, since
+	--    the WHERE already demands Team = 1 and the cell's CASE demands 0 - a
+	--    contradiction that returns 0 with no error;
+	--  * `Games_Events.Team = 1` in the WHERE discards the NULL row a LEFT JOIN
+	--    produces for a game with no events, which turns the join back into an
+	--    inner one. A game-grain cell then undercounts: 3,439 games instead of
+	--    3,504 on production, 65 lost.
+	--
+	-- So the default goes into each event cell's own CASE instead, where it
+	-- constrains the events being counted without touching the row set.
 	local sharedBuilder = buildInto(shared, true)
-	if unionBuilder.tables.Games_Events and not sharedBuilder.teamConstrained then
-		sharedBuilder:addComparison('Games_Events.Team', '=', 1)
-	end
+	local teamDefaultNeeded = unionBuilder.tables.Games_Events
+		and not sharedBuilder.teamConstrained
 
 	local fields = {}
 	local aliases = {}
+	local seen = {}
 	for index, cell in ipairs(cells) do
 		if not cell.name then
 			error('FootballQueries: every cell needs a name', 0)
 		end
-		local grain = cell.grain or 'event'
-		if grain ~= 'event' and grain ~= 'game' then
+		if seen[cell.name] then
+			-- Two cells of the same name silently collapse into whichever came
+			-- last, which is a missing number rather than an error.
 			error(string.format(
-				'FootballQueries: cell "%s" has unknown grain "%s" - it must say '
-				.. 'whether it counts events or games', cell.name, grain), 0)
+				'FootballQueries: two cells are both named "%s"', cell.name), 0)
+		end
+		seen[cell.name] = true
+
+		local grain = cell.grain
+		if grain ~= 'event' and grain ~= 'game' then
+			-- Not defaulted: an event-grain guess for a cell that counts games
+			-- multiplies it by the number of events on the page, up to 43x.
+			error(string.format(
+				'FootballQueries: cell "%s" must declare grain as "event" or '
+				.. '"game", got %s', cell.name, tostring(grain)), 0)
 		end
 
-		local cellBuilder = buildInto(cell.filters or {}, true)
-		local condition = #cellBuilder.conditions > 0
-			and table.concat(cellBuilder.conditions, ' AND ') or '1=1'
+		-- Modifier parameters such as פורמט תאריך may live in the shared
+		-- filters while the filter they modify lives in a cell, so the handlers
+		-- see the union for lookups and the cell for conditions.
+		local cellBuilder = buildInto(cell.filters or {}, true, union)
+		local conditions = {}
+		for _, condition in ipairs(cellBuilder.conditions) do
+			conditions[#conditions + 1] = condition
+		end
+
+		if teamDefaultNeeded and grain == 'event'
+				and not cellBuilder.teamConstrained then
+			conditions[#conditions + 1] = 'Games_Events.Team = 1'
+		end
+
+		local condition = #conditions > 0
+			and table.concat(conditions, ' AND ') or '1=1'
+
+		if condition:find(' HOLDS ', 1, true) then
+			-- Cargo rewrites HOLDS only in the where clause, so one in a field
+			-- reaches MySQL verbatim and fails there.
+			error(string.format(
+				'FootballQueries: cell "%s" uses a HOLDS filter, which Cargo only '
+				.. 'rewrites in the where - pass it as a shared filter instead',
+				cell.name), 0)
+		end
 
 		-- Aliases are positional: a Hebrew cell name is not a safe SQL alias.
 		local alias = 'c' .. index
@@ -496,36 +545,31 @@ function FootballQueries.aggregate(shared, cells, options)
 		end
 	end
 
+	-- Ungrouped on purpose. A leaderboard needs GROUP BY, ordering, a limit and
+	-- HAVING, and it needs the group column in the SELECT - a different
+	-- primitive, not an option on this one. An earlier version accepted
+	-- `groupBy` here and could not work: it never selected the group column, so
+	-- every group came back nil, and its test passed only because the stub
+	-- fabricated the column. It gets written when the leaderboards are.
+	if options.groupBy then
+		error('FootballQueries: aggregate answers one row of cells and cannot '
+			.. 'group - the leaderboard primitive is a separate function', 0)
+	end
+
 	local rows = runCargo(tables, table.concat(fields, ','), {
 		join = join,
 		where = whereOf(sharedBuilder),
-		groupBy = options.groupBy,
-		orderBy = options.orderBy,
-		having = options.having,
 		limit = options.limit or 2,
 	})
 
-	-- Without groupBy the answer is one row of cells; with it, one row per
-	-- group, and the caller needs the group value alongside them.
-	local function unpackRow(row)
-		local values = {}
+	local values = {}
+	if rows[1] then
 		for _, entry in ipairs(aliases) do
-			-- Cargo returns SUM as a float and an empty group as nil.
-			values[entry.name] = tonumber(row[entry.alias]) or 0
+			-- Cargo returns SUM as a float, and as nil when nothing matched.
+			values[entry.name] = tonumber(rows[1][entry.alias]) or 0
 		end
-		return values
 	end
-
-	if not options.groupBy then
-		return rows[1] and unpackRow(rows[1]) or {}
-	end
-
-	local grouped = {}
-	for index, row in ipairs(rows) do
-		grouped[index] = { group = row[options.groupAlias or 'g'],
-		                   cells = unpackRow(row) }
-	end
-	return grouped
+	return values
 end
 
 --- Rows for one filter set. `options` is this module's own interface and is
