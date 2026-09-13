@@ -37,14 +37,37 @@ EXPECTATIONS = {
         'the same club through the alias expansion',
         {'tables': 'Football_Games', 'fields': 'COUNT(*)=n',
          'where': 'Opponent = "צלסי"'}),
-    'player-on-both-teams': (
-        'אברהם לוי played for both sides across his career - only Maccabi',
+    # The same NAME on both teams in ONE game, pinned to that game by date.
+    # Career totals would hide the confusion; these are asymmetric on purpose.
+    'same-name-both-teams-maccabi': (
+        'אלון נתן, 1986-05-24: on both sides of this one game, Maccabi side',
         {'tables': 'Games_Events', 'fields': 'COUNT(*)=n',
-         'where': 'PlayerName = "אברהם לוי" AND Team = 1'}),
-    'player-on-both-teams-opponent-side': (
-        'the same name on the opposing side',
+         'where': 'PlayerName = "אלון נתן" AND Date = "1986-05-24"'
+                  ' AND Team = 1'}),
+    'same-name-both-teams-opponent': (
+        'the same name in the same game, opposing side',
         {'tables': 'Games_Events', 'fields': 'COUNT(*)=n',
-         'where': 'PlayerName = "אברהם לוי" AND Team = 0'}),
+         'where': 'PlayerName = "אלון נתן" AND Date = "1986-05-24"'
+                  ' AND Team = 0'}),
+    'same-name-both-teams-even-split': (
+        'אברהם לוי, 1975-03-01: two events each side, so a leak would be '
+        'invisible in the total',
+        {'tables': 'Games_Events', 'fields': 'COUNT(*)=n',
+         'where': 'PlayerName = "אברהם לוי" AND Date = "1975-03-01"'
+                  ' AND Team = 1'}),
+    # Metadata queries: about the game, not about a player.
+    'metadata-wins': (
+        'wins in 1941/42, a season with 6 eventless games and 1 technical',
+        {'tables': 'Football_Games', 'fields': 'COUNT(*)=n',
+         'where': 'Season = "1941/42" AND ResultOpt = 1'}),
+    'metadata-draws': (
+        'draws in the same season',
+        {'tables': 'Football_Games', 'fields': 'COUNT(*)=n',
+         'where': 'Season = "1941/42" AND ResultOpt = 2'}),
+    'metadata-losses': (
+        'losses in the same season',
+        {'tables': 'Football_Games', 'fields': 'COUNT(*)=n',
+         'where': 'Season = "1941/42" AND ResultOpt = 3'}),
     'subtype-excluded': (
         'goals excluding penalties - NULL subtypes are dropped too, which is '
         'what the template does as well',
@@ -102,45 +125,81 @@ def cells(site, query: dict) -> dict:
             for alias, value in rows[0]['title'].items()}
 
 
-def check_grain(site, queries: dict) -> int:
-    """A game with no events must still be counted by a game-grain cell.
+SEASON = '1941/42'
 
-    This is the case that made the review's Team-in-the-WHERE finding matter:
-    production has 51 games with no events at all and 65 with no Maccabi event,
-    and a merged block counted 3,439 of 3,504 games before the fix.
+
+def check_metadata(site, queries: dict) -> int:
+    """Metadata numbers must include games that have no events.
+
+    1941/42 has 31 games, 6 of them with no events at all and 1 technical, and
+    its results split 24 wins / 3 draws / 4 losses - which sums to 31. So the
+    four numbers together prove nothing was dropped. This is the case that made
+    the review's Team-in-the-WHERE finding matter: it took 3,504 games down to
+    3,439 across production.
     """
-    season = '1951/52'
-    query = queries.get('eventless-games-by-grain')
+    failures = 0
+
+    query = queries.get('metadata-results-in-one-query')
     if not query:
-        print('MISSING  eventless-games-by-grain was not printed')
+        print('MISSING  metadata-results-in-one-query was not printed')
         return 1
 
-    actual = cells(site, query)
-    total_games = run(site, {
-        'tables': 'Football_Games', 'fields': 'COUNT(*)=n',
-        'where': f'Season = "{season}"'})
-    goals = run(site, {
-        'tables': 'Football_Games,Games_Events', 'join_on': JOIN_EVENTS,
-        'fields': 'COUNT(*)=n',
-        'where': f'Football_Games.Season = "{season}"'
-                 ' AND Games_Events.EventType = 3 AND Games_Events.Team = 1'})
+    # A metadata query must not reach the events table at all.
+    if 'Games_Events' in (query['tables'] or ''):
+        print(f'FAIL  metadata joins the events table: {query["tables"]}')
+        failures += 1
+    else:
+        print('OK    metadata asks Football_Games alone, no events join')
 
-    failures = 0
-    for alias, expected, label in [('c1', total_games, 'games (game grain)'),
-                                   ('c2', goals, 'goals (event grain)')]:
+    actual = cells(site, query)
+    expected = {
+        'c1': run(site, {'tables': 'Football_Games', 'fields': 'COUNT(*)=n',
+                         'where': f'Season = "{SEASON}" AND ResultOpt = 1'}),
+        'c2': run(site, {'tables': 'Football_Games', 'fields': 'COUNT(*)=n',
+                         'where': f'Season = "{SEASON}" AND ResultOpt = 2'}),
+        'c3': run(site, {'tables': 'Football_Games', 'fields': 'COUNT(*)=n',
+                         'where': f'Season = "{SEASON}" AND ResultOpt = 3'}),
+        'c4': run(site, {'tables': 'Football_Games', 'fields': 'COUNT(*)=n',
+                         'where': f'Season = "{SEASON}"'}),
+    }
+    labels = {'c1': 'wins', 'c2': 'draws', 'c3': 'losses', 'c4': 'all games'}
+    for alias in ['c1', 'c2', 'c3', 'c4']:
         got = actual.get(alias, 'missing')
-        ok = got == expected
+        ok = got == expected[alias]
         failures += 0 if ok else 1
-        print(f'{"OK  " if ok else "FAIL"}  eventless/{label}: module={got} '
-              f'independent={expected}')
+        print(f'{"OK  " if ok else "FAIL"}  metadata/{labels[alias]}: '
+              f'module={got} independent={expected[alias]}')
+
+    parts = sum(int(actual.get(alias, 0)) for alias in ['c1', 'c2', 'c3'])
+    whole = int(actual.get('c4', -1))
+    if parts != whole:
+        print(f'FAIL  metadata: wins+draws+losses is {parts} but all games is '
+              f'{whole} - something was dropped')
+        failures += 1
+    else:
+        print(f'OK    metadata: wins+draws+losses = all games = {whole}')
+
+    # Mixing a metadata cell with a player-event cell in one query.
+    mixed = queries.get('metadata-and-events-together')
+    if mixed:
+        got = cells(site, mixed)
+        games = run(site, {'tables': 'Football_Games', 'fields': 'COUNT(*)=n',
+                           'where': f'Season = "{SEASON}"'})
+        ok = got.get('c1') == games
+        failures += 0 if ok else 1
+        print(f'{"OK  " if ok else "FAIL"}  metadata beside an event cell: '
+              f'games={got.get("c1")} independent={games}')
 
     eventless = run(site, {
         'tables': 'Football_Games,Games_Events', 'join_on': JOIN_EVENTS,
         'fields': 'COUNT(DISTINCT Football_Games._pageID)=n',
-        'where': f'Football_Games.Season = "{season}"'
+        'where': f'Football_Games.Season = "{SEASON}"'
                  ' AND Games_Events._pageID IS NULL'})
-    print(f'        {season} has {eventless} game(s) with no events at all, '
-          f'and the game-grain cell includes them')
+    technical = run(site, {
+        'tables': 'Football_Games', 'fields': 'COUNT(*)=n',
+        'where': f'Season = "{SEASON}" AND Technical = 1'})
+    print(f'        {SEASON}: {eventless} game(s) with no events and '
+          f'{technical} technical, all included above')
     return failures
 
 
@@ -189,9 +248,9 @@ def main() -> None:
         print(f'        {description}')
 
     print()
-    failures += check_grain(site, queries)
+    failures += check_metadata(site, queries)
 
-    total = len(EXPECTATIONS) + 2
+    total = len(EXPECTATIONS) + 7
     print(f'\n{total - failures}/{total} edge-case checks agree')
     sys.exit(1 if failures else 0)
 

@@ -36,11 +36,17 @@ addCase('opponent-double-quote-alias', { ['יריבה'] = 'בית"ר ירושל�
 	'בית"ר ירושלים')
 addCase('opponent-apostrophe-alias', { ['יריבה'] = "צ'לסי" }, nil, "צ'לסי")
 
--- 2. A player whose name appears on both teams in one game: only Maccabi's
--- events may count.
-addCase('player-on-both-teams', { ['שחקן'] = 'אברהם לוי' }, nil)
-addCase('player-on-both-teams-opponent-side',
-	{ ['שחקן'] = 'אברהם לוי', ['מכבי'] = 'לא' }, nil)
+-- 2. The same player NAME on both teams IN ONE GAME. Pinned to that one game
+-- by its date, because career totals would not show the confusion: on
+-- 1986-05-24 אלון נתן has 2 events for Maccabi and 1 against, and on
+-- 1975-03-01 אברהם לוי has 2 and 2.
+addCase('same-name-both-teams-maccabi',
+	{ ['שחקן'] = 'אלון נתן', ['תאריך'] = '1986-05-24' }, nil)
+addCase('same-name-both-teams-opponent',
+	{ ['שחקן'] = 'אלון נתן', ['תאריך'] = '1986-05-24',
+	  ['מכבי'] = 'לא' }, nil)
+addCase('same-name-both-teams-even-split',
+	{ ['שחקן'] = 'אברהם לוי', ['תאריך'] = '1975-03-01' }, nil)
 
 -- 3. One subtype from each main event category.
 for _, pair in ipairs({ { '1', '111' }, { '2', '211' }, { '3', '35' },
@@ -54,14 +60,26 @@ end
 addCase('subtype-excluded', { ['מספר אירוע'] = '3',
                               ['ללא תת אירוע'] = '35' }, nil)
 
--- 4. Games with no events at all: a game-grain cell must still count them,
--- an event-grain cell must not.
-addCase('eventless-games-by-grain', { ['עונה'] = '1951/52' }, {
-	{ name = 'games', filters = {}, grain = 'game' },
-	{ name = 'events', filters = { ['מספר אירוע'] = '3' }, grain = 'event' },
+-- 4. Metadata queries - wins, draws, goals - which are about the game and not
+-- about any player. They must count games that have no events at all and
+-- technical results, and must not join the events table to do it. 1941/42 has
+-- 31 games, 6 of them eventless and 1 technical, and its results split 24/3/4.
+addCase('metadata-wins', { ['עונה'] = '1941/42',
+                           ['תוצאה'] = 'ניצחון' }, nil)
+addCase('metadata-draws', { ['עונה'] = '1941/42', ['תוצאה'] = 'תיקו' }, nil)
+addCase('metadata-losses', { ['עונה'] = '1941/42', ['תוצאה'] = 'הפסד' }, nil)
+addCase('metadata-results-in-one-query', { ['עונה'] = '1941/42' }, {
+	{ name = 'wins', filters = { ['תוצאה'] = 'ניצחון' }, grain = 'game' },
+	{ name = 'draws', filters = { ['תוצאה'] = 'תיקו' }, grain = 'game' },
+	{ name = 'losses', filters = { ['תוצאה'] = 'הפסד' }, grain = 'game' },
+	{ name = 'all', filters = {}, grain = 'game' },
 })
-addCase('technical-results', { ['עונה'] = '1951/52' }, {
+
+-- The same season mixing a metadata cell with a player-event cell: the games
+-- with no events must still be counted by the first.
+addCase('metadata-and-events-together', { ['עונה'] = '1941/42' }, {
 	{ name = 'games', filters = {}, grain = 'game' },
+	{ name = 'goals', filters = { ['מספר אירוע'] = '3' }, grain = 'event' },
 })
 
 for _, case in ipairs(cases) do
