@@ -24,15 +24,54 @@ session = requests.Session()
 session.headers["User-Agent"] = "MaccabipediaPerfBenchmark/1.0"
 
 PASS_THROUGH = ["שחקן", "מספר אירוע", "תת אירוע", "ללא תת אירוע",
-                "קטגוריית מפעל", "תוצאה", "עונה"]
+                "קטגוריית מפעל", "תוצאה", "עונה", "מכבי"]
 ARGS = "".join(f"|{name}={{{{{{{name}|}}}}}}" for name in PASS_THROUGH)
+
+# Filters the module cannot answer, per template. These MUST route to the
+# original query, which is preserved under .../שליפה מלאה.
+#
+# The module refuses a parameter it does not implement rather than ignoring it,
+# but that guard only fires for parameters it is actually handed -- and a shim
+# that forwards a fixed list silently drops the rest before the guard can see
+# them. That is not a missing feature, it is a wrong answer wearing the right
+# shape: an opponent page asking "yellow cards against מכבי חיפה" was handed the
+# wiki-wide total of 425, the same number it gets with no filter at all.
+FALLBACK_ARGS = {
+    "תבנית:סטטיסטיקה/שליפות/מתקדמות/כמות אירועי שחקן": [
+        "אצטדיון", "אצטדיונים", "יריבה", "יריבות", "מאמן", "מפעל מקורי",
+        "מפעל נוכחי", "מפעלים", "עוזר שופט", "שופט", "תוצאה יריבה",
+        "תוצאה מכבי"],
+    "תבנית:סטטיסטיקה/שליפות/מתקדמות/כמות משחקים המכילים אירוע שחקן": [
+        "אצטדיון", "מאמן", "תוצאה יריבה", "תוצאה מכבי"],
+}
+
+
+def dispatcher(title: str, function: str) -> str:
+    """Module for what it can answer, preserved original for everything else."""
+    full = title + "/שליפה מלאה"
+    fallback = FALLBACK_ARGS[title]
+    guard = "".join("{{{" + name + "|}}}" for name in fallback)
+    forwarded = "".join(f"|{name}={{{{{{{name}|}}}}}}"
+                        for name in [*PASS_THROUGH, *fallback])
+    return (
+        "<includeonly><!--\n\n"
+        f"מנתב: [[יחידה:סטטיסטיקה שחקן]] עונה על הסינונים הנפוצים בשליפה אחת\n"
+        "משותפת לכל הקריאות בדף. סינון לפי יריבה, אצטדיונים, שופט, מאמן או\n"
+        f"תוצאת יריבה עדיין דורש את השליפה המלאה, שנשמרה ב[[{full}]].\n\n"
+        "-->{{#if: " + guard + "\n"
+        "  |{{" + full.removeprefix("תבנית:") + forwarded + "}}\n"
+        f"  |{{{{#invoke:סטטיסטיקה שחקן|{function}{ARGS}}}}}\n"
+        "}}</includeonly>"
+    )
+
 
 # Leaf templates that become thin module wrappers.
 SHIMS = {
     "תבנית:סטטיסטיקה/שליפות/מתקדמות/כמות אירועי שחקן":
-        f"<includeonly>{{{{#invoke:סטטיסטיקה שחקן|count{ARGS}}}}}</includeonly>",
+        dispatcher("תבנית:סטטיסטיקה/שליפות/מתקדמות/כמות אירועי שחקן", "count"),
     "תבנית:סטטיסטיקה/שליפות/מתקדמות/כמות משחקים המכילים אירוע שחקן":
-        f"<includeonly>{{{{#invoke:סטטיסטיקה שחקן|countGames{ARGS}}}}}</includeonly>",
+        dispatcher("תבנית:סטטיסטיקה/שליפות/מתקדמות/כמות משחקים המכילים אירוע שחקן",
+                   "countGames"),
     # Alias lookups go through יחידה:המרות, which shares one Cargo query across
     # every call on the page via mw.loadData -- the only Scribunto mechanism
     # that survives between #invoke calls. Measured over 32 lookups:
@@ -342,6 +381,17 @@ def apply_all(token: str) -> None:
             print(f"  alias  {title}")
 
     for title, text in SHIMS.items():
+        # The dispatcher's fallback branch must exist before the dispatcher does,
+        # or the pages that need it render a red link instead of a number.
+        if title in FALLBACK_ARGS:
+            original = backup_path(title)
+            full = title + "/שליפה מלאה"
+            if original.exists() and get_text(full) is None:
+                api(action="edit", title=full,
+                    text=original.read_text(encoding="utf-8"),
+                    summary="local perf experiment: preserve full query",
+                    token=_token["csrf"])
+                print(f"  preserved  {full}")
         if get_text(title) != text:
             save(title, text, token)
             print(f"  shim  {title}")

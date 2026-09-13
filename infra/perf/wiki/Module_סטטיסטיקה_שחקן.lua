@@ -45,8 +45,11 @@ end
 local SUPPORTED = {
 	['שחקן'] = true, ['מספר אירוע'] = true, ['תת אירוע'] = true,
 	['ללא תת אירוע'] = true, ['קטגוריית מפעל'] = true, ['תוצאה'] = true,
-	['עונה'] = true, ['מכבי'] = true, ['אצטדיון'] = true,
+	['עונה'] = true, ['מכבי'] = true,
 }
+-- אצטדיון אינו ברשימה בכוונה: count ו-countGames אינן מסננות לפיו (רק
+-- stadiumAliases נוגעת באצטדיונים), ולכן הוא חייב להחזיר שגיאה ולא מספר.
+-- כשהוא הופיע כאן הבדיקה מול השליפה המקורית נתנה 433 במקום 208.
 
 local function unsupportedArgs(args)
 	local unknown = {}
