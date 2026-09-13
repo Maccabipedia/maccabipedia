@@ -186,10 +186,14 @@ comparison reports it.
   parity diff:
 
   1. `יתר-רשמיים` filters instead of being silently ignored.
-  2. Dates are quoted inside `DATE_FORMAT` instead of interpolated bare. The
-     bare form is arithmetic, so `2021-08-22` evaluates to 1991 and
-     `DATE_FORMAT(1991, …)` is NULL — the days family is very likely rendering
-     zeros today, which makes this a re-baseline too, not a rounding edge.
+  2. Dates are quoted inside `DATE_FORMAT` instead of interpolated bare.
+     **Confirmed live, not inferred:** games on 22-08 are 8 in the database, 0
+     through the template's bare form, 8 through the module's quoted form. An
+     unquoted date is arithmetic — `2021-08-22` → 1991 → `DATE_FORMAT(1991, …)`
+     is NULL — so the condition is never true. Both `ימים` display templates
+     are transcluded by **366 pages**, one per day of the year, and
+     `1 באוגוסט` currently renders `משחקים: 0` against a true 3.
+     This is a re-baseline of those 366 pages, not a parity diff.
   3. `מפעלים` no longer strips apostrophes, because
      `Football_Games.Competition` keeps them.
   4. **The opponent alias keeps the quote when looking a club up**, so

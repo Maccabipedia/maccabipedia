@@ -328,10 +328,32 @@ explained away by hand. Each also gets a follow-up issue.
 | # | Today's behaviour | Correct behaviour | Reproduce? |
 |---|---|---|---|
 | Q1 | `קטגוריית מפעל=יתר-רשמיים` is silently ignored by `כמות נתוני משחק`, returning the unfiltered total | should filter | **yes**, per-template |
-| Q2 | `תאריך` is interpolated into `DATE_FORMAT` unquoted, which MySQL reads as arithmetic | should be quoted | **yes** |
+| Q2 | `תאריך` is interpolated into `DATE_FORMAT` unquoted, which MySQL reads as arithmetic | should be quoted | **no — fix and re-baseline**, see below |
 | Q3 | `מפעלים` strips apostrophes before matching `Football_Games.Competition`, which keeps them, so `גביע מלצ'ט` never matches | should not strip | **yes** |
 | Q4 | `{{סטטיסטיקה/אחוזים}}` rounds to two places and `#number_format` rounds again — two roundings, half-up | one rounding | **yes**, the double rounding is observable at boundaries |
 | Q5 | `#arraydefine: מפעלים \|{{{מפעלים}}}` has no default, so the array is built from the literal string when the parameter is absent | harmless today, every use is `#if`-guarded | not applicable — no observable output |
+
+### Q2 is not a quirk to reproduce — it is a live outage on 366 pages
+
+Measured on production, not inferred:
+
+| | games on 22-08 |
+|---|---|
+| the database | **8** |
+| the template's form, `DATE_FORMAT(2021-08-22, …)` | **0** |
+| the module's form, `DATE_FORMAT("2021-08-22", …)` | **8** |
+
+An unquoted date is arithmetic: `2021-08-22` evaluates to 1991, and
+`DATE_FORMAT(1991, …)` is NULL, so the condition can never be true. Both
+`ימים` display templates are transcluded by **366 pages** — one per day of the
+year — and `1 באוגוסט` renders `משחקים: 0`. True counts run 3–14 games per
+date; 116 games sit behind the twelve first-of-month dates alone.
+
+So reproducing Q2 would mean deliberately keeping 366 pages broken. It is
+fixed instead, and those pages get a **re-baseline**: capture their numbers
+before and after as two separate fixtures, because every number on them
+changes from 0 to a real value. That is not a parity diff and the harness must
+not be asked to treat it as one.
 
 Q1 is per-template, not global: the same parameter *is* honoured by
 `כמות אירועי שחקן`. The layer therefore needs the quirk scoped to the call
