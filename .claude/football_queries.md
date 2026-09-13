@@ -123,6 +123,37 @@ template's own parameters:
   lookup with the raw name, and `בית"ר ירושלים` renders its 173 games
   correctly. Do not introduce a caller that passes the raw page name to it.
 
+## Edge cases in the data, and what they cost
+
+Measured on production 2026-09-13. `verify_edge_cases.py` runs the module's own
+SQL for each of these against production, read-only, and compares it with an
+independently written query — 16/16 agree, and it carries a selftest that
+proves it can fail.
+
+- **A club whose name carries a quote.** `בית"ר ירושלים` (173 games) and
+  `צ'לסי` (3) resolve correctly through both the list parameter and the alias
+  expansion, because the games table stores the normalised spelling and the
+  lookup keeps the raw one.
+- **One player name on both teams in the same game.** Nine name/game pairs
+  exist — `אברהם לוי` in `מכבי תל אביב נגד מכבי יפו`, 1975, and others. The
+  layer counts 310 events for Maccabi's side and 28 for the opposing one, which
+  is the whole reason the Team constraint is not optional.
+- **The event/subtype matrix.** Subtype numbers are namespaced by their event:
+  3 → 30–39, 4 → 40–46, 7 → 71–74, 8 → 81–84, 13 → 131–133, and 1/2 carry both
+  NULL and 111/211. **No subtype number is used under two event types**, so a
+  subtype filter is unambiguous.
+- **`ללא תת אירוע` drops NULL subtypes too.** `SubType != 33` cannot match a
+  row whose subtype is NULL, and 118,197 of 149,574 events have none. It is
+  harmless in the one place it is used — goals always carry a subtype (0 NULLs
+  of 9,862), so excluding own goals gives 6,287 − 62 = 6,225, correctly — but
+  the same filter on event type 1, 2 or 5 would silently drop 90–100% of the
+  rows. The templates emit the same SQL, so the layer reproduces it.
+- **Games with no events at all: 51**, plus 65 with no Maccabi event, and 16
+  technical results. A game-grain cell must count them and an event-grain cell
+  must not: for 1951/52 the layer reports 27 games (including 3 eventless) and
+  96 goals. Putting the Team constraint in the WHERE broke exactly this, taking
+  3,504 games down to 3,439.
+
 ## Testing
 
 There is no Lua interpreter in MediaWiki's path here, so tests run against a
