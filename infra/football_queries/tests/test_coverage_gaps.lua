@@ -263,6 +263,21 @@ check('an empty IN list raises rather than emitting IN ()',
 	end)
 
 -- B-class: crashes on live call sites.
+-- The date VALUE is pre-quoted by real callers too: the template requires it,
+-- and the 366 calendar pages pass `תאריך="2021-03-15"` through a variable.
+-- Unquoted, the template silently returns 0.
+check('a pre-quoted date value is accepted, not double-quoted',
+	function(FootballQueries)
+		local expected = 'DATE_FORMAT("2021-03-15", "%d-%m")'
+			.. ' = DATE_FORMAT(Football_Games.Date, "%d-%m")'
+		equals(FootballQueries.build({
+			['תאריך'] = '"2021-03-15"', ['פורמט תאריך'] = '"%d-%m"',
+		}).where, expected, 'quoted value')
+		equals(FootballQueries.build({
+			['תאריך'] = '2021-03-15', ['פורמט תאריך'] = '"%d-%m"',
+		}).where, expected, 'bare value')
+	end)
+
 check('פורמט תאריך is accepted with the quotes real call sites send',
 	function(FootballQueries)
 		local expected = 'DATE_FORMAT("2021-08-22", "%d-%m")'

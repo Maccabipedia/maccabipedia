@@ -186,14 +186,13 @@ comparison reports it.
   parity diff:
 
   1. `יתר-רשמיים` filters instead of being silently ignored.
-  2. Dates are quoted inside `DATE_FORMAT` instead of interpolated bare.
-     **Confirmed live, not inferred:** games on 22-08 are 8 in the database, 0
-     through the template's bare form, 8 through the module's quoted form. An
-     unquoted date is arithmetic — `2021-08-22` → 1991 → `DATE_FORMAT(1991, …)`
-     is NULL — so the condition is never true. Both `ימים` display templates
-     are transcluded by **366 pages**, one per day of the year, and
-     `1 באוגוסט` currently renders `משחקים: 0` against a true 3.
-     This is a re-baseline of those 366 pages, not a parity diff.
+  2. The layer quotes the date itself, where the template requires the caller
+     to pass it **already quoted** (`תאריך="2021-03-15"` → 9;
+     `תאריך=2021-03-15` → 0, silently). The 366 calendar pages do pass the
+     quoted form and render correctly, so **no published number changes** —
+     this removes a trap rather than fixing a bug. Because
+     `Football_Games.Date` is a strip-rule column the layer accepts either
+     form: the caller's quotes are stripped and its own added.
   3. `מפעלים` no longer strips apostrophes, because
      `Football_Games.Competition` keeps them.
   4. **The opponent alias keeps the quote when looking a club up**, so

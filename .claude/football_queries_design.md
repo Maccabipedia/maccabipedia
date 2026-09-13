@@ -328,32 +328,38 @@ explained away by hand. Each also gets a follow-up issue.
 | # | Today's behaviour | Correct behaviour | Reproduce? |
 |---|---|---|---|
 | Q1 | `קטגוריית מפעל=יתר-רשמיים` is silently ignored by `כמות נתוני משחק`, returning the unfiltered total | should filter | **yes**, per-template |
-| Q2 | `תאריך` is interpolated into `DATE_FORMAT` unquoted, which MySQL reads as arithmetic | should be quoted | **no — fix and re-baseline**, see below |
+| Q2 | `תאריך` must arrive pre-quoted; an unquoted value silently yields 0 | the layer quotes it itself and accepts both forms | **not a quirk** — no number depends on it, see below |
 | Q3 | `מפעלים` strips apostrophes before matching `Football_Games.Competition`, which keeps them, so `גביע מלצ'ט` never matches | should not strip | **yes** |
 | Q4 | `{{סטטיסטיקה/אחוזים}}` rounds to two places and `#number_format` rounds again — two roundings, half-up | one rounding | **yes**, the double rounding is observable at boundaries |
 | Q5 | `#arraydefine: מפעלים \|{{{מפעלים}}}` has no default, so the array is built from the literal string when the parameter is absent | harmless today, every use is `#if`-guarded | not applicable — no observable output |
 
-### Q2 is not a quirk to reproduce — it is a live outage on 366 pages
+### Q2 is a pre-quoting convention, and nothing is broken
 
-Measured on production, not inferred:
+`תאריך` must arrive **already quoted** — the same convention as
+`פורמט תאריך="%d-%m"`, whose default in the template is also written with its
+quotes. Measured by expanding the template both ways:
 
-| | games on 22-08 |
-|---|---|
-| the database | **8** |
-| the template's form, `DATE_FORMAT(2021-08-22, …)` | **0** |
-| the module's form, `DATE_FORMAT("2021-08-22", …)` | **8** |
+| `תאריך` value | result | database |
+|---|---|---|
+| `2021-03-15` (unquoted) | **0** | 9 |
+| `"2021-03-15"` (quoted) | **9** | 9 |
 
-An unquoted date is arithmetic: `2021-08-22` evaluates to 1991, and
-`DATE_FORMAT(1991, …)` is NULL, so the condition can never be true. Both
-`ימים` display templates are transcluded by **366 pages** — one per day of the
-year — and `1 באוגוסט` renders `משחקים: 0`. True counts run 3–14 games per
-date; 116 games sit behind the twelve first-of-month dates alone.
+The 366 calendar pages pass `תאריך={{#var:תאריך עבור מאזן יומי}}`, and that
+variable carries the quotes, so they render correctly — verified on `15 במרץ`:
+ליגה 9 = 9, אירופה 0 = 0, כל המסגרות 11 = 11.
 
-So reproducing Q2 would mean deliberately keeping 366 pages broken. It is
-fixed instead, and those pages get a **re-baseline**: capture their numbers
-before and after as two separate fixtures, because every number on them
-changes from 0 to a real value. That is not a parity diff and the harness must
-not be asked to treat it as one.
+**An earlier version of this section claimed those 366 pages were broken. They
+are not.** That claim came from expanding the template with a date value I
+invented, unquoted, rather than the value the caller actually passes. The same
+mistake had just been made about `בית"ר ירושלים`. Expand with the caller's real
+value or render the page; a hand-written parameter is not evidence about
+production.
+
+What remains is a trap, not a defect: an unquoted date yields 0 silently. The
+module removes it by quoting the value itself, and because `Football_Games.Date`
+is a strip-rule column it accepts the pre-quoted form too — the caller's quotes
+are stripped and its own are added. No re-baseline, and Q2 needs no
+reproduction because no published number depends on the broken form.
 
 Q1 is per-template, not global: the same parameter *is* honoured by
 `כמות אירועי שחקן`. The layer therefore needs the quirk scoped to the call
