@@ -512,16 +512,36 @@ function FootballQueries.aggregate(shared, cells, options)
 		end
 
 		-- Modifier parameters such as פורמט תאריך may live in the shared
-		-- filters while the filter they modify lives in a cell, so the handlers
-		-- see the union for lookups and the cell for conditions.
-		local cellBuilder = buildInto(cell.filters or {}, true, union)
+		-- filters while the filter they modify lives in a cell, so a cell's
+		-- handlers look modifiers up in the shared filters plus its OWN - not
+		-- in the union. The union let a later cell's פורמט תאריך overwrite an
+		-- earlier cell's: two cells asking for different date formats both
+		-- rendered the last one, so one of them silently answered a different
+		-- question.
+		local modifiers = {}
+		for name, value in pairs(shared) do
+			modifiers[name] = value
+		end
+		for name, value in pairs(cell.filters or {}) do
+			modifiers[name] = value
+		end
+
+		local cellBuilder = buildInto(cell.filters or {}, true, modifiers)
 		local conditions = {}
 		for _, condition in ipairs(cellBuilder.conditions) do
 			conditions[#conditions + 1] = condition
 		end
 
-		if teamDefaultNeeded and grain == 'event'
-				and not cellBuilder.teamConstrained then
+		-- The side constraint belongs to any cell whose conditions reach the
+		-- events table, whatever its grain. Restricting it to event grain left
+		-- a game-grain cell counting games in which EITHER side did the thing:
+		-- `{grain='game', filters={מספר אירוע=3}}` emitted
+		-- COUNT(DISTINCT CASE WHEN EventType IN (3) THEN _pageID END), and the
+		-- opponent-side rows that make that wrong are the same ones behind the
+		-- 152-versus-150 measurement. A game-grain cell with no event filters
+		-- still gets nothing, which is correct - it counts games, not events.
+		if teamDefaultNeeded and not cellBuilder.teamConstrained
+				and cellBuilder.tables[Fields.roles.events] then
 			conditions[#conditions + 1] = string.format('%s = %s',
 				Fields.roles.sideColumn, Fields.sides.maccabi)
 		end
@@ -558,9 +578,16 @@ function FootballQueries.aggregate(shared, cells, options)
 	-- `groupBy` here and could not work: it never selected the group column, so
 	-- every group came back nil, and its test passed only because the stub
 	-- fabricated the column. It gets written when the leaderboards are.
-	if options.groupBy then
-		error('FootballQueries: aggregate answers one row of cells and cannot '
-			.. 'group - the leaderboard primitive is a separate function', 0)
+	-- Removing the grouped branch left orderBy, having and groupAlias accepted
+	-- and unread, which is the silent-ignore this module exists to refuse.
+	for name in pairs(options) do
+		if name ~= 'limit' then
+			error(string.format(
+				'FootballQueries: aggregate does not take "%s" - it answers one '
+				.. 'row of cells, and grouping, ordering and having belong to '
+				.. 'the leaderboard primitive, which is a separate function',
+				name), 0)
+		end
 	end
 
 	local rows = runCargo(tables, table.concat(fields, ','), {

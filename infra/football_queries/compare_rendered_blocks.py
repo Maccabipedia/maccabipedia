@@ -16,6 +16,7 @@ nine were in the checking and five reported success while comparing nothing.
 import argparse
 import difflib
 import json
+import re
 import subprocess
 import sys
 import urllib.parse
@@ -114,10 +115,21 @@ def assert_wiki_matches_repo() -> None:
          '--status'], capture_output=True, text=True)
     if result.returncode != 0:
         raise SystemExit(f'could not check deployment: {result.stderr[:300]}')
-    if '0 page(s) would change' not in result.stdout:
+    # Parse the count instead of matching a substring. "10 page(s) would
+    # change" CONTAINS "0 page(s) would change", so the obvious check passed
+    # when nothing was deployed at all - the exact case it exists to catch,
+    # and the guard would then certify a green comparison about code on no
+    # wiki.
+    match = re.search(r'^(\d+) page\(s\) would change', result.stdout,
+                      re.MULTILINE)
+    if not match:
         raise SystemExit(
-            'the wiki modules differ from the repo - run deploy_modules.py '
-            'before comparing:\n' + result.stdout)
+            'could not read the deployment status:\n' + result.stdout)
+    changed = int(match.group(1))
+    if changed:
+        raise SystemExit(
+            f'{changed} page(s) differ between the wiki and the repo - run '
+            'deploy_modules.py before comparing:\n' + result.stdout)
     print('  (deployed modules match the repo)')
 
 
@@ -247,6 +259,9 @@ def assert_module_is_in_the_path() -> None:
 
 
 def run_cases(renderer: bool = False) -> int:
+    # Every path, not just --tabs: a comparison that might be describing stale
+    # code is not evidence whichever mode produced it.
+    assert_wiki_matches_repo()
     if renderer:
         assert_renderer_is_in_the_path()
     else:

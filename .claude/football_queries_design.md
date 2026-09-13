@@ -399,6 +399,24 @@ is a strip-rule column it accepts the pre-quoted form too — the caller's quote
 are stripped and its own are added. No re-baseline, and Q2 needs no
 reproduction because no published number depends on the broken form.
 
+### Two more divergences, found by review and not yet decided
+
+| | template | this layer |
+|---|---|---|
+| `יריבה` + `יריבות` together | `יריבות` wins; `יריבה` is the *else* branch of a nested `#if` | both conditions are ANDed, so the result is the intersection |
+| a shared `מכבי` beside a game-grain cell | not expressible — the templates have no merged query | the side condition lands in the WHERE, so games with no events drop out: 3,439 of 3,504 |
+
+The first is a real parity difference and belongs in the register: with both
+parameters supplied, the template answers one question and the layer answers
+another. Nothing passes both today.
+
+The second is a semantic question rather than a bug. With a shared `מכבי` the
+caller has asked about one side's events, and a game-grain cell in the same
+query then counts games that *have* such events — excluding eventless games is
+arguably right. It is recorded because it makes the same cell answer
+differently depending on whether the caller passed the default explicitly, and
+that must not be discovered later as a surprise.
+
 Q1 is per-template, not global: the same parameter *is* honoured by
 `כמות אירועי שחקן`. The layer therefore needs the quirk scoped to the call
 site being replaced, which is an argument for retiring the old templates

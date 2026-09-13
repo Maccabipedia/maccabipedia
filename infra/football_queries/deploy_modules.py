@@ -47,6 +47,9 @@ WIKI_PAGES = {
     'Category_Lua_modules.wiki': 'קטגוריה:יחידות לואה',
     'Category_Football_statistics_modules.wiki':
         'קטגוריה:יחידות לואה/סטטיסטיקת כדורגל',
+    # The /תיעוד pages file themselves here, so it must exist or they sit in a
+    # red-linked category.
+    'Category_Module_doc_pages.wiki': 'קטגוריה:דפי תיעוד של יחידות',
     'Module_FootballQueries_tiud.wiki': 'Module:FootballQueries/תיעוד',
     'Module_FootballQueries_Fields_tiud.wiki':
         'Module:FootballQueries/Fields/תיעוד',

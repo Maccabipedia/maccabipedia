@@ -141,7 +141,7 @@ template's own parameters:
 
 Measured on production 2026-09-13. `verify_edge_cases.py` runs the module's own
 SQL for each of these against production, read-only, and compares it with an
-independently written query — 16/16 agree, and it carries a selftest that
+independently written query — 25/25 agree, and it carries a selftest that
 proves it can fail.
 
 - **A club whose name carries a quote.** `בית"ר ירושלים` (173 games) and
@@ -149,9 +149,10 @@ proves it can fail.
   expansion, because the games table stores the normalised spelling and the
   lookup keeps the raw one.
 - **One player name on both teams in the same game.** Nine name/game pairs
-  exist — `אברהם לוי` in `מכבי תל אביב נגד מכבי יפו`, 1975, and others. The
-  layer counts 310 events for Maccabi's side and 28 for the opposing one, which
-  is the whole reason the Team constraint is not optional.
+  exist. Pinned to the single game, because a career total would not show the
+  confusion: `אלון נתן` on 1986-05-24 is 2 events for Maccabi and 1 against,
+  and `אברהם לוי` on 1975-03-01 is 2 and 2 — where a leak is invisible in the
+  total and only the per-side comparison catches it.
 - **The event/subtype matrix.** Subtype numbers are namespaced by their event:
   3 → 30–39, 4 → 40–46, 7 → 71–74, 8 → 81–84, 13 → 131–133, and 1/2 carry both
   NULL and 111/211. **No subtype number is used under two event types**, so a
@@ -163,10 +164,11 @@ proves it can fail.
   the same filter on event type 1, 2 or 5 would silently drop 90–100% of the
   rows. The templates emit the same SQL, so the layer reproduces it.
 - **Games with no events at all: 51**, plus 65 with no Maccabi event, and 16
-  technical results. A game-grain cell must count them and an event-grain cell
-  must not: for 1951/52 the layer reports 27 games (including 3 eventless) and
-  96 goals. Putting the Team constraint in the WHERE broke exactly this, taking
-  3,504 games down to 3,439.
+  technical results. Metadata numbers must include them: for 1941/42 — 31
+  games, 6 of them eventless, 1 technical — the layer reports wins 24, draws 3,
+  losses 4 and all games 31, which sums, and the query does not join the events
+  table at all. Putting the Team constraint in the WHERE broke exactly this,
+  taking 3,504 games down to 3,439.
 
 ## Documenting and categorising a module
 

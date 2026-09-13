@@ -258,17 +258,48 @@ check('the game-count shim refuses an option its template never had',
 		end)
 	end)
 
-check('the game-count shim still takes every filter its template had',
+-- All eighteen, not a sample. A filter missing from the declared list breaks a
+-- live call site on migration day, and dropping either date parameter was
+-- invisible to every suite - while the 366 ימים calendar pages pass exactly
+-- those two.
+check('the game-count shim takes every one of its template\'s parameters',
 	function(FootballQueries)
-		stub.willReturn({ { n = '5' } })
-		local frame = { args = {}, getParent = function()
-			return { args = {
-				['עונה'] = '2021/22', ['קטגוריית מפעל'] = 'ליגה',
-				['מאמן'] = 'אבי נמני', ['אצטדיון'] = '', ['יריבות'] = '',
-				['תוצאה'] = 'ניצחון', ['סט מדים'] = '', ['שופט'] = '',
-			} }
-		end }
-		equals(FootballQueries.gameDataCount(frame), '5', 'accepted')
+		local declared = {
+			'אצטדיון', 'אצטדיונים', 'יריבה', 'יריבות', 'מאמן',
+			'מפעל מקורי', 'מפעל נוכחי', 'מפעלים', 'סט מדים', 'עוזר שופט',
+			'עונה', 'פורמט תאריך', 'קטגוריית מפעל', 'שופט', 'תאריך',
+			'תוצאה', 'תוצאה יריבה', 'תוצאה מכבי',
+		}
+		for _, name in ipairs(declared) do
+			stub.install()
+			stub.willReturn({ { name = 'x' } })   -- for any alias expansion
+			stub.willReturn({ { n = '5' } })
+			local module = stub.loadModule()
+
+			-- A value that is valid for whichever filter this is.
+			local value = '1'
+			if name == 'תוצאה' then value = 'ניצחון'
+			elseif name == 'קטגוריית מפעל' then value = 'ליגה'
+			elseif name == 'תאריך' then value = '2021-08-22'
+			elseif name == 'פורמט תאריך' then value = '"%d-%m"'
+			elseif name == 'עונה' then value = '2021/22'
+			end
+
+			local frame = { args = {}, getParent = function()
+				-- פורמט תאריך alone modifies nothing, so pair it with a date.
+				local args = { [name] = value }
+				if name == 'פורמט תאריך' then
+					args['תאריך'] = '2021-08-22'
+				end
+				return { args = args }
+			end }
+
+			local ok, result = pcall(module.gameDataCount, frame)
+			if not ok then
+				error(string.format('%s was refused: %s', name,
+					tostring(result)), 0)
+			end
+		end
 	end)
 
 -- M9: the rounding test used 150.0000, where floor, ceil and round agree.

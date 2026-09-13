@@ -66,11 +66,33 @@ end
 --- A number the way {{#חשב: … round 2}} prints one: half away from zero, and
 --- trailing zeros omitted, so 0.5 is "0.5" and 1 is "1" rather than "1.00".
 local function expression(value)
-	-- The epsilon is not cosmetic. MediaWiki's #expr rounds through PHP, which
-	-- corrects for binary representation; Lua's floor does not. 29 goals in 200
-	-- appearances is 0.145, stored as slightly under, so the template printed
-	-- 0.15 and this printed 0.14 - one of 26 diverging pairs under 700
-	-- appearances, 23/40 among them.
+	-- Half away from zero, as #expr rounds - not half up. Identical for the
+	-- positive ratios this block shows, and wrong the day a signed statistic
+	-- reuses it: #expr gives -0.15 for -29/200 where half-up gives -0.14.
+	--
+	-- The epsilon is not cosmetic either. MediaWiki rounds through PHP, which
+	-- corrects for binary representation; Lua's floor does not. 29 goals in
+	-- 200 appearances is 0.145, stored as slightly under, so the template
+	-- printed 0.15 and this printed 0.14 - one of 26 diverging pairs under 700
+	-- appearances.
+	--
+	-- It must stay this small. For a ratio of whole numbers g/a the distance
+	-- to a .xx5 boundary is at least 1/(2a), so 1e-9 cannot move a value until
+	-- roughly 5e8 appearances, while a coarser 1e-3 rounds 253/501 to 0.51
+	-- where #expr says 0.5.
+	-- Every ratio this block shows is non-negative, so the sign case is not
+	-- handled - it is refused. Silently rounding a negative half-UP here would
+	-- disagree with #expr, which rounds half away from zero (-0.145 is -0.15
+	-- there and -0.14 with half-up), and a branch no input can reach is a
+	-- branch no test can check. Whoever reuses this for a signed statistic has
+	-- to add the sign deliberately.
+	if value < 0 then
+		error(string.format(
+			'FootballPlayerEvents: expression() is for non-negative ratios, '
+			.. 'got %s - #expr rounds half away from zero and this does not',
+			tostring(value)), 0)
+	end
+
 	local rounded = math.floor(value * 100 + 0.5 + 1e-9) / 100
 	local text = string.format('%.2f', rounded)
 	if text:find('%.') then

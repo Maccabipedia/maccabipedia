@@ -101,18 +101,63 @@ check('the Team default goes into each event cell, not the WHERE',
 			true, 'the cell has it')
 	end)
 
-check('a game-grain cell gets no Team condition', function(FootballQueries)
+-- A game-grain cell with no event filters counts games, so it must NOT be
+-- constrained to one side.
+check('a game-grain cell with no event filters gets no Team condition',
+	function(FootballQueries)
+		stub.willReturn({ { c1 = '1', c2 = '2' } })
+		FootballQueries.aggregate({ ['עונה'] = '2021/22' }, {
+			cell('goals', { ['מספר אירוע'] = '3' }),
+			cell('games', {}, 'game'),
+		})
+		local gameField = stub.calls[1].fields:match('COUNT%(DISTINCT[^,]+')
+		equals(gameField,
+			'COUNT(DISTINCT CASE WHEN 1=1 THEN Football_Games._pageID END)=c2',
+			'distinct games, unconstrained')
+	end)
+
+-- But a game-grain cell whose OWN filters reach the events table does need it,
+-- or it counts games in which either side did the thing. An earlier version
+-- restricted the side constraint to event grain and this test pinned the
+-- absence as if it were intended.
+check('a game-grain cell that filters on events is still constrained to Maccabi',
+	function(FootballQueries)
+		stub.willReturn({ { c1 = '1' } })
+		FootballQueries.aggregate({ ['עונה'] = '2021/22' }, {
+			cell('gamesScoredIn', { ['מספר אירוע'] = '3' }, 'game'),
+		})
+		equals(stub.calls[1].fields,
+			'COUNT(DISTINCT CASE WHEN Games_Events.EventType IN (3)'
+			.. ' AND Games_Events.Team = 1 THEN Football_Games._pageID END)=c1',
+			'side-constrained')
+	end)
+
+check('a game-grain cell may still ask for the opponent side explicitly',
+	function(FootballQueries)
+		stub.willReturn({ { c1 = '1' } })
+		FootballQueries.aggregate({ ['עונה'] = '2021/22' }, {
+			cell('gamesTheyScoredIn',
+				{ ['מספר אירוע'] = '3', ['מכבי'] = 'לא' }, 'game'),
+		})
+		local fields = stub.calls[1].fields
+		equals(fields:find('Games_Events.Team = 0', 1, true) ~= nil, true,
+			'the cell asks for 0')
+		equals(fields:find('Team = 1', 1, true), nil, 'and not also for 1')
+	end)
+
+-- Two cells asking for different date formats: the union as modifier scope let
+-- the later one overwrite the earlier, so both rendered the same format.
+check('each cell keeps its own modifier', function(FootballQueries)
 	stub.willReturn({ { c1 = '1', c2 = '2' } })
-	FootballQueries.aggregate({ ['עונה'] = '2021/22' }, {
-		cell('goals', { ['מספר אירוע'] = '3' }),
-		cell('games', {}, 'game'),
+	FootballQueries.aggregate({}, {
+		{ name = 'dayMonth', grain = 'game',
+		  filters = { ['תאריך'] = '2021-08-22', ['פורמט תאריך'] = '"%d-%m"' } },
+		{ name = 'year', grain = 'game',
+		  filters = { ['תאריך'] = '2021-08-22', ['פורמט תאריך'] = '"%Y"' } },
 	})
 	local fields = stub.calls[1].fields
-	local gameField = fields:match('COUNT%(DISTINCT[^,]+')
-	equals(gameField:find('Team', 1, true), nil, 'no Team in the game cell')
-	equals(gameField,
-		'COUNT(DISTINCT CASE WHEN 1=1 THEN Football_Games._pageID END)=c2',
-		'distinct games')
+	equals(select(2, fields:gsub('"%%d%-%%m"', '')), 2, 'the first cell keeps %d-%m')
+	equals(select(2, fields:gsub('"%%Y"', '')), 2, 'and the second keeps %Y')
 end)
 
 -- The contradiction a review found: the WHERE demanded Team = 1 while the
@@ -252,13 +297,20 @@ end)
 -- The grouped case was accepted and could not work: it never selected the
 -- group column, so every group came back nil. It raises until the leaderboard
 -- primitive is written.
-check('grouping raises rather than returning nils', function(FootballQueries)
-	expectError('cannot group', function()
-		FootballQueries.aggregate({ ['קטגוריית מפעל'] = 'ליגה' }, {
-			cell('goals', { ['מספר אירוע'] = '3' }),
-		}, { groupBy = 'Games_Events.PlayerName' })
+-- Removing the grouped branch left orderBy, having and groupAlias accepted and
+-- unread. An option that is taken and ignored is the failure this whole layer
+-- is a reaction to, so every one of them raises.
+check('grouping and its companions raise rather than being ignored',
+	function(FootballQueries)
+		for _, option in ipairs({ 'groupBy', 'orderBy', 'having',
+		                          'groupAlias' }) do
+			expectError('does not take "' .. option .. '"', function()
+				FootballQueries.aggregate({ ['קטגוריית מפעל'] = 'ליגה' }, {
+					cell('goals', { ['מספר אירוע'] = '3' }),
+				}, { [option] = 'Games_Events.PlayerName' })
+			end)
+		end
 	end)
-end)
 
 -- The sport's facts come from the schema, and these two tests are the only
 -- proof of it: while football is the only sport, a hardcoded 'Football_Games'
@@ -298,6 +350,29 @@ check('the side value comes from the schema - volleyball uses 2', function()
 		'SUM(CASE WHEN Games_Events.EventType IN (3)'
 		.. ' AND Games_Events.Team = 2 THEN 1 ELSE 0 END)=c1',
 		'the default side is whatever the schema says')
+end)
+
+check('the side COLUMN comes from the schema as well', function()
+	stub.install()
+	stub.dataPatch = function(data)
+		data.roles.sideColumn = 'Games_Events.Side'
+		data.columns['Games_Events.Side'] = 'number'
+	end
+	local FootballQueries = stub.loadModule()
+
+	stub.willReturn({ { c1 = '1' } })
+	FootballQueries.aggregate({ ['שחקן'] = 'מישהו' }, {
+		cell('goals', { ['מספר אירוע'] = '3' }),
+	})
+	equals(stub.calls[1].fields:find('Games_Events.Side = 1', 1, true) ~= nil,
+		true, 'the column follows the schema, not a literal')
+end)
+
+check('an explicit limit reaches the query', function(FootballQueries)
+	stub.willReturn({ { c1 = '1' } })
+	FootballQueries.aggregate({ ['עונה'] = '2021/22' },
+		{ cell('games', {}, 'game') }, { limit = 40 })
+	equals(stub.calls[1].options.limit, 40, 'limit passed through')
 end)
 
 check('a plain query takes its side value from the schema too', function()

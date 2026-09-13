@@ -31,15 +31,11 @@ have passed it. This one:
 """
 import json
 import re
-import subprocess
 import sys
 import time
-import urllib.parse
-import urllib.request
 from pathlib import Path
 
 FIXTURE = Path('infra/football_queries/fixtures/golden_numbers.json')
-LOCAL_API = 'http://localhost:8080/api.php'
 # Each render of the four-tab block issues 32 Cargo queries, so six players is
 # roughly 200 against production. Spaced out on purpose; this runs on migration
 # day, not in a loop.
@@ -51,7 +47,6 @@ LOCAL_API = 'http://localhost:8080/api.php'
 SECONDS_BETWEEN_PRODUCTION_RENDERS = 5.0
 
 TABS_TEMPLATE = 'תבנית:סטטיסטיקה/תצוגה/שחקנים/סיכום אירועים'
-SANDBOX_TABS = TABS_TEMPLATE + '/ארגז חול מודול'
 
 # Players present in the local seed, so both sides can render the same block.
 # Nine entity types are covered by verify_edge_cases.py; this file covers the
@@ -66,17 +61,6 @@ PLAYERS = [
 LABELLED = re.compile(
     r'<div class="Top10RowName">(.{1,40}?)</div>'
     r'\s*<span class="Top10RowStat">(.{0,120}?)</span>')
-
-
-def render_local(wikitext: str) -> str:
-    data = urllib.parse.urlencode({
-        'action': 'parse', 'text': wikitext, 'title': 'עונת 2021/22',
-        'contentmodel': 'wikitext', 'prop': 'text', 'formatversion': 2,
-        'disablelimitreport': 1, 'format': 'json',
-    }).encode('utf-8')
-    request = urllib.request.Request(LOCAL_API, data=data)
-    with urllib.request.urlopen(request, timeout=180) as response:
-        return json.loads(response.read().decode('utf-8'))['parse']['text']
 
 
 def render_production(wikitext: str) -> str:
@@ -106,21 +90,38 @@ def statistics(html: str) -> dict:
     return found
 
 
-def read_local(title: str) -> str:
-    result = subprocess.run(
-        ['docker', 'compose', '-f', 'infra/local-wiki/docker-compose.yml',
-         'exec', '-T', 'mediawiki', 'php', 'maintenance/getText.php', title],
-        capture_output=True, text=True)
-    return result.stdout if result.returncode == 0 else ''
-
-
 def call(template: str, player: str) -> str:
     return '{{' + template + '|שחקן=' + player + '}}'
 
 
+def provenance() -> dict:
+    """What the baseline was captured from.
+
+    Without this, a `capture` run after migrating freezes the NEW numbers as
+    the baseline and `verify` then agrees with itself forever. The recorded
+    revision of the template is what makes that visible.
+    """
+    import pywikibot as pw
+
+    from maccabipediabot.common.wiki_login import get_site
+
+    site = get_site()
+    page = pw.Page(site, TABS_TEMPLATE)
+    revision = page.latest_revision
+    return {
+        'captured': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
+        'template': TABS_TEMPLATE,
+        'revision': revision.revid,
+        'revision_timestamp': str(revision.timestamp),
+        'note': 'if the template revision has changed since, this baseline '
+                'may already describe migrated output - re-read before '
+                'trusting a pass',
+    }
+
+
 def capture() -> None:
     FIXTURE.parent.mkdir(parents=True, exist_ok=True)
-    fixture = {}
+    fixture = {'__provenance__': provenance()}
 
     for index, player in enumerate(PLAYERS):
         if index:
@@ -148,6 +149,10 @@ def verify(players: list | None = None, render_as: str = '') -> int:
     exists: a comparison that cannot fail proves nothing either way.
     """
     fixture = json.loads(FIXTURE.read_text(encoding='utf-8'))
+    captured = fixture.pop('__provenance__', None)
+    if captured:
+        print(f'  baseline captured {captured["captured"]} from '
+              f'{captured["template"]} revision {captured["revision"]}')
     if players:
         fixture = {name: values for name, values in fixture.items()
                    if name in players}
@@ -195,6 +200,7 @@ def selftest() -> int:
     what the previous version of this file did.
     """
     fixture = json.loads(FIXTURE.read_text(encoding='utf-8'))
+    fixture.pop('__provenance__', None)
     names = sorted(fixture)
     if len(names) < 2:
         raise SystemExit('the selftest needs at least two players captured')

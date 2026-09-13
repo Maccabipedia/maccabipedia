@@ -97,6 +97,9 @@ check('the ratio is formatted the way #expr formats it', function(Events)
 		{ goals = 29, appearances = 200, expected = '0.15' },
 		{ goals = 23, appearances = 40, expected = '0.58' },
 		{ goals = 1, appearances = 8, expected = '0.13' },
+		-- Pins the epsilon's magnitude: a coarser 1e-3 rounds this to 0.51,
+		-- where #expr says 0.5.
+		{ goals = 253, appearances = 501, expected = '0.5' },
 	}
 	for _, case in ipairs(cases) do
 		local stat = statOfRow(Events.renderRows(cellsWith({
@@ -106,6 +109,23 @@ check('the ratio is formatted the way #expr formats it', function(Events)
 			string.format('%d/%d', case.goals, case.appearances))
 	end
 end)
+
+-- The ratio formatter refuses a negative rather than rounding it half-up,
+-- which would disagree with #expr. Reachable only by a cell list that puts a
+-- negative where a ratio is expected, which is a programming error.
+check('a negative ratio raises rather than rounding the wrong way',
+	function(Events)
+		local ok, message = pcall(Events.renderRows, {
+			appearances = -10, substitutions = 0, goals = 5, penaltyGoals = 0,
+			assists = 0, yellows = 0, reds = 0, benchStarts = 0,
+		})
+		if ok then
+			error('expected an error, none raised', 0)
+		end
+		if not tostring(message):find('non-negative ratios', 1, true) then
+			error('wrong error: ' .. tostring(message), 0)
+		end
+	end)
 
 check('benchings can be negative, as the arithmetic allows', function(Events)
 	local stat = statOfRow(Events.renderRows(cellsWith({
