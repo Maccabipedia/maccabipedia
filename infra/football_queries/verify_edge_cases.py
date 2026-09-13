@@ -230,6 +230,7 @@ def main() -> None:
     site = get_site()
     queries = printed_queries()
     failures = selftest(site, queries)
+    hollow: list = []
     print()
 
     for name, (description, expectation) in sorted(EXPECTATIONS.items()):
@@ -242,6 +243,17 @@ def main() -> None:
         actual = run(site, query)
         expected = run(site, expectation)
         ok = actual == expected
+
+        # Agreement at zero proves nothing: a query that matched nothing and a
+        # query that is simply wrong both answer 0. Such a case is reported as
+        # INCONCLUSIVE rather than OK, so it cannot pad the score.
+        if ok and actual in ('0', 'NO ROWS'):
+            print(f'HOLLOW  {name}: both sides are {actual} - this case '
+                  'cannot distinguish right from wrong')
+            print(f'        {description}')
+            hollow.append(name)
+            continue
+
         failures += 0 if ok else 1
         print(f'{"OK  " if ok else "FAIL"}  {name}: module={actual} '
               f'independent={expected}')
@@ -251,7 +263,11 @@ def main() -> None:
     failures += check_metadata(site, queries)
 
     total = len(EXPECTATIONS) + 7
-    print(f'\n{total - failures}/{total} edge-case checks agree')
+    print(f'\n{total - failures - len(hollow)}/{total} edge-case checks agree '
+          f'on a non-zero value')
+    if hollow:
+        print(f'{len(hollow)} case(s) agree only at zero and prove nothing: '
+              f'{", ".join(hollow)}')
     sys.exit(1 if failures else 0)
 
 
