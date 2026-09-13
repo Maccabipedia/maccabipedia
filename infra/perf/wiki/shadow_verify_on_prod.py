@@ -46,28 +46,39 @@ TAB_HEADER = re.compile(r'<div class="tab-header">\s*(.*?)\s*</div>', re.S)
 
 # Each leaderboard section on the page, and the module arguments that should
 # reproduce it -- taken from the display template each section renders.
+# Titles vary by page type for the same leaderboard: a referee page calls the
+# yellow-cards section שיאני צהובים where an opponent page calls it שיאני
+# מוצהבים, though both render the same display template.
 LEADERBOARDS = [
-    ("שיאני הופעות", "מופיעים שונים", "|מספר אירוע=1, 5"),
-    ("שיאני כיבושים", "כובשים שונים", "|מספר אירוע=3 |ללא תת אירוע=33"),
-    ("שיאני בישולים", "שחקנים שונים", "|מספר אירוע=4"),
-    ("שיאני מוצהבים", "שחקנים שונים", "|מספר אירוע=7 |תת אירוע=71"),
+    (("שיאני הופעות",), "מופיעים שונים", "|מספר אירוע=1, 5"),
+    (("שיאני כיבושים",), "כובשים שונים", "|מספר אירוע=3 |ללא תת אירוע=33"),
+    (("שיאני בישולים",), "שחקנים שונים", "|מספר אירוע=4"),
+    (("שיאני מוצהבים", "שיאני צהובים"), "שחקנים שונים",
+     "|מספר אירוע=7 |תת אירוע=71"),
 ]
+SECTION_TITLE = re.compile(r'class="title">')
 
 
-def live_section(page_html: str, section: str) -> str:
+def live_section(page_html: str, names: tuple[str, ...]) -> str:
     """The page's own markup for one records section, by its visible title.
 
-    Anchored on the title and cut at the next one: the four sections use
-    identical classes, so anything looser silently compares the wrong block.
+    Cuts at the NEXT section of any kind, not merely the next one this checker
+    knows about: a referee page carries מאזן and סטטיסטיקה עונתית between the
+    leaderboards, and stopping only at known titles swallowed them -- 8 tab
+    headers where the section has 4.
+
+    Takes the first occurrence deliberately. Referee pages render every section
+    twice, once for שופט ראשי and once for עוזר שופט; the module implements the
+    first and leaves עוזר שופט to the original template.
     """
-    start = page_html.find(f'class="title">{section}<')
-    if start < 0:
-        return ""
-    rest = page_html[start:]
-    others = [rest.find(f'class="title">{other}<')
-              for other, _, _ in LEADERBOARDS
-              if other != section and rest.find(f'class="title">{other}<') > 0]
-    return rest[:min(others)] if others else rest
+    for name in names:
+        start = page_html.find(f'class="title">{name}<')
+        if start < 0:
+            continue
+        rest = page_html[start:]
+        following = SECTION_TITLE.search(rest, pos=len(f'class="title">{name}<'))
+        return rest[:following.start()] if following else rest
+    return ""
 
 
 def deploy() -> None:
@@ -108,14 +119,22 @@ ALIAS_LIST = (
     "{{{{#arraydefine: לשליפה |{{{{#arrayprint: שמות בהיסטוריה}}}}, {{{{PAGENAME}}}} }}}}"
     "{{{{#arrayunique: לשליפה}}}}{{{{#arrayprint: לשליפה}}}}"
 )
-REFEREE_NAME = "{{#replaceset: {{PAGENAME}} |כדורגל:|(שופט)}}"
 CATEGORY_PLAYERS = ("{{סטטיסטיקה/שמות דפים מקטגוריה מופרדים לשליפה "
                     "|שם קטגוריה={{שם הדף}} }}")
 
 
 def expand(api: WikiApi, title: str, wikitext: str) -> str:
-    return api.get(action="expandtemplates", text=wikitext, prop="wikitext",
+    return api.post(action="expandtemplates", text=wikitext, prop="wikitext",
                    title=title, formatversion=2)["expandtemplates"]["wikitext"]
+
+
+def page_wikitext(api: WikiApi, title: str) -> str:
+    page = api.get(action="query", prop="revisions", rvslots="main",
+                   rvprop="content", titles=title,
+                   formatversion=2)["query"]["pages"][0]
+    if "revisions" not in page:
+        return ""
+    return page["revisions"][0]["slots"]["main"].get("content", "")
 
 
 def wrappers_on(api: WikiApi, title: str) -> set[str]:
@@ -136,10 +155,26 @@ def filter_for(api: WikiApi, title: str) -> str:
 
     used = wrappers_on(api, title)
     if "תבנית:אצטדיון כדורגל" in used:
-        return "|אצטדיונים=" + expand(api, title, ALIAS_LIST.format(
-            wrapper="אצטדיון כדורגל/שמירת שמות האצטדיון")).strip()
+        # Unlike opponents, a stadium's historical names are a parameter on the
+        # page itself, not a Cargo lookup -- so build the list the way
+        # תבנית:אצטדיון כדורגל does: that parameter plus the displayed name.
+        source = page_wikitext(api, title)
+        history = re.search(r"\|\s*שמות בהיסטוריה\s*=\s*([^|}\n]*)", source)
+        display = re.search(r"\|\s*שם להצגה\s*=\s*([^|}\n]*)", source)
+        names = [part.strip() for part in
+                 (history.group(1).split(",") if history else []) if part.strip()]
+        names.append(display.group(1).strip() if display else title)
+        return "|אצטדיונים=" + ",".join(dict.fromkeys(names))
     if "תבנית:שופט כדורגל" in used:
-        return "|שופטים=" + expand(api, title, REFEREE_NAME).strip()
+        # The page carries the name Cargo stores (Refs holds "אברהם קליין",
+        # not the page title "כדורגל:אברהם קליין (שופט)"). The template's own
+        # fallback is a #replaceset that cannot strip the suffix -- it replaces
+        # "כדורגל:" WITH "(שופט)" -- so the parameter is the real source.
+        source = page_wikitext(api, title)
+        shown = re.search(r"\|\s*שם להצגה\s*=\s*([^|}\n]*)", source)
+        name = shown.group(1).strip() if shown else \
+            title.split(":", 1)[-1].removesuffix("(שופט)").strip()
+        return "|שופטים=" + name
     if "תבנית:קטגוריית שחקני כדורגל" in used:
         return "|שחקנים=" + expand(api, title, CATEGORY_PLAYERS).strip()
     if title.startswith("קטגוריה:") or title.startswith("פורטל"):
@@ -157,7 +192,7 @@ def numbers_from(text: str) -> list[list[str]]:
 
 def render(api: WikiApi, title: str, wikitext: str) -> str:
     """Expand wikitext in the context of a real page, without saving anything."""
-    return api.get(action="parse", text=wikitext, title=title,
+    return api.post(action="parse", text=wikitext, title=title,
                    contentmodel="wikitext", prop="text",
                    formatversion=2)["parse"]["text"]
 
@@ -195,40 +230,50 @@ def verify(pages: list[str]) -> int:
             "{{#invoke:סטטיסטיקה משחקים|numbersBlock" + filter_arg + "}}"))
 
         print(f"\n{title}")
+        checked = 0
+        # Stadium, referee, portal and category pages carry records but no
+        # numbers block. Skipping the page here -- rather than just this
+        # comparison -- is what let those four types report "all blocks agree"
+        # while nothing at all was compared.
         if not want:
-            print("  no numbers block on this page -- skipped")
-            continue
-        if len(got) != len(want):
+            print("  (no numbers block on this page)")
+        elif len(got) != len(want):
             failures += 1
             print(f"  MISMATCH  module rendered {len(got)} blocks, "
                   f"page has {len(want)}")
-            continue
-        for (label, _), mine, theirs in zip(TABS, got, want):
-            ok = mine == theirs
-            failures += not ok
-            print(f"  numbers/{label:14s} {'ok' if ok else 'MISMATCH'}")
-            if not ok:
-                for row, a, b in zip(ROW_LABELS, mine, theirs):
-                    if a != b:
-                        print(f"      {row:10s} module {a:>8s}   page {b:>8s}")
+        else:
+            for (label, _), mine, theirs in zip(TABS, got, want):
+                ok = mine == theirs
+                failures += not ok
+                checked += 1
+                print(f"  numbers/{label:14s} {'ok' if ok else 'MISMATCH'}")
+                if not ok:
+                    for row, a, b in zip(ROW_LABELS, mine, theirs):
+                        if a != b:
+                            print(f"      {row:10s} module {a:>8s}   "
+                                  f"page {b:>8s}")
 
         # Leaderboards: compare the record VALUES in order, against the values
         # the live page shows in the same section. Which tied player fills the
         # last slot is deliberately different -- the module breaks ties by name,
         # the template left it to the database -- so comparing player names
         # would flag the very change this work intends.
-        for section, noun, events in LEADERBOARDS:
+        for names, noun, events in LEADERBOARDS:
+            section = names[0]
+            page_section = live_section(page_html, names)
+            if not page_section:
+                continue  # this page does not show that leaderboard
             module_html = render(
                 api, title,
                 "{{#invoke:שיאנים|section|כינוי=" + noun + events +
                 filter_arg + "|הגבלה=10}}")
-            page_section = live_section(page_html, section)
 
             for what, pattern in (("values", RECORD), ("headers", TAB_HEADER)):
                 mine = pattern.findall(module_html)
                 theirs = pattern.findall(page_section)
                 ok = mine == theirs
                 failures += not ok
+                checked += 1
                 detail = f"{len(mine)} {what}" if ok else \
                     f"module {len(mine)} vs page {len(theirs)}"
                 print(f"  {section}/{what:8s} "
@@ -236,6 +281,12 @@ def verify(pages: list[str]) -> int:
                 if not ok:
                     print(f"      module: {mine[:6]}")
                     print(f"      page:   {theirs[:6]}")
+
+        # A page where nothing was compared is not a page that passed. Three
+        # separate holes in this checker hid behind exactly that.
+        if checked == 0:
+            failures += 1
+            print("  MISMATCH  nothing on this page was compared")
 
     if skipped:
         print(f"\nskipped {len(skipped)} titles with no page: "

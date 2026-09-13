@@ -52,6 +52,24 @@ class WikiApi:
         params.setdefault("formatversion", "2")
         self._pace()
         response = self.session.get(self.api_url, params=params, timeout=180)
+        return self._payload(response, params)
+
+    def post(self, **params: Any) -> dict[str, Any]:
+        """Same as get, over POST.
+
+        Hebrew percent-encodes to roughly three bytes a character, so a
+        parameter carrying a list of page names -- a category's players, say --
+        reaches api.php's URL limit at a few dozen entries and comes back as
+        HTTP 414. The edge proxy accepts POST on api.php (only the
+        Special:Export form refuses it).
+        """
+        params.setdefault("format", "json")
+        params.setdefault("formatversion", "2")
+        self._pace()
+        response = self.session.post(self.api_url, data=params, timeout=180)
+        return self._payload(response, params)
+
+    def _payload(self, response: Any, params: dict[str, Any]) -> dict[str, Any]:
         if response.status_code != 200:
             raise WikiApiError(
                 f"HTTP {response.status_code} from api.php "
