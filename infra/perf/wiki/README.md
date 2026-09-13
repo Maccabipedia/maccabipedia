@@ -257,10 +257,50 @@ an `ORDER BY`. A raw HTML diff can never validate a change there — compare the
 rendered *values* instead. This is a pre-existing bug, unrelated to the work
 here, and worth fixing on its own.
 
+## What has been verified against production
+
+Nothing here is called by a production template. But the modules have been run
+against production's data — 8,367 games across a century, against the local
+wiki's 222 from 2021 onward — and compared with what production displays today.
+
+| check | scope | result |
+|---|---|---|
+| `verify_numbers_against_prod.py` | 33 pages | 1,188 numbers |
+| `shadow_verify_on_prod.py` | 196 pages | 2,084 blocks |
+| `check_shim_parity.py` | 21 argument sets | identical |
+| `check_query_limits.py` | 3 aggregates | 9,569 / 20,000 rows |
+
+All zero mismatches. The two are deliberately different in kind:
+`verify_numbers_against_prod.py` re-derives the nine numbers **in Python from
+the original wikitext's semantics** and checks them against the live page — two
+independent implementations agreeing, rather than a diff that would pass if both
+sides were wrong the same way. `shadow_verify_on_prod.py` then runs the **real
+Lua** against the same data.
+
+The 196 pages cover every affected type: opponents, seasons (1922 to 2026/27),
+stadiums, referees, sub-categories, and the bare `קטגוריה:שחקנים` /
+`פורטל שחקנים` pages — the only ones that reach `mw.loadData`, i.e. the 32 → 1
+case. Compared per page: each tab of the numbers block, every leaderboard record
+value in order, and every tab-header distinct count.
+
+**Every defect this found was in the checker, not the modules** — and five of
+the six reported *success* while comparing nothing. A page where nothing was
+compared is now a failure, which is the only reason the last three surfaced.
+
 ## Before deploying any of this to production
 
 - Prod has far more data; re-measure there rather than assuming these ratios.
-- The modules deliberately reject parameters they do not implement. Check no
-  production page passes a filter that is only supported by the old templates.
+  The values are verified (above); the **timings** are not — every figure in
+  this file is from the local wiki.
 - Goalkeeper statistics still route through the existing templates
   (`SUM(ResultOpponent)` and opponent events are not in the module's query).
+- `עוזר שופט` is not implemented and must keep its original template. Referee
+  pages render every section twice, once for שופט ראשי and once for עוזר שופט;
+  only the first is covered here.
+- The modules reject parameters they do not implement, but a wrapper that
+  forwards a fixed list can drop one before that guard ever sees it. That is a
+  real bug this work already shipped once —
+  see `check_shim_parity.py` and the note in §3 of the structure knowledge file.
+- Three module pages may still be on production from the shadow run
+  (`shadow_verify_on_prod.py cleanup` removes them). They are inert, but they
+  are also not reviewed content.
