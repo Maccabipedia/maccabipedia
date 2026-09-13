@@ -1,0 +1,417 @@
+# Football Query Layer — Design
+
+**Date:** 2026-09-13
+**Status:** awaiting review
+**Scope of this spec:** the query layer, plus one display block carried
+end-to-end to prove its interface.
+
+The living reference for the delivered code is `.claude/football_queries.md`.
+This document is the design and the decisions behind it; where the two
+disagree, the reference describes what exists and this describes what was
+agreed.
+
+(Kept in `.claude/` rather than `docs/superpowers/specs/` because that path is
+gitignored in this repo, and a design nobody can read is not a design.)
+
+## 1. Problem
+
+MaccabiPedia's football statistics are rendered by 46 display templates under
+`קטגוריה:סטטיסטיקה/תצוגה/` calling 20 query templates under
+`…/שליפות/`. All 20 `#cargo_query` calls live in the query templates; the
+display templates issue none. The layering is already right. Two things are
+wrong with it:
+
+**One query per number.** `סיכום אירועים לפי מפעל` calls
+`כמות אירועי שחקן` 8 times, and the block above it renders 4 tabs, so 32 Cargo
+queries produce one player's events column. The leaderboards are worse: 16
+templates × 8 calls = 128 call sites on `שיאני כמות אירועי שחקן`. A player page
+issues ~4,200 SQL statements, of which only ~12% are data queries — the cost is
+query *count*, and Scribunto keeps no module state between `#invoke` calls, so
+the only way to reduce it is for one invoke to render a whole block.
+
+**Every query template re-implements the boundary.** Each carries its own join
+graph, quote rules, competition flags and row handling, and they have drifted:
+
+- `קטגוריית מפעל=יתר-רשמיים` filters in `כמות אירועי שחקן` and is **silently
+  ignored** by `כמות נתוני משחק`, which returns the unfiltered total.
+- Three different SQL escaping strategies across the templates.
+- `בית/חוץ` is documented as a missing parameter in the two biggest templates
+  while `Football_Games.HomeAway` exists and three siblings implement it.
+- The templates carry `[[קטגוריה:אין טיפול בשגיאות]]` on their own pages —
+  there is no error handling by design.
+
+A dropped filter does not look like a failure. It looks like a number.
+
+## 2. Decisions
+
+| # | Decision | Consequence |
+|---|---|---|
+| 1 | Spec covers the query layer **plus one display vertical** (`סיכום אירועים לפי מפעל`, 32 queries → 1) | The interface meets a real consumer before eight more families are built on it. Each remaining display family gets its own short spec. |
+| 2 | **Bug-for-bug parity first**; known bugs fixed later as separate, visible changes | Any diff the harness reports is a regression, needing no human judgement. Costs a deliberate quirk-reproduction register (§7). |
+| 3 | **All sports eventually, football now.** The tables differ per sport anyway | Sport facts live in data from day one; the engine carries **no** football literals — base table and table roles come from the schema. |
+| 4 | **New modules; migrate call sites; retire the old templates** | Requires a call-site inventory that cannot miss one (§10), and a tripwire before deletion rather than after. |
+| 5 | **Byte-identical HTML** for the display block | The harness can diff whole rendered pages, so any difference at all is a defect. The Lua reproduces existing markup including its oddities. |
+| 6 | **Local wiki until the vertical is proven**, then one low-traffic page | Nothing reaches production until the query layer and the block are complete and byte-identical locally. Prod-scale parity still needs a read-only shadow check, because the local wiki seeds only football 2021/22–2024/25 (222 games, 15,540 events). |
+
+## 3. Architecture
+
+Five module pages, dependencies pointing one way only. `Module` is the
+canonical name of namespace 828; the wiki displays it localised as `יחידה` and
+the API normalises `Module:X` → `יחידה:X`, so either spelling reaches the page.
+
+```
+Module:FootballPlayerEvents      renderer: cells → byte-identical HTML
+    │  reads
+    ├── Module:FootballStatsBlocks    data: cell definitions + formatting
+    │  calls
+    └── Module:FootballQueries        binding: football's public API
+            │  reads
+            ├── Module:FootballSchema     data: tables, columns, filters
+            │  calls
+            └── Module:CargoQuery         engine: SQL building + execution
+```
+
+- **Nothing depends upward.** A display module never touches `Module:CargoQuery`
+  directly; it only knows `Module:FootballQueries`.
+- **The two data pages are read with `mw.loadData`.** That is one of only two
+  caches that survive the `#invoke` boundary, so the schema and the cell
+  definitions are parsed once per page however many blocks render. They must
+  contain no functions and no metatables.
+- **`Module:CargoQuery` holds no sport literals.** Every table name, column,
+  filter and role arrives in the schema table it is handed. This is what makes
+  a second sport a new data page rather than surgery on a module ~500 pages
+  depend on.
+
+### Why five and not three
+
+The engine/binding split is the only one that is arguably premature, and it is
+the one that pays for decision 3: extracting an engine later means editing a
+live module under load. The data/logic splits are free — `loadData` pages cost
+nothing extra to parse and let the harness check 32 cell definitions without
+rendering anything. Separating cell *definitions* from *rendering* is what
+makes the block testable at all.
+
+### Repository layout
+
+Source of truth is the repo; the wiki copy is deployed from it and never edited
+on the wiki and copied back.
+
+```
+infra/football_queries/
+  Module_CargoQuery.lua              → Module:CargoQuery
+  Module_FootballSchema.lua          → Module:FootballSchema
+  Module_FootballQueries.lua         → Module:FootballQueries
+  Module_FootballStatsBlocks.lua     → Module:FootballStatsBlocks
+  Module_FootballPlayerEvents.lua    → Module:FootballPlayerEvents
+  deploy_modules.py                  publish repo → wiki (idempotent, --dry-run, --revert)
+  capture_golden_numbers.py          baseline capture + selftest
+  compare_rendered_pages.py          byte-identical page diff, local and prod-shadow
+  tests/
+    stub_mw.lua                      the mw environment, stubbed
+    test_cargo_query.lua
+    test_football_queries.lua
+    test_football_stats_blocks.lua
+    test_football_player_events.lua
+  fixtures/
+    golden_numbers.json
+    rendered_blocks/                 before/after HTML for the diff harness
+```
+
+`deploy_modules.py` is part of the deliverable, not an afterthought: five module
+pages that must move together need one idempotent publisher with a dry-run and
+a revert, or the wiki and the repo drift the first time someone is in a hurry.
+
+## 4. Interfaces
+
+### `Module:CargoQuery`
+
+```lua
+local engine = require('Module:CargoQuery')
+
+engine.build(schema, filters)   --> { tables, join, where }
+engine.run(schema, query, options)  --> rows
+```
+
+`schema` is the loaded data table (§4.2). `filters` is a map of filter name to
+value. `options` is English — `fields`, `groupBy`, `orderBy`, `having`,
+`limit` — because it is this code's own interface, not the wiki's.
+
+Rules the engine enforces, and they are errors rather than fallbacks:
+
+- A filter name absent from `schema.filters` raises, naming the offender.
+- A column with no declared quote rule raises rather than guessing.
+- A value that cannot be quoted safely (a double quote inside a
+  quote-keeping column) raises rather than being mangled.
+- A result whose row count reached the limit raises.
+- Filters and joined tables are emitted in **sorted** order, so the same filter
+  set always builds byte-identical SQL.
+
+### `Module:FootballSchema` (data)
+
+```lua
+return {
+  baseTable = 'Football_Games',
+  roles = { events = 'Games_Events' },     -- named roles, so the engine has no literals
+  tables = { <name> = { base = true } | { join = '<condition>' } },
+  columns = { ['<Table.Column>'] = 'strip' | 'keep' | 'number' },
+  filters = { ['<Hebrew name>'] = { column = '<Table.Column>', kind = '<handler>' } },
+  competitionCategories = { ['<value>'] = '<SQL condition>' },
+  resultWords = { ['ניצחון'] = 1, ['תיקו'] = 2, ['הפסד'] = 3 },
+  aliases = { stadium = {...}, opponent = {...} },
+  optionParams = { ['נתון משחק'] = 'aggregate', ['הגבלה'] = 'limit' },
+  aggregates = { ['כיבושים'] = 'SUM(...)', ['ספיגות'] = 'SUM(...)' },
+  defaults = { events = { ['Games_Events.Team'] = 1 } },   -- see §6
+  defaultLimit = 500, maxLimit = 5000,
+}
+```
+
+Filter names stay Hebrew: they are the templates' published contract and the
+values they match are Hebrew Cargo data. Everything else is English.
+
+### `Module:FootballQueries` (binding)
+
+```lua
+FootballQueries.count(filters, aggregate)        --> number
+FootballQueries.rows(filters, options)           --> rows
+FootballQueries.aggregate(filters, cellSpecs)    --> { [cellName] = value }
+```
+
+It loads the schema, performs alias expansion (one extra query each for
+`אצטדיון` / `יריבה`, only when present), and is the only module a display
+module may call.
+
+`aggregate` is the merge primitive: given shared filters and a list of
+`{ name, filters }` cell deltas, it builds one query whose fields are one
+conditional aggregate per cell and returns every value. It takes the cell list
+as an **argument** and never reads `Module:FootballStatsBlocks` — "which cells
+make up a block" is a display concern, so the dependency stays pointing one
+way. That is also what lets the engine be tested with cell lists that belong to
+no block.
+
+### `Module:FootballStatsBlocks` (data)
+
+Each block names its cells, each cell carries its own filter delta and its
+format. This is the part a merge gets wrong silently, so it is data that can be
+diffed, not code:
+
+```lua
+['player-events'] = {
+  cells = {
+    { name = 'appearances', filters = { ['מספר אירוע'] = '1,5' }, format = 'integer' },
+    { name = 'goals',       filters = { ['מספר אירוע'] = '3'   }, format = 'integer' },
+    { name = 'goalsRatio',  derived = 'goals / appearances',      format = 'ratio2' },
+    ...
+  },
+  tabs = { 'ליגה', 'גביע', 'בינלאומי', 'רשמי' },   -- קטגוריית מפעל values
+}
+```
+
+### `Module:FootballPlayerEvents` (renderer)
+
+```
+{{#invoke:FootballPlayerEvents|prime|שחקן={{PAGENAME}}}}   once, before the tab strip
+{{#invoke:FootballPlayerEvents|tab|קטגוריית מפעל=ליגה}}     inside each tab
+```
+
+`prime` runs one query, computes all 32 cells, renders each tab's HTML and
+stashes it with `frame:callParserFunction('#vardefine', …)` — the other cache
+that survives `#invoke`. Each `tab` call reads its variable. The four-way call
+structure and the signed `<shtml>` strip are untouched, which is what keeps the
+HTML byte-identical.
+
+## 5. Data flow, one player page
+
+1. The wrapper template calls `prime` with the page's player name.
+2. The renderer reads the block's cell list from `Module:FootballStatsBlocks`
+   and hands it to `FootballQueries.aggregate({שחקן = …}, cellSpecs)`, which
+   builds one query whose fields are 32 conditional aggregates — 8 cells × 4
+   competition categories. The categories **overlap** (`רשמי` ⊇ `ליגה`/`גביע`/`בינלאומי`),
+   so `GROUP BY` cannot produce them and conditional sums are the correct tool.
+3. The engine builds `tables`/`join`/`where` from the filters, resolving only
+   the tables the filters reached, and runs it through `mw.ext.cargo.query`.
+4. The renderer formats each cell and `#vardefine`s four blocks of HTML.
+5. Each tab body reads its variable. **One query for the page**, where today's
+   path runs 32.
+
+## 6. Facts this design rests on
+
+All measured against production on 2026-09-13, not assumed. If any of these is
+wrong, the design changes.
+
+- **Cargo's `join on` emits a LEFT JOIN.** A game whose competition has no
+  `Competitions` row survives with NULL columns — 82 such games (`ידידות` 81,
+  `גביע מלצ'ט` 1). Therefore resolving joins from what was asked for **cannot
+  change a row count**; it is a cost decision only. This is what makes step 3
+  above safe.
+- **Conditional aggregates work.** `CASE WHEN`, `IF()`, bare boolean `SUM` and
+  `GROUP BY` on a flag all return correct values through the Cargo API. The
+  pattern is already in use on the wiki — `מספרים עונתיים` builds its numbers
+  with `SUM(CASE WHEN … THEN 1 ELSE 0 END)`. The merge is therefore not novel.
+- **Quote-keeping is per column**, and the table in `maccabipedia_structure_knowledge.md`
+  §16 (on the unmerged `wiki-perf-optimisations` branch) is wrong about the most
+  important one. Keeps quotes: `Football_Games.Competition` (`גביע מלצ'ט`),
+  `CoachMaccabi` (`ג'ורדי קרויף`), `Refs`, `Games_Events.PlayerName`,
+  `Opponents.OriginalName`. Stripped: `Football_Games.Opponent`, `Stadium`,
+  `Competitions.OriginalName`/`CurrentName`, `Stadiums.CanonicalName`.
+  Querying a stripped column with a raw name returns zero rows and no error.
+- **An events query must constrain `Games_Events.Team`.** Every query template
+  touching that table does — `שיאני כמות אירועי שחקן`, `שלושער` and
+  `עונות שבהן שיחק שחקן` hardcode `AND Team = 1`; `כמות אירועי שחקן` and
+  siblings default `מכבי` to it. Without it one player's league goals come back
+  as **152 instead of 150**, because two rows on that page belong to the
+  opposing side. Hence `schema.defaults`.
+- **`mw.ext.cargo.query` bypasses `CargoQuery.php`**, so it performs neither the
+  second LIMIT-less SELECT nor the `cargo_backlinks` DELETE and INSERTs that a
+  `#cargo_query` page view performs. This is a real saving per query, separate
+  from the saving from fewer queries.
+- **`mw.loadData` and `#vardefine` are the only two caches that cross
+  `#invoke`.** Module state does not survive it: 1/5/20/65 calls measured at
+  0.035/0.100/0.341/0.968s CPU, exactly linear.
+- **`HomeAway` has four values**, not two: `בית` 1656, `חוץ` 1721, `נייטרלי`
+  102, `רדיוס` 12, and 13 NULL.
+- **`Games_Results`** maps ניצחון=1, תיקו=2, הפסד=3. Constant, so the layer does
+  not spend a query on it the way `תבנית:המרות/תוצאת משחק למספר` does.
+
+## 7. Quirk register — what bug-for-bug means
+
+Decision 2 says the layer reproduces today's numbers exactly. These are the
+known divergences, each of which must be **deliberately reproduced** and carry
+a test asserting the quirk, so nobody "fixes" it by accident and no diff is
+explained away by hand. Each also gets a follow-up issue.
+
+| # | Today's behaviour | Correct behaviour | Reproduce? |
+|---|---|---|---|
+| Q1 | `קטגוריית מפעל=יתר-רשמיים` is silently ignored by `כמות נתוני משחק`, returning the unfiltered total | should filter | **yes**, per-template |
+| Q2 | `תאריך` is interpolated into `DATE_FORMAT` unquoted, which MySQL reads as arithmetic | should be quoted | **yes** |
+| Q3 | `מפעלים` strips apostrophes before matching `Football_Games.Competition`, which keeps them, so `גביע מלצ'ט` never matches | should not strip | **yes** |
+| Q4 | `{{סטטיסטיקה/אחוזים}}` rounds to two places and `#number_format` rounds again — two roundings, half-up | one rounding | **yes**, the double rounding is observable at boundaries |
+| Q5 | `#arraydefine: מפעלים \|{{{מפעלים}}}` has no default, so the array is built from the literal string when the parameter is absent | harmless today, every use is `#if`-guarded | not applicable — no observable output |
+
+Q1 is per-template, not global: the same parameter *is* honoured by
+`כמות אירועי שחקן`. The layer therefore needs the quirk scoped to the call
+site being replaced, which is an argument for retiring the old templates
+quickly rather than living with a per-caller quirk flag for long.
+
+## 8. Error handling
+
+Three audiences, three behaviours:
+
+- **A page author's mistake** (unknown filter, unknown `קטגוריית מפעל`, unsafe
+  date format, a name that matches no stadium) → a visible error in the
+  rendered page, naming the parameter. Silence here is what shipped the
+  wiki-wide-total bug.
+- **A data problem** (a result that reached the row limit) → a visible error.
+  A truncated leaderboard is a normal-looking table of wrong numbers.
+- **A layer bug** (no quote rule for a column, a column belonging to no known
+  table) → `error()` with the module name, surfacing as a Scribunto error.
+
+No fallbacks, no defaults-on-failure, no `pcall` swallowing. `#invoke` output is
+parsed as wikitext, so error text must not contain tags outside MediaWiki's
+allowlist — `<a>`, `<input>` and `<label>` are escaped.
+
+## 9. Testing
+
+Four layers, cheapest first. The first three need no production.
+
+1. **Stub unit tests** (`lua5.1` + a stubbed `mw`): assert generated SQL, cell
+   definitions and formatting. Milliseconds, no wiki. `mw.ext.cargo.query`
+   returns queued rows and records what it was asked.
+2. **Golden numbers** (`capture_golden_numbers.py`): what the current templates
+   render on production, captured **before** any migration, covering all 32
+   cells of the block plus one entity of each of the nine types. Extraction
+   must be label-anchored, not positional — positional comparison reports every
+   position after a reordering as a false diff.
+3. **Byte-identical page diff** (`compare_rendered_pages.py`): render the
+   wrapper template before and after on the local wiki and diff the HTML. The
+   signed `<shtml>` passes through untouched, so the local wiki's different
+   HMAC secret does not matter.
+4. **Read-only prod shadow**: render the new module's output against production
+   data without editing any page, because the local wiki holds only
+   2021/22–2024/25 and the quirks live in the old seasons.
+
+**Every check must be proven to fail before it is trusted.** Of the defects
+found in the earlier attempt at this work, all nine were in the checking and
+five reported success while comparing nothing. Concretely, each harness ships
+with a mutation: flip a column's quote rule, weaken the row-limit guard from
+`>=` to `>`, corrupt one stored number — and the suite must go red. A green
+first run is not evidence.
+
+## 10. Migration and retirement
+
+Decision 4 retires the old query templates, so every call site must be found.
+`list=embeddedin` **cannot** do this: almost every template wraps its body in
+`<includeonly>`, so the template page's own render never expands its calls and
+no templatelink is recorded. It returns the articles correctly and zero
+templates, which reads like a real answer.
+
+The inventory is therefore:
+
+1. `list=allpages&apnamespace=10`, then `prop=revisions` in batches of ~12
+   (Hebrew titles percent-encode to ~10×; 50 per GET returns HTTP 414), and
+   match the template name in the source. This is the only reliable list of
+   template callers.
+2. `embeddedin` for articles, categories and the sport namespaces, which it
+   does report correctly — 991 pages had the deleted canary template in their
+   last parse, so this list is large and matters.
+
+Then, per template:
+
+3. Migrate its callers to the module.
+4. Replace the old template's body with a **tripwire**: it still returns the
+   right number, and additionally adds a hidden tracking category. Anything
+   missed by the inventory surfaces as a page in that category instead of
+   silently.
+5. Watch the category. Delete only when it stays empty.
+
+Deleting before the tripwire is what put a red link on a live season page
+earlier today: the canary template was deleted outright while ~991 pages still
+referenced it.
+
+## 11. Rollout
+
+1. All five modules and the block built and green on the local wiki, with the
+   byte-identical diff passing.
+2. Read-only prod shadow comparison across the nine entity types.
+3. Modules published to production — they are inert until something calls them.
+4. **One** low-traffic page migrated, watched. The old template body is
+   restorable in one edit, and `deploy_modules.py --revert` restores the module
+   pages.
+5. The rest of the block's call sites, then the tripwire and retirement.
+
+No production write happens without explicit approval at each of steps 3, 4
+and 5.
+
+## 12. Risks
+
+| Risk | Mitigation |
+|---|---|
+| A merged block gets one cell's filter subtly wrong — the `Team` class of bug | Cell definitions are data with per-cell tests; golden fixture covers all 32 cells before migration |
+| 32 conditional aggregates in one query is slower than 32 small queries | Measure on the local wiki with the measurement overlay (`MW_DISABLE_FOREIGN_IMAGES` is required, or the timings measure network latency to prod) before migrating anything |
+| `mw.ext.cargo.query` behaves differently from `#cargo_query` in some way the stub cannot reveal | Step 1 of rollout is a real Scribunto run on the local wiki; the stub is explicitly not evidence about Cargo |
+| The engine/binding split turns out to be premature | It is two small pages; collapsing them later is mechanical, unlike extracting them later |
+| Row limits hit at prod scale but not at local scale | The limit guard raises rather than truncating, and `check_query_limits` measures real sizes against production |
+| A missed call site breaks a page after retirement | The tripwire in §10 turns a silent break into a tracking category |
+
+## 13. Out of scope
+
+Each gets its own spec once this interface is stable: the other eight display
+families; the 128 leaderboard call sites (they need `GROUP BY`, ordering, row
+limits and two parameters the layer does not have — `שופטים`, `תצוגת יחיד`);
+the three `איש צוות` templates (they need `שם לבדיקה`, which reads staff tables,
+not games); `כמות רשומות` (it counts rows of an already-rendered query and is
+obsolete once a block is one query); goalkeeper statistics and `עוזר שופט`,
+which the earlier attempt deliberately left out; and the ten
+`סטטיסטיקה/כדורעף/` templates, which follow the same pattern for volleyball.
+
+## 14. Open questions
+
+1. **PR #190** — merge it as the foundation and build on top, or close it and
+   resubmit the five-module shape as one reviewed change? Its current content is
+   three of the five modules' worth of logic in two pages, and its three
+   departures from template behaviour now contradict decision 2.
+2. **Where the `prime` invoke goes.** It must run before the tab strip, which
+   means editing the wrapper template (`סיכום אירועים`), not only the block.
+   Byte-identical output constrains how that edit can look.
+3. **Whether `Module:CargoQuery` should be named that at all** before a second
+   sport exists, given it will look like a general-purpose utility to the next
+   editor who finds it.

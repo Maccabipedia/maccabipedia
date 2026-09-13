@@ -1,5 +1,7 @@
 # Football Queries — the Lua query layer
 
+Design and the decisions behind it: `.claude/football_queries_design.md`.
+
 `infra/football_queries/` holds the Lua that turns a filter set into one Cargo
 query. **The repo is the source of truth**: the wiki copy is deployed from
 here, never edited on the wiki and copied back.
