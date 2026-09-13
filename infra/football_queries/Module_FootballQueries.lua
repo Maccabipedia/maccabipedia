@@ -369,4 +369,47 @@ function FootballQueries.countFromFrame(frame)
 	return FootballQueries.count(filters, frame.args.aggregate)
 end
 
+--- Splits template parameters into filters and query options, rejecting
+--- anything that is neither.
+local function separate(args)
+	local filters, options = {}, {}
+	for name, value in pairs(args) do
+		local option = Fields.optionParams[name]
+		if option then
+			options[option] = value
+		else
+			filters[name] = value
+		end
+	end
+	return filters, options
+end
+
+--- Drop-in body for a query template, replacing its whole #cargo_query:
+---   {{#invoke:FootballQueries|gameDataCount}}
+---
+--- It reads the *parent* frame, so the template forwards nothing by name and
+--- therefore cannot drop anything. A shim that forwards a fixed parameter list
+--- silently defeats the unsupported-filter guard - that bug shipped once, and
+--- an opponent page asking for its own yellow cards was handed the wiki-wide
+--- total. Enumerating no parameters is the only way the guard stays honest.
+function FootballQueries.gameDataCount(frame)
+	local filters, options = separate(frame:getParent().args)
+
+	local requested = options.aggregate and mw.text.trim(options.aggregate) or ''
+	local aggregate = 'COUNT(*)'
+	if requested ~= '' then
+		aggregate = Fields.aggregates[requested]
+		if not aggregate then
+			error(string.format(
+				'FootballQueries: unknown נתון משחק "%s"', requested), 0)
+		end
+	end
+
+	local value = FootballQueries.count(filters, aggregate)
+	-- The template rounds SUM's float back to an integer with #number_format
+	-- and then strips the thousands separators again; the result is a bare
+	-- integer, rounded half-up.
+	return string.format('%d', math.floor(value + 0.5))
+end
+
 return FootballQueries

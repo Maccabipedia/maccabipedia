@@ -208,5 +208,71 @@ check('the same filter set always builds identical SQL', function(FootballQuerie
 	end
 end)
 
+--- A frame whose parent carries the template's parameters, the way #invoke
+--- sees them from inside a template body.
+local function frameWithParent(args)
+	return {
+		args = {},
+		getParent = function()
+			return { args = args }
+		end,
+	}
+end
+
+check('gameDataCount reads the parent frame, so nothing can be dropped',
+	function(FootballQueries)
+		stub.willReturn({ { n = '220' } })
+		local output = FootballQueries.gameDataCount(frameWithParent({
+			['מאמן'] = 'אבי נמני',
+			['קטגוריית מפעל'] = 'ליגה',
+			['תוצאה'] = 'ניצחון',
+		}))
+		equals(output, '220', 'count')
+
+		local call = stub.calls[1]
+		equals(call.fields, 'COUNT(*)=n', 'aggregate')
+		equals(call.tables, 'Football_Games,Competitions', 'tables')
+		-- Conditions follow the sorted filter names: מאמן, קטגוריית מפעל, תוצאה.
+		equals(call.options.where,
+			'Football_Games.CoachMaccabi = "אבי נמני" AND Competitions.League = 1'
+			.. ' AND Football_Games.ResultOpt = 1', 'where')
+	end)
+
+check('נתון משחק selects the aggregate', function(FootballQueries)
+	stub.willReturn({ { n = '150' } })
+	equals(FootballQueries.gameDataCount(frameWithParent({
+		['נתון משחק'] = 'כיבושים',
+		['עונה'] = '2021/22',
+	})), '150', 'goals for')
+	equals(stub.calls[1].fields,
+		'SUM(Football_Games.ResultMaccabi)=n', 'fields')
+end)
+
+check('SUM comes back as a float and is rounded to an integer',
+	function(FootballQueries)
+		stub.willReturn({ { n = '150.0000' } })
+		equals(FootballQueries.gameDataCount(frameWithParent({
+			['נתון משחק'] = 'ספיגות',
+		})), '150', 'rounded')
+	end)
+
+check('an unknown נתון משחק is an error', function(FootballQueries)
+	expectError('unknown נתון משחק', function()
+		FootballQueries.gameDataCount(frameWithParent({
+			['נתון משחק'] = 'קרנות',
+		}))
+	end)
+end)
+
+-- The trap this entry point exists to close.
+check('a filter the layer does not support still raises through the shim',
+	function(FootballQueries)
+		expectError('unsupported filter "בית או חוץ"', function()
+			FootballQueries.gameDataCount(frameWithParent({
+				['בית או חוץ'] = 'בית',
+			}))
+		end)
+	end)
+
 print(string.format('\n%d passed, %d failed', passed, failed))
 os.exit(failed > 0 and 1 or 0)

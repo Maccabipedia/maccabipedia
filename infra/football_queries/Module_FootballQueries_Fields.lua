@@ -146,6 +146,22 @@ return {
 		},
 	},
 
+	-- Template-facing parameters that choose what to compute rather than which
+	-- rows to match. They are not filters, so they are named here and the
+	-- unsupported-filter guard lets them through instead of rejecting them.
+	optionParams = {
+		['נתון משחק'] = 'aggregate',
+		['הגבלה'] = 'limit',
+	},
+
+	-- נתון משחק values, from כמות נתוני משחק. Cargo's SUM returns a float, and
+	-- the template casts it back with #number_format; this layer rounds instead.
+	aggregates = {
+		['כמות משחקים'] = 'COUNT(*)',
+		['כיבושים'] = 'SUM(Football_Games.ResultMaccabi)',
+		['ספיגות'] = 'SUM(Football_Games.ResultOpponent)',
+	},
+
 	-- Cargo truncates at the row limit silently, so every query the layer runs
 	-- carries a limit and is checked against it.
 	defaultLimit = 500,

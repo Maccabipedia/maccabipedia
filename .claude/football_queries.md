@@ -44,6 +44,33 @@ locals, query options (`fields`, `groupBy`, `limit`) — is English.
   Cargo truncates silently, and a block built from a truncated result is a
   normal-looking table of wrong numbers.
 
+## Replacing a query template
+
+`Module:FootballQueries|gameDataCount` is a drop-in body for a query template —
+it reads the **parent** frame, so the template enumerates no parameters and
+therefore cannot drop one:
+
+```wikitext
+<includeonly>{{#invoke:FootballQueries|gameDataCount}}</includeonly>
+```
+
+That shape is deliberate. A shim that forwards a fixed parameter list silently
+defeats the unsupported-filter guard, which is how an opponent page once asked
+for its own yellow cards and was handed the wiki-wide total. Enumerating
+nothing is the only way the guard stays honest.
+
+Coverage of the 22 query templates, computed from the Lua spec against each
+template's own parameters:
+
+| template | call sites | status |
+|---|---|---|
+| `כמות נתוני משחק` | 34 | drop-in ready (`gameDataCount`) |
+| `כמות אירועי שחקן` | 24 | drop-in ready, `COUNT(*)` only |
+| `שיאני כמות אירועי שחקן` | 128 | needs leaderboard rows, `שופטים`, `תצוגת יחיד` |
+| `משחק הבכורה`, `משחקים מסודרים…`, `שלושער` | 14–20 each | filters covered, output is a formatted table → display layer |
+| the three `איש צוות` templates | — | need `שם לבדיקה` (staff tables, not football games) |
+| `כמות רשומות` | — | counts rows of an already-rendered query; obsolete once a block is one query |
+
 ## Facts measured against production, 2026-09-13
 
 - **Cargo's `join on` emits a LEFT JOIN.** A game whose competition has no
