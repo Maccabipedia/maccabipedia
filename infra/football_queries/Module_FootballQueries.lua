@@ -77,12 +77,13 @@ local function literalByRule(rule, label, value)
 		-- No stored value in this column contains a quote character, so a name
 		-- carrying one must be stripped to match.
 		value = value:gsub('"', ''):gsub("'", '')
-	elseif value:find('"', 1, true) then
-		-- Values here keep apostrophes, which are safe inside double quotes; a
-		-- double quote would end the literal and is rejected rather than mangled.
-		error(string.format(
-			'FootballQueries: %s value contains a double quote: %s', column, value), 0)
 	end
+
+	-- Escape rather than refuse. Opponents.OriginalName really does store a
+	-- literal double quote (בית"ר ירושלים), so refusing one made every Beitar
+	-- query a hard error. Backslash first, or it would double-escape the
+	-- backslashes this adds.
+	value = value:gsub('\\', '\\\\'):gsub('"', '\\"')
 
 	return '"' .. value .. '"'
 end
@@ -154,6 +155,17 @@ end
 --- #cargo_query it never enters CargoQuery.php - no second LIMIT-less SELECT
 --- and none of the cargo_backlinks writes a page view otherwise performs.
 local function runCargo(tables, fields, options)
+	-- A limit that came from wikitext is a string, and "500" > 5000 compares a
+	-- string with a number and raises. Coerce before any comparison.
+	if options.limit ~= nil then
+		local limit = tonumber(options.limit)
+		if not limit then
+			error(string.format(
+				'FootballQueries: הגבלה must be a number, got "%s"',
+				tostring(options.limit)), 0)
+		end
+		options.limit = math.floor(limit)
+	end
 	options.limit = options.limit or Fields.defaultLimit
 	if options.limit > Fields.maxLimit then
 		error(string.format(
@@ -182,12 +194,14 @@ local function expandAliases(kind, value)
 	local rows = runCargo(spec.tables, spec.returnColumn .. '=name', {
 		join = spec.join,
 		where = spec.matchColumn .. ' = '
-			.. literalByRule(spec.quotes, spec.matchColumn, value),
+			.. literalByRule(spec.matchQuotes, spec.matchColumn, value),
 		limit = Fields.defaultLimit,
 	})
 
 	local names = {}
 	for index, row in ipairs(rows) do
+		-- Returned as-is: the caller matches these against a declared column,
+		-- and that column's own quote rule decides whether they are stripped.
 		names[index] = row.name
 	end
 	if #names == 0 then
@@ -263,6 +277,11 @@ handlers.date = function(builder, spec, value, filters)
 	local format = filters['פורמט תאריך']
 	format = (format and mw.text.trim(format) ~= '') and mw.text.trim(format)
 		or '%d-%m-%Y'
+	-- Real call sites pass the format WITH its quotes, because the template
+	-- interpolated it straight into the SQL and its own default was quoted:
+	-- ימים/סיכום תוצאות sends פורמט תאריך="%d-%m". Accept either form and quote
+	-- exactly once, or every one of those call sites is a Scribunto error.
+	format = format:gsub('^"(.*)"$', '%1'):gsub("^'(.*)'$", '%1')
 	if not format:match(SAFE_DATE_FORMAT) then
 		error(string.format(
 			'FootballQueries: unsafe פורמט תאריך "%s"', format), 0)
@@ -287,6 +306,15 @@ function FootballQueries.build(filters)
 	-- keeps the generated query diffable and comparable between runs.
 	local names = {}
 	for name in pairs(filters) do
+		if type(name) ~= 'string' then
+			-- A positional parameter, or a trailing pipe in the template call,
+			-- arrives as a number key. Sorting mixed keys dies inside table.sort
+			-- with "attempt to compare string with number", which tells a page
+			-- author nothing.
+			error(string.format(
+				'FootballQueries: positional parameter %s - every filter must be '
+				.. 'named', tostring(name)), 0)
+		end
 		names[#names + 1] = name
 	end
 	table.sort(names)
@@ -377,7 +405,20 @@ function FootballQueries.countFromFrame(frame)
 			filters[name] = value
 		end
 	end
-	return FootballQueries.count(filters, frame.args.aggregate)
+
+	-- `aggregate` lands in the field list, so it is SQL. Only the declared
+	-- aggregates are allowed through; wikitext must never reach fields.
+	local requested = frame.args.aggregate
+	local aggregate = nil
+	if requested and mw.text.trim(requested) ~= '' then
+		aggregate = Fields.aggregates[mw.text.trim(requested)]
+		if not aggregate then
+			error(string.format(
+				'FootballQueries: unknown aggregate "%s"', requested), 0)
+		end
+	end
+
+	return FootballQueries.count(filters, aggregate)
 end
 
 --- Splits template parameters into filters and query options, rejecting

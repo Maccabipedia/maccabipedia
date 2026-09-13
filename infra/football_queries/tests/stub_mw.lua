@@ -31,12 +31,21 @@ local function loadDataFor(name)
 	if not chunk then
 		error('stub_mw: ' .. tostring(message), 0)
 	end
-	return chunk()
+
+	local data = chunk()
+	-- A seam for testing guards that a correct schema cannot trigger: the
+	-- "column has no declared quote rule" guard needs a filter pointing at an
+	-- undeclared column, which the real schema must never contain.
+	if stub.dataPatch then
+		stub.dataPatch(data)
+	end
+	return data
 end
 
 function stub.install()
 	stub.calls = {}
 	stub.responses = {}
+	stub.dataPatch = nil
 
 	mw = {
 		text = {

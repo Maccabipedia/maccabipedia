@@ -129,20 +129,31 @@ return {
 	-- self-joins, and they are not symmetrical - the stadium table relates rows
 	-- by page and matches on CanonicalName, the opponents table relates rows by
 	-- CanonicalName and matches on OriginalName.
+	-- `matchQuotes` is how the alias table stores the name being looked up, and
+	-- it is declared here rather than read from `columns` because the SQL alias
+	-- prefix (o1., s1.) is not a declared column name. It is NOT symmetrical
+	-- with the games table: Opponents.OriginalName stores בית"ר ירושלים with a
+	-- literal quote while Football_Games.Opponent stores ביתר ירושלים without
+	-- one, so the lookup keeps the quote.
+	--
+	-- There is deliberately no `returnQuotes`. The names coming back are
+	-- quoted by the rule of the column they are matched against, so a second
+	-- knob here would be dead configuration that can silently disagree with
+	-- `columns` - it was, and a mutation test proved it had no effect.
 	aliases = {
 		stadium = {
 			tables = 'Stadiums=s1,Stadiums=s2',
 			join = 's1._pageID = s2._pageID',
 			matchColumn = 's1.CanonicalName',
 			returnColumn = 's2.CanonicalName',
-			quotes = 'strip',
+			matchQuotes = 'strip',
 		},
 		opponent = {
 			tables = 'Opponents=o1,Opponents=o2',
 			join = 'o1.CanonicalName = o2.CanonicalName',
 			matchColumn = 'o1.OriginalName',
 			returnColumn = 'o2.OriginalName',
-			quotes = 'keep',
+			matchQuotes = 'keep',
 		},
 	},
 

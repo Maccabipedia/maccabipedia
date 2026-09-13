@@ -142,11 +142,14 @@ check('HTML-encoded quotes from PAGENAME are normalised', function(FootballQueri
 	equals(query.where, 'Football_Games.Opponent IN ("ביתר ירושלים")', 'where')
 end)
 
-check('a double quote in a quote-keeping column is refused',
+-- Refusing a double quote here was wrong: Opponents.OriginalName genuinely
+-- stores בית"ר ירושלים, so a refusal made every Beitar query a hard error.
+-- It is escaped instead. See test_coverage_gaps.lua for the alias path.
+check('a double quote in a quote-keeping column is escaped',
 	function(FootballQueries)
-		expectError('contains a double quote', function()
-			FootballQueries.build({ ['שחקן'] = 'ערן "הצבר" זהבי' })
-		end)
+		equals(FootballQueries.build({ ['שחקן'] = 'ערן "הצבר" זהבי' }).where,
+			'Games_Events.PlayerName = "ערן \\"הצבר\\" זהבי"'
+			.. ' AND Games_Events.Team = 1', 'escaped')
 	end)
 
 check('תוצאה maps to ResultOpt, and a wrong word is an error',
