@@ -239,7 +239,24 @@ uv run python infra/football_queries/tests/mutate.py   # 83 mutations, 0 may sur
 ```
 
 This gate runs in CI (`.github/workflows/tests.yaml`, job `lua`): it needs no
-wiki, so every PR gets it. The wiki-level harnesses below are local only.
+wiki, so every PR gets it.
+
+**The wiki-level harnesses also gate a PR now.**
+`.github/workflows/football_lua_wiki.yaml` boots `infra/local-wiki/` on the
+runner, restores `infra/local-wiki/fixtures/wiki-snapshot.sql.gz`, deploys the
+modules and renders both paths — 3m27s including a cold image build, and it
+fails on one differing byte. So the byte-identical comparison is no longer
+something a human has to remember to run.
+
+Two things stay outside it, for stated reasons:
+
+- `verify_edge_cases.py` queries **production**, read-only: its cases (a club
+  whose name carries a quote, one player on both teams of one game, the rare
+  subtypes, a season with eventless and technical games) live in old data the
+  local seed does not hold. Making it blocking means seeding those rows into
+  the fixture first.
+- Anything needing production credentials. The CI wiki is built from the repo
+  and the committed snapshot, and reaches nothing else.
 
 Then run it for real, because the stub cannot tell you anything about Cargo or
 Scribunto:

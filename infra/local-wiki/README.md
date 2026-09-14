@@ -144,9 +144,14 @@ without that serves someone else's cached rendering of a page, which would let
 a comparison harness pass while the code under test was wrong.
 
 Measured end to end — `down -v`, rebuild, restore, deploy the Lua modules and
-run all seven football-query harnesses: **1m45s** with the image cached.
+run the football-query harnesses: **1m45s** locally with the image cached, and
+**3m27s** in CI including a cold image build.
 `.github/workflows/football_lua_wiki.yaml` does exactly this on every pull
 request that touches `infra/football_queries/` or `infra/local-wiki/`.
+
+One harness is deliberately left out of CI: `verify_edge_cases.py` queries
+**production** (read-only), because the cases it checks live in old data this
+seed does not hold. Run it by hand.
 
 ## Tear down
 
