@@ -262,9 +262,20 @@ check('variables are namespaced per entity, so two players cannot collide',
 			names[#names + 1] = name
 		end
 		table.sort(names)
-		equals(#names, 4, 'four variables')
-		equals(names[1]:find('FootballStatsBlock/player-events/ערן זהבי/', 1, true), 1,
-			'prefixed and keyed by player')
+
+		-- Four rendered tabs, plus each of the eight cells of each tab stashed
+		-- on its own for a parent template that shows one outside the block.
+		equals(#names, 4 + 4 * 8, 'four tabs and their cells')
+
+		local prefix = 'FootballStatsBlock/player-events/ערן זהבי/'
+		for _, name in ipairs(names) do
+			-- Every one of them, not just the first: a single unkeyed name is
+			-- enough for a comparison page to show one player's numbers under
+			-- the other player's heading.
+			if name:find(prefix, 1, true) ~= 1 then
+				error('not keyed by block and player: ' .. name, 0)
+			end
+		end
 	end)
 
 -- A mutation that made prime put one constant category in every cell survived
@@ -421,6 +432,93 @@ check('a row naming a cell the block does not produce raises', function(Blocks)
 		error('expected an error, none raised', 0)
 	end
 	if not tostring(message):find('no cell named "goalzFor"', 1, true) then
+		error('wrong error: ' .. tostring(message), 0)
+	end
+end)
+
+-- The day tab headers read "ליגה (N משחקים)". N comes from the same primed
+-- query as the block below it, which is what takes a day page from eight
+-- queries to one.
+local DAY_CELLS_PER_TAB = { wins = 2, draws = 1, losses = 0,
+                            goalsFor = 5, goalsAgainst = 2, games = 3 }
+
+--- One row of 24 cells: six cells across four tabs, as prime asks for them.
+local function twentyFourCells(per)
+	local row = {}
+	local index = 0
+	for _ = 1, 4 do
+		for _, name in ipairs({ 'wins', 'draws', 'losses', 'goalsFor',
+		                        'goalsAgainst', 'games' }) do
+			index = index + 1
+			row['c' .. index] = tostring(per[name])
+		end
+	end
+	return row
+end
+
+check('value reads a cell the same query already computed', function(Blocks)
+	stub.willReturn({ twentyFourCells(DAY_CELLS_PER_TAB) })
+	local frame = stub.newFrame({ ['תאריך'] = '"2021-08-22"' },
+		{ ['בלוק'] = 'day-results' })
+	Blocks.prime(frame)
+
+	-- One query for the whole page: the four headers and the four blocks.
+	equals(#stub.calls, 1, 'one query')
+
+	local header = stub.newFrameKeepingVariables({}, {
+		['בלוק'] = 'day-results', ['תא'] = 'games',
+		['קטגוריית מפעל'] = 'ליגה', ['תאריך'] = '"2021-08-22"',
+	})
+	equals(Blocks.value(header), '3', 'games in the league tab')
+	equals(#stub.calls, 1, 'still one query')
+end)
+
+check('value returns empty for a sum with nothing to sum', function(Blocks)
+	-- The same rule the rows use: a header must not print 0 where the block
+	-- below it prints nothing.
+	local empty = twentyFourCells(DAY_CELLS_PER_TAB)
+	empty.c4 = nil
+	stub.willReturn({ empty })
+	local frame = stub.newFrame({ ['תאריך'] = '"1900-01-01"' },
+		{ ['בלוק'] = 'day-results' })
+	Blocks.prime(frame)
+
+	local header = stub.newFrameKeepingVariables({}, {
+		['בלוק'] = 'day-results', ['תא'] = 'goalsFor',
+		['קטגוריית מפעל'] = 'רשמי', ['תאריך'] = '"1900-01-01"',
+	})
+	equals(header and Blocks.value(header), '', 'empty, not 0')
+end)
+
+check('value without prime raises', function(Blocks)
+	local header = stub.newFrame({}, {
+		['בלוק'] = 'day-results', ['תא'] = 'games',
+		['קטגוריית מפעל'] = 'ליגה', ['תאריך'] = '"2021-08-22"',
+	})
+	local ok, message = pcall(Blocks.value, header)
+	if ok then
+		error('expected an error, none raised', 0)
+	end
+	if not tostring(message):find('nothing primed', 1, true) then
+		error('wrong error: ' .. tostring(message), 0)
+	end
+end)
+
+check('value refuses a cell the block does not declare', function(Blocks)
+	stub.willReturn({ twentyFourCells(DAY_CELLS_PER_TAB) })
+	local frame = stub.newFrame({ ['תאריך'] = '"2021-08-22"' },
+		{ ['בלוק'] = 'day-results' })
+	Blocks.prime(frame)
+
+	local header = stub.newFrameKeepingVariables({}, {
+		['בלוק'] = 'day-results', ['תא'] = 'gamez',
+		['קטגוריית מפעל'] = 'ליגה', ['תאריך'] = '"2021-08-22"',
+	})
+	local ok, message = pcall(Blocks.value, header)
+	if ok then
+		error('expected an error, none raised', 0)
+	end
+	if not tostring(message):find('no cell named "gamez"', 1, true) then
 		error('wrong error: ' .. tostring(message), 0)
 	end
 end)

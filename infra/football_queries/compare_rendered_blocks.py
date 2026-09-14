@@ -55,6 +55,12 @@ TAB_CASES = [
     {'שחקן': "דור תורג'מן"},
 ]
 
+# The four-tab parent of the day block. It runs four queries of its own for
+# the tab headers - "ליגה (N משחקים)" - on top of the four blocks below them.
+# prime computes all of it in one query, headers included.
+DAY_TABS_TEMPLATE = 'תבנית:סטטיסטיקה/תצוגה/ימים/סיכום תוצאות'
+SANDBOX_DAY_TABS = DAY_TABS_TEMPLATE + '/ארגז חול מודול'
+
 DAY_BLOCK = 'תבנית:סטטיסטיקה/תצוגה/ימים/סיכום תוצאות לפי מפעל'
 SANDBOX_DAY = DAY_BLOCK + '/ארגז חול מודול'
 DAY_BODY = ('<includeonly>{{#invoke:FootballStatsBlock|block'
@@ -313,6 +319,74 @@ def run_cases(renderer: bool = False) -> int:
     return failures
 
 
+# Whole days rather than a day and a category: each case renders all four
+# tabs. 29-08 has no cup game ever, so one of its four headers reads 0 and its
+# כיבושים cell is empty - the case the block comparison needed too.
+DAY_TAB_CASES = [
+    {'תאריך': '"2021-08-22"'},
+    {'תאריך': '"2021-08-29"'},
+    {'תאריך': '"2022-12-31"'},
+    {'תאריך': '"2021-11-07"'},
+]
+
+
+def day_tabs_candidate() -> str:
+    """The parent template with its four queries replaced by one prime.
+
+    Built by editing the real template rather than by writing a copy: the
+    signed <shtml> tab strip cannot be rebuilt (its hash is an HMAC under a
+    per-wiki secret), and the surrounding markup has to survive byte for byte.
+    """
+    body = read_local(DAY_TABS_TEMPLATE)
+    if not body:
+        raise SystemExit(f'{DAY_TABS_TEMPLATE} is not on the local wiki')
+
+    # prime runs before anything reads a variable. It goes immediately after
+    # <includeonly> so the tab strip that follows is untouched.
+    body = body.replace(
+        '<includeonly>',
+        '<includeonly>{{#invoke:FootballStatsBlock|prime|בלוק=day-results}}',
+        1)
+
+    # The headers keep their #vardefine and their spacing exactly - only the
+    # query inside changes - because the rendered output includes those spaces
+    # and this comparison is byte for byte.
+    for category, variable in (
+            ('ליגה', 'משחקים בליגה'),
+            ('גביע', 'משחקים בגביע המדינה'),
+            ('בינלאומי', 'משחקים באירופה'),
+            ('רשמי', 'משחקים בכל המסגרות')):
+        old = ('{{סטטיסטיקה/שליפות/מתקדמות/כמות נתוני משחק| '
+               f'קטגוריית מפעל={category}| תאריך={{{{{{תאריך|}}}}}}| '
+               'פורמט תאריך="%d-%m"}}')
+        new = ('{{#invoke:FootballStatsBlock|value|בלוק=day-results|תא=games'
+               f'|קטגוריית מפעל={category}|תאריך={{{{{{תאריך|}}}}}}}}}}')
+        if body.count(old) != 1:
+            raise SystemExit(
+                f'the {variable} query is not where this expects it - '
+                'refusing to build a candidate that silently changes nothing')
+        body = body.replace(old, new)
+
+    # Each tab body: the block template becomes the primed tab.
+    for category in ('ליגה', 'גביע', 'בינלאומי', 'רשמי'):
+        for spacing in (
+                '{{סטטיסטיקה/תצוגה/ימים/סיכום תוצאות לפי מפעל| '
+                f'תאריך={{{{{{תאריך|}}}}}}| קטגוריית מפעל={category} }}}}',
+                '{{סטטיסטיקה/תצוגה/ימים/סיכום תוצאות לפי מפעל| '
+                f'תאריך={{{{{{תאריך|}}}}}} |קטגוריית מפעל={category} }}}}'):
+            if spacing in body:
+                body = body.replace(spacing, (
+                    '{{#invoke:FootballStatsBlock|tab|בלוק=day-results'
+                    f'|קטגוריית מפעל={category}'
+                    '|תאריך={{{תאריך|}}}}}'))
+                break
+        else:
+            raise SystemExit(
+                f'the {category} tab body is not where this expects it')
+
+    return body
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--seed', action='store_true',
@@ -327,11 +401,38 @@ def main() -> None:
     parser.add_argument('--day', action='store_true',
                         help='compare the day-results block, the one with 366 '
                              'live callers')
+    parser.add_argument('--day-tabs', action='store_true',
+                        help='compare the whole day page: four headers and '
+                             'four blocks, 8 queries against 1')
     options = parser.parse_args()
 
     if options.seed:
         print('seeding from production:')
         seed_from_production()
+
+    if options.day_tabs:
+        assert_wiki_matches_repo()
+        write_local(SANDBOX_DAY_TABS, day_tabs_candidate())
+
+        baseline = read_local(DAY_TABS_TEMPLATE) or ''
+        if 'FootballStatsBlock' in baseline:
+            raise SystemExit(
+                'the baseline template already invokes the module - this '
+                'would be the module compared with itself')
+
+        failures = 0
+        for params in DAY_TAB_CASES:
+            label = ' '.join(f'{n}={v}' for n, v in params.items())
+            identical, diff = compare(params, DAY_TABS_TEMPLATE,
+                                      SANDBOX_DAY_TABS)
+            if identical:
+                print(f'OK    {label}  (4 headers + 4 blocks, one query)')
+            else:
+                failures += 1
+                print(f'DIFF  {label}\n{diff}')
+        print(f'\n{len(DAY_TAB_CASES) - failures}/{len(DAY_TAB_CASES)} day '
+              'pages byte-identical')
+        sys.exit(1 if failures else 0)
 
     if options.selftest and not (options.tabs or options.day):
         print('--- part 1: identical input must report no difference ---')

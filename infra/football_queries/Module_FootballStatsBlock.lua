@@ -274,6 +274,22 @@ local function variableName(blockName, entity, tab)
 	return string.format('%s/%s/%s/%s', VAR_PREFIX, blockName, entity, tab)
 end
 
+--- One cell of one tab, for a parent template that shows a number outside the
+--- block itself.
+local function cellVariableName(blockName, entity, tab, cell)
+	return variableName(blockName, entity, tab) .. '/' .. cell
+end
+
+--- A cell as the templates print it: an integer, or nothing at all for a sum
+--- with nothing to sum. Same rule as the plainOrEmpty formatter, because a
+--- header and a row showing the same cell must not disagree.
+local function valueText(value)
+	if value == nil then
+		return ''
+	end
+	return string.format('%d', math.floor(value + 0.5))
+end
+
 --- Renders all four tabs from ONE query and stashes each in a page variable.
 ---
 --- Called once, before the tab strip:
@@ -322,6 +338,15 @@ local function prime(frame)
 		local tabCells = {}
 		for _, cell in ipairs(block.cells) do
 			tabCells[cell.name] = values[tab .. '/' .. cell.name]
+			-- Each cell is stashed on its own as well as inside the rendered
+			-- rows, because a parent template shows some of them outside the
+			-- block: the day tabs are headed "ליגה (N משחקים)", and N is the
+			-- games cell this query already computed. Without this the parent
+			-- asks for those four counts in four more queries.
+			frame:callParserFunction('#vardefine', {
+				cellVariableName(blockName, entity, tab, cell.name),
+				valueText(tabCells[cell.name]),
+			})
 		end
 		frame:callParserFunction('#vardefine',
 			{ variableName(blockName, entity, tab),
@@ -364,10 +389,66 @@ local function tab(frame)
 	return value
 end
 
+--- One number that prime already computed, for a parent template that shows it
+--- outside the block:
+---   {{#invoke:FootballStatsBlock|value|בלוק=day-results|תא=games
+---     |קטגוריית מפעל=ליגה|תאריך={{{תאריך|}}}}}
+---
+--- The day tab headers read "ליגה (N משחקים)", and N is the block's own games
+--- cell. Reading it from the primed query is what takes a day page from eight
+--- queries to one; asking for it separately would put four of them back.
+local function value(frame)
+	local blockName = mw.text.trim(frame.args['בלוק'] or DEFAULT_BLOCK)
+	local declaration = Blocks[blockName]
+	if not declaration then
+		error(string.format(
+			'FootballStatsBlock: no block declared as "%s"', blockName), 0)
+	end
+
+	local entity = frame.args[declaration.entity]
+	local category = frame.args['קטגוריית מפעל']
+	local cell = frame.args['תא']
+	if not entity or not category or not cell then
+		error(string.format(
+			'FootballStatsBlock: value needs %s, קטגוריית מפעל and תא',
+			declaration.entity), 0)
+	end
+	cell = mw.text.trim(cell)
+
+	local declared = false
+	for _, entry in ipairs(declaration.cells) do
+		declared = declared or entry.name == cell
+	end
+	if not declared then
+		error(string.format(
+			'FootballStatsBlock: block "%s" has no cell named "%s"',
+			blockName, cell), 0)
+	end
+
+	-- An empty cell is a legitimate answer (a sum with nothing to sum), so
+	-- whether prime ran is decided by the tab's own variable, never by this
+	-- one being empty.
+	local primed = frame:callParserFunction('#var', {
+		variableName(blockName, mw.text.trim(entity), mw.text.trim(category)),
+	})
+	if not primed or mw.text.trim(primed) == '' then
+		error(string.format(
+			'FootballStatsBlock: nothing primed for %s/%s - call '
+			.. '{{#invoke:FootballStatsBlock|prime|בלוק=%s}} first',
+			mw.text.trim(entity), mw.text.trim(category), blockName), 0)
+	end
+
+	return frame:callParserFunction('#var', {
+		cellVariableName(blockName, mw.text.trim(entity),
+			mw.text.trim(category), cell),
+	})
+end
+
 return {
 	block = block,
 	prime = prime,
 	tab = tab,
+	value = value,
 	-- Exposed for the test suite, which asserts the HTML without a frame.
 	renderRows = renderRows,
 }

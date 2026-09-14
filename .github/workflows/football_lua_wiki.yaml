@@ -81,6 +81,9 @@ jobs:
       - name: Day block, the one with 366 callers
         run: uv run python infra/football_queries/compare_rendered_blocks.py --day
 
+      - name: Whole day page, headers included, 28 queries against 1
+        run: uv run python infra/football_queries/compare_rendered_blocks.py --day-tabs
+
       # verify_edge_cases.py is deliberately NOT here. It runs against
       # production, read-only, because the cases it checks - a club whose name
       # carries a quote, one player on both teams of one game, the rare event
