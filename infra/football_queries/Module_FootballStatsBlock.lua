@@ -1,14 +1,15 @@
 --[[
-Module:FootballPlayerEvents - a player's events block from one query.
+Module:FootballStatsBlock - a statistics block from one query.
 
-Wiki page: Module:FootballPlayerEvents
+Wiki page: Module:FootballStatsBlock
 
-Replaces תבנית:סטטיסטיקה/תצוגה/שחקנים/סיכום אירועים לפי מפעל, which asks
-כמות אירועי שחקן for eight numbers one at a time - 32 queries for the four
-tabs above it. This asks once.
+Renders any block declared in Module:FootballStatsBlocks. The player events
+block asks כמות אירועי שחקן for eight numbers one at a time - 32 queries for
+the four tabs above it - and the day-results block asks כמות נתוני משחק for
+six, on 366 calendar pages. Each asks once.
 
-Template body:
-    <includeonly>{{#invoke:FootballPlayerEvents|block}}</includeonly>
+Template body, with the block named on the invoke:
+    <includeonly>{{#invoke:FootballStatsBlock|block|בלוק=day-results}}</includeonly>
 
 The output must be byte-identical to the template's, so the oddities are
 reproduced deliberately and are marked where they are not obvious: the space
@@ -18,7 +19,7 @@ before ")" in "ספסולים )", and MediaWiki's own number formatting.
 
 local FootballQueries = require('Module:FootballQueries')
 
-local BLOCK = 'player-events'
+local DEFAULT_BLOCK = 'player-events'
 
 --- Copies a table out of an mw.loadData proxy.
 ---
@@ -53,7 +54,7 @@ local function need(cells, name)
 	local value = cells[name]
 	if value == nil then
 		error(string.format(
-			'FootballPlayerEvents: the block has no cell named "%s"', name), 0)
+			'FootballStatsBlock: the block has no cell named "%s"', name), 0)
 	end
 	return value
 end
@@ -88,7 +89,7 @@ local function expression(value)
 	-- to add the sign deliberately.
 	if value < 0 then
 		error(string.format(
-			'FootballPlayerEvents: expression() is for non-negative ratios, '
+			'FootballStatsBlock: expression() is for non-negative ratios, '
 			.. 'got %s - #expr rounds half away from zero and this does not',
 			tostring(value)), 0)
 	end
@@ -105,6 +106,16 @@ local formatters = {}
 
 formatters.plain = function(cells, row)
 	return integer(need(cells, row.cell))
+end
+
+--- A summed column with nothing to sum: the template prints an empty cell,
+--- because SUM over no rows is NULL where COUNT is 0.
+formatters.plainOrEmpty = function(cells, row)
+	local value = cells[row.cell]
+	if value == nil then
+		return ''
+	end
+	return integer(value)
 end
 
 formatters.appearancesWithSubstitutions = function(cells)
@@ -136,37 +147,98 @@ formatters.benchStartsWithBenchings = function(cells)
 		integer(benchStarts), integer(benchings))
 end
 
-local function renderRows(cells)
-	local block = Blocks[BLOCK]
+--- Which block an #invoke asked for, and the only argument it may carry.
+local function blockOf(frame)
+	local name = DEFAULT_BLOCK
+	for key, value in pairs(frame.args) do
+		if key ~= 'בלוק' then
+			error(string.format(
+				'FootballStatsBlock: this entry point takes only בלוק, got "%s" '
+				.. '- filters come from the calling template', tostring(key)), 0)
+		end
+		name = mw.text.trim(value)
+	end
+
+	local block = Blocks[name]
+	if not block then
+		error(string.format(
+			'FootballStatsBlock: no block declared as "%s"', name), 0)
+	end
+	return name, block
+end
+
+local function renderRows(block, cells)
+	-- Callers and tests may name the block instead of holding its declaration.
+	if type(block) == 'string' then
+		local named = Blocks[block]
+		if not named then
+			error(string.format(
+				'FootballStatsBlock: no block declared as "%s"', block), 0)
+		end
+		block = named
+	end
+
 	local lines = {}
 
 	for index, row in ipairs(block.rows) do
 		local formatter = formatters[row.format]
 		if not formatter then
 			error(string.format(
-				'FootballPlayerEvents: no formatter named "%s"', row.format), 0)
+				'FootballStatsBlock: no formatter named "%s"', row.format), 0)
 		end
-		lines[index] = string.format(
-			'<div class="Top10Row"><div class="Top10RowName">%s</div>'
-			.. '<span class="Top10RowStat">%s</span></div>',
-			row.label, formatter(cells, row))
+		local shape = block.layout == 'stacked'
+			and '<div class="Top10Row">\n<div class="Top10RowName">%s</div>\n'
+				.. '<span class="Top10RowStat">%s</span></div>'
+			or '<div class="Top10Row"><div class="Top10RowName">%s</div>'
+				.. '<span class="Top10RowStat">%s</span></div>'
+		lines[index] = string.format(shape, row.label, formatter(cells, row))
 	end
 
+	-- Two layouts, because the templates differ and the output must match
+	-- them byte for byte: the player block puts a row on one line, the day
+	-- block stacks the label and the value and separates rows with a blank
+	-- line, ending with one.
+	if block.layout == 'stacked' then
+		return table.concat(lines, '\n\n') .. '\n'
+	end
 	return table.concat(lines, '\n')
+end
+
+--- The caller's parameters, plus whatever constant filters the block declares.
+--- A block's constant filters are part of what the block IS, so a caller that
+--- passes one of them is refused rather than silently overridden or silently
+--- ignored. Either choice would leave a page showing the wrong window of
+--- games with nothing to see in the wikitext.
+local function sharedFilters(block, frame, parentArguments)
+	local shared = parentArguments(frame)
+	for name, value in pairs(block.filters or {}) do
+		if shared[name] ~= nil and mw.text.trim(tostring(shared[name])) ~= '' then
+			error(string.format(
+				'FootballStatsBlock: %s is fixed by this block and cannot be '
+				.. 'passed in', name), 0)
+		end
+		shared[name] = value
+	end
+	return shared
 end
 
 --- Reads the calling template's parameters, so nothing is forwarded by name
 --- and nothing can be dropped. See the same guard in Module:FootballQueries.
 local function parentArguments(frame)
 	local direct = false
-	for _ in pairs(frame.args) do
-		direct = true
-		break
+	for key in pairs(frame.args) do
+		-- בלוק names which block to render; everything else must come from the
+		-- calling template, so that nothing can be forwarded by name and
+		-- silently dropped.
+		if key ~= 'בלוק' then
+			direct = true
+			break
+		end
 	end
 	if direct then
-		error('FootballPlayerEvents: block reads the calling template\'s '
+		error('FootballStatsBlock: block reads the calling template\'s '
 			.. 'parameters and takes none of its own - put it in a template '
-			.. 'body as {{#invoke:FootballPlayerEvents|block}}', 0)
+			.. 'body as {{#invoke:FootballStatsBlock|block}}', 0)
 	end
 
 	local filters = {}
@@ -177,9 +249,10 @@ local function parentArguments(frame)
 end
 
 local function block(frame)
+	local _, declaration = blockOf(frame)
 	local cells = FootballQueries.aggregate(
-		parentArguments(frame), Blocks[BLOCK].cells)
-	return renderRows(cells)
+		sharedFilters(declaration, frame, parentArguments), declaration.cells)
+	return renderRows(declaration, cells)
 end
 
 -- #vardefine variables live for the whole page parse and share one namespace
@@ -188,16 +261,16 @@ end
 -- second block on the same page - a comparison page, say - would overwrite the
 -- first and the tabs would show the other player's numbers under the right
 -- labels.
-local VAR_PREFIX = 'FootballPlayerEvents'
+local VAR_PREFIX = 'FootballStatsBlock'
 
-local function variableName(entity, tab)
-	return string.format('%s/%s/%s', VAR_PREFIX, entity, tab)
+local function variableName(blockName, entity, tab)
+	return string.format('%s/%s/%s/%s', VAR_PREFIX, blockName, entity, tab)
 end
 
 --- Renders all four tabs from ONE query and stashes each in a page variable.
 ---
 --- Called once, before the tab strip:
----   {{#invoke:FootballPlayerEvents|prime}}
+---   {{#invoke:FootballStatsBlock|prime}}
 ---
 --- The strip itself is signed <shtml> whose hash is an HMAC under a per-wiki
 --- secret, so it is never rebuilt - it stays in the template and this only
@@ -205,13 +278,15 @@ end
 --- categories is 32 conditional aggregates in a single query, where the
 --- template runs 32 queries.
 local function prime(frame)
-	local shared = parentArguments(frame)
-	local entity = shared['שחקן']
+	local blockName, block = blockOf(frame)
+	local shared = sharedFilters(block, frame, parentArguments)
+	local entity = shared[block.entity]
 	if not entity or mw.text.trim(entity) == '' then
-		error('FootballPlayerEvents: prime needs שחקן to key its variables', 0)
+		error(string.format(
+			'FootballStatsBlock: prime needs %s to key its variables',
+			block.entity), 0)
 	end
 
-	local block = Blocks[BLOCK]
 	local cells = {}
 	for _, tab in ipairs(block.tabs) do
 		for _, cell in ipairs(block.cells) do
@@ -227,6 +302,9 @@ local function prime(frame)
 				name = tab .. '/' .. cell.name,
 				filters = filters,
 				grain = cell.grain,
+				-- Carried through, or a summing cell quietly becomes a
+				-- counting one and the goals column reads as a game count.
+				sum = cell.sum,
 			}
 		end
 	end
@@ -239,31 +317,41 @@ local function prime(frame)
 			tabCells[cell.name] = values[tab .. '/' .. cell.name]
 		end
 		frame:callParserFunction('#vardefine',
-			{ variableName(entity, tab), renderRows(tabCells) })
+			{ variableName(blockName, entity, tab),
+			  renderRows(block, tabCells) })
 	end
 
 	return ''
 end
 
 --- Reads one tab that prime already rendered:
----   {{#invoke:FootballPlayerEvents|tab|קטגוריית מפעל=ליגה|שחקן={{{שחקן}}}}}
+---   {{#invoke:FootballStatsBlock|tab|קטגוריית מפעל=ליגה|שחקן={{{שחקן}}}}}
 ---
 --- Raises when the variable is missing rather than rendering empty. An empty
 --- block looks like a player with no record, which is the kind of silence this
 --- layer exists to remove.
 local function tab(frame)
-	local entity = frame.args['שחקן']
-	local category = frame.args['קטגוריית מפעל']
-	if not entity or not category then
-		error('FootballPlayerEvents: tab needs שחקן and קטגוריית מפעל', 0)
+	local blockName = mw.text.trim(frame.args['בלוק'] or DEFAULT_BLOCK)
+	local declaration = Blocks[blockName]
+	if not declaration then
+		error(string.format(
+			'FootballStatsBlock: no block declared as "%s"', blockName), 0)
 	end
 
-	local name = variableName(mw.text.trim(entity), mw.text.trim(category))
+	local entity = frame.args[declaration.entity]
+	local category = frame.args['קטגוריית מפעל']
+	if not entity or not category then
+		error(string.format('FootballStatsBlock: tab needs %s and קטגוריית מפעל',
+			declaration.entity), 0)
+	end
+
+	local name = variableName(blockName, mw.text.trim(entity),
+		mw.text.trim(category))
 	local value = frame:callParserFunction('#var', { name })
 	if not value or mw.text.trim(value) == '' then
 		error(string.format(
-			'FootballPlayerEvents: nothing primed for %s - call '
-			.. '{{#invoke:FootballPlayerEvents|prime}} before the tab strip',
+			'FootballStatsBlock: nothing primed for %s - call '
+			.. '{{#invoke:FootballStatsBlock|prime}} before the tab strip',
 			name), 0)
 	end
 	return value

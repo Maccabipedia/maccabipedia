@@ -312,5 +312,50 @@ check('a filter the layer does not support still raises through the shim',
 		end)
 	end)
 
+-- The second shim. It replaces a different template, so it accepts a different
+-- list - and pointing a template at the wrong one is silent until a page says
+-- "does not take the filter": that shipped, and every player block on the
+-- harness rendered a Lua error instead of a number.
+check('playerEventCount counts events, with the filters its template takes',
+	function(FootballQueries)
+		stub.willReturn({ { n = '52' } })
+		local output = FootballQueries.playerEventCount(frameWithParent({
+			['שחקן'] = 'ערן זהבי',
+			['מספר אירוע'] = '3',
+			['תת אירוע'] = '35',
+		}))
+		equals(output, '52', 'count')
+
+		local call = stub.calls[1]
+		equals(call.fields, 'COUNT(*)=n', 'aggregate')
+		equals(call.options.where,
+			-- Sorted by filter name: מספר אירוע, שחקן, תת אירוע.
+			'Games_Events.EventType IN (3)'
+			.. ' AND Games_Events.PlayerName = "ערן זהבי"'
+			.. ' AND Games_Events.SubType IN (35)'
+			.. ' AND Games_Events.Team = 1', 'where')
+	end)
+
+check('playerEventCount refuses a filter its template has no parameter for',
+	function(FootballQueries)
+		-- נתון משחק belongs to the OTHER query template. Accepting it here
+		-- would answer a question this template cannot be asked.
+		expectError('playerEventCount does not take', function()
+			FootballQueries.playerEventCount(frameWithParent({
+				['נתון משחק'] = 'כיבושים',
+			}))
+		end)
+	end)
+
+check('playerEventCount takes no arguments of its own', function(FootballQueries)
+	-- Same trap as gameDataCount: arguments on the #invoke are ignored, and an
+	-- ignored filter returns the wiki-wide total.
+	local frame = frameWithParent({})
+	frame.args = { ['שחקן'] = 'ערן זהבי' }
+	expectError('takes none of its own', function()
+		FootballQueries.playerEventCount(frame)
+	end)
+end)
+
 print(string.format('\n%d passed, %d failed', passed, failed))
 os.exit(failed > 0 and 1 or 0)

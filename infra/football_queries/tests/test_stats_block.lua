@@ -1,5 +1,5 @@
 --[[
-Tests for Module:FootballPlayerEvents.
+Tests for Module:FootballStatsBlock.
 
 The output has to be byte-identical to the template it replaces, so these
 assert exact strings - including the space before "(" on the first row, its
@@ -18,7 +18,7 @@ local passed, failed = 0, 0
 
 local function check(name, body)
 	stub.install()
-	local ok, message = pcall(body, stub.loadModule('Module:FootballPlayerEvents'))
+	local ok, message = pcall(body, stub.loadModule('Module:FootballStatsBlock'))
 	if ok then
 		passed = passed + 1
 	else
@@ -53,7 +53,7 @@ check('the six rows render exactly as the template does', function(Events)
 		row('אדומים', '1'),
 		row('פתח בספסל', '26(3 ספסולים )'),
 	}, '\n')
-	equals(Events.renderRows(ZAHAVI), expected, 'block')
+	equals(Events.renderRows('player-events', ZAHAVI), expected, 'block')
 end)
 
 --- The stat of one row, by its position in the block.
@@ -78,7 +78,7 @@ end
 
 -- The template guards division by zero with #שווה and its branch is a bare 0.
 check('no appearances prints a bare 0, not 0.00', function(Events)
-	equals(statOfRow(Events.renderRows(cellsWith({})), 2),
+	equals(statOfRow(Events.renderRows('player-events', cellsWith({})), 2),
 		'0 (0 שערים למשחק, 0 פנדלים)', 'zero ratio')
 end)
 
@@ -102,7 +102,7 @@ check('the ratio is formatted the way #expr formats it', function(Events)
 		{ goals = 253, appearances = 501, expected = '0.5' },
 	}
 	for _, case in ipairs(cases) do
-		local stat = statOfRow(Events.renderRows(cellsWith({
+		local stat = statOfRow(Events.renderRows('player-events', cellsWith({
 			goals = case.goals, appearances = case.appearances,
 		})), 2)
 		equals(stat:match('%((.-) שערים למשחק'), case.expected,
@@ -115,7 +115,7 @@ end)
 -- negative where a ratio is expected, which is a programming error.
 check('a negative ratio raises rather than rounding the wrong way',
 	function(Events)
-		local ok, message = pcall(Events.renderRows, {
+		local ok, message = pcall(Events.renderRows, 'player-events', {
 			appearances = -10, substitutions = 0, goals = 5, penaltyGoals = 0,
 			assists = 0, yellows = 0, reds = 0, benchStarts = 0,
 		})
@@ -128,7 +128,7 @@ check('a negative ratio raises rather than rounding the wrong way',
 	end)
 
 check('benchings can be negative, as the arithmetic allows', function(Events)
-	local stat = statOfRow(Events.renderRows(cellsWith({
+	local stat = statOfRow(Events.renderRows('player-events', cellsWith({
 		appearances = 10, substitutions = 9, benchStarts = 2,
 	})), 6)
 	equals(stat, '2(-7 ספסולים )', 'negative benchings')
@@ -137,7 +137,7 @@ end)
 -- A nil cell means the row data names a cell the cell list does not produce.
 -- Printing 0 for that would be a plausible number for a broken block.
 check('a cell the block does not produce raises', function(Events)
-	local ok, message = pcall(Events.renderRows, { appearances = 5 })
+	local ok, message = pcall(Events.renderRows, 'player-events', { appearances = 5 })
 	if ok then
 		error('expected an error, none raised', 0)
 	end
@@ -171,7 +171,7 @@ check('arguments on the invoke itself are refused', function(Events)
 	if ok then
 		error('expected an error, none raised', 0)
 	end
-	if not tostring(message):find('takes none of its own', 1, true) then
+	if not tostring(message):find('takes only בלוק', 1, true) then
 		error('wrong error: ' .. tostring(message), 0)
 	end
 end)
@@ -263,7 +263,7 @@ check('variables are namespaced per entity, so two players cannot collide',
 		end
 		table.sort(names)
 		equals(#names, 4, 'four variables')
-		equals(names[1]:find('FootballPlayerEvents/ערן זהבי/', 1, true), 1,
+		equals(names[1]:find('FootballStatsBlock/player-events/ערן זהבי/', 1, true), 1,
 			'prefixed and keyed by player')
 	end)
 
@@ -293,7 +293,7 @@ end)
 check('the block data survives an mw.loadData-style proxy', function()
 	stub.install()
 	stub.proxyLoadData = true
-	local Events = stub.loadModule('Module:FootballPlayerEvents')
+	local Events = stub.loadModule('Module:FootballStatsBlock')
 	stub.willReturn({ thirtyTwoCells(PER_TAB) })
 
 	Events.prime(stub.newFrame({ ['שחקן'] = 'ערן זהבי' }))
@@ -336,6 +336,59 @@ check('prime without a player raises', function(Events)
 	end
 	if not tostring(message):find('needs שחקן', 1, true) then
 		error('wrong error: ' .. tostring(message), 0)
+	end
+end)
+
+-- The day block fixes its own date format, which is what makes it "this day in
+-- any year" rather than "this exact date". It reaches the query from the block
+-- definition, not from the page, so nothing on the page shows it is missing.
+check('a block constant filter reaches the query', function(Blocks)
+	stub.willReturn({ { c1 = '1', c2 = '1', c3 = '1', c4 = '1', c5 = '1',
+	                    c6 = '1' } })
+	Blocks.block(stub.newFrame(
+		{ ['תאריך'] = '"2021-08-22"' }, { ['בלוק'] = 'day-results' }))
+
+	local where = stub.calls[1].options.where
+	if not where:find('%d-%m', 1, true) then
+		error('the block date format never reached the query: ' .. where, 0)
+	end
+end)
+
+check('passing a filter the block fixes is refused', function(Blocks)
+	local ok, message = pcall(Blocks.block, stub.newFrame(
+		{ ['תאריך'] = '"2021-08-22"', ['פורמט תאריך'] = '"%Y"' },
+		{ ['בלוק'] = 'day-results' }))
+	if ok then
+		error('expected an error, none raised', 0)
+	end
+	if not tostring(message):find('cannot be passed in', 1, true) then
+		error('wrong error: ' .. tostring(message), 0)
+	end
+end)
+
+check('an empty summed cell renders empty, not zero', function(Blocks)
+	-- A date with no games: the template prints nothing for כיבושים and
+	-- ספיגות, and 0 for the counts.
+	local html = Blocks.renderRows('day-results', {
+		wins = 0, draws = 0, losses = 0, games = 0,
+		goalsFor = nil, goalsAgainst = nil,
+	})
+	if not html:find('<div class="Top10RowName">כיבושים</div>\n'
+			.. '<span class="Top10RowStat"></span>', 1, true) then
+		error('כיבושים is not empty:\n' .. html, 0)
+	end
+	if not html:find('<span class="Top10RowStat">0</span>', 1, true) then
+		error('the counting rows lost their zero:\n' .. html, 0)
+	end
+end)
+
+check('a summed cell with a value renders it', function(Blocks)
+	local html = Blocks.renderRows('day-results', {
+		wins = 2, draws = 0, losses = 1, games = 3,
+		goalsFor = 7, goalsAgainst = 2,
+	})
+	if not html:find('<span class="Top10RowStat">7</span>', 1, true) then
+		error('כיבושים lost its value:\n' .. html, 0)
 	end
 end)
 

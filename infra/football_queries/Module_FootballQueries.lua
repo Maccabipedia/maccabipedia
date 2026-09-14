@@ -560,9 +560,35 @@ function FootballQueries.aggregate(shared, cells, options)
 
 		-- Aliases are positional: a Hebrew cell name is not a safe SQL alias.
 		local alias = 'c' .. index
-		aliases[index] = { alias = alias, name = cell.name }
+		aliases[index] = { alias = alias, name = cell.name,
+		                   sums = cell.sum ~= nil }
 
-		if grain == 'game' then
+		if cell.sum then
+			-- A cell that sums a column of the base table rather than counting
+			-- rows: goals for, goals against. Joining the events table would
+			-- repeat each game once per event and multiply the sum, so that is
+			-- refused rather than quietly returned.
+			local column = Fields.sumColumns[cell.sum]
+			if not column then
+				error(string.format(
+					'FootballQueries: cell "%s" sums "%s", which is not a known '
+					.. 'summable value', cell.name, tostring(cell.sum)), 0)
+			end
+			if grain ~= 'game' then
+				error(string.format(
+					'FootballQueries: cell "%s" sums a game column, so its grain '
+					.. 'must be "game"', cell.name), 0)
+			end
+			if unionBuilder.tables[Fields.roles.events] then
+				error(string.format(
+					'FootballQueries: cell "%s" sums a game column while the '
+					.. 'query joins %s, which would multiply it by the number '
+					.. 'of events', cell.name, Fields.roles.events), 0)
+			end
+			fields[index] = string.format(
+				'SUM(CASE WHEN %s THEN %s ELSE 0 END)=%s',
+				condition, column, alias)
+		elseif grain == 'game' then
 			fields[index] = string.format(
 				'COUNT(DISTINCT CASE WHEN %s THEN %s._pageID END)=%s',
 				condition, Fields.baseTable, alias)
@@ -599,8 +625,15 @@ function FootballQueries.aggregate(shared, cells, options)
 	local values = {}
 	if rows[1] then
 		for _, entry in ipairs(aliases) do
-			-- Cargo returns SUM as a float, and as nil when nothing matched.
-			values[entry.name] = tonumber(rows[1][entry.alias]) or 0
+			-- COUNT over no rows is 0; SUM over no rows is NULL, and the
+			-- templates render that as an empty cell rather than a zero. The
+			-- difference is visible on a date with no games, so a summing cell
+			-- keeps nil and a counting cell does not.
+			local value = tonumber(rows[1][entry.alias])
+			if value == nil and not entry.sums then
+				value = 0
+			end
+			values[entry.name] = value
 		end
 	end
 	return values
@@ -760,30 +793,45 @@ end
 --- silently defeats the unsupported-filter guard - that bug shipped once, and
 --- an opponent page asking for its own yellow cards was handed the wiki-wide
 --- total. Enumerating no parameters is the only way the guard stays honest.
+--- The parameters a shim was invoked with, refusing any given to the #invoke
+--- itself. Shared by the shims because reading the wrong frame is the same
+--- silent failure in each: an ignored filter returns the wiki-wide total.
+local function parentArgumentsOf(frame, entryPoint)
+	-- `next` does not work on frame.args: Scribunto populates it lazily behind
+	-- a metatable, so next() reports empty however many parameters were given.
+	-- Measured: the guard below never fired until it was written with pairs.
+	for _ in pairs(frame.args) do
+		error(string.format(
+			'FootballQueries: %s reads the calling template\'s parameters, so '
+			.. 'it takes none of its own. Put it in a template body as '
+			.. '{{#invoke:FootballQueries|%s}}, or use '
+			.. '{{#invoke:FootballQueries|count|…}} to pass filters directly.',
+			entryPoint, entryPoint), 0)
+	end
+
+	return separate(frame:getParent().args, entryPoint)
+end
+
+--- Drop-in body for תבנית:סטטיסטיקה/שליפות/מתקדמות/כמות אירועי שחקן, the
+--- other query template the display blocks call:
+---   {{#invoke:FootballQueries|playerEventCount}}
+---
+--- It counts events, never games, and its parameter list is its own: asking it
+--- for נתון משחק would answer a question the template it replaces cannot be
+--- asked. Same frame rule as gameDataCount below.
+function FootballQueries.playerEventCount(frame)
+	local filters = parentArgumentsOf(frame, 'playerEventCount')
+	return string.format(
+		'%d', math.floor(FootballQueries.countFilters(filters) + 0.5))
+end
+
 function FootballQueries.gameDataCount(frame)
 	-- This entry point deliberately reads the PARENT frame, so arguments given
 	-- to the #invoke itself would be ignored - and an ignored filter returns
 	-- the wiki-wide total, which is the failure this module exists to prevent.
 	-- Measured on the local wiki: called directly with עונה=2021/22 it returned
 	-- 222, every game, instead of 59.
-	-- `next` does not work on frame.args: Scribunto populates it lazily behind
-	-- a metatable, so next() reports empty however many parameters were given.
-	-- Measured: the guard below never fired until it was written with pairs.
-	local hasDirectArgs = false
-	for _ in pairs(frame.args) do
-		hasDirectArgs = true
-		break
-	end
-
-	if hasDirectArgs then
-		error('FootballQueries: gameDataCount reads the calling template\'s '
-			.. 'parameters, so it takes none of its own. Put it in a template '
-			.. 'body as {{#invoke:FootballQueries|gameDataCount}}, or use '
-			.. '{{#invoke:FootballQueries|count|…}} to pass filters directly.',
-			0)
-	end
-
-	local filters, options = separate(frame:getParent().args, 'gameDataCount')
+	local filters, options = parentArgumentsOf(frame, 'gameDataCount')
 
 	local requested = options.aggregate and mw.text.trim(options.aggregate) or ''
 	local aggregate = 'COUNT(*)'

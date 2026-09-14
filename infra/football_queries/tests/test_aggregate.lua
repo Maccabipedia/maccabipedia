@@ -400,5 +400,96 @@ check('the same block always builds identical SQL', function(FootballQueries)
 	end
 end)
 
+-- A summing cell: goals for and against are not counts of rows, they are sums
+-- of a column of the game row. Getting this wrong returns a count where a sum
+-- was asked for, which looks like a plausible number on every page.
+local DAY_CELLS = {
+	{ name = 'games', grain = 'game', filters = {} },
+	{ name = 'goalsFor', grain = 'game', sum = 'כיבושים', filters = {} },
+	{ name = 'goalsAgainst', grain = 'game', sum = 'ספיגות', filters = {} },
+}
+
+check('a summing cell sums its column instead of counting rows',
+	function(FootballQueries)
+		stub.willReturn({ { c1 = '4', c2 = '9', c3 = '2' } })
+		local cells = FootballQueries.aggregate(
+			{ ['תאריך'] = '"2021-08-22"' }, DAY_CELLS)
+		local fields = stub.calls[1].fields
+
+		if not fields:find(
+				'SUM(CASE WHEN 1=1 THEN Football_Games.ResultMaccabi ELSE 0 END)=c2',
+				1, true) then
+			error('goals for is not summed: ' .. fields, 0)
+		end
+		if not fields:find(
+				'SUM(CASE WHEN 1=1 THEN Football_Games.ResultOpponent ELSE 0 END)=c3',
+				1, true) then
+			error('goals against is not summed: ' .. fields, 0)
+		end
+		equals(cells.goalsFor, 9, 'goals for')
+		equals(cells.goalsAgainst, 2, 'goals against')
+		equals(cells.games, 4, 'games still counted')
+	end)
+
+check('a summing cell returning nothing stays empty, a counting one is zero',
+	function(FootballQueries)
+		-- What Cargo answers for a date with no games at all: COUNT is 0 and
+		-- SUM is NULL, and the template renders the NULL as an empty cell.
+		stub.willReturn({ { c1 = '0', c2 = nil, c3 = nil } })
+		local cells = FootballQueries.aggregate(
+			{ ['תאריך'] = '"1900-01-01"' }, DAY_CELLS)
+
+		equals(cells.games, 0, 'a count over no rows is 0')
+		equals(cells.goalsFor, nil, 'a sum over no rows stays nil')
+		equals(cells.goalsAgainst, nil, 'a sum over no rows stays nil')
+	end)
+
+check('summing an unknown value raises', function(FootballQueries)
+	expectError('not a known summable value', function()
+		FootballQueries.aggregate({}, {
+			{ name = 'x', grain = 'game', sum = 'קרנות', filters = {} },
+		})
+	end)
+end)
+
+check('summing at event grain raises', function(FootballQueries)
+	-- The grain says how the cell counts; a sum of a game column repeated once
+	-- per event is multiplied, so the mismatch is refused, not adjusted.
+	expectError('grain', function()
+		FootballQueries.aggregate({}, {
+			{ name = 'x', grain = 'event', sum = 'כיבושים', filters = {} },
+		})
+	end)
+end)
+
+check('summing while any cell joins the events table raises',
+	function(FootballQueries)
+		-- The join is the union of all cells, so one event-grain neighbour
+		-- multiplies every game row and silently inflates the sum.
+		expectError('multiply', function()
+			FootballQueries.aggregate({}, {
+				{ name = 'goals', grain = 'event',
+				  filters = { ['מספר אירוע'] = '3' } },
+				{ name = 'goalsFor', grain = 'game', sum = 'כיבושים',
+				  filters = {} },
+			})
+		end)
+	end)
+
+check('a summing cell still honours its own filters', function(FootballQueries)
+	stub.willReturn({ { c1 = '3' } })
+	FootballQueries.aggregate({}, {
+		{ name = 'homeGoals', grain = 'game', sum = 'כיבושים',
+		  filters = { ['תוצאה'] = 'ניצחון' } },
+	})
+	local fields = stub.calls[1].fields
+	if fields:find('WHEN 1=1', 1, true) then
+		error('the cell filter was dropped from the sum: ' .. fields, 0)
+	end
+	if not fields:find('THEN Football_Games.ResultMaccabi', 1, true) then
+		error('wrong column summed: ' .. fields, 0)
+	end
+end)
+
 print(string.format('\n%d passed, %d failed', passed, failed))
 os.exit(failed > 0 and 1 or 0)

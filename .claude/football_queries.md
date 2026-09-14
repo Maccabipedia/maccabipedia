@@ -75,6 +75,39 @@ defeats the unsupported-filter guard, which is how an opponent page once asked
 for its own yellow cards and was handed the wiki-wide total. Enumerating
 nothing is the only way the guard stays honest.
 
+**One shim per template, never one for both.** `כמות אירועי שחקן` has its own
+entry point, `playerEventCount`: it counts events, takes `מספר אירוע` and
+`שחקן`, and has no `נתון משחק`. Pointing it at `gameDataCount` instead —
+which the comparison harness did for a while — refuses every event filter and
+renders a red Lua error where the number was. Each entry point declares the
+parameters of the template it replaces, and the two lists have to be checked
+against the template, not against each other:
+
+```bash
+uv run python infra/football_queries/verify_entry_points.py
+uv run python infra/football_queries/verify_entry_points.py --selftest
+```
+
+It reads each template's wikitext from the local wiki, extracts the `{{{…}}}`
+parameters it actually reads, and reports both directions of drift: a
+parameter the template takes and the shim refuses (a red error on the page),
+and one the shim accepts and the template cannot be asked (a plausible number
+answering a different question).
+
+## A block's own constant filters
+
+A block definition may carry `filters`, applied to every one of its cells.
+`day-results` fixes `פורמט תאריך = "%d-%m"` there, because the template
+hardcodes that format in each of its five calls — it is what makes the block
+*this day in any year* rather than *this exact date*. Without it the default
+`%d-%m-%Y` matches a single year, which agrees with the template by luck on
+dates whose only game is in that year and disagrees everywhere else: 4 of 5
+sample dates matched before this was found.
+
+A caller that passes a filter the block fixes is **refused**, not overridden
+and not ignored — either of those leaves a page showing the wrong window of
+games with nothing in the wikitext to see.
+
 Coverage of the 22 query templates, computed from the Lua spec against each
 template's own parameters:
 
@@ -202,8 +235,11 @@ fails before trusting a pass** — and not by picking two mutations, which is ho
 10 of 18 escaped once:
 
 ```bash
-uv run python infra/football_queries/tests/mutate.py   # 33 mutations, 0 may survive
+uv run python infra/football_queries/tests/mutate.py   # 83 mutations, 0 may survive
 ```
+
+This gate runs in CI (`.github/workflows/tests.yaml`, job `lua`): it needs no
+wiki, so every PR gets it. The wiki-level harnesses below are local only.
 
 Then run it for real, because the stub cannot tell you anything about Cargo or
 Scribunto:

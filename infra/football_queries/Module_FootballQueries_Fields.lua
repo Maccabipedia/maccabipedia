@@ -192,6 +192,16 @@ return {
 		['ספיגות'] = 'SUM(Football_Games.ResultOpponent)',
 	},
 
+	-- The column behind each summable נתון משחק, for a merged block: a cell
+	-- that sums becomes SUM(CASE WHEN … THEN <column> ELSE 0 END) rather than
+	-- counting rows. Both columns belong to the game, so such a cell is
+	-- game-grain by definition and multiplies if the query joins the events
+	-- table - which the layer refuses rather than reports.
+	sumColumns = {
+		['כיבושים'] = 'Football_Games.ResultMaccabi',
+		['ספיגות'] = 'Football_Games.ResultOpponent',
+	},
+
 	-- What each #invoke entry point is allowed to be asked.
 	--
 	-- Every entry point used to accept the union of all 24 filters, which meant
@@ -216,6 +226,22 @@ return {
 			-- has no such parameter, and accepting one this entry point then
 			-- ignores is the same sin in the other direction.
 			options = { 'נתון משחק' },
+		},
+
+		-- תבנית:סטטיסטיקה/שליפות/מתקדמות/כמות אירועי שחקן. A different list
+		-- from the one above on purpose: this template counts EVENTS, so it
+		-- takes מספר אירוע, תת אירוע and שחקן, and it has no נתון משחק -
+		-- its fields are COUNT(*) and nothing else.
+		playerEventCount = {
+			replaces = 'תבנית:סטטיסטיקה/שליפות/מתקדמות/כמות אירועי שחקן',
+			filters = {
+				'אצטדיון', 'אצטדיונים', 'יריבה', 'יריבות', 'ללא תת אירוע',
+				'מאמן', 'מכבי', 'מספר אירוע', 'מפעל מקורי', 'מפעל נוכחי',
+				'מפעלים', 'עוזר שופט', 'עונה', 'קטגוריית מפעל',
+				'שופט', 'שחקן', 'תוצאה', 'תוצאה יריבה', 'תוצאה מכבי',
+				'תת אירוע',
+			},
+			options = {},
 		},
 	},
 

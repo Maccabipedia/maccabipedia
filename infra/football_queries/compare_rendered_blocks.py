@@ -32,10 +32,16 @@ QUERY_TEMPLATE = 'תבנית:סטטיסטיקה/שליפות/מתקדמות/כמ
 # mistaken for a real page.
 SANDBOX_QUERY = QUERY_TEMPLATE + '/ארגז חול מודול'
 SANDBOX_BLOCK = BLOCK + '/ארגז חול מודול'
-SANDBOX_QUERY_BODY = '<includeonly>{{#invoke:FootballQueries|gameDataCount}}</includeonly>'
+SANDBOX_QUERY_BODY = ('<includeonly>{{#invoke:FootballQueries|playerEventCount}}'
+                      '</includeonly>')
 
 # Pages the block needs, fetched from production when --seed is given.
-DEPENDENCIES = [BLOCK, QUERY_TEMPLATE, 'תבנית:סטטיסטיקה/תצוגה/שחקנים/סיכום אירועים', 'תבנית:סטטיסטיקה/יחס',
+DEPENDENCIES = [BLOCK, QUERY_TEMPLATE,
+                'תבנית:סטטיסטיקה/תצוגה/שחקנים/סיכום אירועים',
+                'תבנית:סטטיסטיקה/תצוגה/ימים/סיכום תוצאות לפי מפעל',
+                'תבנית:סטטיסטיקה/תצוגה/ימים/סיכום תוצאות',
+                'תבנית:סטטיסטיקה/שליפות/מתקדמות/כמות נתוני משחק',
+                'תבנית:סטטיסטיקה/יחס',
                 'תבנית:סטטיסטיקה/אחוזים', 'תבנית:המרות/שם ללא גרש וגרשיים']
 
 # The four-tab parent: 8 queries per tab, 32 for the page.
@@ -46,6 +52,19 @@ TAB_CASES = [
     {'שחקן': 'גבי קניקובסקי'},
     {'שחקן': 'דור פרץ'},
     {'שחקן': "דור תורג'מן"},
+]
+
+DAY_BLOCK = 'תבנית:סטטיסטיקה/תצוגה/ימים/סיכום תוצאות לפי מפעל'
+SANDBOX_DAY = DAY_BLOCK + '/ארגז חול מודול'
+DAY_BODY = ('<includeonly>{{#invoke:FootballStatsBlock|block'
+            '|בלוק=day-results}}</includeonly>')
+# Dates that fall inside the local seed, one per competition category.
+DAY_CASES = [
+    {'תאריך': '"2021-08-22"', 'קטגוריית מפעל': 'ליגה'},
+    {'תאריך': '"2022-03-05"', 'קטגוריית מפעל': 'ליגה'},
+    {'תאריך': '"2023-01-14"', 'קטגוריית מפעל': 'רשמי'},
+    {'תאריך': '"2021-09-16"', 'קטגוריית מפעל': 'בינלאומי'},
+    {'תאריך': '"2022-02-09"', 'קטגוריית מפעל': 'גביע'},
 ]
 
 # Players present in the local seed (football 2021/22-2024/25).
@@ -145,7 +164,7 @@ def call(template: str, params: dict) -> str:
     return '{{' + template + arguments + '}}'
 
 
-RENDERER_BODY = '<includeonly>{{#invoke:FootballPlayerEvents|block}}</includeonly>'
+RENDERER_BODY = '<includeonly>{{#invoke:FootballStatsBlock|block}}</includeonly>'
 
 
 def build_renderer_candidate() -> None:
@@ -173,7 +192,7 @@ def build_tabs_candidate() -> None:
 
     body = original.replace(
         '<includeonly>\n',
-        '<includeonly>{{#invoke:FootballPlayerEvents|prime}}\n', 1)
+        '<includeonly>{{#invoke:FootballStatsBlock|prime}}\n', 1)
     if body == original:
         raise SystemExit('could not place prime before the tab strip')
 
@@ -181,7 +200,7 @@ def build_tabs_candidate() -> None:
     for category in ['רשמי', 'ליגה', 'גביע', 'בינלאומי']:
         call = ('{{תבנית: סטטיסטיקה/תצוגה/שחקנים/סיכום אירועים לפי מפעל| '
                 f'קטגוריית מפעל={category}| שחקן={{{{{{שחקן}}}}}} }}}}')
-        replacement = ('{{#invoke:FootballPlayerEvents|tab|'
+        replacement = ('{{#invoke:FootballStatsBlock|tab|'
                        f'קטגוריית מפעל={category}|שחקן={{{{{{שחקן}}}}}}}}}}')
         if call not in body:
             raise SystemExit(f'tab call for {category} not found as expected')
@@ -228,7 +247,7 @@ def compare(params: dict, original: str = BLOCK,
 
 def assert_renderer_is_in_the_path() -> None:
     body = read_local(SANDBOX_BLOCK) or ''
-    if 'FootballPlayerEvents' not in body:
+    if 'FootballStatsBlock' not in body:
         raise SystemExit(
             'the candidate block does not invoke the renderer - this '
             'comparison would be the template path against itself')
@@ -289,6 +308,9 @@ def main() -> None:
                         help='compare the Lua renderer instead of the shim')
     parser.add_argument('--tabs', action='store_true',
                         help='compare the whole four-tab block: 32 queries vs 1')
+    parser.add_argument('--day', action='store_true',
+                        help='compare the day-results block, the one with 366 '
+                             'live callers')
     options = parser.parse_args()
 
     if options.seed:
@@ -313,6 +335,22 @@ def main() -> None:
         print('\nSELFTEST FAILED: this harness is not evidence')
         sys.exit(1)
 
+    if options.day:
+        assert_wiki_matches_repo()
+        write_local(SANDBOX_DAY, DAY_BODY)
+        failures = 0
+        for params in DAY_CASES:
+            label = ' '.join(f'{n}={v}' for n, v in params.items())
+            identical, diff = compare(params, DAY_BLOCK, SANDBOX_DAY)
+            if identical:
+                print(f'OK    {label}')
+            else:
+                failures += 1
+                print(f'DIFF  {label}\n{diff}')
+        print(f'\n{len(DAY_CASES) - failures}/{len(DAY_CASES)} day blocks '
+              'byte-identical')
+        sys.exit(1 if failures else 0)
+
     if options.tabs:
         assert_wiki_matches_repo()
 
@@ -320,12 +358,12 @@ def main() -> None:
             # The baseline must be the template, not another copy of the
             # module: comparing the module with itself passes for free.
             baseline = read_local(TABS_TEMPLATE) or ''
-            if 'FootballPlayerEvents' in baseline:
+            if 'FootballStatsBlock' in baseline:
                 raise SystemExit(
                     'the baseline template already invokes the module - this '
                     'would be the module compared with itself')
             candidate = read_local(SANDBOX_TABS) or ''
-            if 'FootballPlayerEvents' not in candidate:
+            if 'FootballStatsBlock' not in candidate:
                 raise SystemExit('the candidate does not invoke the module')
 
             inner = 0

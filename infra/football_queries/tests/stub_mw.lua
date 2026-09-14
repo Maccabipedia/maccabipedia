@@ -24,8 +24,8 @@ local PAGES = {
 		'infra/football_queries/Module_FootballStatsBlocks.lua',
 	['Module:FootballQueries'] =
 		'infra/football_queries/Module_FootballQueries.lua',
-	['Module:FootballPlayerEvents'] =
-		'infra/football_queries/Module_FootballPlayerEvents.lua',
+	['Module:FootballStatsBlock'] =
+		'infra/football_queries/Module_FootballStatsBlock.lua',
 }
 
 local function loadDataFor(name)

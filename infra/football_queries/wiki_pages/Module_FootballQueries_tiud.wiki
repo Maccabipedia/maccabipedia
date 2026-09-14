@@ -17,6 +17,13 @@
 
 <pre><includeonly>{{#invoke:FootballQueries|gameDataCount}}</includeonly></pre>
 
+לכל תבנית שליפה יש נקודת כניסה משלה, שמקבלת בדיוק את הפרמטרים של אותה תבנית:
+<code>gameDataCount</code> לתבנית "כמות נתוני משחק" ו־<code>playerEventCount</code>
+לתבנית "כמות אירועי שחקן". נקודת כניסה של תבנית אחת בגוף תבנית אחרת תדחה את
+המסננים שלה ותציג שגיאה במקום מספר.
+
+<pre><includeonly>{{#invoke:FootballQueries|playerEventCount}}</includeonly></pre>
+
 מלואה, כשצריך כמה מספרים מאותה שאילתה:
 
 <pre>local Queries = require('Module:FootballQueries')
