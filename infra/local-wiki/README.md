@@ -122,6 +122,32 @@ dumps; the local stack resolves them from prod on demand via
 (SecureHTML) are re-signed with the local dev key automatically during
 `seed-content.sh` — prod's signatures can't validate here.
 
+## Snapshot and restore
+
+`fixtures/wiki-snapshot.sql.gz` is a committed dump of a seeded wiki (~3.6MB).
+It is how CI gets a wiki with real data in it without touching production, and
+how you get back to the dataset the football query harnesses assert against.
+
+```bash
+bash scripts/snapshot-db.sh   # running wiki  -> fixtures/wiki-snapshot.sql.gz
+bash scripts/restore-db.sh    # fixture       -> running wiki (REPLACES its DB)
+```
+
+A whole-database dump rather than an XML page dump plus a Cargo rebuild,
+because the rebuild takes minutes, does not reproduce rows that were loaded
+directly, and would need the `<shtml>` tab strips re-signed. A restore keeps
+them verifiable: the dev secret is committed in
+`config/LocalSettings.env.local.php`.
+
+`restore-db.sh` drops the parser and object caches afterwards. Restoring
+without that serves someone else's cached rendering of a page, which would let
+a comparison harness pass while the code under test was wrong.
+
+Measured end to end — `down -v`, rebuild, restore, deploy the Lua modules and
+run all seven football-query harnesses: **1m45s** with the image cached.
+`.github/workflows/football_lua_wiki.yaml` does exactly this on every pull
+request that touches `infra/football_queries/` or `infra/local-wiki/`.
+
 ## Tear down
 
 ```bash
