@@ -585,8 +585,15 @@ function FootballQueries.aggregate(shared, cells, options)
 					.. 'query joins %s, which would multiply it by the number '
 					.. 'of events', cell.name, Fields.roles.events), 0)
 			end
+			-- ELSE NULL, not ELSE 0. SUM skips NULLs and is NULL when every
+			-- row is skipped, which is exactly what the template's own
+			-- SUM(column) returns when nothing matches - and the templates
+			-- render that as an empty cell. With ELSE 0 the sum is 0 as soon
+			-- as the query matches ANY row, so a cup tab on a date with only
+			-- league games printed "0" where the template prints nothing.
+			-- Measured: over 222 rows, ELSE 0 gives 0 and ELSE NULL gives NULL.
 			fields[index] = string.format(
-				'SUM(CASE WHEN %s THEN %s ELSE 0 END)=%s',
+				'SUM(CASE WHEN %s THEN %s ELSE NULL END)=%s',
 				condition, column, alias)
 		elseif grain == 'game' then
 			fields[index] = string.format(
@@ -670,7 +677,11 @@ function FootballQueries.countFilters(filters, aggregate)
 		fields = (aggregate or 'COUNT(*)') .. '=n',
 		limit = 2,
 	})
-	return tonumber(rows[1] and rows[1].n) or 0
+	-- nil, not 0, when the database answered NULL. An aggregate query always
+	-- returns a row, so the only way to get here without a number is a SUM
+	-- over nothing - and the templates print an empty cell for that, not a
+	-- zero. COUNT is unaffected: it is 0 over no rows, and 0 is a number.
+	return tonumber(rows[1] and rows[1].n)
 end
 
 --- #invoke entry point, so a count can be compared against the template it
@@ -696,7 +707,12 @@ function FootballQueries.count(frame)
 		end
 	end
 
-	return FootballQueries.countFilters(filters, aggregate)
+	-- Same rule as the shim: NULL is an empty cell, never a zero.
+	local value = FootballQueries.countFilters(filters, aggregate)
+	if value == nil then
+		return ''
+	end
+	return value
 end
 
 --- Splits template parameters into filters and query options, rejecting
@@ -844,6 +860,13 @@ function FootballQueries.gameDataCount(frame)
 	end
 
 	local value = FootballQueries.countFilters(filters, aggregate)
+	-- A SUM over nothing is NULL, and the template prints an empty cell for
+	-- it: {{#number_format:}} of nothing is nothing. Printing 0 here would
+	-- disagree on every day page with no games in one of its four categories.
+	if value == nil then
+		return ''
+	end
+
 	-- The template rounds SUM's float back to an integer with #number_format
 	-- and then strips the thousands separators again; the result is a bare
 	-- integer, rounded half-up.

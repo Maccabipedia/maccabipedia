@@ -348,9 +348,20 @@ check('a block constant filter reaches the query', function(Blocks)
 	Blocks.block(stub.newFrame(
 		{ ['תאריך'] = '"2021-08-22"' }, { ['בלוק'] = 'day-results' }))
 
+	-- The whole DATE_FORMAT, not just "%d-%m": that substring also appears
+	-- in the DEFAULT format "%d-%m-%Y", so matching it alone stayed green
+	-- with the block's constant removed - which is the regression this test
+	-- exists to catch.
 	local where = stub.calls[1].options.where
-	if not where:find('%d-%m', 1, true) then
-		error('the block date format never reached the query: ' .. where, 0)
+	local expected = 'DATE_FORMAT("2021-08-22", "%d-%m")'
+		.. ' = DATE_FORMAT(Football_Games.Date, "%d-%m")'
+	if not where:find(expected, 1, true) then
+		error('the block date format never reached the query.\n'
+			.. '        expected: ' .. expected .. '\n'
+			.. '        actual:   ' .. where, 0)
+	end
+	if where:find('%d-%m-%Y', 1, true) then
+		error('the default format won over the block constant: ' .. where, 0)
 	end
 end)
 
@@ -389,6 +400,28 @@ check('a summed cell with a value renders it', function(Blocks)
 	})
 	if not html:find('<span class="Top10RowStat">7</span>', 1, true) then
 		error('כיבושים lost its value:\n' .. html, 0)
+	end
+end)
+
+check('a row naming a cell the block does not produce raises', function(Blocks)
+	-- Not "renders blank". An empty cell is what a summing cell with nothing
+	-- to sum looks like, so a typo between the two data pages would be
+	-- invisible on all 366 day pages.
+	stub.dataPatch = function(data)
+		if data['day-results'] then
+			data['day-results'].rows[4].cell = 'goalzFor'
+		end
+	end
+	local module = stub.loadModule('Module:FootballStatsBlock')
+	local ok, message = pcall(module.renderRows, 'day-results', {
+		wins = 2, draws = 0, losses = 1, games = 3,
+		goalsFor = 7, goalsAgainst = 2,
+	})
+	if ok then
+		error('expected an error, none raised', 0)
+	end
+	if not tostring(message):find('no cell named "goalzFor"', 1, true) then
+		error('wrong error: ' .. tostring(message), 0)
 	end
 end)
 

@@ -417,12 +417,12 @@ check('a summing cell sums its column instead of counting rows',
 		local fields = stub.calls[1].fields
 
 		if not fields:find(
-				'SUM(CASE WHEN 1=1 THEN Football_Games.ResultMaccabi ELSE 0 END)=c2',
+				'SUM(CASE WHEN 1=1 THEN Football_Games.ResultMaccabi ELSE NULL END)=c2',
 				1, true) then
 			error('goals for is not summed: ' .. fields, 0)
 		end
 		if not fields:find(
-				'SUM(CASE WHEN 1=1 THEN Football_Games.ResultOpponent ELSE 0 END)=c3',
+				'SUM(CASE WHEN 1=1 THEN Football_Games.ResultOpponent ELSE NULL END)=c3',
 				1, true) then
 			error('goals against is not summed: ' .. fields, 0)
 		end
@@ -490,6 +490,27 @@ check('a summing cell still honours its own filters', function(FootballQueries)
 		error('wrong column summed: ' .. fields, 0)
 	end
 end)
+
+check('a summing cell that matches no row is NULL, not zero',
+	function(FootballQueries)
+		-- ELSE 0 would make the sum 0 as soon as the query matches ANY row,
+		-- so a cup tab on a date with only league games printed "0" where the
+		-- template prints nothing. Measured on the local wiki over 222 rows:
+		-- ELSE 0 gives 0 and ELSE NULL gives NULL.
+		stub.willReturn({ { c1 = '5' } })
+		FootballQueries.aggregate({}, {
+			{ name = 'cupGoals', grain = 'game', sum = 'כיבושים',
+			  filters = { ['קטגוריית מפעל'] = 'גביע' } },
+		})
+		local fields = stub.calls[1].fields
+		if fields:find('ELSE 0 END', 1, true) then
+			error('the sum falls back to 0 where the template gives NULL: '
+				.. fields, 0)
+		end
+		if not fields:find('ELSE NULL END', 1, true) then
+			error('not a NULL-preserving sum: ' .. fields, 0)
+		end
+	end)
 
 print(string.format('\n%d passed, %d failed', passed, failed))
 os.exit(failed > 0 and 1 or 0)

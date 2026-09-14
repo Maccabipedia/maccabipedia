@@ -357,5 +357,25 @@ check('playerEventCount takes no arguments of its own', function(FootballQueries
 	end)
 end)
 
+check('a NULL sum reaches wikitext as an empty cell, not a zero',
+	function(FootballQueries)
+		-- {{#number_format:}} of nothing is nothing, so the template renders
+		-- an empty cell. This shim is the drop-in for five calls on each of
+		-- 366 day pages, where a category with no games is routine.
+		stub.willReturn({ { n = nil } })
+		equals(FootballQueries.gameDataCount(frameWithParent({
+			['נתון משחק'] = 'כיבושים',
+			['תאריך'] = '"1900-01-01"',
+		})), '', 'empty, not 0')
+	end)
+
+check('a count over no rows is still zero', function(FootballQueries)
+	-- COUNT is 0 where SUM is NULL, and the templates print that 0.
+	stub.willReturn({ { n = '0' } })
+	equals(FootballQueries.gameDataCount(frameWithParent({
+		['עונה'] = '1800/01',
+	})), '0', 'zero stays zero')
+end)
+
 print(string.format('\n%d passed, %d failed', passed, failed))
 os.exit(failed > 0 and 1 or 0)

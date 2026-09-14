@@ -268,6 +268,28 @@ the module is compared against the database rather than against itself.
   iterated the frame's fields and blamed a filter called `"args"`, which sends
   the reader somewhere else entirely.
 
+## NULL is an empty cell, never a zero
+
+`COUNT` over no rows is `0`; `SUM` over no rows is `NULL`, and the templates
+render `NULL` as an **empty cell** — `{{#number_format:}}` of nothing is
+nothing. So `countFilters` returns `nil` rather than `0` when the database
+answered NULL, and both `count` and `gameDataCount` turn that into `''`.
+
+The same rule inside the merged query is subtler and cost a real bug:
+
+```sql
+SUM(CASE WHEN <cell condition> THEN <column> ELSE NULL END)   -- correct
+SUM(CASE WHEN <cell condition> THEN <column> ELSE 0 END)      -- wrong
+```
+
+`ELSE 0` makes the sum `0` as soon as the query matches **any** row, not only
+when a row matches the cell's own condition. Measured on the local wiki over
+222 rows: `ELSE 0` → `0`, `ELSE NULL` → `NULL`. The day block reaches this
+through `prime`, which moves each tab's category into the cells — so a cup tab
+on a date with only league games printed `0` כיבושים where the template prints
+nothing. `--day` now includes a date whose category has no games, which is the
+only case that exercises it.
+
 `capture_golden_numbers.py` records what the current templates render on
 production into `fixtures/golden_numbers.json`, as the baseline the rewrite has
 to reproduce. Its `selftest` corrupts a stored number and asserts the

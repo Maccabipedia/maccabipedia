@@ -178,6 +178,24 @@ local function renderRows(block, cells)
 		block = named
 	end
 
+	-- Every row's cell must be one the block actually produces, checked before
+	-- anything renders. Without this the check lives in need(), which cannot
+	-- see the difference between a cell that was never declared and a summing
+	-- cell whose value is legitimately NULL - so a typo between the two data
+	-- pages would render an empty cell on all 366 day pages and look like a
+	-- date with no games.
+	local declared = {}
+	for _, cell in ipairs(block.cells) do
+		declared[cell.name] = true
+	end
+	for _, row in ipairs(block.rows) do
+		if row.cell and not declared[row.cell] then
+			error(string.format(
+				'FootballStatsBlock: the block has no cell named "%s"',
+				row.cell), 0)
+		end
+	end
+
 	local lines = {}
 
 	for index, row in ipairs(block.rows) do
@@ -224,23 +242,12 @@ end
 
 --- Reads the calling template's parameters, so nothing is forwarded by name
 --- and nothing can be dropped. See the same guard in Module:FootballQueries.
+---
+--- It does not repeat blockOf's refusal of direct arguments: every entry point
+--- that calls this has already been through blockOf, which accepts בלוק and
+--- nothing else. A second copy of that guard here could never fire, and a
+--- branch no input can reach is a branch no test can check.
 local function parentArguments(frame)
-	local direct = false
-	for key in pairs(frame.args) do
-		-- בלוק names which block to render; everything else must come from the
-		-- calling template, so that nothing can be forwarded by name and
-		-- silently dropped.
-		if key ~= 'בלוק' then
-			direct = true
-			break
-		end
-	end
-	if direct then
-		error('FootballStatsBlock: block reads the calling template\'s '
-			.. 'parameters and takes none of its own - put it in a template '
-			.. 'body as {{#invoke:FootballStatsBlock|block}}', 0)
-	end
-
 	local filters = {}
 	for name, value in pairs(frame:getParent().args) do
 		filters[name] = value

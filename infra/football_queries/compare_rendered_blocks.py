@@ -21,6 +21,7 @@ import subprocess
 import sys
 import urllib.parse
 import urllib.request
+from pathlib import Path
 
 API = 'http://localhost:8080/api.php'
 COMPOSE_FILE = 'infra/local-wiki/docker-compose.yml'
@@ -65,6 +66,21 @@ DAY_CASES = [
     {'תאריך': '"2023-01-14"', 'קטגוריית מפעל': 'רשמי'},
     {'תאריך': '"2021-09-16"', 'קטגוריית מפעל': 'בינלאומי'},
     {'תאריך': '"2022-02-09"', 'קטגוריית מפעל': 'גביע'},
+    # A date whose category has NO games: 29-08 has league and European games
+    # in the seed and no cup game ever. This is the only case that exercises
+    # the empty-sum path, where the template prints an empty כיבושים cell and
+    # a SUM with ELSE 0 would print "0". Without it the harness agreed on five
+    # dates that all had games.
+    {'תאריך': '"2021-08-29"', 'קטגוריית מפעל': 'גביע'},
+    # Dates that carry a draw beside a win or a loss, and goals in both
+    # directions. Measured: a wins<->draws swap in the block definition was
+    # caught by only 1 of the 6 cases above, because on the others every
+    # affected cell was 0 on both sides - a comparison between two zeros is
+    # not evidence. These four make each result cell distinguishable.
+    {'תאריך': '"2022-12-31"', 'קטגוריית מפעל': 'רשמי'},
+    {'תאריך': '"2021-11-07"', 'קטגוריית מפעל': 'רשמי'},
+    {'תאריך': '"2021-09-30"', 'קטגוריית מפעל': 'רשמי'},
+    {'תאריך': '"2022-04-02"', 'קטגוריית מפעל': 'רשמי'},
 ]
 
 # Players present in the local seed (football 2021/22-2024/25).
@@ -317,7 +333,7 @@ def main() -> None:
         print('seeding from production:')
         seed_from_production()
 
-    if options.selftest and not options.tabs:
+    if options.selftest and not (options.tabs or options.day):
         print('--- part 1: identical input must report no difference ---')
         build_candidate(corrupt=False)
         clean_failures = run_cases()
@@ -337,16 +353,67 @@ def main() -> None:
 
     if options.day:
         assert_wiki_matches_repo()
-        write_local(SANDBOX_DAY, DAY_BODY)
-        failures = 0
-        for params in DAY_CASES:
-            label = ' '.join(f'{n}={v}' for n, v in params.items())
-            identical, diff = compare(params, DAY_BLOCK, SANDBOX_DAY)
-            if identical:
-                print(f'OK    {label}')
-            else:
-                failures += 1
-                print(f'DIFF  {label}\n{diff}')
+
+        def run_day(body: str) -> int:
+            # The baseline must be the template, not another copy of the
+            # module: comparing the module with itself passes for free.
+            baseline = read_local(DAY_BLOCK) or ''
+            if 'FootballStatsBlock' in baseline:
+                raise SystemExit(
+                    'the baseline template already invokes the module - this '
+                    'would be the module compared with itself')
+            write_local(SANDBOX_DAY, body)
+
+            inner = 0
+            for params in DAY_CASES:
+                label = ' '.join(f'{n}={v}' for n, v in params.items())
+                identical, diff = compare(params, DAY_BLOCK, SANDBOX_DAY)
+                if identical:
+                    print(f'OK    {label}')
+                else:
+                    inner += 1
+                    print(f'DIFF  {label}\n{diff}')
+            return inner
+
+        if options.selftest:
+            print('--- part 1: the module must match the template ---')
+            clean = run_day(DAY_BODY)
+            print(f'  {clean} difference(s); expected 0')
+
+            print('\n--- part 2: ONE wrong cell must be reported ---')
+            # Not a broken module - a working one whose wins cell counts draws.
+            # A harness that only notices a Lua error is no evidence at all
+            # against the failure this layer exists to prevent: a plausible
+            # number that is wrong.
+            blocks_page = 'Module:FootballStatsBlocks'
+            source = Path(
+                'infra/football_queries/Module_FootballStatsBlocks.lua'
+            ).read_text(encoding='utf-8')
+            wins = """{ name = 'wins', grain = 'game',
+\t\t\t  filters = { ['תוצאה'] = 'ניצחון' } },"""
+            if source.count(wins) != 1:
+                raise SystemExit(
+                    'the wins cell is not where the selftest expects it - '
+                    'this selftest would corrupt nothing and pass for free')
+            try:
+                write_local(blocks_page, source.replace(
+                    wins, wins.replace("'ניצחון'", "'תיקו'")))
+                corrupt = run_day(DAY_BODY)
+            finally:
+                # Leaving the wiki holding a corrupted module would make every
+                # later run of every mode wrong, and assert_wiki_matches_repo
+                # would blame the next change.
+                write_local(blocks_page, source)
+            print(f'  {corrupt} difference(s); expected at least 1')
+
+            run_day(DAY_BODY)
+            if clean == 0 and corrupt > 0:
+                print('\nSELFTEST PASSED: --day can both pass and fail')
+                sys.exit(0)
+            print('\nSELFTEST FAILED: --day is not evidence')
+            sys.exit(1)
+
+        failures = run_day(DAY_BODY)
         print(f'\n{len(DAY_CASES) - failures}/{len(DAY_CASES)} day blocks '
               'byte-identical')
         sys.exit(1 if failures else 0)

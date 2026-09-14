@@ -27,11 +27,12 @@ FIELDS = Path('infra/football_queries/Module_FootballQueries_Fields.lua')
 # Template parameters that are deliberately not entry-point parameters, with
 # the reason. Anything not listed here has to match.
 EXPECTED_ABSENT = {
-    # The templates read these to build their own SQL text; the module builds
-    # its SQL from the declared filters instead, so they have no shim
-    # equivalent. Listing them is how "deliberately dropped" stays visible.
+    # כמות אירועי שחקן reads this twice in its body to switch alias expansion
+    # off. The module has no such switch - alias expansion is a property of
+    # the filter kind (opponentAliases, stadiumAliases), not a flag - so the
+    # entry point does not declare it and a page that passes it gets a visible
+    # error from separate() rather than a silently unexpanded query.
     'ללא מפעלים מקושרים': 'alias expansion is a filter kind here, not a flag',
-    'הגבלה': 'the template has no such parameter; limit is not exposed',
 }
 
 # The Lua that dumps the declarations. Reading them by regex from the data page
