@@ -34,7 +34,12 @@ jobs:
           python-version: "3.11"
       - uses: astral-sh/setup-uv@v7
       - name: Install dependencies
-        run: uv sync
+        # lua5.1 too: verify_entry_points.py reads the declarations by running
+        # the data page, rather than parsing the Lua with a second, weaker
+        # parser of its own.
+        run: |
+          uv sync
+          sudo apt-get update && sudo apt-get install -y lua5.1
 
       - name: Boot the local wiki
         run: docker compose -f infra/local-wiki/docker-compose.yml up -d --build
