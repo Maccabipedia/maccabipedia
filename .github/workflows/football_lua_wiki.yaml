@@ -81,8 +81,14 @@ jobs:
       - name: Day block, the one with 366 callers
         run: uv run python infra/football_queries/compare_rendered_blocks.py --day
 
-      - name: Edge cases against real data
-        run: uv run python infra/football_queries/verify_edge_cases.py
+      # verify_edge_cases.py is deliberately NOT here. It runs against
+      # production, read-only, because the cases it checks - a club whose name
+      # carries a quote, one player on both teams of one game, the rare event
+      # subtypes, a season with eventless and technical games - live in old
+      # data the local seed does not hold. Running it here would need
+      # production credentials and would query production on every pull
+      # request. It stays a local, manual check until those rows are seeded
+      # into the fixture, which is the only way to make it blocking.
 
       - name: Module against Cargo directly
         run: uv run python infra/football_queries/smoke_test_local.py
