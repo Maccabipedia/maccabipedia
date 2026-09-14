@@ -66,6 +66,13 @@ check('each קטגוריית מפעל maps to its own flag', function(FootballQu
 		['גביע'] = 'Competitions.Trophy = 1',
 		['בינלאומי'] = 'Competitions.International = 1',
 		['רשמי'] = 'Competitions.Official = 1',
+		-- Official but none of the other three. It lives in כמות אירועי שחקן
+		-- and is silently ignored by כמות נתוני משחק, which hands that page the
+		-- unfiltered total - so it is exactly the value most worth pinning.
+		['יתר-רשמיים'] =
+			'(Competitions.Official = 1 AND Competitions.League = 0'
+			.. ' AND Competitions.Trophy = 0'
+			.. ' AND Competitions.International = 0)',
 	}
 	for value, condition in pairs(expected) do
 		equals(FootballQueries.build({ ['קטגוריית מפעל'] = value }).where,
@@ -392,6 +399,34 @@ check('an aggregate from wikitext cannot reach the field list',
 			FootballQueries.count({
 				args = { aggregate = 'COUNT(*)) OR 1=1 -- ' },
 			})
+		end)
+	end)
+
+check('a club stored under several names answers for all of them',
+	function(FootballQueries)
+		-- Production: מ.ס. אשדוד (משוכלל) covers three spellings with 1, 81
+		-- and 11 games. A page asking by the rarest of them must be answered
+		-- for all 93, which is the whole point of the alias expansion.
+		stub.willReturn({
+			{ name = 'הפועל אשדוד' },
+			{ name = 'מ.ס. אשדוד' },
+			{ name = 'מכבי עירוני אשדוד' },
+		})
+		local query = FootballQueries.build({ ['יריבה'] = 'מכבי עירוני אשדוד' })
+		equals(query.where,
+			'Football_Games.Opponent IN ("הפועל אשדוד", "מ.ס. אשדוד",'
+			.. ' "מכבי עירוני אשדוד")', 'all three spellings')
+	end)
+
+check('a stored name carrying an HTML entity is refused by name',
+	function(FootballQueries)
+		-- Production has 11 rows in Stadiums.CanonicalName that are double
+		-- encoded, e.g. אצטדיון ימק&amp;#34;א. Without this the entity guard
+		-- in normalise() fires instead and blames the caller's value, sending
+		-- whoever hits it to look at the wrong thing entirely.
+		stub.willReturn({ { name = 'אצטדיון ימק&amp;#34;א' } })
+		expectError('stores', function()
+			FootballQueries.build({ ['אצטדיון'] = 'אצטדיון ימקא' })
 		end)
 	end)
 

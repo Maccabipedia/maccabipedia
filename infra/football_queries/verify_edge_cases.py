@@ -68,6 +68,12 @@ EXPECTATIONS = {
         'losses in the same season',
         {'tables': 'Football_Games', 'fields': 'COUNT(*)=n',
          'where': 'Season = "1941/42" AND ResultOpt = 3'}),
+    'opponent-many-historical-names': (
+        'games against מ.ס. אשדוד under all three names it has been stored '
+        'under, asked for by the rarest of them',
+        {'tables': 'Football_Games', 'fields': 'COUNT(*)=n',
+         'where': 'Opponent IN ("הפועל אשדוד", "מ.ס. אשדוד", '
+                  '"מכבי עירוני אשדוד")'}),
     'subtype-excluded': (
         'goals excluding penalties - NULL subtypes are dropped too, which is '
         'what the template does as well',
@@ -226,6 +232,55 @@ def selftest(site, queries: dict) -> int:
     return 0
 
 
+def check_subtype_exclusion(site) -> int:
+    """ללא תת אירוע must actually remove rows that are there.
+
+    The comparison above puts the module's exclusion beside an independently
+    written exclusion, so both sides agree even if neither excludes anything -
+    which is exactly what a broken `!=` would look like. This asserts the
+    three numbers relate as they must: goals with the subtype, goals without
+    it, and goals excluding it, on real data.
+    """
+    goals = int(run(site, {'tables': 'Games_Events', 'fields': 'COUNT(*)=n',
+                           'where': 'EventType = 3 AND Team = 1'}))
+    penalties = int(run(site, {
+        'tables': 'Games_Events', 'fields': 'COUNT(*)=n',
+        'where': 'EventType = 3 AND SubType = 35 AND Team = 1'}))
+    excluded = int(run(site, {
+        'tables': 'Games_Events', 'fields': 'COUNT(*)=n',
+        'where': 'EventType = 3 AND SubType != 35 AND Team = 1'}))
+
+    print('--- the subtype being excluded is actually in the data ---')
+    print(f'        goals={goals} penalties={penalties} '
+          f'excluding penalties={excluded}')
+
+    if penalties == 0:
+        print('FAIL  no goal carries subtype 35, so excluding it proves '
+              'nothing - pick a subtype that exists')
+        return 1
+    if excluded >= goals:
+        print(f'FAIL  excluding subtype 35 removed nothing: {excluded} of '
+              f'{goals} - the exclusion is not being applied')
+        return 1
+
+    # SQL's `SubType != 35` also drops rows whose SubType is NULL, because
+    # NULL != 35 is NULL, not true - the template behaves the same way. So the
+    # exclusion must remove AT LEAST every penalty, and possibly more.
+    # Measured on production: it removes exactly 473 of 6287, which says every
+    # goal row carries a subtype. That is a fact about the data, so it is
+    # reported rather than asserted; the invariant is what is checked.
+    removed = goals - excluded
+    if removed < penalties:
+        print(f'FAIL  excluding subtype 35 removed {removed} rows but {penalties} '
+              'carry that subtype - the exclusion is only partly applied')
+        return 1
+
+    also_null = removed - penalties
+    print(f'OK    excluding subtype 35 removed {removed} of {goals} goals: '
+          f'{penalties} penalties and {also_null} with no subtype at all')
+    return 0
+
+
 def main() -> None:
     site = get_site()
     queries = printed_queries()
@@ -259,6 +314,8 @@ def main() -> None:
               f'independent={expected}')
         print(f'        {description}')
 
+    print()
+    failures += check_subtype_exclusion(site)
     print()
     failures += check_metadata(site, queries)
 

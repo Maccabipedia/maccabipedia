@@ -512,5 +512,35 @@ check('a summing cell that matches no row is NULL, not zero',
 		end
 	end)
 
+check('no rows at all is an error, not a block of nils',
+	function(FootballQueries)
+		-- An aggregate with no GROUP BY always returns exactly one row, so an
+		-- empty result means the query did not run as asked. Without this the
+		-- cells are all nil and the renderer blames the block definition for a
+		-- cell it does declare, which sends the reader to the wrong file.
+		stub.willReturn({})
+		expectError('returned no rows at all', function()
+			FootballQueries.aggregate({ ['שחקן'] = 'ערן זהבי' }, PLAYER_CELLS)
+		end)
+	end)
+
+check('one NULL cell beside a real one is 0, not an error',
+	function(FootballQueries)
+		-- The case above must not swallow this one: the row exists, and a
+		-- player with no red cards has NULL there and a number elsewhere.
+		stub.willReturn({ { c1 = '30', c2 = nil, c3 = '4' } })
+		local cells = FootballQueries.aggregate({ ['שחקן'] = 'ערן זהבי' }, {
+			{ name = 'appearances', grain = 'event',
+			  filters = { ['מספר אירוע'] = '1,5' } },
+			{ name = 'reds', grain = 'event',
+			  filters = { ['מספר אירוע'] = '7', ['תת אירוע'] = '72,73' } },
+			{ name = 'goals', grain = 'event',
+			  filters = { ['מספר אירוע'] = '3' } },
+		})
+		equals(cells.appearances, 30, 'appearances')
+		equals(cells.reds, 0, 'a counting cell with nothing to count is 0')
+		equals(cells.goals, 4, 'goals')
+	end)
+
 print(string.format('\n%d passed, %d failed', passed, failed))
 os.exit(failed > 0 and 1 or 0)

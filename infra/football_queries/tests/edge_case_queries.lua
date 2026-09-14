@@ -19,6 +19,15 @@ local stub = require('stub_mw')
 local ALIASES = {
 	['בית"ר ירושלים'] = { { name = 'בית"ר ירושלים' } },
 	["צ'לסי"] = { { name = "צ'לסי" } },
+	-- One club, three spellings across its history, all under the canonical
+	-- name מ.ס. אשדוד (משוכלל). Production has 1 game under the first, 81
+	-- under the second and 11 under the third, so a page that asks about any
+	-- one of them must be answered for all 93.
+	['מכבי עירוני אשדוד'] = {
+		{ name = 'הפועל אשדוד' },
+		{ name = 'מ.ס. אשדוד' },
+		{ name = 'מכבי עירוני אשדוד' },
+	},
 }
 
 local cases = {}
@@ -35,6 +44,10 @@ addCase('opponent-apostrophe-list', { ['יריבות'] = "צ'לסי" }, nil)
 addCase('opponent-double-quote-alias', { ['יריבה'] = 'בית"ר ירושלים' }, nil,
 	'בית"ר ירושלים')
 addCase('opponent-apostrophe-alias', { ['יריבה'] = "צ'לסי" }, nil, "צ'לסי")
+-- A club stored under several names through its history: asking by the rarest
+-- spelling (11 games) must answer for the whole club (93).
+addCase('opponent-many-historical-names',
+	{ ['יריבה'] = 'מכבי עירוני אשדוד' }, nil, 'מכבי עירוני אשדוד')
 
 -- 2. The same player NAME on both teams IN ONE GAME. Pinned to that one game
 -- by its date, because career totals would not show the confusion: on

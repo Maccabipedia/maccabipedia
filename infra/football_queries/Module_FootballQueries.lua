@@ -233,6 +233,20 @@ local function expandAliases(kind, value)
 	for index, row in ipairs(rows) do
 		-- Returned as-is: the caller matches these against a declared column,
 		-- and that column's own quote rule decides whether they are stripped.
+		--
+		-- A stored name carrying an ampersand is refused here rather than
+		-- further down, where the message would blame the caller's value.
+		-- Production has 11 such rows in Stadiums.CanonicalName - double
+		-- encoded, e.g. אצטדיון ימק&amp;#34;א - and the entity guard in
+		-- normalise() would fire on them with no hint that the fault is in the
+		-- wiki's data rather than in the query. Football_Games.Stadium itself
+		-- holds none, so no game is reachable through such a name anyway.
+		if tostring(row.name):find('&', 1, true) then
+			error(string.format(
+				'FootballQueries: the %s table stores "%s" with an HTML entity '
+				.. 'in it, so it cannot be matched - fix that row on the wiki',
+				kind, tostring(row.name)), 0)
+		end
 		names[index] = row.name
 	end
 	if #names == 0 then
@@ -630,18 +644,26 @@ function FootballQueries.aggregate(shared, cells, options)
 	})
 
 	local values = {}
-	if rows[1] then
-		for _, entry in ipairs(aliases) do
-			-- COUNT over no rows is 0; SUM over no rows is NULL, and the
-			-- templates render that as an empty cell rather than a zero. The
-			-- difference is visible on a date with no games, so a summing cell
-			-- keeps nil and a counting cell does not.
-			local value = tonumber(rows[1][entry.alias])
-			if value == nil and not entry.sums then
-				value = 0
-			end
-			values[entry.name] = value
+	-- An aggregate with no GROUP BY always returns exactly one row - that is
+	-- SQL, not a Cargo detail - so no rows at all means the query did not run
+	-- as asked rather than that nothing matched. Left alone, every cell would
+	-- be nil and the renderer would raise "the block has no cell named wins",
+	-- which is untrue and sends the reader to the wrong file.
+	if not rows[1] then
+		error('FootballQueries: the merged query returned no rows at all. An '
+			.. 'aggregate always returns one row, so this is a failed query, '
+			.. 'not an empty result', 0)
+	end
+	for _, entry in ipairs(aliases) do
+		-- COUNT over no rows is 0; SUM over no rows is NULL, and the
+		-- templates render that as an empty cell rather than a zero. The
+		-- difference is visible on a date with no games, so a summing cell
+		-- keeps nil and a counting cell does not.
+		local value = tonumber(rows[1][entry.alias])
+		if value == nil and not entry.sums then
+			value = 0
 		end
+		values[entry.name] = value
 	end
 	return values
 end
