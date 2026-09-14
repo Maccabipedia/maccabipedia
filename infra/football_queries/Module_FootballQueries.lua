@@ -51,10 +51,18 @@ local ENTITIES = {
 --- this module has quoted and escaped it, and that path is shared by
 --- CargoLuaLibrary. So any entity spelling this table does not know survives
 --- escaping, reaches Cargo, and is turned back into a raw quote INSIDE the
---- SQL. Proven read-only against production: a value of
----   x&#x22; OR 1=1 OR &#x22;
+--- SQL. Proven read-only against production: a value built as an encoded
+--- quote, then a disjunction that is always true, then another encoded quote,
 --- returned every row in the table instead of raising - the wiki-wide-total
 --- bug, reappearing inside the module written to prevent it.
+---
+--- That probe is DESCRIBED rather than quoted on purpose. Written out
+--- literally, the six characters of the always-true disjunction are refused
+--- by the wiki's web application firewall in any POST body, so the module
+--- could not be saved at all: pywikibot reads the rejection as a non-JSON
+--- response and retries it forever, two minutes apart, which looks like the
+--- wiki hanging rather than like a blocked edit. Measured against production:
+--- those six bytes alone are rejected, while 64KB of harmless text is not.
 ---
 --- Refusing a surviving ampersand is safe rather than restrictive: no value in
 --- any quote-bearing column on production contains one (LIKE '%&%' -> 0 rows),
