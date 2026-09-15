@@ -5,7 +5,12 @@
 
     padding: @space-xxSmall @space-regular;
 
-    &:nth-child(odd) {
+    // nth-of-TYPE, not nth-child: MediaWiki inserts an empty
+    // <p class="mw-empty-elt"> as the first child of a <tabber> panel, and
+    // counting children let that shift every stripe by one row - measured
+    // before and after converting a strip from <shtml> to <tabber>. Counting
+    // divs is immune to a stray paragraph appearing or disappearing.
+    &:nth-of-type(odd) {
         background-color: @background-secondary-lighter;
     }
 

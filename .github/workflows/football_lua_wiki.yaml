@@ -1,0 +1,101 @@
+name: Football Lua (real wiki)
+
+# The Lua query layer's strongest evidence needs a wiki: the module path and
+# the template path are rendered side by side and compared BYTE FOR BYTE, and
+# the edge cases are checked against real Cargo data. Neither can run against
+# the stub, so neither could gate a pull request - this job is what makes them
+# blocking rather than something a human has to remember to run.
+#
+# It boots the self-contained local wiki (infra/local-wiki/) and restores the
+# committed database snapshot, so nothing here touches production.
+#
+# Only for changes that can affect it. The stub suites and the mutation gate
+# run on every PR in tests.yaml; this one costs minutes.
+on:
+  pull_request:
+    paths:
+      - 'infra/football_queries/**'
+      - 'infra/local-wiki/**'
+      - '.github/workflows/football_lua_wiki.yaml'
+  push:
+    branches: [master]
+    paths:
+      - 'infra/football_queries/**'
+      - 'infra/local-wiki/**'
+
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - uses: astral-sh/setup-uv@v7
+      - name: Install dependencies
+        # lua5.1 too: verify_entry_points.py reads the declarations by running
+        # the data page, rather than parsing the Lua with a second, weaker
+        # parser of its own.
+        run: |
+          uv sync
+          sudo apt-get update && sudo apt-get install -y lua5.1
+
+      - name: Boot the local wiki
+        run: docker compose -f infra/local-wiki/docker-compose.yml up -d --build
+
+      - name: Wait for the wiki
+        run: |
+          for _ in $(seq 1 90); do
+            if curl -fsS -o /dev/null http://localhost:8080/; then exit 0; fi
+            sleep 5
+          done
+          docker compose -f infra/local-wiki/docker-compose.yml logs --tail 80
+          exit 1
+
+      - name: Restore the database snapshot
+        run: bash infra/local-wiki/scripts/restore-db.sh
+
+      - name: Deploy the modules to it
+        run: uv run python infra/football_queries/deploy_modules.py
+
+      # Each of these fails the job on a single differing byte or a single
+      # disagreeing number.
+      - name: Entry points match the templates they replace
+        run: |
+          uv run python infra/football_queries/verify_entry_points.py
+          uv run python infra/football_queries/verify_entry_points.py --selftest
+
+      - name: The comparison harness can both pass and fail
+        run: uv run python infra/football_queries/compare_rendered_blocks.py --selftest
+
+      - name: Query shim, byte for byte
+        run: uv run python infra/football_queries/compare_rendered_blocks.py
+
+      - name: Renderer, byte for byte
+        run: uv run python infra/football_queries/compare_rendered_blocks.py --renderer
+
+      - name: Four-tab block, 32 queries against 1
+        run: uv run python infra/football_queries/compare_rendered_blocks.py --tabs
+
+      - name: Day block, the one with 366 callers
+        run: uv run python infra/football_queries/compare_rendered_blocks.py --day
+
+      - name: Whole day page, headers included, 28 queries against 1
+        run: uv run python infra/football_queries/compare_rendered_blocks.py --day-tabs
+
+      # verify_edge_cases.py is deliberately NOT here. It runs against
+      # production, read-only, because the cases it checks - a club whose name
+      # carries a quote, one player on both teams of one game, the rare event
+      # subtypes, a season with eventless and technical games - live in old
+      # data the local seed does not hold. Running it here would need
+      # production credentials and would query production on every pull
+      # request. It stays a local, manual check until those rows are seeded
+      # into the fixture, which is the only way to make it blocking.
+
+      - name: Module against Cargo directly
+        run: uv run python infra/football_queries/smoke_test_local.py
+
+      - name: Wiki logs on failure
+        if: failure()
+        run: docker compose -f infra/local-wiki/docker-compose.yml logs --tail 200

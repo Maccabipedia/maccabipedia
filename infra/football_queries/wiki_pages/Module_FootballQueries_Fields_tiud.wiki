@@ -1,0 +1,30 @@
+דף נתונים: הטבלאות, הצירופים, כללי הגרשיים לכל עמודה, אוצר המסננים וקבועי הענף.
+
+נקרא עם <code>mw.loadData</code>, ולכן מנותח פעם אחת לעמוד ולא פעם אחת לכל
+<code>#invoke</code>. אסור שיכיל פונקציות או מטא־טבלאות.
+
+עמודה בלי כלל גרשיים מוצהר זורקת שגיאה במקום לנחש: שאילתה על עמודה שגרשיה
+הוסרו, עם שם שגרשיו נשמרו, מחזירה אפס שורות בלי שגיאה.
+
+== דוגמה ==
+
+כך נראית הצהרה של מסנן, של עמודה ושל קטגוריית מפעל:
+
+<pre>filters = {
+    ['שחקן'] = { column = 'Games_Events.PlayerName', kind = 'text' },
+    ['עונה'] = { column = 'Football_Games.Season',   kind = 'text' },
+},
+columns = {
+    ['Games_Events.PlayerName'] = 'keep',   -- שומר גרשיים: א.חג'ג
+    ['Football_Games.Opponent'] = 'strip',  -- בלי גרשיים: ביתר ירושלים
+},
+competitionCategories = {
+    ['ליגה'] = 'Competitions.League = 1',
+},</pre>
+
+להוסיף מסנן חדש: שורה ב־<code>filters</code>, ואם היא נוגעת בעמודה חדשה — גם
+שורה ב־<code>columns</code>. בלי השנייה היחידה תזרוק שגיאה, במכוון.
+
+הקוד: <code>infra/football_queries/Module_FootballQueries_Fields.lua</code>.
+
+<includeonly>[[קטגוריה:יחידות לואה/סטטיסטיקת כדורגל]]</includeonly><noinclude>[[קטגוריה:דפי תיעוד של יחידות]]</noinclude>

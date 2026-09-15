@@ -1,0 +1,145 @@
+// Make a <tabber> strip converted from <shtml> look like the strip it replaced.
+//
+// See `.claude/shtml_free_tabs_design.md`. The radio-hack strips are being
+// converted to TabberNeue, which this wiki already ships; these rules close
+// the visual differences measured between the old and new rendering of the
+// same template, each one verified with a screenshot diff rather than by eye:
+//
+//   1. the tabs showed FontAwesome icons, not text. The tab NAME must stay
+//      plain text - TabberNeue builds each panel's anchor id from it, and
+//      markup there produced ids like
+//      `#tabber-tabpanel-&lt;i_class=&quot;far_fa-circle&quot;...`, which this
+//      wiki then writes into the address bar
+//      ($wgTabberNeueUpdateLocationOnTabChange). So the icon is ::before
+//      content keyed on tab position, applied only when the converter
+//      recognised the icon sequence.
+//   2. `.tab-header` inside a panel was styled by
+//      `.slim-tabs .content>div .tab-header`, an ancestor the converted
+//      markup no longer has, so the heading lost its colour and underline.
+//   3. the vertical rhythm: the panel started 12px higher and every row was
+//      2px shorter, which compounds down a ten-row list.
+//   4. the row striping shifted by one row - fixed where the striping lives
+//      (atoms/records-list.less), by counting `nth-of-type` rather than
+//      `nth-child`, so the empty `<p class="mw-empty-elt">` MediaWiki puts at
+//      the top of a panel cannot shift it again.
+
+// FontAwesome 6.5.2, loaded from the CDN in LocalSettings.
+@fa-free: "Font Awesome 6 Free";
+
+.tabber-icons-competitions {
+  // The strip's geometry, taken from the measured `.slim-tabs ul` box:
+  // 5px above it, 40px tall, four equal columns across the width. Stated
+  // outright rather than arrived at through padding, because the panel below
+  // inherits any error and 2px there shifts every row on the page.
+  .tabber__header {
+    box-shadow: none;
+    margin-top: 5px;
+  }
+
+  .tabber__tabs {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    margin: 0 1px;
+  }
+
+  .tabber__indicator {
+    // The old strip marked the active tab with a filled pill, not a bar.
+    display: none;
+  }
+
+  .tabber__tab {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    flex: 1;
+    min-height: 40px;
+
+    // OUTSIDE the pill. The old markup padded the `li` around the `label`,
+    // and the label carried the background - so padding here would widen the
+    // pill instead of insetting it, and it ran flush to the edge.
+    margin: 0 5px;
+
+    // The label text stays in the DOM as the tab's accessible name - an
+    // icon-only tab with only a `title` attribute never had one - but is not
+    // shown.
+    font-size: 0;
+    line-height: 1;
+    text-align: center;
+    color: #929daf;
+    font-weight: 600;
+    transition: all 0.3s ease-in-out;
+
+    // The same pill the radio strip gave the checked label - and no bar.
+    // TabberNeue marks the active tab with `box-shadow: 0 -2px 0 … inset`,
+    // which drew a blue line under the pill that the old strip never had.
+    &[aria-selected="true"] {
+      cursor: default;
+      color: @blue;
+      background-color: rgba(0, 0, 0, 0.09);
+      box-shadow: none;
+    }
+
+    &::before {
+      font-family: @fa-free;
+      font-weight: 900; // fas
+      font-size: 1rem;
+      display: inline-block;
+      padding: 6px;
+      line-height: 1.4;
+    }
+
+    // רשמי, ליגה, גביע, בינלאומי - the order the converter verified before
+    // emitting this wrapper class.
+    &:nth-child(1)::before {
+      content: "\f111";
+      font-weight: 400; // far fa-circle is the regular face
+    }
+
+    &:nth-child(2)::before {
+      content: "\f015"; // fa-home
+    }
+
+    &:nth-child(3)::before {
+      content: "\f091"; // fa-trophy
+    }
+
+    &:nth-child(4)::before {
+      content: "\f153"; // fa-euro-sign
+    }
+  }
+}
+
+// `.slim-tabs .content` carried `margin-top: 10px`, and
+// `.slim-tabs .content > div` set `line-height: 1.4` where a
+// `.tabber__panel` inherits `normal` - 22.4px against 24.2px per row.
+.tabber .tabber__section {
+  margin-top: 10px;
+}
+
+.tabber .tabber__panel {
+  line-height: 1.4;
+}
+
+// The panel heading, restored: the colour and the 65px underline the
+// `.slim-tabs` rules gave it.
+.tabber .tabber__panel .tab-header {
+  display: block;
+  color: @blue;
+  // `.slim-tabs .content>div .tab-header` set this too; without it the
+  // heading rendered at the default weight and was the largest remaining
+  // region in the screenshot diff.
+  font-weight: 600;
+
+  &::after {
+    content: "";
+    position: relative;
+    display: block;
+    width: 65px;
+    height: 3px;
+    margin: 4px 0;
+    right: 1px;
+    background-color: @blue;
+  }
+}
