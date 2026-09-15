@@ -14,7 +14,7 @@ all. See `.claude/shtml_free_tabs_design.md` §6 items 3 and 5.
 from __future__ import annotations
 
 import os
-from urllib.parse import quote
+from urllib.parse import quote, unquote
 
 import pytest
 
@@ -29,6 +29,9 @@ BASE = os.environ.get("MW_BASE_URL", "http://localhost:8080")
 # `infra/tabs/make_host_pages.py`.
 ORIGINAL = "ארגז חול/טאבים/לפני"
 CONVERTED = "ארגז חול/טאבים/אחרי"
+# Two converted strips on one page, written by
+# scratchpad probe / infra/tabs/make_host_pages.py.
+TWO_STRIPS = "ארגז חול/טאבים/שני מדפים"
 
 pytestmark = pytest.mark.integration
 
@@ -170,3 +173,59 @@ def test_the_panels_hold_the_same_text_as_the_original(browser):
         f"{len(before)} panels before, {len(after)} after")
     for index, (old, new) in enumerate(zip(before, after), start=1):
         assert old == new, f"panel {index} text differs"
+
+# --- URL, refresh and history -------------------------------------------------
+#
+# The strip being replaced never touched the URL: a refresh always came back to
+# tab 1 and a link could not point at a tab. The converted strip does, because
+# this wiki sets $wgTabberNeueUpdateLocationOnTabChange. That is a behaviour
+# CHANGE, so it is pinned here rather than discovered later.
+
+
+def test_clicking_a_tab_updates_the_url(converted):
+    converted.locator(".tabber__tab").nth(2).click()
+    converted.wait_for_timeout(400)
+    fragment = unquote(converted.evaluate("() => location.hash"))
+    assert fragment.startswith("#tabber-tabpanel-"), fragment
+    assert "&" not in fragment and "<" not in fragment, (
+        f"the fragment is not readable: {fragment}")
+
+
+def test_a_refresh_comes_back_to_the_same_tab(converted):
+    converted.locator(".tabber__tab").nth(2).click()
+    converted.wait_for_timeout(400)
+    before = selected_index(converted)
+
+    converted.reload(wait_until="networkidle")
+    converted.wait_for_timeout(600)
+    assert selected_index(converted) == before, (
+        "a refresh did not return to the tab the URL names")
+
+
+def test_clicking_tabs_does_not_fill_the_back_button(converted):
+    """The back button must leave the page, not walk back through tabs."""
+    start = converted.evaluate("() => history.length")
+    for index in (1, 2, 3):
+        converted.locator(".tabber__tab").nth(index).click()
+        converted.wait_for_timeout(300)
+    assert converted.evaluate("() => history.length") == start, (
+        "tab clicks pushed history entries")
+
+
+def test_two_strips_on_one_page_do_not_share_anchors(browser):
+    """Tab names repeat across the statistics strips - ליגה, גביע and
+    בינלאומי are in almost all of them - and a page often carries several. If
+    two panels shared an id, a fragment would address the wrong strip."""
+    page = browser.new_page(viewport={"width": 1100, "height": 1600})
+    page.goto(url_of(TWO_STRIPS), wait_until="networkidle")
+    page.wait_for_timeout(600)
+
+    strips = page.locator(".tabber")
+    if strips.count() < 2:
+        page.close()
+        pytest.skip(f"{TWO_STRIPS} does not hold two converted strips")
+
+    ids = page.locator(".tabber__panel").evaluate_all(
+        "panels => panels.map(panel => panel.id)")
+    page.close()
+    assert len(ids) == len(set(ids)), f"duplicate panel ids: {ids}"
