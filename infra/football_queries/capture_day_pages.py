@@ -181,6 +181,37 @@ def compare(baseline: dict, current: dict) -> int:
     return differences
 
 
+def purge() -> int:
+    """Re-parse every day page, so a later verify cannot read a stale cache.
+
+    After the template edit the parser cache still holds each page as it
+    rendered BEFORE it, and action=parse serves that. Verifying against it
+    would compare the old output with itself and pass no matter what the
+    modules do. Batches of ten: fifty exceeds this host's API time limit.
+    """
+    import pywikibot as pw
+
+    connection = site()
+    pages = day_pages(connection)
+    print(f'purging {len(pages)} day page(s), ten at a time')
+
+    purged = 0
+    for start in range(0, len(pages), 10):
+        batch = pages[start:start + 10]
+        response = connection.simple_request(
+            action='purge', forcelinkupdate=1, titles='|'.join(batch),
+            format='json').submit()
+        purged += len(response.get('purge', []))
+        print(f'  {purged}/{len(pages)}', flush=True)
+        time.sleep(PAUSE_SECONDS)
+
+    if purged != len(pages):
+        print(f'only {purged} of {len(pages)} were purged - a verify now '
+              'could read a stale cache')
+        return 1
+    return 0
+
+
 def verify() -> int:
     if not FIXTURE.exists():
         raise SystemExit(f'no baseline at {FIXTURE} - run capture first')
@@ -227,7 +258,8 @@ def selftest() -> int:
 
 
 def main() -> None:
-    modes = {'capture': capture, 'verify': verify, 'selftest': selftest}
+    modes = {'capture': capture, 'verify': verify, 'selftest': selftest,
+             'purge': purge}
     mode = sys.argv[1] if len(sys.argv) > 1 else ''
     if mode not in modes:
         raise SystemExit(f'usage: {sys.argv[0]} {"|".join(modes)}')

@@ -312,6 +312,47 @@ production into `fixtures/golden_numbers.json`, as the baseline the rewrite has
 to reproduce. Its `selftest` corrupts a stored number and asserts the
 comparison reports it.
 
+## LIVE on production: the day family, 2026-09-15
+
+`תבנית:סטטיסטיקה/תצוגה/ימים/סיכום תוצאות` renders through
+`Module:FootballStatsBlock` on all **366** day pages. **28 Cargo queries → 1.**
+
+Measured on production over 366 renders:
+
+| | p50 | p95 | mean |
+|---|---|---|---|
+| before (28 queries) | 559 ms | 668 ms | 599 ms |
+| after (1 query) | **162 ms** | **208 ms** | **176 ms** |
+
+Also live and called by nothing: the four modules plus their `/תיעוד` pages
+and `קטגוריה:יחידות לואה`.
+
+How it was made safe, in the order it happened:
+
+1. `capture_day_pages.py capture` recorded the 8,784 published numbers on all
+   366 pages, stamped with the template revision (104114).
+2. `compare_prod_day_pages.py --publish` put the module version on a sandbox
+   page nothing transcludes, and `--compare` rendered **both** paths for every
+   day of the year on production data: **366/366 byte-identical**. This is the
+   step the local wiki cannot do - it holds 2021/22-2024/25 while production
+   holds every season back to 1906.
+3. `migrate_day_template.py --apply` wrote the live template, recording the
+   previous revision and its full text for `--revert`.
+4. `capture_day_pages.py purge` re-parsed all 366 pages. **Without this the
+   verification is worthless**: `action=parse` serves the parser cache written
+   before the edit, so the comparison would match the old rendering against
+   itself and pass whatever the modules did.
+5. `capture_day_pages.py verify` found **8 differences, all on one page**
+   (`14 בספטמבר`), moving together: +1 league game, +1 official, +1 win,
+   +4 goals for, +1 against.
+
+Those 8 were **not** a defect, and the way that was settled is worth reusing:
+a baseline comparison cannot tell a migration bug from the data having moved
+on, because both look like a changed number. `ab_day_template.py` writes the
+pre-migration text to a second sandbox page and renders it beside the live one
+**at the same moment** - 5/5 identical, including that date. The cause was a
+real game added after the capture: Maccabi 4-1 הפועל תל אביב, 2026-09-14.
+
 ## Not done yet
 
 - Nothing is installed on any wiki. The stub proves the SQL shape, not that the
