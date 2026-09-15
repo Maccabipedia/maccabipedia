@@ -398,14 +398,29 @@ $wgGroupPermissions['sysop']['gtag-exempt'] = true;
 // $wgGoogleAnalyticsAccount = 'UA-123078340-2';  # MaccabiPedi
 
 
-$wgResourceModules['maccabipedia.customizations'] = array(
-	'styles' => ["slick/slick.less", "slick/slick-theme.less"],
-	'scripts' => ["slick/slick.min.js", "canvasjs/jquery.canvasjs.min.js"],
-	'dependencies' => ['jquery'],
-	'localBasePath' => "$IP/customizations/",
-	'remoteBasePath' => "$wgScriptPath/customizations/",
-	'position' => 'top'
-);
+# A legacy module served from $IP/customizations/, a directory that exists on
+# production but is NOT in this repo (slick has since been vendored into the
+# skin; canvasjs lives only there).
+#
+# Registered only if that directory is actually present. Without the guard,
+# ResourceLoader throws "style file not found or not a file:
+# .../customizations//slick/slick.less" for the whole batch this module is in
+# - and because a batch fails as a unit, EVERY script on EVERY page dies with
+# it. On the local wiki that meant no sliders, no skin scripts and no
+# TabberNeue: tabs rendered all panels at once and never switched, which looks
+# like a broken extension rather than a missing directory.
+#
+# On production the directory exists, so this changes nothing there.
+if ( is_dir( "$IP/customizations" ) ) {
+	$wgResourceModules['maccabipedia.customizations'] = array(
+		'styles' => ["slick/slick.less", "slick/slick-theme.less"],
+		'scripts' => ["slick/slick.min.js", "canvasjs/jquery.canvasjs.min.js"],
+		'dependencies' => ['jquery'],
+		'localBasePath' => "$IP/customizations/",
+		'remoteBasePath' => "$wgScriptPath/customizations/",
+		'position' => 'top'
+	);
+}
 
 $wgResourceLoaderMaxage = ['versioned' => 31536000, 'unversioned' => 86400];
 
@@ -417,7 +432,11 @@ wfLoadExtension('RegexFunctions');
 
 function efCustomBeforePageDisplay(&$out, &$skin)
 {
-	$out->addModules(array('maccabipedia.customizations'));
+	# Only if it was registered above - asking for a module that does not
+	# exist is the same batch-killing failure by another route.
+	if ( isset( $GLOBALS['wgResourceModules']['maccabipedia.customizations'] ) ) {
+		$out->addModules(array('maccabipedia.customizations'));
+	}
 }
 
 $wgHooks['BeforePageDisplay'][] = 'efCustomBeforePageDisplay';
