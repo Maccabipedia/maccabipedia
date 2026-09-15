@@ -135,7 +135,38 @@ def tabber_of(tabs: list[dict], key: str) -> str:
         lines.append(f'|-|{tab["tooltip"]}=')
         lines.append(tab['body'].strip())
     lines.append('</tabber>')
-    return '\n'.join(lines)
+    block = '\n'.join(lines)
+
+    wrapper = icon_class(tabs)
+    if wrapper:
+        block = f'<div class="{wrapper}">\n{block}\n</div>'
+    return block
+
+
+# Icon sets the skin can reproduce in CSS, by the sequence of FontAwesome
+# classes the old labels used. The tab NAME has to stay plain text (see
+# tabber_of), so the icons come back as ::before content keyed on tab position
+# - which is only safe when the sequence is one the CSS knows. An unknown
+# sequence converts to text tabs and says so, rather than showing four icons
+# in the wrong order.
+ICON = re.compile(r'<i\b[^>]*class="(?P<classes>[^"]+)"')
+ICON_SETS = {
+    ('far fa-circle', 'fas fa-home', 'fas fa-trophy', 'fas fa-euro-sign'):
+        'tabber-icons-competitions',
+}
+
+
+def icons_of(tabs: list[dict]) -> tuple[str, ...]:
+    sequence = []
+    for tab in tabs:
+        found = ICON.search(tab['label'])
+        sequence.append(found.group('classes').strip() if found else '')
+    return tuple(sequence)
+
+
+def icon_class(tabs: list[dict]) -> str | None:
+    """The wrapper class whose CSS restores this strip's icons, if known."""
+    return ICON_SETS.get(icons_of(tabs))
 
 
 def variable_key(text: str) -> str:
