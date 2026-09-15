@@ -21,7 +21,9 @@ import urllib.request
 
 sys.path.insert(0, 'infra/tabs')
 
-from convert_strip import Refused, convert, local_text  # noqa: E402
+from convert_strip import (  # noqa: E402
+    Refused, convert, fallback_context, local_text,
+)
 from verify_tabs import (  # noqa: E402
     OLD_PANEL, PANEL_TEXT, SANDBOX_SUFFIX, render, words_of, write_local,
 )
@@ -58,7 +60,7 @@ def check(title: str, min_words: int) -> tuple[str, str]:
     """('ok' | 'WEAK' | 'FAIL' | 'REFUSED', detail)."""
     original = local_text(title)
     try:
-        converted = convert(original)
+        converted = convert(original, fallback_context(title))
     except Refused as refusal:
         return 'REFUSED', str(refusal)
 

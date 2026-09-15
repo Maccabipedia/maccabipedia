@@ -380,6 +380,20 @@ wfLoadExtension('TabberNeue'); // https://www.mediawiki.org/wiki/Extension:Tabbe
 $wgTabberNeueUpdateLocationOnTabChange = true;
 $wgTabberNeueEnableAnimation = false;
 $wgTabberNeueParseTabName = true;
+# NOT $wgTabberNeueUseLegacyTabIds. It would give stable, position-independent
+# panel ids (#גביע-שיאני-כיבושים instead of #גביע-0), which is what a shared
+# link wants - but it is unusable in the pinned version: it throws
+# "Duplicated Tabber labels is not allowed" for ANY box with two or more tabs,
+# even when every label is unique.
+#
+# Measured, and the cause is upstream: ParserOutput::appendExtensionData stores
+# values as KEYS ($data[$key][$value] = true), while Tabber.php checks
+# in_array($id, $existingIds) against the VALUES - which are `true` and the
+# merge-strategy string. In PHP a non-empty string loosely equals true, so the
+# second tab always "collides". The fix upstream is array_key_exists.
+#
+# Until that is fixed or the pin is bumped, panel ids carry the positional
+# suffix and a deep link means "the Nth box on this page".
 
 #wfLoadExtension('GoogleRichCards'); //https://www.mediawiki.org/wiki/Extension:GoogleRichCards
 // Enable annotations for articles

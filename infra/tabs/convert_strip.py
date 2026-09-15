@@ -45,6 +45,8 @@ ITEM = re.compile(
     r'<li\b(?P<attributes>[^>]*)>\s*<label\b[^>]*>(?P<label>.*?)</label>\s*</li>',
     re.DOTALL)
 TITLE = re.compile(r'title="(?P<title>[^"]*)"')
+# The box's own heading, when it has one: `<div class="title">שיאני נקודות</div>`
+BOX_TITLE = re.compile(r'<div class="title">(?P<title>[^<]{1,60})</div>')
 CONTENT = re.compile(
     r'<div class="content"(?P<attributes>[^>]*)>(?P<panels>.*)$', re.DOTALL)
 PANEL = re.compile(
@@ -108,7 +110,27 @@ def parse_strip(text: str) -> tuple[list[dict], str]:
     return tabs, content.group('attributes')
 
 
-def tabber_of(tabs: list[dict], key: str) -> str:
+def fallback_context(title: str) -> str:
+    """A box name derived from the page title, for a strip with no heading.
+
+    `תבנית:…/שיאני הופעות/עוזר שופט/עיצוב חדש` -> `שיאני הופעות עוזר שופט`:
+    the last two meaningful segments, which is what distinguishes one box from
+    its siblings.
+    """
+    parts = [part for part in title.removeprefix('תבנית:').split('/')
+             if part not in ('עיצוב חדש',)]
+    return ' '.join(parts[-2:])
+
+
+def context_of(text: str, fallback: str | None) -> str | None:
+    """A name for this box, to qualify its tab labels with."""
+    heading = BOX_TITLE.search(text)
+    if heading:
+        return heading.group('title').strip()
+    return fallback
+
+
+def tabber_of(tabs: list[dict], key: str, context: str | None = None) -> str:
     """The `<tabber>` block. Tab names are PLAIN TEXT, deliberately.
 
     Two measurements on the local wiki decided this, both of them from trying
@@ -130,14 +152,21 @@ def tabber_of(tabs: list[dict], key: str) -> str:
     strip already sits in (`.records-list-tabs-container` and friends), where
     the four competition categories always use the same four glyphs.
     """
+    wrapper = icon_class(tabs)
+
     lines = ['<tabber>']
     for tab in tabs:
-        lines.append(f'|-|{tab["tooltip"]}=')
+        label = tab['tooltip']
+        # Qualified only when the CSS hides the label text - see the module
+        # docstring. On a visible tab, `ליגה - שיאני כיבושים` reads worse than
+        # a positional anchor.
+        if wrapper and context:
+            label = f'{label} - {context}'
+        lines.append(f'|-|{label}=')
         lines.append(tab['body'].strip())
     lines.append('</tabber>')
     block = '\n'.join(lines)
 
-    wrapper = icon_class(tabs)
     if wrapper:
         block = f'<div class="{wrapper}">\n{block}\n</div>'
     return block
@@ -183,7 +212,7 @@ def variable_key(text: str) -> str:
         .strip('-') or 'tabs'
 
 
-def convert(text: str) -> str:
+def convert(text: str, context: str | None = None) -> str:
     tabs, _ = parse_strip(text)
     strip = STRIP.search(text)
     remainder = text[strip.end():]
@@ -206,7 +235,8 @@ def convert(text: str) -> str:
         after = tail[closing + len('</div>'):]
 
     return (before + middle
-            + tabber_of(tabs, variable_key(text)) + after)
+            + tabber_of(tabs, variable_key(text),
+                        context_of(text, context)) + after)
 
 
 def main() -> None:
@@ -219,8 +249,13 @@ def main() -> None:
     text = (open(options.file, encoding='utf-8').read() if options.file
             else local_text(options.local))
 
+    # The page title is the fallback name for the box when it has no
+    # heading of its own: `…/שיאני הופעות/עוזר שופט/עיצוב חדש` -> the two
+    # meaningful segments.
+    fallback = fallback_context(options.local) if options.local else None
+
     try:
-        print(convert(text))
+        print(convert(text, fallback))
     except Refused as refusal:
         print(f'REFUSED: {refusal}', file=sys.stderr)
         sys.exit(1)

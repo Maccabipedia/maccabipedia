@@ -32,7 +32,9 @@ import urllib.request
 
 sys.path.insert(0, 'infra/tabs')
 
-from convert_strip import Refused, convert, local_text  # noqa: E402
+from convert_strip import (  # noqa: E402
+    Refused, convert, fallback_context, local_text,
+)
 
 API = 'http://localhost:8080/api.php'
 COMPOSE = 'infra/local-wiki/docker-compose.yml'
@@ -86,7 +88,7 @@ def main() -> None:
 
     original = local_text(options.title)
     try:
-        converted = convert(original)
+        converted = convert(original, fallback_context(options.title))
     except Refused as refusal:
         raise SystemExit(f'REFUSED: {refusal}')
 
