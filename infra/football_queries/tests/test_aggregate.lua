@@ -542,5 +542,36 @@ check('one NULL cell beside a real one is 0, not an error',
 		equals(cells.goals, 4, 'goals')
 	end)
 
+check('aggregateProbe answers instead of raising', function(FootballQueries)
+	-- It had no test, so when grain became mandatory this entry point kept
+	-- building cells without one. Nothing noticed until it was invoked on
+	-- production and raised "must declare grain" where a number belonged.
+	stub.willReturn({ { c1 = '52', c2 = '11' } })
+	local frame = stub.newFrame({}, {
+		cells = 'goals:3,assists:4',
+		['שחקן'] = 'ערן זהבי',
+		['קטגוריית מפעל'] = 'ליגה',
+	})
+	equals(FootballQueries.aggregateProbe(frame), 'goals=52 assists=11',
+		'both cells')
+end)
+
+check('aggregateProbe counts events, not games', function(FootballQueries)
+	-- The grain it declares has to match what its cells filter on: these
+	-- count events, and counting games instead would divide a striker's
+	-- goals down to the number of matches they scored in.
+	stub.willReturn({ { c1 = '52' } })
+	FootballQueries.aggregateProbe(stub.newFrame({}, {
+		cells = 'goals:3', ['שחקן'] = 'ערן זהבי',
+	}))
+	local fields = stub.calls[1].fields
+	if fields:find('COUNT(DISTINCT', 1, true) then
+		error('counted games where it should count events: ' .. fields, 0)
+	end
+	if not fields:find('SUM(CASE WHEN', 1, true) then
+		error('not an event-grain aggregate: ' .. fields, 0)
+	end
+end)
+
 print(string.format('\n%d passed, %d failed', passed, failed))
 os.exit(failed > 0 and 1 or 0)

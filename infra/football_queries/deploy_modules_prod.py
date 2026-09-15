@@ -64,6 +64,17 @@ SUMMARY = ('פרסום יחידת השליפות של סטטיסטיקת הכד�
 
 
 def site():
+    import pywikibot
+
+    # Fail fast. A POST the wiki's WAF refuses comes back as a non-JSON body,
+    # which pywikibot treats as a transient error and retries every two
+    # minutes, forever - so a blocked edit is indistinguishable from a hang.
+    # One short retry covers a real blip; anything worse should be reported,
+    # not waited out.
+    pywikibot.config.max_retries = 1
+    pywikibot.config.retry_wait = 5
+    pywikibot.config.retry_max = 15
+
     from maccabipediabot.common.wiki_login import get_site
 
     return get_site()
@@ -91,24 +102,67 @@ def current_text(connection, title: str) -> str | None:
 
 
 def publish(connection, title: str, wanted: str) -> str:
-    """Write one page and prove it landed, by reading it back."""
+    """Write one page as multipart/form-data, and prove it landed.
+
+    NOT page.save(). pywikibot sends an edit as an urlencoded body, and the
+    wiki's web application firewall refuses these particular bodies that way -
+    302 to the host's abuse page - then pywikibot reads the refusal as a
+    transient non-JSON response and retries every two minutes forever, so a
+    blocked edit is indistinguishable from a hung wiki.
+
+    Measured against production, writing nothing: Module:FootballQueries and
+    Module:FootballStatsBlock are refused urlencoded and accepted as multipart,
+    byte for byte the same text. So the edit goes through pywikibot's own
+    session - same login, same cookies - with `files=`, which makes requests
+    encode it as multipart.
+    """
     import pywikibot as pw
+    from pywikibot.comms import http as pw_http
 
-    page = pw.Page(connection, title)
-    page.text = wanted
-    try:
-        page.save(summary=SUMMARY, minor=False, botflag=True)
-    except Exception as error:  # noqa: BLE001
-        # A save can succeed while the response is unusable - production emits
-        # PHP notices that break JSON parsing. The read-back below decides.
-        print(f'    save reported: {type(error).__name__}: {error}')
+    token = connection.tokens['csrf']
+    fields = {
+        'action': (None, 'edit'),
+        'title': (None, title),
+        'text': (None, wanted),
+        'summary': (None, SUMMARY),
+        'token': (None, token),
+        'format': (None, 'json'),
+        'bot': (None, '1'),
+        # Never silently overwrite: this flow only ever creates these pages or
+        # updates ones it already owns, so a concurrent edit should fail here
+        # rather than be clobbered.
+        'nocreate' if page_exists(connection, title) else 'createonly':
+            (None, '1'),
+    }
 
+    response = pw_http.session.post(
+        connection.base_url('/api.php'), files=fields,
+        headers={'Accept': 'application/json'}, timeout=120)
+
+    if 'application/json' not in response.headers.get('Content-Type', ''):
+        return (f'REFUSED ({response.status_code}, '
+                f'{response.headers.get("Content-Type", "?")})')
+
+    answer = response.json()
+    if 'error' in answer:
+        return f'ERROR {answer["error"].get("code")}'
+
+    # Read back rather than trust the response: production emits PHP notices
+    # that can make a successful save's body unusable.
     time.sleep(1)
     fresh = pw.Page(connection, title)
+    if not fresh.exists():
+        return 'MISSING AFTER SAVE'
     fresh.get(force=True)
     if fresh.text.strip() != wanted.strip():
         return 'MISMATCH'
     return 'ok'
+
+
+def page_exists(connection, title: str) -> bool:
+    import pywikibot as pw
+
+    return pw.Page(connection, title).exists()
 
 
 def callers(connection, title: str) -> list[str]:

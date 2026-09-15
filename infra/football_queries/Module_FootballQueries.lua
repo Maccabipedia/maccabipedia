@@ -819,6 +819,12 @@ function FootballQueries.aggregateProbe(frame)
 		end
 		cells[#cells + 1] = {
 			name = name,
+			-- Every cell here filters on מספר אירוע, so it counts EVENTS.
+			-- Grain became mandatory after this entry point was written and
+			-- nothing tested it, so the probe raised "must declare grain" on
+			-- production instead of answering - the one guard this diagnostic
+			-- exists to be checked against.
+			grain = 'event',
 			filters = { ['מספר אירוע'] = eventType:gsub(';', ',') },
 		}
 	end

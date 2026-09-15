@@ -69,6 +69,12 @@ MUTATIONS = [
     # unfiltered total. It was missing entirely until the arbitration.
     ('surviving-ampersand guard removed', LOGIC,
      "if value:find('&', 1, true) then", 'if false then'),
+    ('the probe stops declaring its grain', LOGIC,
+     "\t\t\tgrain = 'event',\n\t\t\tfilters = { ['מספר אירוע'] = eventType:gsub(';', ',') },",
+     "\t\t\tfilters = { ['מספר אירוע'] = eventType:gsub(';', ',') },"),
+    ('the probe counts games instead of events', LOGIC,
+     "\t\t\tgrain = 'event',\n\t\t\tfilters = { ['מספר אירוע'] = eventType:gsub(';', ',') },",
+     "\t\t\tgrain = 'game',\n\t\t\tfilters = { ['מספר אירוע'] = eventType:gsub(';', ',') },"),
     ('aggregate whitelist bypassed', LOGIC,
      'aggregate = Fields.aggregates[mw.text.trim(requested)]',
      'aggregate = mw.text.trim(requested)'),
