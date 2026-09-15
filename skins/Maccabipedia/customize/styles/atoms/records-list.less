@@ -29,7 +29,11 @@
         .title-decorator(@background-contrast-regular, @white, @background-primary);
     }
 
-    .slim-tabs #res-tabs-content {
+    // A converted strip has neither `.slim-tabs` nor the
+    // `#res-tabs-content` id, so it is named here too - this block
+    // carries the ROW STYLING, not just a paragraph margin.
+    .slim-tabs #res-tabs-content,
+    .tabber-converted .tabber__section {
         p {
             margin: 0;
         }

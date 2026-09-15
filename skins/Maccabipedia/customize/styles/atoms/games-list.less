@@ -1,5 +1,8 @@
 .games-list-tabs-container {
-    .slim-tabs #res-tabs-content {
+    // Also for a strip converted to <tabber>, which has neither the
+    // `.slim-tabs` ancestor nor the `#res-tabs-content` id.
+    .slim-tabs #res-tabs-content,
+    .tabber-converted .tabber__section {
         p {
             margin: 0;
         }

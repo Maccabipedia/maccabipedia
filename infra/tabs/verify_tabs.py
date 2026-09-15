@@ -49,6 +49,22 @@ OLD_PANEL = re.compile(
     r'(?=<div id="tab\d+-content"|\Z)', re.DOTALL)
 
 
+# What a panel looks like when it did not render data. Cargo reports a failed
+# query INSIDE the panel, so the old and new markup agree perfectly on the
+# same error text - the comparison passes and proves nothing.
+ERROR_MARKERS = (
+    'שגיאה',                     # Cargo's own error prefix
+    'scribunto-error',
+    'mw-parser-output-error',
+    'class="error"',
+)
+
+
+def error_panels(html: str) -> int:
+    """How many panels contain an error rather than content."""
+    return sum(1 for marker in ERROR_MARKERS if marker in html)
+
+
 def write_local(title: str, text: str) -> None:
     result = subprocess.run(
         ['docker', 'compose', '-f', COMPOSE, 'exec', '-T', 'mediawiki',
@@ -115,14 +131,25 @@ def main() -> None:
         print(f'   ok    found {", ".join(present)}')
 
     print('2. no raw-HTML machinery remains')
-    for needle in ('<input', '<shtml', '&lt;label', '&lt;input'):
-        if needle in new_html:
-            print(f'   FAIL  {needle} is still in the output')
-            failures += 1
-    else:
+    leaked = [needle for needle in ('<input', '<shtml', '&lt;label',
+                                    '&lt;input') if needle in new_html]
+    for needle in leaked:
+        print(f'   FAIL  {needle} is still in the output')
+        failures += 1
+    if not leaked:
         print('   ok    no <input>, no <shtml>, nothing escaped into text')
 
-    print('3. the panels say the same thing')
+    print('3. the panels hold data, not an error')
+    errors = error_panels(old_html)
+    if errors:
+        print(f'   HOLLOW  the ORIGINAL rendering already contains an error '
+              f'({errors} marker(s)) - comparing two identical error messages '
+              'proves nothing about the conversion')
+        failures += 1
+    else:
+        print('   ok    no error markers in the original rendering')
+
+    print('4. the panels say the same thing')
     old_panels = [match.group('body') for match in OLD_PANEL.finditer(old_html)]
     new_panels = [match.group('body') for match in PANEL_TEXT.finditer(new_html)]
     if not old_panels:

@@ -25,7 +25,8 @@ from convert_strip import (  # noqa: E402
     Refused, convert, fallback_context, local_text,
 )
 from verify_tabs import (  # noqa: E402
-    OLD_PANEL, PANEL_TEXT, SANDBOX_SUFFIX, render, words_of, write_local,
+    OLD_PANEL, PANEL_TEXT, SANDBOX_SUFFIX, error_panels, render, words_of,
+    write_local,
 )
 
 API = 'http://localhost:8080/api.php'
@@ -69,9 +70,20 @@ def check(title: str, min_words: int) -> tuple[str, str]:
 
     try:
         old_html = render('{{%s}}' % title.removeprefix('תבנית:'))
+        # The SAME template again. Some of these queries have ties and no
+        # deterministic tiebreak, so their rows come back in a different order
+        # each time - three volleyball strips reported "panel 1 text differs"
+        # when compared against a target that was moving on its own.
+        again_html = render('{{%s}}' % title.removeprefix('תבנית:'))
         new_html = render('{{%s}}' % sandbox.removeprefix('תבנית:'))
     except SystemExit as error:
         return 'FAIL', f'render failed: {error}'
+
+    first = [words_of(m.group('body')) for m in OLD_PANEL.finditer(old_html)]
+    second = [words_of(m.group('body')) for m in OLD_PANEL.finditer(again_html)]
+    if first != second:
+        return 'UNSTABLE', ('the original renders differently each time - '
+                            'nothing can be concluded about the conversion')
 
     if 'tabber__panel' not in new_html:
         return 'FAIL', 'no tabber panels in the output'
@@ -92,6 +104,14 @@ def check(title: str, min_words: int) -> tuple[str, str]:
         total += len(words)
         if words != words_of(after):
             return 'FAIL', f'panel {index} text differs'
+
+    # An error renders identically on both sides, so agreement means nothing.
+    # Reported before the word count, because the count is ANTI-correlated
+    # with it: the wordiest pages in this corpus are the ones whose panels are
+    # full of Cargo errors.
+    if error_panels(old_html):
+        return 'HOLLOW', (f'{len(old_panels)} panels agree, but the original '
+                          'rendering contains an error - nothing is proven')
 
     if total < min_words:
         return 'WEAK', f'only {total} word(s) across {len(old_panels)} panels'

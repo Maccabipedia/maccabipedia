@@ -16,12 +16,16 @@ on:
     paths:
       - 'infra/football_queries/**'
       - 'infra/local-wiki/**'
+      - 'infra/tabs/**'
+      - 'skins/Maccabipedia/customize/styles/**'
       - '.github/workflows/football_lua_wiki.yaml'
   push:
     branches: [master]
     paths:
       - 'infra/football_queries/**'
       - 'infra/local-wiki/**'
+      - 'infra/tabs/**'
+      - 'skins/Maccabipedia/customize/styles/**'
 
 jobs:
   compare:
@@ -95,6 +99,18 @@ jobs:
 
       - name: Module against Cargo directly
         run: uv run python infra/football_queries/smoke_test_local.py
+
+      # The tab conversion. These write only sandbox pages on the CI wiki.
+      - name: Tab anchors are unique on every page
+        run: |
+          uv run python infra/tabs/check_anchor_collisions.py --selftest
+          uv run python infra/tabs/check_anchor_collisions.py
+
+      - name: Converted strips keep their panels
+        # Reports ok / HOLLOW (panels are error messages) / UNSTABLE (the
+        # template renders differently each time) / REFUSED (a shape the
+        # converter will not guess at). It fails only on FAIL.
+        run: uv run python infra/tabs/batch_verify.py
 
       - name: Wiki logs on failure
         if: failure()

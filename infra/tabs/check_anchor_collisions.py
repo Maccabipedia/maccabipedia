@@ -38,8 +38,17 @@ SELFTEST_PAGE = 'ארגז חול/טאבים/התנגשות עוגנים'
 
 def get(parameters: dict) -> dict:
     url = API + '?' + urllib.parse.urlencode(parameters)
-    with urllib.request.urlopen(url, timeout=180) as response:
-        return json.loads(response.read().decode('utf-8'))
+    try:
+        with urllib.request.urlopen(url, timeout=180) as response:
+            return json.loads(response.read().decode('utf-8'))
+    except urllib.error.HTTPError as failure:
+        # A page whose render throws server-side comes back as HTTP 500, not
+        # as an API error object. One template here does, through DPL and a
+        # gallery that reaches for production images. Treated as "no output"
+        # so the sweep continues and reports the skip.
+        if failure.code == 500:
+            return {'error': {'code': 'http500', 'info': url[-80:]}}
+        raise
 
 
 def rendered(page: str) -> str:
@@ -50,12 +59,18 @@ def rendered(page: str) -> str:
     return body['parse']['text']
 
 
-def rendered_text(wikitext: str) -> str:
+def rendered_text(wikitext: str, strict: bool = True) -> str:
     body = get({'action': 'parse', 'text': wikitext, 'title': 'ארגז חול',
                 'contentmodel': 'wikitext', 'prop': 'text',
                 'formatversion': '2', 'format': 'json'})
     if 'error' in body:
-        raise SystemExit(body['error'])
+        if strict:
+            raise SystemExit(body['error'])
+        # A page can fail to render for reasons that have nothing to do with
+        # tabs - one template here pulls images through ForeignAPIRepo, which
+        # throws on the local wiki when it cannot reach production. Skipping
+        # it beats aborting the sweep, as long as the skip is reported.
+        return ''
     return body['parse']['text']
 
 
@@ -67,24 +82,28 @@ def pages_with_tabber() -> list[str]:
     version of this function used it and reported "0 pages to check", which
     looks exactly like a clean result.
     """
-    found, parameters = [], {
-        'action': 'query', 'generator': 'allpages', 'gapnamespace': '0',
-        'gaplimit': '50', 'prop': 'revisions', 'rvprop': 'content',
-        'rvslots': 'main', 'format': 'json', 'formatversion': '2',
-    }
-    while True:
-        body = get(parameters)
-        for page in body.get('query', {}).get('pages', []):
-            revisions = page.get('revisions')
-            if not revisions:
-                continue
-            text = revisions[0].get('slots', {}).get('main', {}).get(
-                'content', '')
-            if '<tabber' in text:
-                found.append(page['title'])
-        if 'continue' not in body:
-            return sorted(found)
-        parameters.update(body['continue'])
+    found = []
+    for namespace in ('0', '10'):
+        parameters = {
+            'action': 'query', 'generator': 'allpages',
+            'gapnamespace': namespace, 'gaplimit': '50',
+            'prop': 'revisions', 'rvprop': 'content', 'rvslots': 'main',
+            'format': 'json', 'formatversion': '2',
+        }
+        while True:
+            body = get(parameters)
+            for page in body.get('query', {}).get('pages', []):
+                revisions = page.get('revisions')
+                if not revisions:
+                    continue
+                text = revisions[0].get('slots', {}).get('main', {}).get(
+                    'content', '')
+                if '<tabber' in text:
+                    found.append(page['title'])
+            if 'continue' not in body:
+                break
+            parameters.update(body['continue'])
+    return sorted(found)
 
 
 def collisions_in(html: str) -> dict:
@@ -158,9 +177,19 @@ def main() -> None:
     targets = [options.page] if options.page else pages_with_tabber()
     print(f'checking {len(targets)} page(s) for shared tab anchors')
 
-    failures = 0
+    failures = skipped = 0
     for title in targets:
-        html = rendered(title)
+        # A TEMPLATE renders as nothing on its own - its body is inside
+        # <includeonly> - so it is transcluded instead. Checking only
+        # namespace 0 meant no conversion target was ever checked, since every
+        # one of them is a template.
+        html = (rendered_text('{{%s}}' % title.removeprefix('תבנית:'),
+                              strict=False)
+                if title.startswith('תבנית:') else rendered(title))
+        if not html:
+            print(f'SKIP       {title}  (did not render)')
+            skipped += 1
+            continue
         if 'tabber-tabpanel-' not in html:
             continue
         found = collisions_in(html)
@@ -173,7 +202,7 @@ def main() -> None:
         else:
             print(f'ok         {title}  ({panels} panels)')
 
-    print(f'\n{failures} page(s) with shared anchors')
+    print(f'\n{failures} page(s) with shared anchors, {skipped} skipped')
     sys.exit(1 if failures else 0)
 
 

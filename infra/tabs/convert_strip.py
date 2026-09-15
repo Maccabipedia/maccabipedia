@@ -49,8 +49,7 @@ TITLE = re.compile(r'title="(?P<title>[^"]*)"')
 BOX_TITLE = re.compile(r'<div class="title">(?P<title>[^<]{1,60})</div>')
 CONTENT = re.compile(
     r'<div class="content"(?P<attributes>[^>]*)>(?P<panels>.*)$', re.DOTALL)
-PANEL = re.compile(
-    r'<div id="tab(?P<index>\d+)-content">(?P<body>.*?)</div><!--', re.DOTALL)
+PANEL_OPEN = re.compile(r'<div id="tab(?P<index>\d+)-content">')
 
 
 class Refused(Exception):
@@ -86,13 +85,13 @@ def parse_strip(text: str) -> tuple[list[dict], str]:
     if not content:
         raise Refused('no <div class="content"> after the strip')
 
-    panels = list(PANEL.finditer(content.group('panels')))
+    panels = panels_in(content.group('panels'))
     if len(panels) != len(items):
         raise Refused(
             f'{len(items)} tab(s) but {len(panels)} panel(s) - a strip whose '
             'panels do not match its labels must be converted by hand')
 
-    seen = [int(panel.group('index')) for panel in panels]
+    seen = [panel['index'] for panel in panels]
     if seen != sorted(seen) or seen != list(range(1, len(seen) + 1)):
         raise Refused(f'panel ids are not 1..N in order: {seen}')
 
@@ -105,7 +104,7 @@ def parse_strip(text: str) -> tuple[list[dict], str]:
         tabs.append({
             'tooltip': tooltip.group('title').strip(),
             'label': item.group('label').strip(),
-            'body': panel.group('body'),
+            'body': panel['body'],
         })
     return tabs, content.group('attributes')
 
@@ -130,7 +129,7 @@ def context_of(text: str, fallback: str | None) -> str | None:
     return fallback
 
 
-def tabber_of(tabs: list[dict], key: str, context: str | None = None) -> str:
+def tabber_of(tabs: list[dict], context: str | None = None) -> str:
     """The `<tabber>` block. Tab names are PLAIN TEXT, deliberately.
 
     Two measurements on the local wiki decided this, both of them from trying
@@ -152,7 +151,13 @@ def tabber_of(tabs: list[dict], key: str, context: str | None = None) -> str:
     strip already sits in (`.records-list-tabs-container` and friends), where
     the four competition categories always use the same four glyphs.
     """
-    wrapper = icon_class(tabs)
+    icons = icon_class(tabs)
+    if not icons:
+        # Said out loud, because the alternative is a strip that quietly
+        # stops being an icon bar and becomes a row of Hebrew words. The
+        # docstring used to claim this happened; it did not.
+        print(f'WARNING: icon set not recognised {icons_of(tabs)} - '
+              'converting to TEXT tabs', file=sys.stderr)
 
     lines = ['<tabber>']
     for tab in tabs:
@@ -160,16 +165,18 @@ def tabber_of(tabs: list[dict], key: str, context: str | None = None) -> str:
         # Qualified only when the CSS hides the label text - see the module
         # docstring. On a visible tab, `ליגה - שיאני כיבושים` reads worse than
         # a positional anchor.
-        if wrapper and context:
+        if icons and context:
             label = f'{label} - {context}'
         lines.append(f'|-|{label}=')
         lines.append(tab['body'].strip())
     lines.append('</tabber>')
     block = '\n'.join(lines)
 
-    if wrapper:
-        block = f'<div class="{wrapper}">\n{block}\n</div>'
-    return block
+    # `tabber-converted` always: it is what the rhythm and heading styles are
+    # scoped to, and a text-tab strip needs those just as much as an icon one.
+    # The icon class is added only when the sequence was recognised.
+    classes = ' '.join(filter(None, ['tabber-converted', icons]))
+    return f'<div class="{classes}">\n{block}\n</div>'
 
 
 # Icon sets the skin can reproduce in CSS, by the sequence of FontAwesome
@@ -179,9 +186,18 @@ def tabber_of(tabs: list[dict], key: str, context: str | None = None) -> str:
 # sequence converts to text tabs and says so, rather than showing four icons
 # in the wrong order.
 ICON = re.compile(r'<i\b[^>]*class="(?P<classes>[^"]+)"')
+# Measured across all 51 strips on the local wiki: three sequences, and the
+# CSS carries one class for each. A sequence not listed here converts to TEXT
+# tabs with a warning - four icons in the wrong order would be worse than
+# words, and silently so.
 ICON_SETS = {
     ('far fa-circle', 'fas fa-home', 'fas fa-trophy', 'fas fa-euro-sign'):
         'tabber-icons-competitions',
+    ('far fa-circle', 'fas fa-home', 'fas fa-trophy', 'fas fa-euro-sign',
+     'fas fa-asterisk'):
+        'tabber-icons-competitions-plus',
+    ('far fa-circle', 'fas fa-home', 'fas fa-trophy', 'fas fa-globe'):
+        'tabber-icons-competitions-globe',
 }
 
 
@@ -198,18 +214,45 @@ def icon_class(tabs: list[dict]) -> str | None:
     return ICON_SETS.get(icons_of(tabs))
 
 
-def variable_key(text: str) -> str:
-    """A prefix for this strip's page variables.
+DIV_TAG = re.compile(r'<div\b[^>]*>|</div>', re.IGNORECASE)
 
-    Taken from the radio group name the strip already carries
-    (`name="tab-control-bb-points"` -> `bb-points`), because it is unique per
-    strip on the page - which is exactly the property the variables need, and
-    #var is one flat namespace shared with every template on the page.
+
+def panels_in(region: str) -> list[dict]:
+    """Each `<div id="tabN-content">` panel, to its OWN closing tag.
+
+    Counted, not matched with a regex ending at `</div><!--`. That ending cut
+    a panel short the moment its body held a nested div followed by a comment,
+    and dropped whatever came after inside the same panel - silently, because
+    the panel-text comparison only ever saw the truncated version on one side.
     """
-    group = re.search(r'name="(?:tab-control-?)?(?P<key>[^"]*)"', text)
-    key = (group.group('key') if group else '').strip('-') or 'tabs'
-    return re.sub(r'[^A-Za-z0-9_-]', '-', key.replace('tab-control', ''))\
-        .strip('-') or 'tabs'
+    found = []
+    for opening in PANEL_OPEN.finditer(region):
+        end = matching_close(region, opening.start())
+        found.append({
+            'index': int(opening.group('index')),
+            'body': region[opening.end():end - len('</div>')],
+        })
+    return found
+
+
+def matching_close(text: str, start: int) -> int:
+    """End index of the `</div>` that closes the `<div>` opening at `start`.
+
+    Counting rather than searching. The first version took everything after
+    the LAST `</div>` in the panel region as the tail, which threw away the
+    closing tags of the wrappers AROUND the strip: a converted template came
+    out with 8 opening divs and 6 closing ones, so MediaWiki auto-closed them
+    at the end of the page and wrapped everything after the template inside
+    `.records-list-tabs-container`. 16 of 25 conversions were affected, and
+    every one of them passed the panel-text comparison, which is why this now
+    refuses instead of guessing.
+    """
+    depth = 0
+    for tag in DIV_TAG.finditer(text, start):
+        depth += 1 if tag.group().startswith('</') is False else -1
+        if depth == 0:
+            return tag.end()
+    raise Refused('the strip\'s <div> is never closed')
 
 
 def convert(text: str, context: str | None = None) -> str:
@@ -228,15 +271,22 @@ def convert(text: str, context: str | None = None) -> str:
     # unnoticed on the first subject.
     middle = remainder[:content.start()]
 
-    after = ''
-    tail = content.group('panels')
-    closing = tail.rfind('</div>')
-    if closing != -1:
-        after = tail[closing + len('</div>'):]
+    # The widget is exactly `<div class="slim-tabs"> … </div>`, and only that
+    # is replaced. Everything outside it - including the wrappers it sits in
+    # and anything after the template - is preserved byte for byte.
+    after = text[matching_close(text, strip.start()):]
 
-    return (before + middle
-            + tabber_of(tabs, variable_key(text),
-                        context_of(text, context)) + after)
+    converted = (before + middle
+                 + tabber_of(tabs, context_of(text, context)) + after)
+
+    opened = len(re.findall(r'<div\b', converted))
+    closed = len(re.findall(r'</div>', converted))
+    if opened != closed:
+        raise Refused(
+            f'the conversion would leave {opened} opening and {closed} '
+            'closing <div> tags - refusing rather than emitting markup that '
+            'swallows the rest of the page')
+    return converted
 
 
 def main() -> None:
