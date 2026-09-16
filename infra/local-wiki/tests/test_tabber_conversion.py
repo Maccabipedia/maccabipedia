@@ -35,6 +35,13 @@ TWO_STRIPS = "ארגז חול/טאבים/שני מדפים"
 
 pytestmark = pytest.mark.integration
 
+# The FIRST converted widget on the host page. A referee section has four
+# (a page-level count of 16 tabs is not "4 tabs"), and on a profile-3 page they
+# sit inside the page's own native tabber, whose tabs are not ours to test.
+TAB = ".tabber-converted >> nth=0 >> .tabber__tab"
+PANEL = ".tabber-converted >> nth=0 >> .tabber__panel"
+OLD_PANEL = '.slim-tabs >> nth=0 >> [id^="tab"][id$="-content"]'
+
 
 def url_of(title: str) -> str:
     return f"{BASE}/{quote(title.replace(' ', '_'))}"
@@ -62,7 +69,7 @@ def converted(browser):
 
 def test_the_strip_renders_tabs(converted):
     """The tabs exist and are visible - not merely present in the HTML."""
-    tabs = converted.locator(".tabber__tab")
+    tabs = converted.locator(TAB)
     assert tabs.count() == 4, f"expected 4 tabs, got {tabs.count()}"
     for index in range(4):
         assert tabs.nth(index).is_visible(), f"tab {index + 1} is not visible"
@@ -75,7 +82,7 @@ def selected_index(page) -> int:
     panel stays in the DOM and Playwright reports all four as visible, so
     is_visible() cannot answer this question at all.
     """
-    states = page.locator(".tabber__tab").evaluate_all(
+    states = page.locator(TAB).evaluate_all(
         "tabs => tabs.map(tab => tab.getAttribute('aria-selected'))")
     active = [index for index, state in enumerate(states) if state == "true"]
     assert len(active) == 1, f"aria-selected on {len(active)} tabs: {states}"
@@ -83,7 +90,7 @@ def selected_index(page) -> int:
 
 
 def test_one_tab_is_active_at_a_time(converted):
-    assert converted.locator(".tabber__panel").count() == 4
+    assert converted.locator(PANEL).count() == 4
     assert selected_index(converted) == 0, "the first tab should start active"
 
 
@@ -92,7 +99,7 @@ def test_the_anchor_ids_are_readable(converted):
     bar because this wiki sets $wgTabberNeueUpdateLocationOnTabChange. Markup
     in a tab name produced ids like
     `#tabber-tabpanel-&lt;i_class=&quot;far_fa-circle&quot;...`."""
-    hrefs = converted.locator(".tabber__tab").evaluate_all(
+    hrefs = converted.locator(TAB).evaluate_all(
         "tabs => tabs.map(tab => tab.getAttribute('href') || '')")
     for href in hrefs:
         assert "&" not in href and "<" not in href, f"unreadable anchor: {href}"
@@ -100,7 +107,7 @@ def test_the_anchor_ids_are_readable(converted):
 
 
 def test_clicking_a_tab_switches_the_panel(converted):
-    tabs = converted.locator(".tabber__tab")
+    tabs = converted.locator(TAB)
 
     for index in (1, 2, 3, 0):
         tabs.nth(index).click()
@@ -127,7 +134,7 @@ def test_clicking_a_tab_switches_the_panel(converted):
 def test_the_keyboard_moves_between_tabs(converted):
     """Whatever TabberNeue's keyboard behaviour is, record it rather than
     assume it. This wiki is RTL, so a left arrow may move either way."""
-    tabs = converted.locator(".tabber__tab")
+    tabs = converted.locator(TAB)
     tabs.nth(0).click()
     tabs.nth(0).focus()
 
@@ -165,14 +172,19 @@ def test_the_panels_hold_the_same_text_as_the_original(browser):
         page.close()
         return texts
 
-    before = panel_texts(ORIGINAL, '[id^="tab"][id$="-content"]')
-    after = panel_texts(CONVERTED, ".tabber__panel")
+    before = panel_texts(ORIGINAL, OLD_PANEL)
+    after = panel_texts(CONVERTED, PANEL)
 
     assert before, "the original page rendered no panels - test is vacuous"
     assert len(before) == len(after), (
         f"{len(before)} panels before, {len(after)} after")
     for index, (old, new) in enumerate(zip(before, after), start=1):
-        assert old == new, f"panel {index} text differs"
+        # The same words, not the same order: a ranked list whose template
+        # orders by count alone returns tied players in any order, and the
+        # converted one breaks ties by name. Which rows and numbers appear is
+        # proven per widget by its own comparison (compare_day_widget.py,
+        # compare_referee_leaderboards.py); this guards what the browser adds.
+        assert sorted(old) == sorted(new), f"panel {index} text differs"
 
 # --- URL, refresh and history -------------------------------------------------
 #
@@ -183,7 +195,7 @@ def test_the_panels_hold_the_same_text_as_the_original(browser):
 
 
 def test_clicking_a_tab_updates_the_url(converted):
-    converted.locator(".tabber__tab").nth(2).click()
+    converted.locator(TAB).nth(2).click()
     converted.wait_for_timeout(400)
     fragment = unquote(converted.evaluate("() => location.hash"))
     assert fragment.startswith("#tabber-tabpanel-"), fragment
@@ -192,7 +204,7 @@ def test_clicking_a_tab_updates_the_url(converted):
 
 
 def test_a_refresh_comes_back_to_the_same_tab(converted):
-    converted.locator(".tabber__tab").nth(2).click()
+    converted.locator(TAB).nth(2).click()
     converted.wait_for_timeout(400)
     before = selected_index(converted)
 
@@ -228,7 +240,7 @@ def test_clicking_a_tab_does_not_scroll_the_page(converted):
     start = converted.evaluate("() => scrollY")
     assert start > 0, "the page did not scroll at all - the test is vacuous"
 
-    converted.locator(".tabber__tab").nth(2).evaluate("node => node.click()")
+    converted.locator(TAB).nth(2).evaluate("node => node.click()")
     # The jump animated over 950ms; wait it out.
     converted.wait_for_timeout(1300)
     assert converted.evaluate("() => scrollY") == start, (
@@ -240,7 +252,7 @@ def test_clicking_tabs_does_not_fill_the_back_button(converted):
     """The back button must leave the page, not walk back through tabs."""
     start = converted.evaluate("() => history.length")
     for index in (1, 2, 3):
-        converted.locator(".tabber__tab").nth(index).click()
+        converted.locator(TAB).nth(index).click()
         converted.wait_for_timeout(300)
     assert converted.evaluate("() => history.length") == start, (
         "tab clicks pushed history entries")

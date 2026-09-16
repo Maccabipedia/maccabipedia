@@ -117,10 +117,30 @@ function stub.install()
 		return realRequire(name)
 	end
 
+	stub.expanded = {}
+
 	mw = {
 		text = {
 			trim = function(value)
 				return (tostring(value):gsub('^%s+', ''):gsub('%s+$', ''))
+			end,
+		},
+		-- A readable stand-in for mw.uri.fullUrl: the page and its query in a
+		-- stable order, so a test can assert what the link asks for without
+		-- decoding a URL.
+		uri = {
+			fullUrl = function(page, query)
+				local keys = {}
+				for key in pairs(query or {}) do
+					keys[#keys + 1] = key
+				end
+				table.sort(keys)
+				local parts = {}
+				for _, key in ipairs(keys) do
+					parts[#parts + 1] = key .. '=' .. tostring(query[key])
+				end
+				local text = '//wiki/' .. page .. '?' .. table.concat(parts, '&')
+				return setmetatable({}, { __tostring = function() return text end })
 			end,
 		},
 		loadData = loadDataFor,
@@ -170,6 +190,12 @@ function stub.newFrameKeepingVariables(parentArgs, directArgs)
 				return stub.variables[arguments[1]] or ''
 			end
 			error('stub_mw: unexpected parser function ' .. tostring(name), 0)
+		end,
+		expandTemplate = function(_, spec)
+			stub.expanded[#stub.expanded + 1] = spec
+			-- A visible stand-in: which template, with which positional args.
+			return string.format('ROW(%s|%s)', tostring(spec.args[1]),
+				tostring(spec.args[2]))
 		end,
 		extensionTag = function(_, name, content, arguments)
 			stub.extensionTags[#stub.extensionTags + 1] = {

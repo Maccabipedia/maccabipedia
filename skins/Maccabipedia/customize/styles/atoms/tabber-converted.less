@@ -157,6 +157,15 @@
     padding-inline: 5px;
   }
 
+  // A panel holding only its heading (a leaderboard tab with no players):
+  // the underline's 4px bottom margin collapsed OUT of the old panel div and
+  // added nothing, but TabberNeue's panel is overflow-x:auto, which contains
+  // it - measured, the empty tab stood 4px taller. With rows below, the margin
+  // sits between heading and rows in both, so only the last-child case changes.
+  .tabber__panel > .tab-header:last-child::after {
+    margin-bottom: 0;
+  }
+
   // The panel heading, restored: the colour, the 65px underline and the 600
   // weight that `.slim-tabs .content>div .tab-header` gave it.
   .tabber__panel .tab-header {
@@ -203,9 +212,14 @@
   // A panel carries no active state of its own - only its tab does - so the
   // panel is found through the tab with :has(). The animation starts when a
   // panel begins to match, which is exactly when its tab is selected.
+  //
+  // Counted by TYPE (the tabs are <a>, the panels <article>), not by child
+  // position: the parser can leave an empty <p class="mw-empty-elt"> beside a
+  // panel, and with :nth-child the third panel became the fourth child, so the
+  // fade silently stopped on the referee leaderboards.
   .tab-fade(@index) when (@index > 0) {
-    .tabber:has(> .tabber__header .tabber__tab:nth-child(@{index})[aria-selected="true"])
-      > .tabber__section > .tabber__panel:nth-child(@{index}) {
+    .tabber:has(> .tabber__header .tabber__tab:nth-of-type(@{index})[aria-selected="true"])
+      > .tabber__section > .tabber__panel:nth-of-type(@{index}) {
       animation: content 0.35s ease-in-out 1;
     }
     .tab-fade(@index - 1);

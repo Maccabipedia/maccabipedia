@@ -65,6 +65,54 @@ return {
 		},
 	},
 
+	-- The four assistant-referee leaderboard boxes on a referee page
+	-- (תבנית:שופט כדורגל/עוזר שופט), from ONE grouped query where the templates
+	-- run 32. Rendered by the `leaderboards` entry point; see
+	-- .claude/referee_leaderboards_spec.md.
+	['referee-assistant'] = {
+		-- The one direct argument besides בלוק, and the filter it becomes. The
+		-- entry point refuses an empty value: the query layer treats an empty
+		-- filter as absent, which would rank every player in every game.
+		entity = 'שופט',
+		entityFilter = 'עוזר שופט',
+		-- Every tab of the templates' query carries Competitions.Official = 1,
+		-- the league tab included - so רשמי is SHARED, and each tab's own
+		-- category joins it inside its column.
+		shared = { ['קטגוריית מפעל'] = 'רשמי' },
+		groupBy = 'player',
+		top = 10,
+		rowTemplate = 'סטטיסטיקות/הצגת שיאנים/הצגת שחקן/כדורגל',
+		moreText = 'עוד',
+
+		-- Tab order, labels and headings as the strips have them.
+		tabStrip = {
+			{ category = 'רשמי', label = 'משחקים רשמיים',
+			  heading = 'משחקים רשמיים' },
+			{ category = 'ליגה', label = 'ליגה', heading = 'ליגה' },
+			{ category = 'גביע', label = 'גביע', heading = 'גביע המדינה' },
+			{ category = 'בינלאומי', label = 'אירופה', heading = 'אירופה' },
+		},
+		tabHeading = '<div class="tab-header">%s (%s %s)</div>',
+
+		-- In the section's order. Titles, nouns and filters are read from the
+		-- production templates, not guessed: the cards box counts YELLOW cards
+		-- only (type 7, subtype 71). A first version counted every card and the
+		-- local comparison against the old boxes failed on 20 of 33 referees.
+		boxes = {
+			{ key = 'appearances', title = 'שיאני הופעות',
+			  noun = 'מופיעים שונים',
+			  filters = { ['מספר אירוע'] = '1,5' } },
+			{ key = 'goals', title = 'שיאני כיבושים', noun = 'כובשים שונים',
+			  -- Own goals out, for this box only. In the shared WHERE it
+			  -- would also drop subtype-33 rows from the other boxes.
+			  filters = { ['מספר אירוע'] = '3', ['ללא תת אירוע'] = '33' } },
+			{ key = 'assists', title = 'שיאני בישולים', noun = 'שחקנים שונים',
+			  filters = { ['מספר אירוע'] = '4' } },
+			{ key = 'cards', title = 'שיאני צהובים', noun = 'שחקנים שונים',
+			  filters = { ['מספר אירוע'] = '7', ['תת אירוע'] = '71' } },
+		},
+	},
+
 	-- תבנית:סטטיסטיקה/תצוגה/ימים/סיכום תוצאות לפי מפעל, and the tab strip
 	-- above it. Transcluded by 366 pages - one per day of the year - which
 	-- makes it the first block with real reach.
