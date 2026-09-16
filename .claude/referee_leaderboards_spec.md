@@ -244,6 +244,33 @@ changes nothing visible and is not done here. [v2]
    locally on the seeded page (before/after), and the production estimate
    stated as an estimate until deployed.
 
+## 5b. Result (implemented, local) [impl]
+
+- 33/33 local assistant referees, 2,313 rows identical through the real invoke,
+  "עוד" links compared by decoded query (WHERE/join as condition sets, tables,
+  group, offset, limit, template; only the name tiebreak added to the order),
+  and followed: same rows 11-110 up to ties. Selftest crosses two referees and
+  fails. The comparison caught a wrong filter the stubs could not: cards count
+  yellow only (7+71).
+- Code review found the link dropped `Official = 1` on the league/cup/Europe
+  tabs (the tab category overwrote the shared רשמי under the same name). The
+  link is now that column compiled by the same code as the box. On production
+  no league/cup/international competition is non-official (measured, 0), so
+  the old link showed the same rows; the fix makes it hold by construction.
+- Geometry identical on full and empty tabs (an empty tab stood 4px taller:
+  the heading margin was contained by the panel's overflow - fixed in CSS).
+  Interaction states identical except the fixed bug. Nested in the page's
+  native tabber: outer tab unaffected, each box switches only itself, no page
+  jump, unique ids, fade runs (it had silently stopped: a parser `<p>` beside a
+  panel broke `:nth-child`; now `:nth-of-type`, and the link no longer makes the
+  parser emit it).
+- Performance, local, the four boxes: p50 598 -> 293 ms. The query returns 60
+  groups, not 345 (Maccabi's side in the WHERE). Remaining cost, measured:
+  ~100 ms row templates (`#קיים` per row), ~40 ms the tabber tag, ~25 ms the
+  query. Rendering rows in Lua would save ~100 ms but duplicates an
+  editor-owned display template shared with other leaderboards - not done
+  without a decision.
+
 ## 6. Risks
 
 - Join fan-out: none today (measured, §4.1); if it appears later it is

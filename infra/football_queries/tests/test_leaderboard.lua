@@ -273,6 +273,11 @@ check('the widget: a league link keeps the league', function()
 	local leagueTab = stub.extensionTags[1].content:match('|%-|ליגה=(.-)|%-|')
 	contains(leagueTab, 'ViewData', 'eleven league players: a link')
 	contains(leagueTab, 'League', 'the link counts the league, not all official')
+	-- The templates' league query carries Official = 1 AND League = 1, and so
+	-- does the box. A link rebuilt from filter names lost Official, because
+	-- the tab's category overwrote the shared רשמי under the same name.
+	contains(leagueTab, 'Competitions.Official = 1', 'the link keeps Official')
+	contains(leagueTab, 'HOLDS', 'the link keeps the referee')
 end)
 
 check('the widget: tab order, labels, headings with counts and nouns', function()

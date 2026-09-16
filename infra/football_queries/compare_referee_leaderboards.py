@@ -44,7 +44,51 @@ NEW_PANEL = re.compile(r'<article[^>]*class="tabber__panel"[^>]*>(.*?)</article>
 HEADER = re.compile(r'<div class="tab-header">([^<]*)</div>')
 ROW = re.compile(r'<span class="player-name">\s*(?:<a [^>]*>)?([^<]*)(?:</a>)?\s*</span>'
                  r'<div class="atom-recors-list-player-info"><span class="record">([^<]*)</span>')
-MORE = re.compile(r'>עוד</a>')
+MORE = re.compile(r'<a [^>]*href="([^"]*ViewData[^"]*)"[^>]*>עוד</a>')
+
+
+def link_query(href: str) -> dict:
+    """The ViewData link's query, normalised so equivalent queries compare equal.
+
+    Conditions are compared as a SET with whitespace removed: the templates'
+    WHERE repeats `Official = 1`, carries `1=1` and blank lines, and names
+    `Team` without its table, none of which changes the rows.
+    """
+    params = dict(urllib.parse.parse_qsl(urllib.parse.urlsplit(html_module.unescape(href)).query,
+                                         keep_blank_values=True))
+
+    def squash(text: str) -> str:
+        return re.sub(r'\s+', '', text)
+
+    where = {squash(part) for part in re.split(r'\s+AND\s+', params.get('where', ''), flags=re.I)}
+    where = {'Games_Events.Team=1' if part == 'Team=1' else part for part in where} - {'', '1=1'}
+    return {
+        'where': where,
+        'tables': {squash(part) for part in params.get('tables', '').split(',')},
+        'join': {squash(part) for part in params.get('join_on', '').split(',')},
+        'fields': squash(params.get('fields', '')).lower(),
+        'group_by': squash(params.get('group_by', '')),
+        # Newer Cargo writes its own links as order_by[0]; production's older
+        # Cargo writes order_by. The same parameter either way.
+        'order_by': squash(params.get('order_by', params.get('order_by[0]', ''))).lower(),
+        'offset': params.get('offset'),
+        'limit': params.get('limit'),
+        'template': params.get('template'),
+    }
+
+
+def compare_links(old_href: str, new_href: str) -> str | None:
+    old, new = link_query(old_href), link_query(new_href)
+    # The only intended difference: the name tiebreak the box also uses.
+    if new['order_by'] != old['order_by'] + ',games_events.playername':
+        return f'"עוד" order_by {old["order_by"]!r} vs {new["order_by"]!r}'
+    for key in ('where', 'tables', 'join', 'fields', 'group_by', 'offset', 'limit', 'template'):
+        if old[key] != new[key]:
+            if isinstance(old[key], set):
+                return (f'"עוד" {key}: only old {sorted(old[key] - new[key])}, '
+                        f'only new {sorted(new[key] - old[key])}')
+            return f'"עוד" {key}: {old[key]!r} vs {new[key]!r}'
+    return None
 
 
 def assistant_referees() -> list[str]:
@@ -66,8 +110,10 @@ def boxes_of(page: str, panel: re.Pattern) -> list[dict]:
             header = HEADER.search(body)
             rows = [(html_module.unescape(name).strip(), count.strip())
                     for name, count in ROW.findall(body)]
+            link = MORE.search(body)
             tabs.append({'header': header.group(1).strip() if header else None,
-                         'rows': rows, 'more': bool(MORE.search(body))})
+                         'rows': rows, 'more': bool(link),
+                         'href': link.group(1) if link else None})
         title = TITLE.search(box)
         boxes.append({'title': title.group(1) if title else None, 'tabs': tabs})
     return boxes
@@ -98,6 +144,8 @@ def compare_tab(old: dict, new: dict) -> str | None:
         # Departure 4: exactly ten players - a link today, none now.
         if not (old['more'] and not new['more'] and players_in(old['header']) == TOP):
             return f'"עוד" link {old["more"]} vs {new["more"]}'
+    if old['href'] and new['href']:
+        return compare_links(old['href'], new['href'])
     return None
 
 

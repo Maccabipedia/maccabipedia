@@ -167,8 +167,17 @@ def test_the_panels_hold_the_same_text_as_the_original(browser):
         # text_content(), not inner_text(): inner_text returns only what is
         # rendered, so an off-screen carousel panel or a display:none radio
         # panel comes back empty and the comparison passes vacuously.
-        texts = [(element.text_content() or "").split()
-                 for element in page.locator(selector).all()]
+        # Per panel: its rows, each row's words kept together - so a name
+        # stays paired with its number - and the rows sorted, because a ranked
+        # list whose template orders by count alone returns ties in any order.
+        # A panel without row elements falls back to its words in order.
+        texts = []
+        for element in page.locator(selector).all():
+            rows = element.evaluate("""panel => Array.from(panel.querySelectorAll(
+                '.Top10Row, .atom-records-list-player-row, .tab-header'))
+                .map(row => row.textContent.split(/\\s+/).filter(Boolean).join(' '))""")
+            texts.append(sorted(rows) if rows
+                         else (element.text_content() or "").split())
         page.close()
         return texts
 
@@ -179,12 +188,10 @@ def test_the_panels_hold_the_same_text_as_the_original(browser):
     assert len(before) == len(after), (
         f"{len(before)} panels before, {len(after)} after")
     for index, (old, new) in enumerate(zip(before, after), start=1):
-        # The same words, not the same order: a ranked list whose template
-        # orders by count alone returns tied players in any order, and the
-        # converted one breaks ties by name. Which rows and numbers appear is
-        # proven per widget by its own comparison (compare_day_widget.py,
-        # compare_referee_leaderboards.py); this guards what the browser adds.
-        assert sorted(old) == sorted(new), f"panel {index} text differs"
+        # Rows compared as whole rows (name with its number). Which member of
+        # a tie at the top-ten boundary is shown is proven per widget by its
+        # own comparison (compare_referee_leaderboards.py), not here.
+        assert old == new, f"panel {index} rows differ"
 
 # --- URL, refresh and history -------------------------------------------------
 #

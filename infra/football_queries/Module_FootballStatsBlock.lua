@@ -543,10 +543,10 @@ end
 
 --- The "עוד" link for one tab: Cargo's own ViewData page, showing rows 11-110
 --- of that tab's ranking, as the templates' `more results text` link does.
---- The query is compiled by FootballQueries.build from the tab's own filters,
---- so the link and the numbers cannot disagree about what is being counted.
-local function moreLink(declaration, filters)
-	local query = FootballQueries.build(filters)
+--- The query is that tab's own column compiled with the rest of the widget, so
+--- the link and the box cannot disagree about what is being counted.
+local function moreLink(declaration, shared, columns, columnName)
+	local query = FootballQueries.leaderboardColumnQuery(shared, columns, columnName)
 	local key = FootballQueries.groupKeyColumn(declaration.groupBy)
 	local url = mw.uri.fullUrl('מיוחד:ViewData', {
 		tables = query.tables,
@@ -640,17 +640,8 @@ local function leaderboards(frame)
 				}
 			end
 			if result.more then
-				-- The link's query is the tab's full filter set: the shared
-				-- ones, the referee, the box's events and the tab's category.
-				local filters = {}
-				for name, value in pairs(shared) do
-					filters[name] = value
-				end
-				for name, value in pairs(box.filters) do
-					filters[name] = value
-				end
-				filters['קטגוריית מפעל'] = tab.category
-				lines[#lines + 1] = moreLink(declaration, filters)
+				lines[#lines + 1] = moreLink(declaration, shared, columns,
+					box.key .. '/' .. tab.category)
 			end
 
 			return table.concat(lines, '\n')
