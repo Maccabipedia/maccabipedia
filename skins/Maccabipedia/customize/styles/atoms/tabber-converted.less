@@ -183,3 +183,80 @@
 .portalContainer .tabber-converted .tabber__tab {
   margin-bottom: 0;
 }
+
+// Motion and hover, as the radio strip had them.
+.tabber-converted {
+  // The old strip swapped panels in place and FADED the new one in (the
+  // `content` keyframes in slim-tabs.less: opacity 0->1, 5% rise, 0.35s).
+  // TabberNeue instead slides the carousel sideways, and only at >= 720px, so
+  // a phone got no motion at all. Slide off, fade back.
+  //
+  // TabberNeue's `.tabber-animations-ready .tabber .tabber__section { smooth }`
+  // has the same specificity as a plain override and loads after the skin, so
+  // it would win; this names that class too and out-ranks it.
+  .tabber .tabber__section,
+  .tabber-animations-ready & .tabber .tabber__section {
+    scroll-behavior: auto;
+  }
+
+  // A panel carries no active state of its own - only its tab does - so the
+  // panel is found through the tab with :has(). The animation starts when a
+  // panel begins to match, which is exactly when its tab is selected.
+  .tab-fade(@index) when (@index > 0) {
+    .tabber:has(> .tabber__header .tabber__tab:nth-child(@{index})[aria-selected="true"])
+      > .tabber__section > .tabber__panel:nth-child(@{index}) {
+      animation: content 0.35s ease-in-out 1;
+    }
+    .tab-fade(@index - 1);
+  }
+  // The widest strip on the wiki has 6 tabs; 12 leaves room.
+  .tab-fade(12);
+
+  // Hover and press on a tab that is not the active one: the lighter blue
+  // from `.slim-tabs ul li label:hover/:active`, and the faint pill from
+  // `.slim-tabs label:hover`. The active tab keeps its own colours, as the
+  // :checked rule out-ranked these.
+  //
+  // Not copied: the old `:focus` colour and `outline: 0`. Radio labels could
+  // never take focus, so that rule never fired; these tabs can, and a
+  // keyboard user needs TabberNeue's focus ring to see where they are.
+  .tabber__tab:not([aria-selected="true"]) {
+    &:hover,
+    &:active {
+      color: #428bff;
+    }
+
+    &:hover {
+      background-color: rgba(0, 0, 0, 0.04);
+    }
+  }
+
+  // TabberNeue draws a blue underline (an inset box-shadow) on hover and
+  // press; the old strip had none. Found by comparing computed styles per
+  // interaction state, not by the at-rest screenshots.
+  .tabber__tab:hover,
+  .tabber__tab:active {
+    box-shadow: none;
+  }
+}
+
+// The rest of `.slim-tabs` / `.slim-tabs ul li label`, audited rule by rule
+// after the fade turned out missing - the pixel comparison only ever looked at
+// a strip at rest, so anything that happens under a finger or a pointer was
+// outside it.
+.tabber-converted {
+  position: relative;
+  min-width: 240px;
+
+  .tabber__tab {
+    // A long-press on a phone selected the tab's text; the labels refused it.
+    -webkit-touch-callout: none;
+    user-select: none;
+    // A label with no icon rule shows its words, and the old label kept them
+    // on one line rather than wrapping. The old ellipsis cannot be had here:
+    // the tab is a flex container, so its text is an anonymous flex item and
+    // text-overflow does not apply - a long label is clipped without "…".
+    white-space: nowrap;
+    overflow: hidden;
+  }
+}

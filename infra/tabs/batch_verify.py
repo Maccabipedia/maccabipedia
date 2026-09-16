@@ -103,6 +103,20 @@ def check(title: str, min_words: int) -> tuple[str, str]:
         words = words_of(before)
         total += len(words)
         if words != words_of(after):
+            # Two matching renders do not prove a template is stable: the
+            # volleyball strips with tied rows agreed twice by chance on CI and
+            # then the conversion's render came out in another order - a FAIL
+            # on a pull request that never touched them. Before blaming the
+            # conversion, render the original a few more times.
+            for _ in range(4):
+                again = [words_of(m.group('body'))
+                         for m in OLD_PANEL.finditer(render(
+                             '{{%s}}' % title.removeprefix('תבנית:')))]
+                if again != first:
+                    return 'UNSTABLE', (
+                        f'panel {index} differed, and the original itself '
+                        'renders differently on repeat - nothing can be '
+                        'concluded about the conversion')
             return 'FAIL', f'panel {index} text differs'
 
     # An error renders identically on both sides, so agreement means nothing.
