@@ -5,7 +5,12 @@
 
     padding: @space-xxSmall @space-regular;
 
-    &:nth-child(odd) {
+    // nth-of-TYPE, not nth-child: MediaWiki inserts an empty
+    // <p class="mw-empty-elt"> as the first child of a <tabber> panel, and
+    // counting children let that shift every stripe by one row - measured
+    // before and after converting a strip from <shtml> to <tabber>. Counting
+    // divs is immune to a stray paragraph appearing or disappearing.
+    &:nth-of-type(odd) {
         background-color: @background-secondary-lighter;
     }
 
@@ -24,7 +29,11 @@
         .title-decorator(@background-contrast-regular, @white, @background-primary);
     }
 
-    .slim-tabs #res-tabs-content {
+    // A converted strip has neither `.slim-tabs` nor the
+    // `#res-tabs-content` id, so it is named here too - this block
+    // carries the ROW STYLING, not just a paragraph margin.
+    .slim-tabs #res-tabs-content,
+    .tabber-converted .tabber__section {
         p {
             margin: 0;
         }

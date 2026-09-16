@@ -1,0 +1,185 @@
+// Make a <tabber> strip converted from <shtml> look like the strip it replaced.
+//
+// See `.claude/shtml_free_tabs_design.md`. One tab mechanism for the whole
+// wiki: TabberNeue, which this wiki already ships. Tab labels stay PLAIN TEXT,
+// because TabberNeue builds each panel's id from the label and this wiki
+// writes that id into the address bar - so the label is what makes a tab link
+// shareable and readable. Icons therefore cannot live in the label; they come
+// from here.
+//
+// Keyed on the LABEL, not on the tab's position. Position keying was the first
+// attempt and it failed two ways that a review caught: a fifth tab in a
+// four-icon strip rendered as a blank clickable box, and reordering two tabs
+// left the glyphs in place, silently wrong. With label keying the icon travels
+// with its label, and a label with no rule below simply KEEPS ITS TEXT - the
+// fallback is words, never a blank box.
+//
+// Everything is scoped to `.tabber-converted`, the wrapper the converter
+// emits. Written unscoped, three of these rules reached every tabber on the
+// wiki, the main page included.
+
+// FontAwesome 6.5.2, loaded from the CDN in LocalSettings.
+@fa-free: "Font Awesome 6 Free";
+
+// One label, one glyph. `font-size: 0` and the glyph are set TOGETHER, so a
+// label without a rule cannot end up hidden and iconless.
+.tab-icon(@label; @glyph; @weight: 900) {
+  .tabber__tab[href^="#tabber-tabpanel-@{label}"] {
+    font-size: 0;
+    line-height: 1;
+
+    &::before {
+      font-family: @fa-free;
+      font-weight: @weight;
+      font-size: 1rem;
+      display: inline-block;
+      padding: 6px;
+      // 16px, as the old `<i>` measured: a 28px glyph box. At 1.4 the box
+      // was 34px and the glyph sat a pixel off the one it replaces.
+      line-height: 1;
+      // What FontAwesome's own `.fa` class gives an `<i>`, and a pseudo
+      // element does not inherit: without it the glyph edges render heavier
+      // than the icons they replace.
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      font-style: normal;
+      font-variant: normal;
+      text-rendering: auto;
+      content: @glyph;
+    }
+  }
+}
+
+.tabber-converted {
+  // Geometry, from the measured `.slim-tabs ul` box: 5px above it, 40px tall,
+  // equal columns across the width. Stated outright rather than arrived at
+  // through padding, because the panel below inherits any error and 2px there
+  // shifts every row on the page.
+  //
+  // The 5px sits on the WRAPPER, not on the header. The old `ul` margin
+  // collapsed out through `.slim-tabs` into the page, but `.tabber` is a flex
+  // container and flex containers never collapse their children's margins -
+  // so on the header the same 5px stayed inside, and the widget measured 3px
+  // lower and 5px taller than the strip it replaced.
+  margin-top: 5px;
+
+  // Widened by 5px each side, and padded back in below. A `.Top10Row` stripe
+  // runs 5px past its panel on each side (negative margins), which the old
+  // panel showed because nothing clipped it. TabberNeue clips twice - `.tabber`
+  // and its section are both `overflow: hidden`, and must be, or the carousel
+  // shows all four panels at once - so the clip box is widened at the outer
+  // one, and the header and panel padded back to where their content was.
+  // Measured on a day page: without it, 5px of every stripe was missing.
+  .tabber {
+    margin-inline: -5px;
+  }
+
+  .tabber__header {
+    box-shadow: none;
+    padding-inline: 5px;
+  }
+
+  .tabber__tabs {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    margin: 0 1px;
+  }
+
+  .tabber__indicator {
+    // The old strip marked the active tab with a filled pill, not a bar.
+    display: none;
+  }
+
+  .tabber__tab {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    flex: 1;
+
+    // The pill is 38px, as measured on the old label.
+    height: 38px;
+
+    // OUTSIDE the pill: the old markup padded the `li` around the `label`,
+    // and the label carried the background, so padding here would widen the
+    // pill instead of insetting it.
+    //
+    // The 1.6px below it is not a measurement fudge. The old tab was an `li`,
+    // and MediaWiki gives every content `li` `margin-bottom: 0.1em` - 1.6px at
+    // the li's 16px. Written in px because an icon tab's own font-size is 0,
+    // where 0.1em would be nothing.
+    margin: 0 5px 1.6px;
+    border-radius: 5px;
+
+    text-align: center;
+    color: #929daf;
+    font-weight: 600;
+    transition: all 0.3s ease-in-out;
+
+    // The same pill the radio strip gave the checked label - and no bar.
+    // TabberNeue marks the active tab with `box-shadow: 0 -2px 0 … inset`,
+    // which drew a blue line under the pill the old strip never had.
+    &[aria-selected="true"] {
+      cursor: default;
+      color: @blue;
+      background-color: rgba(0, 0, 0, 0.09);
+      box-shadow: none;
+    }
+  }
+
+  // The eight labels these strips use, measured across every strip on the
+  // wiki. A ninth label shows its text until someone adds it here.
+  //
+  // בינלאומי takes the euro for all of them. Five strips used a globe for
+  // that same label and the rest a euro; one label cannot have two glyphs
+  // without a per-strip override, and the euro is what the other 12 used.
+  .tab-icon(~"משחקים_רשמיים"; "\f111"; 400);   // far fa-circle
+  .tab-icon(~"כל_המסגרות"; "\f111"; 400);
+  .tab-icon(~"יתר_המסגרות"; "\f111"; 400);
+  .tab-icon(~"ליגה"; "\f015");                  // fa-home
+  .tab-icon(~"גביע"; "\f091");                  // fa-trophy
+  .tab-icon(~"בינלאומי"; "\f153");              // fa-euro-sign
+  .tab-icon(~"אירופה"; "\f153");
+  .tab-icon(~"יתר_המפעלים"; "\f069");           // fa-asterisk
+
+  // `.slim-tabs .content` carried `margin-top: 10px`, and
+  // `.slim-tabs .content > div` set `line-height: 1.4` where a
+  // `.tabber__panel` inherits `normal` - 22.4px against 24.2px per row.
+  //
+  .tabber__section {
+    margin-top: 10px;
+  }
+
+  .tabber__panel {
+    line-height: 1.4;
+    padding-inline: 5px;
+  }
+
+  // The panel heading, restored: the colour, the 65px underline and the 600
+  // weight that `.slim-tabs .content>div .tab-header` gave it.
+  .tabber__panel .tab-header {
+    display: block;
+    color: @blue;
+    font-weight: 600;
+
+    &::after {
+      content: "";
+      position: relative;
+      display: block;
+      width: 65px;
+      height: 3px;
+      margin: 4px 0;
+      right: 1px;
+      background-color: @blue;
+    }
+  }
+}
+
+// ...except inside a portal, where `.portalContainer li { margin: 0 }`
+// (old/Portals.less) took that margin away from the old tabs. The day pages
+// put this widget in a portal column, so there the strip is 38px, not 39.6px -
+// measured both ways, and a single value would be wrong in one of them.
+.portalContainer .tabber-converted .tabber__tab {
+  margin-bottom: 0;
+}

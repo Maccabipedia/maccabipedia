@@ -19,3 +19,23 @@ jobs:
         run: uv sync
       - name: Run tests
         run: uv run pytest -v
+
+  lua:
+    # The football query layer. Its suites need no wiki - Module:FootballQueries
+    # runs against a stub mw - so the whole gate is a few seconds here, and a
+    # mutation that survives is a code path nothing is watching.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - uses: astral-sh/setup-uv@v7
+      - name: Install Lua 5.1
+        run: sudo apt-get update && sudo apt-get install -y lua5.1
+      - name: Check the modules compile
+        run: luac5.1 -p infra/football_queries/*.lua
+      - name: Mutation gate
+        # Runs every Lua suite first, then checks each mutation turns them red.
+        # Exit code is the number of survivors.
+        run: uv run python infra/football_queries/tests/mutate.py

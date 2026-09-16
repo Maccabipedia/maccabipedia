@@ -380,6 +380,20 @@ wfLoadExtension('TabberNeue'); // https://www.mediawiki.org/wiki/Extension:Tabbe
 $wgTabberNeueUpdateLocationOnTabChange = true;
 $wgTabberNeueEnableAnimation = false;
 $wgTabberNeueParseTabName = true;
+# NOT $wgTabberNeueUseLegacyTabIds. It would give stable, position-independent
+# panel ids (#גביע-שיאני-כיבושים instead of #גביע-0), which is what a shared
+# link wants - but it is unusable in the pinned version: it throws
+# "Duplicated Tabber labels is not allowed" for ANY box with two or more tabs,
+# even when every label is unique.
+#
+# Measured, and the cause is upstream: ParserOutput::appendExtensionData stores
+# values as KEYS ($data[$key][$value] = true), while Tabber.php checks
+# in_array($id, $existingIds) against the VALUES - which are `true` and the
+# merge-strategy string. In PHP a non-empty string loosely equals true, so the
+# second tab always "collides". The fix upstream is array_key_exists.
+#
+# Until that is fixed or the pin is bumped, panel ids carry the positional
+# suffix and a deep link means "the Nth box on this page".
 
 #wfLoadExtension('GoogleRichCards'); //https://www.mediawiki.org/wiki/Extension:GoogleRichCards
 // Enable annotations for articles
@@ -398,14 +412,29 @@ $wgGroupPermissions['sysop']['gtag-exempt'] = true;
 // $wgGoogleAnalyticsAccount = 'UA-123078340-2';  # MaccabiPedi
 
 
-$wgResourceModules['maccabipedia.customizations'] = array(
-	'styles' => ["slick/slick.less", "slick/slick-theme.less"],
-	'scripts' => ["slick/slick.min.js", "canvasjs/jquery.canvasjs.min.js"],
-	'dependencies' => ['jquery'],
-	'localBasePath' => "$IP/customizations/",
-	'remoteBasePath' => "$wgScriptPath/customizations/",
-	'position' => 'top'
-);
+# A legacy module served from $IP/customizations/, a directory that exists on
+# production but is NOT in this repo (slick has since been vendored into the
+# skin; canvasjs lives only there).
+#
+# Registered only if that directory is actually present. Without the guard,
+# ResourceLoader throws "style file not found or not a file:
+# .../customizations//slick/slick.less" for the whole batch this module is in
+# - and because a batch fails as a unit, EVERY script on EVERY page dies with
+# it. On the local wiki that meant no sliders, no skin scripts and no
+# TabberNeue: tabs rendered all panels at once and never switched, which looks
+# like a broken extension rather than a missing directory.
+#
+# On production the directory exists, so this changes nothing there.
+if ( is_dir( "$IP/customizations" ) ) {
+	$wgResourceModules['maccabipedia.customizations'] = array(
+		'styles' => ["slick/slick.less", "slick/slick-theme.less"],
+		'scripts' => ["slick/slick.min.js", "canvasjs/jquery.canvasjs.min.js"],
+		'dependencies' => ['jquery'],
+		'localBasePath' => "$IP/customizations/",
+		'remoteBasePath' => "$wgScriptPath/customizations/",
+		'position' => 'top'
+	);
+}
 
 $wgResourceLoaderMaxage = ['versioned' => 31536000, 'unversioned' => 86400];
 
@@ -417,7 +446,11 @@ wfLoadExtension('RegexFunctions');
 
 function efCustomBeforePageDisplay(&$out, &$skin)
 {
-	$out->addModules(array('maccabipedia.customizations'));
+	# Only if it was registered above - asking for a module that does not
+	# exist is the same batch-killing failure by another route.
+	if ( isset( $GLOBALS['wgResourceModules']['maccabipedia.customizations'] ) ) {
+		$out->addModules(array('maccabipedia.customizations'));
+	}
 }
 
 $wgHooks['BeforePageDisplay'][] = 'efCustomBeforePageDisplay';

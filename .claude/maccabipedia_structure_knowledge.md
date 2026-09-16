@@ -479,3 +479,154 @@ minutes).
    `action=query&list=categorymembers&cmprop=sortkeyprefix&cmsort=sortkey`. Compare the
    member count to what it was before — a member that disappeared means a mangled name.
 5. Purge the affected pages; see §14 on the job queue not draining by itself.
+
+## 15. Cargo Name Columns — Raw, Grouping And Normalised
+
+Measured on production 2026-09-13. Three different spellings of the same club
+or venue exist, and **only two of them are stored as columns**. Mixing them up
+returns zero rows with no error, which is how one club has been reading 0 for
+every statistic.
+
+### The three spellings
+
+| spelling | where it lives | example |
+|---|---|---|
+| **raw** — as displayed, quotes intact | `Opponents.OriginalName`, `Stadiums.OriginalName`, wiki page titles | `בית"ר ירושלים` |
+| **identity** — one id per club across renames and mergers | `Opponents.CanonicalName` | `בית"ר תל אביב רמלה (מרכז)` |
+| **normalised** — quotes and gershayim removed | **no column anywhere**; produced at write time by `תבנית:המרות/שם ללא גרש וגרשיים` and stored in `Football_Games.Opponent` / `.Stadium` | `ביתר ירושלים` |
+
+**The normalised spelling is a transform, not a column.** It is applied when a
+game page is written, so the games table holds it, and no lookup table does.
+
+### CanonicalName is a club identity, not an escaping aid
+
+It is the club's **id across renames and mergers** — the thing that stays put
+while the name changes. It is emphatically **not** the escape-safe or
+normalised form: of the 37 `Opponents` rows whose `OriginalName` carries a
+quote, **0** have a quote-free `CanonicalName`. Both columns keep the quote.
+
+Measured shape: 289 rows, **271 distinct ids**, of which **10 collect more than
+one name** (28 rows). And the identity property holds — **0 names map to more
+than one id** — so a name determines a club unambiguously and code may rely on
+that.
+
+    בית"ר רמלה   בית"ר תל אביב   בית"ר תל אביב רמלה
+    הפועל בת ים  מכבי בת ים            ──→  בית"ר תל אביב רמלה (מרכז)
+
+    הכח מכבי רמת גן  הכח עמידר רמת גן  הכח רמת גן
+    הכח תל אביב      מכבי רמת עמידר    ──→  הכח רמת גן (משוכלל)
+
+Note those groups are **mergers as well as renames** — `הפועל בת ים` and
+`מכבי בת ים` are not spellings of one name.
+
+For the 261 single-name clubs the id is simply a copy of the name. For all 10
+multi-name clubs the id is a synthetic label suffixed `(מרכז)` or `(משוכלל)`
+and is **deliberately not any of the real names** — which is the right design,
+since picking one era's name as the id would make the other eras look like
+aliases of it. The consequence for code: **group by `CanonicalName`, never
+display it.**
+
+This is also why a filter on one club name must expand to every name that club
+ever carried: "games against this club" spans the renames, and that is what the
+alias self-join produces.
+
+For **`Stadiums` the pair carries no information at all**: 199 rows, and
+`OriginalName <> CanonicalName` in **zero** of them. Venue variants are grouped
+by `_pageID` instead — several rows on one stadium page — which is why the
+two alias self-joins are not symmetrical:
+
+    stadiums:   join s1._pageID = s2._pageID          match and return CanonicalName
+    opponents:  join o1.CanonicalName = o2.CanonicalName   match and return OriginalName
+
+### The trap this creates
+
+`תבנית:המרות/המרות יריבה/יריבה לרשימת יריבות מקושרות` **strips the input** and
+then matches it against `Opponents.OriginalName`, which is raw. For any club
+whose stored name has a quote the two never meet, the template returns
+`"<em>ללא תוצאות</em>"`, and the caller ends up with
+`Opponent IN ("<em>ללא תוצאות</em>")` — valid SQL, zero rows, no error.
+
+Verified live: `בית"ר ירושלים`, `בית&#34;ר ירושלים` and `ביתר ירושלים` all
+return `ללא תוצאות`, while `הפועל תל אביב` returns itself.
+
+**This is a latent trap, not a live defect — checked, not assumed.** 37 clubs
+carry a quote in `Opponents.OriginalName`, but the club pages do not reach that
+lookup with the raw name: `בית"ר ירושלים` renders `משחקים 173, ניצחונות 76,
+תיקו 43, הפסדים 54` — the correct figures — and contains no `ללא תוצאות`
+anywhere. The `יריבות` (list) parameter is safe by construction too, because it
+strips each value and compares it to the already-stripped games column.
+
+So **nothing needs fixing today.** What to avoid is *introducing* a caller that
+passes the raw page name to that lookup — it will return nothing, silently.
+
+If a caller ever needs the raw form, note that **Cargo rejects `REPLACE()` in a
+`where`** (verified: MWException), so the comparison cannot be normalised in
+SQL; it has to be normalised in the caller, or the club needs a second
+`Opponents` row carrying the normalised spelling under the same
+`CanonicalName`.
+
+### Which columns keep quote characters
+
+Per column, measured rather than assumed — querying a stripped column with a
+raw name returns zero rows and no error:
+
+| keeps `'` and `"` | stripped |
+|---|---|
+| `Football_Games.Competition` (`גביע מלצ'ט`) | `Football_Games.Opponent` |
+| `Football_Games.CoachMaccabi` (`ג'ורדי קרויף`) | `Football_Games.Stadium` |
+| `Football_Games.Refs` | `Competitions.OriginalName` / `CurrentName` |
+| `Games_Events.PlayerName` (14 rows) | `Stadiums.CanonicalName` |
+| `Opponents.OriginalName` (37 rows) | |
+
+`probe_quotes_by_column.py` in `.claude/tmp/` asks each column directly.
+
+### Two Cargo behaviours that bite when you write SQL by hand
+
+**A literal quote queries fine. An HTML entity does not.** This is the root of
+the "you get an error when you query a name with `"`" convention, and the cause
+is usually misplaced: the error comes from the entity, not the quote.
+`{{PAGENAME}}` hands a template `בית&#34;ר ירושלים`, and
+`CargoSQLQuery::newFromValues` runs `htmlspecialchars_decode($whereStr,
+ENT_QUOTES)` on the finished WHERE, turning it back into a bare `"` *inside*
+the string literal. Measured, all against `בית"ר ירושלים`:
+
+| WHERE form | result |
+|---|---|
+| `= "בית\"ר ירושלים"` (backslash) | returns the row |
+| `= "בית""ר ירושלים"` (doubled) | returns the row |
+| `= 'בית"ר ירושלים'` (single-quoted) | returns the row |
+| `= "בית&quot;ר ירושלים"` (entity) | **MWException** |
+| `LIKE 'בית%ר ירושלים'` | returns the row |
+
+So stripping before querying avoids the crash — no quote, no entity — which is
+why the templates do it, and the price is that a stripped value can never match
+the raw `Opponents.OriginalName`. The alternative, which works: decode the
+entity yourself, escape the literal, and **refuse a surviving `&`**. That last
+part is not optional, because the same decode makes an unrecognised entity an
+injection: `Opponents.OriginalName = "x&#x22; OR 1=1 OR ""` returned all 289
+rows, identical to `where=1=1`. `CargoLuaLibrary` shares this path, so it is
+not an API-only concern.
+
+**Values come back escaped from the API and decoded in Lua.**
+`CargoSQLQuery::run()` applies `htmlspecialchars()`, which is why the JSON API
+shows `בית&quot;ר ירושלים` for a value the database stores with a literal `"`
+(`LIKE '%quot%'` → 0 rows). `CargoLuaLibrary::cargoQuery` returns
+`htmlspecialchars_decode(...)`, so Scribunto sees the literal.
+
+### `join on` is a LEFT JOIN — and that does not mean pruning is free
+
+Unmatched rows survive with NULL columns (82 games have no `Competitions` row:
+`ידידות` 81, `גביע מלצ'ט` 1). That rules out row **loss**, not row
+**multiplication**. Measured right-side cardinality:
+
+| join | rows | distinct keys | multiplies |
+|---|---|---|---|
+| `Games_Referees` on `_pageID` | 1,460 | 1,460 | no |
+| `Football_Games_Uniforms` on `_pageID` | 1,790 | 1,790 | no |
+| `Competitions` on `Competition=OriginalName` | 23 | 23 | no |
+| `Games_Events` on `_pageID` | 149,574 | 3,453 pages | **yes, up to 43×** |
+
+So dropping an unused join changes nothing for the first three, and joining
+`Games_Events` when you only wanted games multiplies every count.
+
+See `.claude/football_queries.md` for the Lua layer built on these facts.
