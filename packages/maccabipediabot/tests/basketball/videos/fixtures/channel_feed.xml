@@ -1,0 +1,359 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns:yt="http://www.youtube.com/xml/schemas/2015" xmlns:media="http://search.yahoo.com/mrss/" xmlns="http://www.w3.org/2005/Atom">
+ <link rel="self" href="http://www.youtube.com/feeds/videos.xml?channel_id=UCqxNoI856R_vgs7aQolQhlg"/>
+ <id>yt:channel:qxNoI856R_vgs7aQolQhlg</id>
+ <yt:channelId>qxNoI856R_vgs7aQolQhlg</yt:channelId>
+ <title>Maccabi Tel Aviv Basketball</title>
+ <link rel="alternate" href="https://www.youtube.com/channel/UCqxNoI856R_vgs7aQolQhlg"/>
+ <author>
+  <name>Maccabi Tel Aviv Basketball</name>
+  <uri>https://www.youtube.com/channel/UCqxNoI856R_vgs7aQolQhlg</uri>
+ </author>
+ <published>2010-04-07T15:03:52+00:00</published>
+ <entry>
+  <id>yt:video:VxkdMmqX9Z0</id>
+  <yt:videoId>VxkdMmqX9Z0</yt:videoId>
+  <yt:channelId>UCqxNoI856R_vgs7aQolQhlg</yt:channelId>
+  <title>מבט לתוך האימון בקפריסין 👀</title>
+  <link rel="alternate" href="https://www.youtube.com/shorts/VxkdMmqX9Z0"/>
+  <author>
+   <name>Maccabi Tel Aviv Basketball</name>
+   <uri>https://www.youtube.com/channel/UCqxNoI856R_vgs7aQolQhlg</uri>
+  </author>
+  <published>2026-09-11T10:52:14+00:00</published>
+  <updated>2026-09-11T10:53:35+00:00</updated>
+  <media:group>
+   <media:title>מבט לתוך האימון בקפריסין 👀</media:title>
+   <media:content url="https://www.youtube.com/v/VxkdMmqX9Z0?version=3" type="application/x-shockwave-flash" width="640" height="390"/>
+   <media:thumbnail url="https://i3.ytimg.com/vi/VxkdMmqX9Z0/hqdefault.jpg" width="480" height="360"/>
+   <media:description></media:description>
+   <media:community>
+    <media:starRating count="100" average="5.00" min="1" max="5"/>
+    <media:statistics views="1556"/>
+   </media:community>
+  </media:group>
+ </entry>
+ <entry>
+  <id>yt:video:tHNmlqoPQEs</id>
+  <yt:videoId>tHNmlqoPQEs</yt:videoId>
+  <yt:channelId>UCqxNoI856R_vgs7aQolQhlg</yt:channelId>
+  <title>קיטון וואלאס מרים את הספסל 😤</title>
+  <link rel="alternate" href="https://www.youtube.com/shorts/tHNmlqoPQEs"/>
+  <author>
+   <name>Maccabi Tel Aviv Basketball</name>
+   <uri>https://www.youtube.com/channel/UCqxNoI856R_vgs7aQolQhlg</uri>
+  </author>
+  <published>2026-09-08T14:04:12+00:00</published>
+  <updated>2026-09-09T17:32:40+00:00</updated>
+  <media:group>
+   <media:title>קיטון וואלאס מרים את הספסל 😤</media:title>
+   <media:content url="https://www.youtube.com/v/tHNmlqoPQEs?version=3" type="application/x-shockwave-flash" width="640" height="390"/>
+   <media:thumbnail url="https://i1.ytimg.com/vi/tHNmlqoPQEs/hqdefault.jpg" width="480" height="360"/>
+   <media:description></media:description>
+   <media:community>
+    <media:starRating count="227" average="5.00" min="1" max="5"/>
+    <media:statistics views="12419"/>
+   </media:community>
+  </media:group>
+ </entry>
+ <entry>
+  <id>yt:video:I1PvvDPYnYk</id>
+  <yt:videoId>I1PvvDPYnYk</yt:videoId>
+  <yt:channelId>UCqxNoI856R_vgs7aQolQhlg</yt:channelId>
+  <title>אושיי בריסט צולף מרחוק 🫡</title>
+  <link rel="alternate" href="https://www.youtube.com/shorts/I1PvvDPYnYk"/>
+  <author>
+   <name>Maccabi Tel Aviv Basketball</name>
+   <uri>https://www.youtube.com/channel/UCqxNoI856R_vgs7aQolQhlg</uri>
+  </author>
+  <published>2026-09-08T14:02:42+00:00</published>
+  <updated>2026-09-09T09:15:08+00:00</updated>
+  <media:group>
+   <media:title>אושיי בריסט צולף מרחוק 🫡</media:title>
+   <media:content url="https://www.youtube.com/v/I1PvvDPYnYk?version=3" type="application/x-shockwave-flash" width="640" height="390"/>
+   <media:thumbnail url="https://i2.ytimg.com/vi/I1PvvDPYnYk/hqdefault.jpg" width="480" height="360"/>
+   <media:description></media:description>
+   <media:community>
+    <media:starRating count="170" average="5.00" min="1" max="5"/>
+    <media:statistics views="7578"/>
+   </media:community>
+  </media:group>
+ </entry>
+ <entry>
+  <id>yt:video:sti3c1ZjIUg</id>
+  <yt:videoId>sti3c1ZjIUg</yt:videoId>
+  <yt:channelId>UCqxNoI856R_vgs7aQolQhlg</yt:channelId>
+  <title>צפו במשחק ההכנה: מכבי Rapyd ת&quot;א - מכבי תפוזינה ראשון לציון 81:95</title>
+  <link rel="alternate" href="https://www.youtube.com/watch?v=sti3c1ZjIUg"/>
+  <author>
+   <name>Maccabi Tel Aviv Basketball</name>
+   <uri>https://www.youtube.com/channel/UCqxNoI856R_vgs7aQolQhlg</uri>
+  </author>
+  <published>2026-09-08T13:15:09+00:00</published>
+  <updated>2026-09-10T20:43:23+00:00</updated>
+  <media:group>
+   <media:title>צפו במשחק ההכנה: מכבי Rapyd ת&quot;א - מכבי תפוזינה ראשון לציון 81:95</media:title>
+   <media:content url="https://www.youtube.com/v/sti3c1ZjIUg?version=3" type="application/x-shockwave-flash" width="640" height="390"/>
+   <media:thumbnail url="https://i4.ytimg.com/vi/sti3c1ZjIUg/hqdefault.jpg" width="480" height="360"/>
+   <media:description>השידור המלא ממפגש האימון לקראת עונת 2026/27, שנערך במרכז הספורט הרב-תכליתי הדר יוסף. 
+רומן סורקין הוביל עם 19 נקודות ו-5 ריבאונדים. ג'יילן הורד ואושיי בריסט קלעו 12 כל אחד, קיטון וואלאס ושיין האנטר הוסיפו 10 כ&quot;א. בונזי קולסון עם 8, ים מדר תרם 7 ואיפה לונדברג מסר 6 אסיסטים</media:description>
+   <media:community>
+    <media:starRating count="217" average="5.00" min="1" max="5"/>
+    <media:statistics views="18780"/>
+   </media:community>
+  </media:group>
+ </entry>
+ <entry>
+  <id>yt:video:WY0A3GuZbUc</id>
+  <yt:videoId>WY0A3GuZbUc</yt:videoId>
+  <yt:channelId>UCqxNoI856R_vgs7aQolQhlg</yt:channelId>
+  <title>איפה לונדברג שולח את ג׳יילן הורד לסל 👀</title>
+  <link rel="alternate" href="https://www.youtube.com/shorts/WY0A3GuZbUc"/>
+  <author>
+   <name>Maccabi Tel Aviv Basketball</name>
+   <uri>https://www.youtube.com/channel/UCqxNoI856R_vgs7aQolQhlg</uri>
+  </author>
+  <published>2026-09-08T12:13:57+00:00</published>
+  <updated>2026-09-09T08:47:26+00:00</updated>
+  <media:group>
+   <media:title>איפה לונדברג שולח את ג׳יילן הורד לסל 👀</media:title>
+   <media:content url="https://www.youtube.com/v/WY0A3GuZbUc?version=3" type="application/x-shockwave-flash" width="640" height="390"/>
+   <media:thumbnail url="https://i4.ytimg.com/vi/WY0A3GuZbUc/hqdefault.jpg" width="480" height="360"/>
+   <media:description></media:description>
+   <media:community>
+    <media:starRating count="190" average="5.00" min="1" max="5"/>
+    <media:statistics views="10873"/>
+   </media:community>
+  </media:group>
+ </entry>
+ <entry>
+  <id>yt:video:zD6-m5xTsa0</id>
+  <yt:videoId>zD6-m5xTsa0</yt:videoId>
+  <yt:channelId>UCqxNoI856R_vgs7aQolQhlg</yt:channelId>
+  <title>קצת מהאימון הפתוח שהתקיים ביום שישי האחרון 🙃</title>
+  <link rel="alternate" href="https://www.youtube.com/shorts/zD6-m5xTsa0"/>
+  <author>
+   <name>Maccabi Tel Aviv Basketball</name>
+   <uri>https://www.youtube.com/channel/UCqxNoI856R_vgs7aQolQhlg</uri>
+  </author>
+  <published>2026-09-08T08:56:34+00:00</published>
+  <updated>2026-09-09T16:47:50+00:00</updated>
+  <media:group>
+   <media:title>קצת מהאימון הפתוח שהתקיים ביום שישי האחרון 🙃</media:title>
+   <media:content url="https://www.youtube.com/v/zD6-m5xTsa0?version=3" type="application/x-shockwave-flash" width="640" height="390"/>
+   <media:thumbnail url="https://i3.ytimg.com/vi/zD6-m5xTsa0/hqdefault.jpg" width="480" height="360"/>
+   <media:description></media:description>
+   <media:community>
+    <media:starRating count="180" average="5.00" min="1" max="5"/>
+    <media:statistics views="3429"/>
+   </media:community>
+  </media:group>
+ </entry>
+ <entry>
+  <id>yt:video:g4y_A3zwlvk</id>
+  <yt:videoId>g4y_A3zwlvk</yt:videoId>
+  <yt:channelId>UCqxNoI856R_vgs7aQolQhlg</yt:channelId>
+  <title>ים מדר בצהוב כחול 🫠</title>
+  <link rel="alternate" href="https://www.youtube.com/shorts/g4y_A3zwlvk"/>
+  <author>
+   <name>Maccabi Tel Aviv Basketball</name>
+   <uri>https://www.youtube.com/channel/UCqxNoI856R_vgs7aQolQhlg</uri>
+  </author>
+  <published>2026-09-08T08:54:32+00:00</published>
+  <updated>2026-09-09T18:46:48+00:00</updated>
+  <media:group>
+   <media:title>ים מדר בצהוב כחול 🫠</media:title>
+   <media:content url="https://www.youtube.com/v/g4y_A3zwlvk?version=3" type="application/x-shockwave-flash" width="640" height="390"/>
+   <media:thumbnail url="https://i4.ytimg.com/vi/g4y_A3zwlvk/hqdefault.jpg" width="480" height="360"/>
+   <media:description></media:description>
+   <media:community>
+    <media:starRating count="377" average="5.00" min="1" max="5"/>
+    <media:statistics views="19810"/>
+   </media:community>
+  </media:group>
+ </entry>
+ <entry>
+  <id>yt:video:jQGkEbsYiB8</id>
+  <yt:videoId>jQGkEbsYiB8</yt:videoId>
+  <yt:channelId>UCqxNoI856R_vgs7aQolQhlg</yt:channelId>
+  <title>צפו במשחק ההכנה: מכבי Rapyd ת&quot;א - בני Penlink הרצליה</title>
+  <link rel="alternate" href="https://www.youtube.com/watch?v=jQGkEbsYiB8"/>
+  <author>
+   <name>Maccabi Tel Aviv Basketball</name>
+   <uri>https://www.youtube.com/channel/UCqxNoI856R_vgs7aQolQhlg</uri>
+  </author>
+  <published>2026-09-03T17:43:44+00:00</published>
+  <updated>2026-09-07T08:37:16+00:00</updated>
+  <media:group>
+   <media:title>צפו במשחק ההכנה: מכבי Rapyd ת&quot;א - בני Penlink הרצליה</media:title>
+   <media:content url="https://www.youtube.com/v/jQGkEbsYiB8?version=3" type="application/x-shockwave-flash" width="640" height="390"/>
+   <media:thumbnail url="https://i3.ytimg.com/vi/jQGkEbsYiB8/hqdefault.jpg" width="480" height="360"/>
+   <media:description>השידור המלא ממפגש האימון לקראת עונת 2026/27, שנערך במרכז הספורט הרב-תכליתי הדר יוסף</media:description>
+   <media:community>
+    <media:starRating count="273" average="5.00" min="1" max="5"/>
+    <media:statistics views="39363"/>
+   </media:community>
+  </media:group>
+ </entry>
+ <entry>
+  <id>yt:video:ypN9MWuOE4Y</id>
+  <yt:videoId>ypN9MWuOE4Y</yt:videoId>
+  <yt:channelId>UCqxNoI856R_vgs7aQolQhlg</yt:channelId>
+  <title>עוד קצת ממחנה האימונים ☑️</title>
+  <link rel="alternate" href="https://www.youtube.com/shorts/ypN9MWuOE4Y"/>
+  <author>
+   <name>Maccabi Tel Aviv Basketball</name>
+   <uri>https://www.youtube.com/channel/UCqxNoI856R_vgs7aQolQhlg</uri>
+  </author>
+  <published>2026-09-02T17:51:50+00:00</published>
+  <updated>2026-09-04T13:41:14+00:00</updated>
+  <media:group>
+   <media:title>עוד קצת ממחנה האימונים ☑️</media:title>
+   <media:content url="https://www.youtube.com/v/ypN9MWuOE4Y?version=3" type="application/x-shockwave-flash" width="640" height="390"/>
+   <media:thumbnail url="https://i2.ytimg.com/vi/ypN9MWuOE4Y/hqdefault.jpg" width="480" height="360"/>
+   <media:description></media:description>
+   <media:community>
+    <media:starRating count="184" average="5.00" min="1" max="5"/>
+    <media:statistics views="7836"/>
+   </media:community>
+  </media:group>
+ </entry>
+ <entry>
+  <id>yt:video:5ERGxYeyoeI</id>
+  <yt:videoId>5ERGxYeyoeI</yt:videoId>
+  <yt:channelId>UCqxNoI856R_vgs7aQolQhlg</yt:channelId>
+  <title>עודד קטש מאמן גם בכדורגל? 🤪</title>
+  <link rel="alternate" href="https://www.youtube.com/shorts/5ERGxYeyoeI"/>
+  <author>
+   <name>Maccabi Tel Aviv Basketball</name>
+   <uri>https://www.youtube.com/channel/UCqxNoI856R_vgs7aQolQhlg</uri>
+  </author>
+  <published>2026-09-02T17:50:47+00:00</published>
+  <updated>2026-09-04T13:52:29+00:00</updated>
+  <media:group>
+   <media:title>עודד קטש מאמן גם בכדורגל? 🤪</media:title>
+   <media:content url="https://www.youtube.com/v/5ERGxYeyoeI?version=3" type="application/x-shockwave-flash" width="640" height="390"/>
+   <media:thumbnail url="https://i2.ytimg.com/vi/5ERGxYeyoeI/hqdefault.jpg" width="480" height="360"/>
+   <media:description></media:description>
+   <media:community>
+    <media:starRating count="471" average="5.00" min="1" max="5"/>
+    <media:statistics views="53547"/>
+   </media:community>
+  </media:group>
+ </entry>
+ <entry>
+  <id>yt:video:a5I489nuDgM</id>
+  <yt:videoId>a5I489nuDgM</yt:videoId>
+  <yt:channelId>UCqxNoI856R_vgs7aQolQhlg</yt:channelId>
+  <title>מחנה האימונים יצא לדרך 🎬</title>
+  <link rel="alternate" href="https://www.youtube.com/shorts/a5I489nuDgM"/>
+  <author>
+   <name>Maccabi Tel Aviv Basketball</name>
+   <uri>https://www.youtube.com/channel/UCqxNoI856R_vgs7aQolQhlg</uri>
+  </author>
+  <published>2026-08-30T13:16:53+00:00</published>
+  <updated>2026-09-05T18:26:49+00:00</updated>
+  <media:group>
+   <media:title>מחנה האימונים יצא לדרך 🎬</media:title>
+   <media:content url="https://www.youtube.com/v/a5I489nuDgM?version=3" type="application/x-shockwave-flash" width="640" height="390"/>
+   <media:thumbnail url="https://i2.ytimg.com/vi/a5I489nuDgM/hqdefault.jpg" width="480" height="360"/>
+   <media:description></media:description>
+   <media:community>
+    <media:starRating count="292" average="5.00" min="1" max="5"/>
+    <media:statistics views="12621"/>
+   </media:community>
+  </media:group>
+ </entry>
+ <entry>
+  <id>yt:video:OVk5HQHQPa4</id>
+  <yt:videoId>OVk5HQHQPa4</yt:videoId>
+  <yt:channelId>UCqxNoI856R_vgs7aQolQhlg</yt:channelId>
+  <title>איפה לונדברג נחת 🛬✔️</title>
+  <link rel="alternate" href="https://www.youtube.com/shorts/OVk5HQHQPa4"/>
+  <author>
+   <name>Maccabi Tel Aviv Basketball</name>
+   <uri>https://www.youtube.com/channel/UCqxNoI856R_vgs7aQolQhlg</uri>
+  </author>
+  <published>2026-08-29T14:55:37+00:00</published>
+  <updated>2026-09-05T17:20:12+00:00</updated>
+  <media:group>
+   <media:title>איפה לונדברג נחת 🛬✔️</media:title>
+   <media:content url="https://www.youtube.com/v/OVk5HQHQPa4?version=3" type="application/x-shockwave-flash" width="640" height="390"/>
+   <media:thumbnail url="https://i4.ytimg.com/vi/OVk5HQHQPa4/hqdefault.jpg" width="480" height="360"/>
+   <media:description></media:description>
+   <media:community>
+    <media:starRating count="208" average="5.00" min="1" max="5"/>
+    <media:statistics views="5645"/>
+   </media:community>
+  </media:group>
+ </entry>
+ <entry>
+  <id>yt:video:mHUIRpG1woY</id>
+  <yt:videoId>mHUIRpG1woY</yt:videoId>
+  <yt:channelId>UCqxNoI856R_vgs7aQolQhlg</yt:channelId>
+  <title>כבר לא יכולים לחכות לתחילת העונה 🥹</title>
+  <link rel="alternate" href="https://www.youtube.com/shorts/mHUIRpG1woY"/>
+  <author>
+   <name>Maccabi Tel Aviv Basketball</name>
+   <uri>https://www.youtube.com/channel/UCqxNoI856R_vgs7aQolQhlg</uri>
+  </author>
+  <published>2026-08-26T19:32:50+00:00</published>
+  <updated>2026-09-05T13:39:25+00:00</updated>
+  <media:group>
+   <media:title>כבר לא יכולים לחכות לתחילת העונה 🥹</media:title>
+   <media:content url="https://www.youtube.com/v/mHUIRpG1woY?version=3" type="application/x-shockwave-flash" width="640" height="390"/>
+   <media:thumbnail url="https://i2.ytimg.com/vi/mHUIRpG1woY/hqdefault.jpg" width="480" height="360"/>
+   <media:description></media:description>
+   <media:community>
+    <media:starRating count="235" average="5.00" min="1" max="5"/>
+    <media:statistics views="8769"/>
+   </media:community>
+  </media:group>
+ </entry>
+ <entry>
+  <id>yt:video:Gl3JXKY1eFE</id>
+  <yt:videoId>Gl3JXKY1eFE</yt:videoId>
+  <yt:channelId>UCqxNoI856R_vgs7aQolQhlg</yt:channelId>
+  <title>קיטון וואלאס נחת והוא מוכן 😎</title>
+  <link rel="alternate" href="https://www.youtube.com/shorts/Gl3JXKY1eFE"/>
+  <author>
+   <name>Maccabi Tel Aviv Basketball</name>
+   <uri>https://www.youtube.com/channel/UCqxNoI856R_vgs7aQolQhlg</uri>
+  </author>
+  <published>2026-08-25T17:06:34+00:00</published>
+  <updated>2026-09-06T05:27:56+00:00</updated>
+  <media:group>
+   <media:title>קיטון וואלאס נחת והוא מוכן 😎</media:title>
+   <media:content url="https://www.youtube.com/v/Gl3JXKY1eFE?version=3" type="application/x-shockwave-flash" width="640" height="390"/>
+   <media:thumbnail url="https://i4.ytimg.com/vi/Gl3JXKY1eFE/hqdefault.jpg" width="480" height="360"/>
+   <media:description></media:description>
+   <media:community>
+    <media:starRating count="209" average="5.00" min="1" max="5"/>
+    <media:statistics views="5671"/>
+   </media:community>
+  </media:group>
+ </entry>
+ <entry>
+  <id>yt:video:ihNBUm6U8iI</id>
+  <yt:videoId>ihNBUm6U8iI</yt:videoId>
+  <yt:channelId>UCqxNoI856R_vgs7aQolQhlg</yt:channelId>
+  <title>אימון ראשון לעונת 26/27 🥹🤩</title>
+  <link rel="alternate" href="https://www.youtube.com/shorts/ihNBUm6U8iI"/>
+  <author>
+   <name>Maccabi Tel Aviv Basketball</name>
+   <uri>https://www.youtube.com/channel/UCqxNoI856R_vgs7aQolQhlg</uri>
+  </author>
+  <published>2026-08-20T15:29:38+00:00</published>
+  <updated>2026-09-05T13:14:00+00:00</updated>
+  <media:group>
+   <media:title>אימון ראשון לעונת 26/27 🥹🤩</media:title>
+   <media:content url="https://www.youtube.com/v/ihNBUm6U8iI?version=3" type="application/x-shockwave-flash" width="640" height="390"/>
+   <media:thumbnail url="https://i2.ytimg.com/vi/ihNBUm6U8iI/hqdefault.jpg" width="480" height="360"/>
+   <media:description></media:description>
+   <media:community>
+    <media:starRating count="436" average="5.00" min="1" max="5"/>
+    <media:statistics views="13666"/>
+   </media:community>
+  </media:group>
+ </entry>
+</feed>

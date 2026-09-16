@@ -93,6 +93,7 @@ Every tool call result stays in context forever. Keep all outputs small:
 - `.claude/maccabipedia_research_sources.md` — External data sources: rosters, match results, historical records, photos, video
 - `.claude/maccabistats_knowledge.md` — maccabistats Python package API reference
 - `.claude/maccabipedia_youtube_channel.md` — MaccabiPedia YouTube channel conventions + Google Drive backup layout (used by `restore_deleted_football_video`)
+- `.claude/basketball_videos.md` — attaching game videos from the club and EuroLeague channels: title traps (Hebrew scores read right to left), the match keys, the slots, and how to run the backfill and the scheduled job
 - Prod deploys → the `deploy-skin` and `deploy-localsettings` skills (`.claude/skills/`). Skin = `skins/Maccabipedia/` via snapshot + manual FileZilla upload; LocalSettings = `infra/local-wiki/config/LocalSettings.shared.php` only (never `env.prod.php`). FTP creds in `infra/local-wiki/.env`.
 - `.claude/google_analytics.md` — GA4 traffic data: GTag extension on the wiki, the `google-analytics` MCP server (official Google one, `uv tool run` not pipx), service-account credentials in `~/.config/maccabipedia/`, and which of the two GA4 properties to query
 - `.claude/trello.md` — Trello convention: reads via `.claude/scripts/trello_*.py` (save full JSON to tmp, print trimmed), writes via the MCP; why; how to find list/board IDs
