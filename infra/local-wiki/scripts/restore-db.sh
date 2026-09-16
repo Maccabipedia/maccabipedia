@@ -37,6 +37,17 @@ docker compose -f "$COMPOSE_FILE" exec -T mariadb \
     2>/dev/null || true
 docker compose -f "$COMPOSE_FILE" restart mediawiki >/dev/null
 
+# The snapshot can carry pages signed with PRODUCTION's SecureHTML secret, and
+# a strip whose hash does not validate renders "שגיאה:גיבוב (hash) לא חוקי"
+# instead of tabs. Locally that turned every tab comparison into a comparison
+# of two identical error messages - reported HOLLOW, proving nothing - and it
+# would do the same in CI.
+echo "re-signing <shtml> blocks with the local secret..."
+docker cp "${LOCAL_WIKI_DIR}/scripts/resignSecureHtml.php" \
+    "$(docker compose -f "$COMPOSE_FILE" ps -q mediawiki)":/var/www/html/maintenance/resignSecureHtml.php
+docker compose -f "$COMPOSE_FILE" exec -T mediawiki \
+    php maintenance/resignSecureHtml.php 2>/dev/null | tail -1
+
 echo "waiting for the wiki to answer..."
 for _ in $(seq 1 60); do
     if curl -fsS -o /dev/null http://localhost:8080/api.php 2>/dev/null; then
