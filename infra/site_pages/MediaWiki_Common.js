@@ -232,7 +232,6 @@ function escapeSelector(s) {
 }
 
 /* --- Jump to ID - Handle links with @href started with '#' only --- */
-/* Last update by Shlomi */
 /* Tabber tabs are excluded: a tab links to its own panel, right below it, so
    the jump scrolled the strip off screen on every click. The tab switches
    itself and keeps the URL in sync. */

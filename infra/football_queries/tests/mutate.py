@@ -317,6 +317,8 @@ MUTATIONS = [
     ('a label may carry a tabber separator', RENDERER,
      "if entry.label:find('=', 1, true) or entry.label:find('|', 1, true) then",
      'if false then'),
+    ('a tab strip without a heading gets no message', RENDERER,
+     'if not heading then', 'if false then'),
     ('render accepts a block with no tab strip', RENDERER,
      'if not declaration.tabStrip then', 'if false then'),
     ('the skin loses the wrapper it scopes the tabs to', RENDERER,

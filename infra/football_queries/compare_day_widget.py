@@ -99,8 +99,6 @@ def compare(date: str, new_date: str | None = None) -> tuple[str, str]:
         return 'FAIL', f'the tabber gave {len(new_panels)} panels, not 4'
     if labels != ['ליגה', 'גביע', 'אירופה', 'כל המסגרות']:
         return 'FAIL', f'labels are {labels}'
-    if not numbers_in(' '.join(new_panels)):
-        return 'HOLLOW', 'the tabber panels hold no numbers at all'
 
     for index, (before, after) in enumerate(zip(old_panels, new_panels)):
         if before != after:

@@ -721,6 +721,27 @@ check('render refuses a heading naming a cell the block lacks', function(Blocks)
 	end
 end)
 
+check('render refuses a tab strip with no heading declared', function()
+	-- The next block converted will copy tabStrip and may forget tabHeading;
+	-- it must get this module's message, not "attempt to index nil".
+	stub.install()
+	stub.dataPatch = function(data)
+		if data['day-results'] then
+			data['day-results'].tabHeading = nil
+		end
+	end
+	local module = stub.loadModule('Module:FootballStatsBlock')
+	stub.willReturn({ cellsForTabs(RENDER_ORDER, DAY_BY_TAB) })
+	local ok, message = pcall(module.render, stub.newFrame(
+		{ ['תאריך'] = '"2021-08-22"' }, { ['בלוק'] = 'day-results' }))
+	if ok then
+		error('expected an error, none raised', 0)
+	end
+	if not tostring(message):find('must declare tabHeading', 1, true) then
+		error('wrong error: ' .. tostring(message), 0)
+	end
+end)
+
 check('render refuses a caller passing a filter the block fixes', function(Blocks)
 	local ok, message = pcall(Blocks.render, stub.newFrame(
 		{ ['תאריך'] = '"2021-08-22"', ['פורמט תאריך'] = '"%Y"' },

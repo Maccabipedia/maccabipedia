@@ -353,11 +353,17 @@ pre-migration text to a second sandbox page and renders it beside the live one
 **at the same moment** - 5/5 identical, including that date. The cause was a
 real game added after the capture: Maccabi 4-1 הפועל תל אביב, 2026-09-14.
 
+## One invoke: `render`
+
+`{{#invoke:FootballStatsBlock|render|בלוק=day-results}}` renders the whole day
+widget as a `<tabber>` (no `<shtml>`, no page variables) from the same single
+query. Deployed to prod as an entry point; the live template still uses
+`prime`/`tab`/`value` until it is switched with `convert_day_to_tabber.py`.
+Checked by `compare_day_widget.py` (`--selftest`, `--all`; a sample runs in
+CI). Details and the pixel work: `.claude/shtml_free_tabs_design.md` §7.
+
 ## Not done yet
 
-- Nothing is installed on any wiki. The stub proves the SQL shape, not that the
-  numbers match; that needs the module running against real data.
-- No display module yet, so nothing renders a block.
 - Departures from the templates, which will show as real diffs against the
   golden fixture. The first three were chosen; the last two were discovered
   afterwards, and both are **re-baselines** — they change published numbers from

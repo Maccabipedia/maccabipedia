@@ -468,6 +468,10 @@ end
 --- labels are refused here rather than mangled on 366 pages.
 local function tabberBody(block, values)
 	local heading = block.tabHeading
+	if not heading then
+		error('FootballStatsBlock: a block with a tabStrip must declare '
+			.. 'tabHeading', 0)
+	end
 	local declared = {}
 	for _, cell in ipairs(block.cells) do
 		declared[cell.name] = true

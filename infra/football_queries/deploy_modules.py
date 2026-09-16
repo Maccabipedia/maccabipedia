@@ -60,6 +60,17 @@ WIKI_PAGES = {
 }
 WIKI_PAGES_DIR = SOURCE_DIR / 'wiki_pages'
 
+# Site-wide pages the tab widgets depend on, deployed LOCALLY only so the local
+# wiki and CI run the repo's copy rather than whatever the DB snapshot holds.
+# Common.js carries the jump-to-anchor exclusion for tabber tabs; without it
+# the snapshot's copy scrolls the page on every tab click and the browser test
+# for that fails. On production these need interface-admin rights the bot
+# does not have, so they are pasted by hand. Never deleted by --delete.
+SITE_PAGES = {
+    'MediaWiki_Common.js': 'MediaWiki:Common.js',
+}
+SITE_PAGES_DIR = Path('infra/site_pages')
+
 
 def compose(*args: str, stdin: str | None = None) -> subprocess.CompletedProcess:
     command = ['docker', 'compose', '-f', str(COMPOSE_FILE), 'exec', '-T',
@@ -134,6 +145,9 @@ def main() -> None:
                   for name, title in MODULES.items()]
     everything += [(WIKI_PAGES_DIR / name, title)
                    for name, title in WIKI_PAGES.items()]
+    if not options.delete:
+        everything += [(SITE_PAGES_DIR / name, title)
+                       for name, title in SITE_PAGES.items()]
 
     changed = 0
     for source, title in everything:

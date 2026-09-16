@@ -88,9 +88,12 @@ to
 ```
 
 `$wgTabberNeueParseTabName=true` means a tab title can be computed — the main
-page already passes `{{#var:}}` titles — so icon markup and template-derived
-titles both work. Lua can emit the same thing with
-`frame:extensionTag('tabber', body)` when we get to §7.
+page already passes `{{#var:}}` titles. **Superseded for icons:** labels must
+stay plain text, because TabberNeue builds the panel id (and the shared URL)
+from the label, and splits each tab on its first `=` - so `class="fas …"`
+markup spills into the panel. Icons are keyed on the label from CSS
+(`tabber-converted.less`), and the Lua `tabberBody` refuses a label containing
+`=` or `|`. Lua emits the tabber with `frame:extensionTag('tabber', body)` (§7).
 
 Everything v1 would have hand-built — ARIA roles, keyboard handling, focus
 management, no-JS behaviour, storage of the chosen tab — is the extension's
@@ -103,8 +106,11 @@ CSS keyed on inputs the converted pages no longer have. The end state has
 
 **Convert one template. Verify. Stop.**
 
-First subject: `סטטיסטיקות מדי כדורגל` — the single namespace-0 page with a
-strip, self-contained, not transcluded by anything, low traffic.
+~~First subject: `סטטיסטיקות מדי כדורגל`.~~ **What actually happened:** the
+first conversion was the day widget (`סטטיסטיקה/תצוגה/ימים/סיכום תוצאות`, 366
+pages), via the Lua `render` entry point rather than `convert_strip.py` - see
+§7. Verified 366/366 dates identical panel text (`compare_day_widget.py
+--all`) and pixel-identical per tab on a real day page at 1280px and 400px.
 
 Then stop, and convert the next one only when an editor actually wants to
 change a strip. There is no schedule for the remaining 97. Planning 97
@@ -153,13 +159,25 @@ replaces it, in the order that finds problems earliest:
 
 Items 1 and 2 gate the edit. Items 3–5 run once per converted family.
 
-## 7. The Lua side — deferred
+## 7. The Lua side — done for the day widget
 
-`Module:FootballStatsBlock` could collapse from nine `#invoke` calls to one by
-emitting `frame:extensionTag('tabber', …)`. **Not in this change.** It is
-tidiness (§1), it moves tab titles and icons out of wikitext into a Lua data
-page, and it would land on top of a migration whose own verification is new.
-Revisit after a converted strip has been live and boring for a while.
+Originally deferred; done on request. `{{#invoke:FootballStatsBlock|render|
+בלוק=day-results}}` emits strip, headings and four panels from one query and
+one invoke (the template body is that one line). Tab order, labels and
+headings are data (`tabStrip`, `tabHeading` in `Module:FootballStatsBlocks`).
+`prime`/`tab`/`value` remain for the live template until it switches.
+
+Found while matching it pixel for pixel, all fixed:
+- `MediaWiki:Common.js` jump-to-anchor handler caught every `a[href^="#"]`,
+  including tabber tabs, and scrolled the page on each tab click (already the
+  case on prod's main-page tabbers). Repo copy: `infra/site_pages/
+  MediaWiki_Common.js`, `:not(.tabber__tab)`; deployed locally by
+  `deploy_modules.py`, pasted by hand on prod (bot lacks `editsitejs`).
+- CSS: margin collapse through the flex `.tabber`, 38px pill + radius, glyph
+  line-height and smoothing, the li's 0.1em margin (zero inside
+  `.portalContainer`), and `.tabber`'s `overflow: hidden` clipping row stripes.
+- Residual: text on tabs 2-4 sits 0.125-0.375px off, because TabberNeue scrolls
+  to an integer `offsetLeft` while panels are fractionally wide. Invisible.
 
 ## 8. Risks
 
