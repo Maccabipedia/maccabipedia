@@ -183,3 +183,33 @@
 .portalContainer .tabber-converted .tabber__tab {
   margin-bottom: 0;
 }
+
+// Motion and hover, as the radio strip had them.
+.tabber-converted {
+  // The old strip swapped panels in place and FADED the new one in (the
+  // `content` keyframes in slim-tabs.less: opacity 0->1, 5% rise, 0.35s).
+  // TabberNeue instead slides the carousel sideways, and only at >= 720px, so
+  // a phone got no motion at all. Slide off, fade back.
+  .tabber .tabber__section {
+    scroll-behavior: auto;
+  }
+
+  // A panel carries no active state of its own - only its tab does - so the
+  // panel is found through the tab with :has(). The animation starts when a
+  // panel begins to match, which is exactly when its tab is selected.
+  .tab-fade(@index) when (@index > 0) {
+    .tabber:has(> .tabber__header .tabber__tab:nth-child(@{index})[aria-selected="true"])
+      > .tabber__section > .tabber__panel:nth-child(@{index}) {
+      animation: content 0.35s ease-in-out 1;
+    }
+    .tab-fade(@index - 1);
+  }
+  .tab-fade(8);
+
+  // Hover on a tab that is not the active one: a faint pill and the lighter
+  // blue, from `.slim-tabs label:hover`. The active tab keeps its own colours.
+  .tabber__tab:not([aria-selected="true"]):hover {
+    color: #428bff;
+    background-color: rgba(0, 0, 0, 0.04);
+  }
+}
