@@ -49,6 +49,12 @@ def get(parameters: dict) -> dict:
         if failure.code == 500:
             return {'error': {'code': 'http500', 'info': url[-80:]}}
         raise
+    except TimeoutError:
+        # The same page class, the other way it fails: on a cold cache a
+        # DPL-and-gallery page can take longer than the timeout, and the
+        # uncaught error ended the whole sweep with nothing reported for the
+        # pages after it. It is reported as a skip, like the 500.
+        return {'error': {'code': 'timeout', 'info': url[-80:]}}
 
 
 def rendered(page: str) -> str:

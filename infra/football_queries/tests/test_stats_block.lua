@@ -523,5 +523,215 @@ check('value refuses a cell the block does not declare', function(Blocks)
 	end
 end)
 
+-- ---------------------------------------------------------------------------
+-- render: the whole widget from one query and one #invoke.
+--
+-- The fixture gives every tab DIFFERENT numbers on purpose. With identical
+-- numbers per tab - which is what twentyFourCells above does - a test cannot
+-- tell a panel keyed to the wrong category from a correct one, and the display
+-- order (ליגה first) is not the query order (רשמי first), so that is exactly
+-- the mistake worth catching.
+local DAY_BY_TAB = {
+	['רשמי'] = { wins = 9, draws = 8, losses = 7, goalsFor = 30,
+	             goalsAgainst = 20, games = 24 },
+	['ליגה'] = { wins = 5, draws = 4, losses = 3, goalsFor = 16,
+	             goalsAgainst = 11, games = 12 },
+	['גביע'] = { wins = 2, draws = 1, losses = 1, goalsFor = 6,
+	             goalsAgainst = 4, games = 4 },
+	['בינלאומי'] = { wins = 2, draws = 3, losses = 3, goalsFor = 8,
+	                 goalsAgainst = 5, games = 8 },
+}
+
+local DAY_CELL_ORDER = { 'wins', 'draws', 'losses', 'goalsFor',
+                         'goalsAgainst', 'games' }
+
+--- The single row a merged query returns, laid out in the order the cells were
+--- asked for: the tabs in `order`, six cells each.
+local function cellsForTabs(order, byTab)
+	local row = {}
+	local index = 0
+	for _, tab in ipairs(order) do
+		for _, name in ipairs(DAY_CELL_ORDER) do
+			index = index + 1
+			local value = byTab[tab][name]
+			row['c' .. index] = value ~= nil and tostring(value) or nil
+		end
+	end
+	return row
+end
+
+-- The order render asks in, which is the tab strip's display order.
+local RENDER_ORDER = { 'ליגה', 'גביע', 'בינלאומי', 'רשמי' }
+
+local function stackedRow(label, stat)
+	return '<div class="Top10Row">\n<div class="Top10RowName">' .. label
+		.. '</div>\n<span class="Top10RowStat">' .. stat .. '</span></div>'
+end
+
+--- The panel body the day block renders for one tab's numbers.
+local function dayPanel(heading, values)
+	return string.format('<div class="tab-header">%s (%d משחקים)</div>\n',
+			heading, values.games)
+		.. table.concat({
+			stackedRow('נצחונות', values.wins),
+			stackedRow('תיקו', values.draws),
+			stackedRow('הפסדים', values.losses),
+			stackedRow('כיבושים', values.goalsFor),
+			stackedRow('ספיגות', values.goalsAgainst),
+		}, '\n\n') .. '\n'
+end
+
+local function renderDay(Blocks, row, parentArgs)
+	stub.willReturn({ row })
+	local frame = stub.newFrame(
+		parentArgs or { ['תאריך'] = '"2021-08-22"' },
+		{ ['בלוק'] = 'day-results' })
+	return Blocks.render(frame), frame
+end
+
+check('render emits the whole widget from one query', function(Blocks)
+	local html = renderDay(Blocks, cellsForTabs(RENDER_ORDER, DAY_BY_TAB))
+
+	equals(#stub.calls, 1, 'one query for the whole page')
+	equals(#stub.extensionTags, 1, 'one tabber')
+	equals(stub.extensionTags[1].name, 'tabber', 'the tag is a tabber')
+
+	-- The skin hangs the icons and the strip spacing on this class, and scopes
+	-- them to it so the wiki's other tabbers are untouched.
+	if not html:find('^<div class="tabber%-converted">')
+			or not html:find('</div>$') then
+		error('the tabber is not wrapped for the skin:\n' .. html, 0)
+	end
+
+	-- No page variables: the whole point of one invoke is that nothing has to
+	-- be handed across an #invoke boundary any more.
+	for name in pairs(stub.variables) do
+		error('render defined a page variable: ' .. name, 0)
+	end
+end)
+
+check('render lays out the four panels in display order', function(Blocks)
+	renderDay(Blocks, cellsForTabs(RENDER_ORDER, DAY_BY_TAB))
+
+	-- Labels and headings differ on purpose: the גביע tab is headed
+	-- גביע המדינה and the בינלאומי category is labelled אירופה, exactly as
+	-- the template did.
+	local expected = table.concat({
+		'ליגה=' .. dayPanel('ליגה', DAY_BY_TAB['ליגה']),
+		'|-|גביע=' .. dayPanel('גביע המדינה', DAY_BY_TAB['גביע']),
+		'|-|אירופה=' .. dayPanel('אירופה', DAY_BY_TAB['בינלאומי']),
+		'|-|כל המסגרות=' .. dayPanel('כל המסגרות', DAY_BY_TAB['רשמי']),
+	})
+	equals(stub.extensionTags[1].content, expected, 'tabber body')
+end)
+
+check('render keeps the empty cell empty in the panel and the heading',
+		function(Blocks)
+	-- A sum with nothing to sum is NULL, and the template prints nothing for
+	-- it. The heading's own cell is a count, so it stays 0 - a heading reading
+	-- "( משחקים)" would be the bug in the other direction.
+	local quiet = {}
+	for tab in pairs(DAY_BY_TAB) do
+		quiet[tab] = { wins = 0, draws = 0, losses = 0, games = 0,
+		               goalsFor = nil, goalsAgainst = nil }
+	end
+	renderDay(Blocks, cellsForTabs(RENDER_ORDER, quiet),
+		{ ['תאריך'] = '"1900-01-01"' })
+
+	local body = stub.extensionTags[1].content
+	local _, blanks = body:gsub(
+		'<div class="Top10RowName">כיבושים</div>\n'
+		.. '<span class="Top10RowStat"></span>', '')
+	equals(blanks, 4, 'four empty כיבושים cells')
+	if not body:find('(0 משחקים)', 1, true) then
+		error('the heading lost its zero count:\n' .. body, 0)
+	end
+end)
+
+check('render sends the block constant filter to the query', function(Blocks)
+	renderDay(Blocks, cellsForTabs(RENDER_ORDER, DAY_BY_TAB))
+
+	local where = stub.calls[1].options.where
+	local expected = 'DATE_FORMAT("2021-08-22", "%d-%m")'
+		.. ' = DATE_FORMAT(Football_Games.Date, "%d-%m")'
+	if not where:find(expected, 1, true) then
+		error('the block date format never reached the query:\n' .. where, 0)
+	end
+	if where:find('%d-%m-%Y', 1, true) then
+		error('the default format won over the block constant: ' .. where, 0)
+	end
+end)
+
+check('render refuses a block with no tab strip', function(Blocks)
+	-- player-events still renders through its own <shtml> strip, so asking
+	-- render for it would silently produce a one-panel widget.
+	local ok, message = pcall(Blocks.render, stub.newFrame(
+		{ ['שחקן'] = 'אבי כהן' }, { ['בלוק'] = 'player-events' }))
+	if ok then
+		error('expected an error, none raised', 0)
+	end
+	if not tostring(message):find('declares no tabStrip', 1, true) then
+		error('wrong error: ' .. tostring(message), 0)
+	end
+end)
+
+check('render refuses a label carrying a tabber separator', function(Blocks)
+	-- Tabber explodes on "|-|" and on the first "=", and neither can be
+	-- escaped, so such a label spills the rest of itself into the panel. That
+	-- is how the first conversion of the old strips broke, when their
+	-- class="fas fa-home" labels reached tabber unchanged.
+	for _, bad in ipairs({ 'ליגה=x', 'ליגה|-|x' }) do
+		stub.install()
+		stub.dataPatch = function(data)
+			if data['day-results'] then
+				data['day-results'].tabStrip[1].label = bad
+			end
+		end
+		local module = stub.loadModule('Module:FootballStatsBlock')
+		stub.willReturn({ cellsForTabs(RENDER_ORDER, DAY_BY_TAB) })
+		local ok, message = pcall(module.render, stub.newFrame(
+			{ ['תאריך'] = '"2021-08-22"' }, { ['בלוק'] = 'day-results' }))
+		if ok then
+			error('expected an error for the label ' .. bad, 0)
+		end
+		if not tostring(message):find('tabber uses as separators', 1, true) then
+			error('wrong error: ' .. tostring(message), 0)
+		end
+	end
+end)
+
+check('render refuses a heading naming a cell the block lacks', function(Blocks)
+	-- The same rule the rows follow: a typo between the two data pages must
+	-- raise, not render "ליגה ( משחקים)" on 366 pages.
+	stub.install()
+	stub.dataPatch = function(data)
+		if data['day-results'] then
+			data['day-results'].tabHeading.cell = 'gamez'
+		end
+	end
+	local module = stub.loadModule('Module:FootballStatsBlock')
+	stub.willReturn({ cellsForTabs(RENDER_ORDER, DAY_BY_TAB) })
+	local ok, message = pcall(module.render, stub.newFrame(
+		{ ['תאריך'] = '"2021-08-22"' }, { ['בלוק'] = 'day-results' }))
+	if ok then
+		error('expected an error, none raised', 0)
+	end
+	if not tostring(message):find('no cell named "gamez"', 1, true) then
+		error('wrong error: ' .. tostring(message), 0)
+	end
+end)
+
+check('render refuses a caller passing a filter the block fixes', function(Blocks)
+	local ok, message = pcall(Blocks.render, stub.newFrame(
+		{ ['תאריך'] = '"2021-08-22"', ['פורמט תאריך'] = '"%Y"' },
+		{ ['בלוק'] = 'day-results' }))
+	if ok then
+		error('expected an error, none raised', 0)
+	end
+	if not tostring(message):find('cannot be passed in', 1, true) then
+		error('wrong error: ' .. tostring(message), 0)
+	end
+end)
+
 print(string.format('\n%d passed, %d failed', passed, failed))
 os.exit(failed > 0 and 1 or 0)

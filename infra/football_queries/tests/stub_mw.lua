@@ -17,6 +17,9 @@ stub.calls = {}
 -- queries return no rows.
 stub.responses = {}
 
+-- Every extension tag the module emitted, in order, as { name, content, args }.
+stub.extensionTags = {}
+
 local PAGES = {
 	['Module:FootballQueries/Fields'] =
 		'infra/football_queries/Module_FootballQueries_Fields.lua',
@@ -144,6 +147,7 @@ end
 --- variables persist across calls, as they do for the rest of a page parse.
 function stub.newFrame(parentArgs, directArgs)
 	stub.variables = {}
+	stub.extensionTags = {}
 	return stub.newFrameKeepingVariables(parentArgs, directArgs)
 end
 
@@ -166,6 +170,16 @@ function stub.newFrameKeepingVariables(parentArgs, directArgs)
 				return stub.variables[arguments[1]] or ''
 			end
 			error('stub_mw: unexpected parser function ' .. tostring(name), 0)
+		end,
+		extensionTag = function(_, name, content, arguments)
+			stub.extensionTags[#stub.extensionTags + 1] = {
+				name = name, content = content, args = arguments,
+			}
+			-- MediaWiki returns a strip marker here and substitutes the tag's
+			-- real output later, so the marker's shape is not something a test
+			-- can assert against. The stub returns a visible stand-in, and the
+			-- tests assert on the recorded content instead.
+			return string.format('<%s>%s</%s>', name, content, name)
 		end,
 	}
 	return frame

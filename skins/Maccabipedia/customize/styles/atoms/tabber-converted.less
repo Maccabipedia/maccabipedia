@@ -34,7 +34,17 @@
       font-size: 1rem;
       display: inline-block;
       padding: 6px;
-      line-height: 1.4;
+      // 16px, as the old `<i>` measured: a 28px glyph box. At 1.4 the box
+      // was 34px and the glyph sat a pixel off the one it replaces.
+      line-height: 1;
+      // What FontAwesome's own `.fa` class gives an `<i>`, and a pseudo
+      // element does not inherit: without it the glyph edges render heavier
+      // than the icons they replace.
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      font-style: normal;
+      font-variant: normal;
+      text-rendering: auto;
       content: @glyph;
     }
   }
@@ -45,9 +55,28 @@
   // equal columns across the width. Stated outright rather than arrived at
   // through padding, because the panel below inherits any error and 2px there
   // shifts every row on the page.
+  //
+  // The 5px sits on the WRAPPER, not on the header. The old `ul` margin
+  // collapsed out through `.slim-tabs` into the page, but `.tabber` is a flex
+  // container and flex containers never collapse their children's margins -
+  // so on the header the same 5px stayed inside, and the widget measured 3px
+  // lower and 5px taller than the strip it replaced.
+  margin-top: 5px;
+
+  // Widened by 5px each side, and padded back in below. A `.Top10Row` stripe
+  // runs 5px past its panel on each side (negative margins), which the old
+  // panel showed because nothing clipped it. TabberNeue clips twice - `.tabber`
+  // and its section are both `overflow: hidden`, and must be, or the carousel
+  // shows all four panels at once - so the clip box is widened at the outer
+  // one, and the header and panel padded back to where their content was.
+  // Measured on a day page: without it, 5px of every stripe was missing.
+  .tabber {
+    margin-inline: -5px;
+  }
+
   .tabber__header {
     box-shadow: none;
-    margin-top: 5px;
+    padding-inline: 5px;
   }
 
   .tabber__tabs {
@@ -68,12 +97,20 @@
     justify-content: center;
     box-sizing: border-box;
     flex: 1;
-    min-height: 40px;
+
+    // The pill is 38px, as measured on the old label.
+    height: 38px;
 
     // OUTSIDE the pill: the old markup padded the `li` around the `label`,
     // and the label carried the background, so padding here would widen the
     // pill instead of insetting it.
-    margin: 0 5px;
+    //
+    // The 1.6px below it is not a measurement fudge. The old tab was an `li`,
+    // and MediaWiki gives every content `li` `margin-bottom: 0.1em` - 1.6px at
+    // the li's 16px. Written in px because an icon tab's own font-size is 0,
+    // where 0.1em would be nothing.
+    margin: 0 5px 1.6px;
+    border-radius: 5px;
 
     text-align: center;
     color: #929daf;
@@ -109,12 +146,14 @@
   // `.slim-tabs .content` carried `margin-top: 10px`, and
   // `.slim-tabs .content > div` set `line-height: 1.4` where a
   // `.tabber__panel` inherits `normal` - 22.4px against 24.2px per row.
+  //
   .tabber__section {
     margin-top: 10px;
   }
 
   .tabber__panel {
     line-height: 1.4;
+    padding-inline: 5px;
   }
 
   // The panel heading, restored: the colour, the 65px underline and the 600
@@ -135,4 +174,12 @@
       background-color: @blue;
     }
   }
+}
+
+// ...except inside a portal, where `.portalContainer li { margin: 0 }`
+// (old/Portals.less) took that margin away from the old tabs. The day pages
+// put this widget in a portal column, so there the strip is 38px, not 39.6px -
+// measured both ways, and a single value would be wrong in one of them.
+.portalContainer .tabber-converted .tabber__tab {
+  margin-bottom: 0;
 }

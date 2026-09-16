@@ -290,6 +290,43 @@ local function valueText(value)
 	return string.format('%d', math.floor(value + 0.5))
 end
 
+--- Every cell of the block, once per tab, as one flat list for one query.
+---
+--- The tab's category joins the cell's own conditions, so it lands inside the
+--- CASE rather than the WHERE - which is what lets four OVERLAPPING categories
+--- (רשמי contains the other three) share a single query. GROUP BY cannot
+--- produce them.
+local function cellsPerTab(block, tabs)
+	local cells = {}
+	for _, tab in ipairs(tabs) do
+		for _, cell in ipairs(block.cells) do
+			local filters = {}
+			for name, value in pairs(cell.filters or {}) do
+				filters[name] = value
+			end
+			filters['קטגוריית מפעל'] = tab
+			cells[#cells + 1] = {
+				name = tab .. '/' .. cell.name,
+				filters = filters,
+				grain = cell.grain,
+				-- Carried through, or a summing cell quietly becomes a counting
+				-- one and the goals column reads as a game count.
+				sum = cell.sum,
+			}
+		end
+	end
+	return cells
+end
+
+--- The cells of one tab, pulled out of the merged result by their prefix.
+local function cellsOfTab(block, values, tab)
+	local tabCells = {}
+	for _, cell in ipairs(block.cells) do
+		tabCells[cell.name] = values[tab .. '/' .. cell.name]
+	end
+	return tabCells
+end
+
 --- Renders all four tabs from ONE query and stashes each in a page variable.
 ---
 --- Called once, before the tab strip:
@@ -310,34 +347,12 @@ local function prime(frame)
 			block.entity), 0)
 	end
 
-	local cells = {}
-	for _, tab in ipairs(block.tabs) do
-		for _, cell in ipairs(block.cells) do
-			local filters = {}
-			for name, value in pairs(cell.filters or {}) do
-				filters[name] = value
-			end
-			-- The tab's category joins the cell's own conditions, so it lands
-			-- inside the CASE rather than the WHERE - which is what lets four
-			-- overlapping categories share one query.
-			filters['קטגוריית מפעל'] = tab
-			cells[#cells + 1] = {
-				name = tab .. '/' .. cell.name,
-				filters = filters,
-				grain = cell.grain,
-				-- Carried through, or a summing cell quietly becomes a
-				-- counting one and the goals column reads as a game count.
-				sum = cell.sum,
-			}
-		end
-	end
-
-	local values = FootballQueries.aggregate(shared, cells)
+	local values = FootballQueries.aggregate(
+		shared, cellsPerTab(block, block.tabs))
 
 	for _, tab in ipairs(block.tabs) do
-		local tabCells = {}
+		local tabCells = cellsOfTab(block, values, tab)
 		for _, cell in ipairs(block.cells) do
-			tabCells[cell.name] = values[tab .. '/' .. cell.name]
 			-- Each cell is stashed on its own as well as inside the rendered
 			-- rows, because a parent template shows some of them outside the
 			-- block: the day tabs are headed "ליגה (N משחקים)", and N is the
@@ -444,11 +459,88 @@ local function value(frame)
 	})
 end
 
+--- The body of a <tabber>: one `label=content` per tab, separated by `|-|`.
+---
+--- Tabber splits the body on `|-|` and each tab on its FIRST `=`, and neither
+--- is escapable, so a label carrying either character would spill the rest of
+--- itself into the panel. That is not hypothetical - it is how the old strips'
+--- `class="fas fa-home"` labels broke when they were first converted - so the
+--- labels are refused here rather than mangled on 366 pages.
+local function tabberBody(block, values)
+	local heading = block.tabHeading
+	local declared = {}
+	for _, cell in ipairs(block.cells) do
+		declared[cell.name] = true
+	end
+	if not declared[heading.cell] then
+		error(string.format(
+			'FootballStatsBlock: the block has no cell named "%s"',
+			heading.cell), 0)
+	end
+
+	local parts = {}
+	for _, entry in ipairs(block.tabStrip) do
+		if entry.label:find('=', 1, true) or entry.label:find('|', 1, true) then
+			error(string.format(
+				'FootballStatsBlock: the tab label "%s" contains = or |, which '
+				.. 'tabber uses as separators', entry.label), 0)
+		end
+
+		local tabCells = cellsOfTab(block, values, entry.category)
+		parts[#parts + 1] = string.format('%s%s=%s\n%s',
+			#parts == 0 and '' or '|-|',
+			entry.label,
+			string.format(heading.format, entry.heading,
+				valueText(tabCells[heading.cell])),
+			renderRows(block, tabCells))
+	end
+	return table.concat(parts)
+end
+
+--- The whole widget - tab strip, headings and all four panels - from ONE query
+--- and ONE #invoke:
+---   {{#invoke:FootballStatsBlock|render|בלוק=day-results}}
+---
+--- This is what prime/tab/value collapse into. Those three exist because the
+--- tab strip was signed <shtml> that could not be rebuilt, so the numbers had
+--- to be handed across #invoke boundaries through page variables: five invokes
+--- per page, four of them reading back what the first had stashed. Emitting the
+--- strip as a <tabber> removes the boundary, and with it the variables, the
+--- namespace they shared with every other template on the page, and the
+--- "nothing primed" failure mode.
+local function render(frame)
+	local blockName, declaration = blockOf(frame)
+	if not declaration.tabStrip then
+		error(string.format(
+			'FootballStatsBlock: block "%s" declares no tabStrip, so there is '
+			.. 'nothing to render as tabs', blockName), 0)
+	end
+
+	local tabs = {}
+	for index, entry in ipairs(declaration.tabStrip) do
+		tabs[index] = entry.category
+	end
+
+	local values = FootballQueries.aggregate(
+		sharedFilters(declaration, frame, parentArguments),
+		cellsPerTab(declaration, tabs))
+
+	-- The wrapper is what the skin hangs the tab icons and the strip's spacing
+	-- on. Without it these tabs would pick up the bare TabberNeue look, and
+	-- with an unscoped stylesheet every other tabber on the wiki would pick up
+	-- this one's.
+	return '<div class="tabber-converted">'
+		.. frame:extensionTag('tabber', tabberBody(declaration, values))
+		.. '</div>'
+end
+
 return {
 	block = block,
 	prime = prime,
 	tab = tab,
 	value = value,
+	render = render,
 	-- Exposed for the test suite, which asserts the HTML without a frame.
 	renderRows = renderRows,
+	tabberBody = tabberBody,
 }

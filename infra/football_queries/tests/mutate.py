@@ -300,6 +300,32 @@ MUTATIONS = [
     ('an empty summed cell renders zero', RENDERER,
      'formatters.plainOrEmpty = function(cells, row)\n\tlocal value = cells[row.cell]',
      'formatters.plainOrEmpty = function(cells, row)\n\tlocal value = cells[row.cell] or 0'),
+    # render: the whole widget from one query. Every one of these is a wrong
+    # number or a broken widget on 366 calendar pages.
+    ('a tab reads another tab\'s cells', RENDERER,
+     "tabCells[cell.name] = values[tab .. '/' .. cell.name]",
+     'tabCells[cell.name] = values[cell.name]'),
+    ('the panels lose their separator', RENDERER,
+     "#parts == 0 and '' or '|-|'", "''"),
+    ('the heading shows the label instead', RENDERER,
+     'string.format(heading.format, entry.heading,',
+     'string.format(heading.format, entry.label,'),
+    ('the heading counts wins instead of games', RENDERER,
+     'valueText(tabCells[heading.cell])', "valueText(tabCells['wins'])"),
+    ('the heading may name a cell the block lacks', RENDERER,
+     'if not declared[heading.cell] then', 'if false then'),
+    ('a label may carry a tabber separator', RENDERER,
+     "if entry.label:find('=', 1, true) or entry.label:find('|', 1, true) then",
+     'if false then'),
+    ('render accepts a block with no tab strip', RENDERER,
+     'if not declaration.tabStrip then', 'if false then'),
+    ('the skin loses the wrapper it scopes the tabs to', RENDERER,
+     '\'<div class="tabber-converted">\'', "'<div>'"),
+    ('the first tab shows the officials category', BLOCKS,
+     "{ category = 'ליגה', label = 'ליגה', heading = 'ליגה' },",
+     "{ category = 'רשמי', label = 'ליגה', heading = 'ליגה' },"),
+    ('the cup tab is headed by its label', BLOCKS,
+     "heading = 'גביע המדינה'", "heading = 'גביע'"),
 ]
 
 

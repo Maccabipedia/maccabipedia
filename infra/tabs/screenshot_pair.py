@@ -48,6 +48,9 @@ def main() -> None:
     parser.add_argument('title')
     parser.add_argument('--out', default='/tmp/tab-shots')
     parser.add_argument('--parameters', default='')
+    parser.add_argument('--converted', default='',
+                        help='the converted template, when it is not the '
+                             'original plus the sandbox suffix')
     options = parser.parse_args()
 
     out = Path(options.out)
@@ -55,7 +58,8 @@ def main() -> None:
 
     hosts = subprocess.run(
         [sys.executable, 'infra/tabs/make_host_pages.py', options.title,
-         '--parameters', options.parameters],
+         '--parameters', options.parameters,
+         '--converted', options.converted],
         capture_output=True, text=True)
     if hosts.returncode != 0:
         raise SystemExit(hosts.stderr[:400])

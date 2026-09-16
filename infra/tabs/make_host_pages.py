@@ -26,10 +26,16 @@ def main() -> None:
     parser.add_argument('title', help='the ORIGINAL template title')
     parser.add_argument('--parameters', default='',
                         help='parameters to pass, e.g. "|עונה=2021/22"')
+    parser.add_argument('--converted', default='',
+                        help='the converted template, when it is not the '
+                             'original plus the sandbox suffix - the day '
+                             'widget is converted by a module, not by '
+                             'convert_strip.py, so it has its own sandbox')
     options = parser.parse_args()
 
     original = options.title.removeprefix('תבנית:')
-    converted = original + SANDBOX_SUFFIX
+    converted = (options.converted.removeprefix('תבנית:')
+                 or original + SANDBOX_SUFFIX)
 
     write_local(BEFORE, '{{%s%s}}' % (original, options.parameters))
     write_local(AFTER, '{{%s%s}}' % (converted, options.parameters))

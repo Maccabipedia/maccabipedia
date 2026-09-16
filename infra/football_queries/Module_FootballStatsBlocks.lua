@@ -86,6 +86,32 @@ return {
 
 		tabs = { 'רשמי', 'ליגה', 'גביע', 'בינלאומי' },
 
+		-- The tab strip, for the `render` entry point that emits the whole
+		-- widget. Three things differ and all three are load bearing:
+		--
+		--   * the DISPLAY order is not the `tabs` order above - the strip
+		--     shows ליגה first and רשמי last;
+		--   * the tab's label is not its heading - the גביע tab is headed
+		--     גביע המדינה, and the בינלאומי category is labelled אירופה;
+		--   * the label is what the skin keys the icon on, and what ends up
+		--     in the URL, so it stays plain text.
+		tabStrip = {
+			{ category = 'ליגה', label = 'ליגה', heading = 'ליגה' },
+			{ category = 'גביע', label = 'גביע', heading = 'גביע המדינה' },
+			{ category = 'בינלאומי', label = 'אירופה', heading = 'אירופה' },
+			{ category = 'רשמי', label = 'כל המסגרות',
+			  heading = 'כל המסגרות' },
+		},
+
+		-- The heading inside each panel: the tab's heading, and a number the
+		-- block already computes. `cell` names it rather than the renderer
+		-- hardcoding `games`, so a block whose header shows something else
+		-- says so here.
+		tabHeading = {
+			format = '<div class="tab-header">%s (%s משחקים)</div>',
+			cell = 'games',
+		},
+
 		cells = {
 			{ name = 'wins', grain = 'game',
 			  filters = { ['תוצאה'] = 'ניצחון' } },

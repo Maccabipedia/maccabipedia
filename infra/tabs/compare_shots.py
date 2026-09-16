@@ -25,13 +25,18 @@ def main() -> None:
     parser.add_argument('directory')
     parser.add_argument('--tolerance', type=int, default=8,
                         help='per-channel difference treated as noise')
+    parser.add_argument('--region', action='store_true',
+                        help='compare the widget shots instead of the whole '
+                             'pages - the two host pages have different '
+                             'titles, so a page shot can never match')
     options = parser.parse_args()
 
     directory = Path(options.directory)
-    before = sorted(directory.glob('*-before-page.png'))
-    after = sorted(directory.glob('*-after-page.png'))
+    suffix = '' if options.region else '-page'
+    before = sorted(directory.glob(f'*-before{suffix}.png'))
+    after = sorted(directory.glob(f'*-after{suffix}.png'))
     if not before or not after:
-        raise SystemExit(f'need *-before-page.png and *-after-page.png '
+        raise SystemExit(f'need *-before{suffix}.png and *-after{suffix}.png '
                          f'in {directory}')
 
     first, second = load(before[0]), load(after[0])
