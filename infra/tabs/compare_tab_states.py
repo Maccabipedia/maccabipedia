@@ -15,14 +15,15 @@ from playwright.sync_api import sync_playwright
 
 BASE = 'http://localhost:8080/'
 SIDES = {
-    'old': ('ארגז חול/טאבים/לפני', '.slim-tabs ul li label', '.slim-tabs', '#tab{n}-content'),
-    'new': ('ארגז חול/טאבים/אחרי', '.tabber__tab', '.tabber-converted', '.tabber__panel:nth-child({n})'),
+    'old': ('ארגז חול/טאבים/לפני', '.slim-tabs ul li label', '.slim-tabs', '#tab{n}-content', '.slim-tabs .content'),
+    'new': ('ארגז חול/טאבים/אחרי', '.tabber__tab', '.tabber-converted', '.tabber__panel:nth-child({n})', '.tabber-converted .tabber__section'),
 }
 PROPS = ['color', 'backgroundColor', 'cursor', 'userSelect', 'webkitTouchCallout', 'whiteSpace',
-         'textOverflow', 'borderRadius', 'fontWeight', 'transitionDuration', 'opacity',
+         'borderRadius', 'fontWeight', 'transitionDuration', 'opacity',
          'outlineStyle', 'boxShadow', 'textDecorationLine']
 CONTAINER = ['position', 'minWidth']
 PANEL = ['animationName', 'animationDuration', 'animationTimingFunction']
+SECTION = ['scrollBehavior']
 
 READ = """([selector, index, props]) => {
   const node = document.querySelectorAll(selector)[index];
@@ -31,11 +32,17 @@ READ = """([selector, index, props]) => {
 }"""
 
 
-def measure(page, tab_selector, container, panel_pattern):
+def measure(page, tab_selector, container, panel_pattern, section):
     out = {}
     first = page.locator(tab_selector).nth(0)
     second = page.locator(tab_selector).nth(1)
     out['container'] = page.evaluate(READ, [container, 0, CONTAINER])
+    # How a switch moves: the old strip swapped in place, the tabber must not slide.
+    # TabberNeue only enables its slide when $wgTabberNeueEnableAnimation is on
+    # (it is off here and on prod), so the class it would add is forced on -
+    # otherwise this reads 'auto' with or without the skin's override.
+    page.evaluate("() => document.documentElement.classList.add('tabber-animations-ready')")
+    out['section'] = page.evaluate(READ, [section, 0, SECTION])
     page.mouse.move(1, 1)
     page.wait_for_timeout(400)
     out['active/rest'] = page.evaluate(READ, [tab_selector, 0, PROPS])
@@ -59,11 +66,11 @@ def measure(page, tab_selector, container, panel_pattern):
 with sync_playwright() as runner:
     browser = runner.chromium.launch()
     results = {}
-    for side, (title, tab, container, panel) in SIDES.items():
+    for side, (title, tab, container, panel, section) in SIDES.items():
         page = browser.new_page(viewport={'width': 1280, 'height': 900})
         page.goto(BASE + quote(title.replace(' ', '_')), wait_until='networkidle')
-        page.wait_for_timeout(900)
-        results[side] = measure(page, tab, container, panel)
+        page.wait_for_timeout(2500)
+        results[side] = measure(page, tab, container, panel, section)
         page.close()
     browser.close()
 

@@ -97,6 +97,15 @@ def production(options) -> int:
         if not ROLLBACK.exists():
             raise SystemExit(f'no rollback at {ROLLBACK} - refusing to guess')
         record = json.loads(ROLLBACK.read_text(encoding='utf-8'))
+        # Only undo OUR edit. If the live template is no longer exactly the
+        # one-invoke body, someone has edited it since, and writing the old
+        # text back would silently throw their change away.
+        live = read_page(connection, TEMPLATE)
+        if f'<includeonly>{INVOKE}</includeonly>' not in live:
+            raise SystemExit('the live template is not the converted one any '
+                             'more - it was edited after the switch. Refusing '
+                             'to overwrite; revert by hand from the rollback '
+                             'file.')
         print(f'restoring revision {record["revision"]}')
         result = publish(connection, TEMPLATE, record['text'], REVERT_SUMMARY)
         print(f'  {result}')
@@ -152,6 +161,13 @@ def main() -> None:
                         help='PRODUCTION: restore the recorded rollback text')
     options = parser.parse_args()
 
+    # Exactly one target. `--local --prod-apply` used to reach production, and
+    # `--prod-sandbox --prod-apply` quietly ran only the sandbox write.
+    chosen = [flag for flag in ('local', 'prod_sandbox', 'prod_apply', 'prod_revert')
+              if getattr(options, flag)]
+    if len(chosen) > 1:
+        raise SystemExit(f'pick one of --local/--prod-sandbox/--prod-apply/'
+                         f'--prod-revert, got {chosen}')
     if options.prod_sandbox or options.prod_apply or options.prod_revert:
         sys.exit(production(options))
     if not options.local:

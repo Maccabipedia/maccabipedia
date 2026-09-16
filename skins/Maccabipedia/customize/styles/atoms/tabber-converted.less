@@ -190,7 +190,12 @@
   // `content` keyframes in slim-tabs.less: opacity 0->1, 5% rise, 0.35s).
   // TabberNeue instead slides the carousel sideways, and only at >= 720px, so
   // a phone got no motion at all. Slide off, fade back.
-  .tabber .tabber__section {
+  //
+  // TabberNeue's `.tabber-animations-ready .tabber .tabber__section { smooth }`
+  // has the same specificity as a plain override and loads after the skin, so
+  // it would win; this names that class too and out-ranks it.
+  .tabber .tabber__section,
+  .tabber-animations-ready & .tabber .tabber__section {
     scroll-behavior: auto;
   }
 
@@ -204,7 +209,8 @@
     }
     .tab-fade(@index - 1);
   }
-  .tab-fade(8);
+  // The widest strip on the wiki has 6 tabs; 12 leaves room.
+  .tab-fade(12);
 
   // Hover and press on a tab that is not the active one: the lighter blue
   // from `.slim-tabs ul li label:hover/:active`, and the faint pill from
@@ -247,9 +253,10 @@
     -webkit-touch-callout: none;
     user-select: none;
     // A label with no icon rule shows its words, and the old label kept them
-    // on one line and cut them with an ellipsis rather than wrapping.
+    // on one line rather than wrapping. The old ellipsis cannot be had here:
+    // the tab is a flex container, so its text is an anonymous flex item and
+    // text-overflow does not apply - a long label is clipped without "…".
     white-space: nowrap;
     overflow: hidden;
-    text-overflow: ellipsis;
   }
 }
