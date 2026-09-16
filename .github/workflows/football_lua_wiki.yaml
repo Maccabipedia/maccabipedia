@@ -101,11 +101,12 @@ jobs:
         run: uv run python infra/football_queries/smoke_test_local.py
 
       # The tab conversion. These write only sandbox pages on the CI wiki.
-      - name: Tab anchors are unique on every page
-        run: |
-          uv run python infra/tabs/check_anchor_collisions.py --selftest
-          uv run python infra/tabs/check_anchor_collisions.py
-
+      #
+      # check_anchor_collisions.py is deliberately NOT here: TabberNeue suffixes
+      # every panel id with the box's index on the page, so ids cannot collide
+      # by construction - the sweep tested the extension, not this repo, and it
+      # renders every page (12+ minutes, with timeouts). Run it locally if the
+      # tabber version or $wgTabberNeueUseLegacyTabIds ever changes.
       - name: The one-invoke day widget matches the strip it replaces
         # The sandbox is written from the template the snapshot holds, then
         # both are rendered per date and compared panel by panel. The selftest
