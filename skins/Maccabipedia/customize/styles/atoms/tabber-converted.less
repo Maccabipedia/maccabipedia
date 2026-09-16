@@ -131,15 +131,16 @@
   // The eight labels these strips use, measured across every strip on the
   // wiki. A ninth label shows its text until someone adds it here.
   //
-  // בינלאומי takes the euro for all of them. Five strips used a globe for
-  // that same label and the rest a euro; one label cannot have two glyphs
-  // without a per-strip override, and the euro is what the other 12 used.
+  // בינלאומי takes the GLOBE everywhere (chosen 2026-09-17). The old strips
+  // were split - some used a globe for this label, some a euro - and one label
+  // cannot have two glyphs without a per-strip override. אירופה keeps the
+  // euro: that label says Europe.
   .tab-icon(~"משחקים_רשמיים"; "\f111"; 400);   // far fa-circle
   .tab-icon(~"כל_המסגרות"; "\f111"; 400);
   .tab-icon(~"יתר_המסגרות"; "\f111"; 400);
   .tab-icon(~"ליגה"; "\f015");                  // fa-home
   .tab-icon(~"גביע"; "\f091");                  // fa-trophy
-  .tab-icon(~"בינלאומי"; "\f153");              // fa-euro-sign
+  .tab-icon(~"בינלאומי"; "\f0ac");              // fa-globe
   .tab-icon(~"אירופה"; "\f153");
   .tab-icon(~"יתר_המפעלים"; "\f069");           // fa-asterisk
 

@@ -21,7 +21,7 @@ BEFORE_PAGE = 'ארגז חול/טאבים/לפני'
 AFTER_PAGE = 'ארגז חול/טאבים/אחרי'
 
 # The wrapper a strip sits in, so the shot is the widget rather than the page.
-REGIONS = ('.records-list-tabs-container', '.tabber',
+REGIONS = ('.records-list-tabs-container', '.tabber-converted', '.tabber',
            '.slim-tabs', '.mw-parser-output')
 
 
