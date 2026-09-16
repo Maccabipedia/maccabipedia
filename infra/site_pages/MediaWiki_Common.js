@@ -233,7 +233,10 @@ function escapeSelector(s) {
 
 /* --- Jump to ID - Handle links with @href started with '#' only --- */
 /* Last update by Shlomi */
-$(document).on('click', 'a[href^="#"]', function (e) {
+/* Tabber tabs are excluded: a tab links to its own panel, right below it, so
+   the jump scrolled the strip off screen on every click. The tab switches
+   itself and keeps the URL in sync. */
+$(document).on('click', 'a[href^="#"]:not(.tabber__tab)', function (e) {
     // target element id
     var id = $(escapeSelector($(this).attr('href')));
     // target element

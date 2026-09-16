@@ -202,6 +202,40 @@ def test_a_refresh_comes_back_to_the_same_tab(converted):
         "a refresh did not return to the tab the URL names")
 
 
+def test_clicking_a_tab_does_not_scroll_the_page(converted):
+    """A tab is an `<a href="#tabber-tabpanel-…">`, and MediaWiki:Common.js
+    animates the page to the target of ANY `a[href^="#"]` - so every tab click
+    slid the strip itself off screen, 52px on a phone-width day page and more
+    on a long one. The radio strip used labels and never did.
+
+    Two things keep this from passing vacuously: the page is made taller than
+    the viewport first (the host page is short enough that nothing CAN
+    scroll), and the tab is clicked through JavaScript, because Playwright's
+    own click scrolls the element into view and would hide the jump."""
+    # Filler ABOVE the strip and below it, so the strip can sit mid-screen
+    # with room to be scrolled either way. Below alone left it at the top,
+    # where "200px above the strip" clamps to 0.
+    converted.evaluate("""() => {
+        const content = document.querySelector('.mw-parser-output');
+        for (const where of ['afterbegin', 'beforeend']) {
+            content.insertAdjacentHTML(where, '<div style="height:1500px"></div>');
+        }
+    }""")
+    converted.locator(".tabber").first.evaluate(
+        "node => window.scrollTo(0, node.getBoundingClientRect().top"
+        " + scrollY - 200)")
+    converted.wait_for_timeout(300)
+    start = converted.evaluate("() => scrollY")
+    assert start > 0, "the page did not scroll at all - the test is vacuous"
+
+    converted.locator(".tabber__tab").nth(2).evaluate("node => node.click()")
+    # The jump animated over 950ms; wait it out.
+    converted.wait_for_timeout(1300)
+    assert converted.evaluate("() => scrollY") == start, (
+        "clicking a tab scrolled the page - is a jump-to-anchor handler "
+        "catching tabber tabs again?")
+
+
 def test_clicking_tabs_does_not_fill_the_back_button(converted):
     """The back button must leave the page, not walk back through tabs."""
     start = converted.evaluate("() => history.length")
