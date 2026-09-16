@@ -14,7 +14,7 @@ the opponent cannot settle is reported for a human rather than guessed at:
 """
 import logging
 from collections import defaultdict
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from enum import Enum
 
 from maccabipediabot.basketball.videos.aliases import opponent_matches, resolve_opponent
@@ -316,6 +316,12 @@ def _classify_euroleague(entry: VideoEntry, parsed: ParsedEuroleagueTitle,
                          rows_by_season: dict[str, list[GameRow]],
                          overrides: dict[str, str]) -> VideoMatch:
     """EuroLeague titles carry no score, so the key is the round (their R##, our Leg)."""
+    # EuroLeague entries arrive with season="" (collect_euroleague_with_yt_dlp doesn't
+    # know it); the title parser is what actually resolves it, so thread it back onto
+    # the entry now, before any VideoMatch is built, or every downstream match records
+    # an empty season and purge_season_pages silently skips the affected season pages.
+    if parsed.season:
+        entry = replace(entry, season=parsed.season)
     if entry.video_id in overrides:
         return VideoMatch(entry, None, Bucket.EXACT, "override",
                           page_name=overrides[entry.video_id], source=EUROLEAGUE_CHANNEL)

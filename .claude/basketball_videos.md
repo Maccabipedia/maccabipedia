@@ -73,8 +73,9 @@ video was uploaded.
 Points come off for two things only: a score shared by more than one game that season
 (unless the upload date confirms the pick anyway), and an opponent name that does not
 agree with the page chosen. A year in the title that contradicts the game's year sinks
-the score outright. `--min-confidence N` refuses to write anything below N; the scheduled
-job uses 9.
+the score outright. `--min-confidence N` refuses to write anything below N and **defaults
+to 9** — a manual `--write` run doesn't need the flag to get the safe floor; pass
+`--min-confidence 1` to write everything the matcher calls exact.
 
 Two things deliberately do NOT affect it, each pinned by a test. Whether the title stated
 the kind of video decides which parameter the link goes in, not whether the link is right.
@@ -97,7 +98,10 @@ one: a video posted within ten days of exactly one candidate settles it.
 | `basketball/videos/aliases.py` | opponent name comparison |
 | `basketball/videos/matcher.py` | buckets and slot assignment |
 | `basketball/videos/inventory.py`, `rss.py` | the two ways of listing videos |
-| `basketball/videos/upload_dates.py` | bulk upload-date fetch from the watch page |
+| `basketball/videos/season_token.py` | maps a channel playlist title to the wiki's season label |
+| `basketball/videos/watch_page.py` | bulk upload-date + description fetch, one GET per video |
+| `basketball/videos/played_date.py` | parses a played date out of an archive video's description |
+| `basketball/videos/youtube_metadata.py` | per-video upload-date fetch via yt-dlp, for the verification sample only |
 | `basketball/videos/dates.py` | game date against upload date |
 | `basketball/videos/confidence.py` | the 1-10 score |
 | `basketball/videos/sampling.py` | the upload-date verification sample |
@@ -130,7 +134,8 @@ restrict the run to named pages, `--purge` to refresh the season pages afterward
 Progress is recorded per video, so a killed run resumes without re-editing.
 
 The scheduled run in `basketball_games_uploader.yaml` uses `--source rss --seasons
-current,previous --write --purge`. It needs no API key: YouTube's feed endpoint answers
+current,previous --write --purge --min-confidence 9` (the same 9 that's the CLI's own
+default, spelled out explicitly in the workflow file). It needs no API key: YouTube's feed endpoint answers
 datacenter IPs, unlike yt-dlp. **Annual maintenance:** add the new season's playlist ids
 to `SEASON_PLAYLIST_IDS`; the run warns when the current season is missing.
 

@@ -49,6 +49,14 @@ def test_matches_on_season_round_and_opponent():
     assert match.source == EUROLEAGUE_CHANNEL
 
 
+def test_the_resolved_season_is_written_back_onto_the_entry():
+    """collect_euroleague_with_yt_dlp doesn't know the season (entries arrive with
+    season=""); the title does. It must end up on match.entry.season, or write_matches
+    records an empty season and purge_season_pages silently skips the page."""
+    match = only_match([entry("x", "Maccabi - Panathinaikos | R24 BASKETBALL HIGHLIGHTS 2025-26")])
+    assert match.entry.season == "2025/26"
+
+
 def test_a_league_game_with_the_same_round_number_is_not_matched():
     """Round 24 exists in both competitions; only the EuroLeague row may be considered."""
     match = only_match([entry("x", "Maccabi - Panathinaikos | R24 BASKETBALL HIGHLIGHTS 2025-26")])

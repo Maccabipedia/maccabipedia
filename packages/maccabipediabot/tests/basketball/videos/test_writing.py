@@ -17,11 +17,12 @@ WRITER_PATH = "maccabipediabot.basketball.videos.writing.set_video_field"
 
 
 def make_match(video_id, *, bucket=Bucket.EXACT, slot="תקציר וידאו", season="2024/25",
-               page=None, source="maccabi-channel"):
+               page=None, source="maccabi-channel", confidence=10):
     entry = VideoEntry(video_id, f"title {video_id}", 180, season, "playlist", None)
     parsed = ParsedTitle(VideoKind.HIGHLIGHTS, "מילאנו", 102, 88, "he")
     return VideoMatch(entry, parsed, bucket, "score and opponent agree",
-                      page_name=page or f"כדורסל:page-{video_id}", slot=slot, source=source)
+                      page_name=page or f"כדורסל:page-{video_id}", slot=slot, source=source,
+                      confidence=confidence)
 
 
 @pytest.fixture
@@ -44,6 +45,30 @@ def test_writes_only_exact_matches_that_have_a_slot(writes, tmp_path):
     assert [page for page, _, _, _ in writes] == ["כדורסל:page-a"]
     assert result.written == 1
     assert result.seasons == {"2024/25"}
+
+
+def test_a_low_confidence_match_is_held_back_even_without_passing_min_confidence(writes, tmp_path):
+    """The floor is the default, not something a caller has to opt into — a match the
+    confidence design itself flags as unsafe (see confidence.py's score table) must not
+    write just because a manual run omitted --min-confidence."""
+    matches = [make_match("a", confidence=2)]
+    result = write_matches(None, matches, progress_path=tmp_path / "p.log")
+    assert writes == []
+    assert result.written == 0
+
+
+def test_a_missing_confidence_score_is_treated_as_the_lowest_possible(writes, tmp_path):
+    matches = [make_match("a", confidence=None)]
+    result = write_matches(None, matches, progress_path=tmp_path / "p.log")
+    assert writes == []
+    assert result.written == 0
+
+
+def test_an_explicit_low_min_confidence_opts_back_into_writing_weak_matches(writes, tmp_path):
+    matches = [make_match("a", confidence=2)]
+    result = write_matches(None, matches, progress_path=tmp_path / "p.log", min_confidence=1)
+    assert [page for page, _, _, _ in writes] == ["כדורסל:page-a"]
+    assert result.written == 1
 
 
 def test_dry_run_writes_nothing(monkeypatch, tmp_path):

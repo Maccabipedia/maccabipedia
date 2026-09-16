@@ -34,7 +34,11 @@ from maccabipediabot.basketball.videos.matcher import (
 )
 from maccabipediabot.basketball.videos.report import render_report, render_sample_section
 from maccabipediabot.basketball.videos.sampling import choose_verification_sample, verify_sample
-from maccabipediabot.basketball.videos.writing import purge_season_pages, write_matches
+from maccabipediabot.basketball.videos.writing import (
+    DEFAULT_MIN_CONFIDENCE,
+    purge_season_pages,
+    write_matches,
+)
 from maccabipediabot.basketball.videos.youtube_metadata import fetch_upload_date
 import pywikibot as pw
 
@@ -191,8 +195,10 @@ def main() -> None:
                         help="Per-video record of what has been written, so a killed run resumes.")
     parser.add_argument("--purge", action="store_true",
                         help="Purge the season pages of everything written.")
-    parser.add_argument("--min-confidence", type=int, default=None,
-                        help="With --write: refuse anything scored below this (1-10).")
+    parser.add_argument("--min-confidence", type=int, default=DEFAULT_MIN_CONFIDENCE,
+                        help=f"With --write: refuse anything scored below this (1-10). "
+                             f"Defaults to {DEFAULT_MIN_CONFIDENCE}; pass 1 to write "
+                             f"everything the matcher calls an exact match.")
     parser.add_argument("--build-inventory", action="store_true",
                         help="Walk the channel with yt-dlp, fetch each video's upload date, "
                              "and write --inventory / --euroleague-inventory. Do this before "
