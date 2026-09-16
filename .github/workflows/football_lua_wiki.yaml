@@ -119,6 +119,24 @@ jobs:
           uv run python infra/football_queries/compare_day_widget.py --selftest
           uv run python infra/football_queries/compare_day_widget.py --dates 2020-01-03,2020-02-29,2020-03-15,2020-04-10,2020-05-20,2020-06-05,2020-07-25,2020-08-29,2020-09-18,2020-10-03,2020-11-07,2020-12-26
 
+      # The checks above prove the widget SAYS the same thing. These prove it
+      # BEHAVES the same: the panel fade, hover colours, no hover underline, no
+      # page jump on a tab click, URL and keyboard behaviour. All of those
+      # reached production unchecked once, because the only checks for them
+      # were local. The host pages hold the old strip and the one-invoke
+      # widget side by side; MediaWiki:Common.js comes from the repo (deployed
+      # by deploy_modules.py above), which the no-page-jump test depends on.
+      - name: Browser for the tab checks
+        run: uv run --with playwright python -m playwright install --with-deps chromium
+
+      - name: Converted tabs behave like the strip they replace
+        env:
+          MACCABIPEDIA_BOT_USERNAME: ci-stub
+        run: |
+          uv run python infra/tabs/make_host_pages.py 'תבנית:סטטיסטיקה/תצוגה/ימים/סיכום תוצאות' --converted 'תבנית:ארגז חול/ימים בטאברים' --parameters '| תאריך="2020-08-29"'
+          uv run --with playwright python infra/tabs/compare_tab_states.py
+          uv run --with playwright pytest -m integration -rs -p no:cacheprovider infra/local-wiki/tests/test_tabber_conversion.py
+
       - name: Converted strips keep their panels
         # Reports ok / HOLLOW (panels are error messages) / UNSTABLE (the
         # template renders differently each time) / REFUSED (a shape the

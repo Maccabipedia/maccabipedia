@@ -15,7 +15,7 @@ from playwright.sync_api import sync_playwright
 
 BASE = 'http://localhost:8080/'
 SIDES = {
-    'old': ('ארגז חול/טאבים/לפני', '.slim-tabs ul li label', '.slim-tabs', '#tab{n}-content', '.slim-tabs .content'),
+    'old': ('ארגז חול/טאבים/לפני', '.slim-tabs ul li label', '.slim-tabs', '.slim-tabs .content > div:nth-child({n})', '.slim-tabs .content'),
     'new': ('ארגז חול/טאבים/אחרי', '.tabber__tab', '.tabber-converted', '.tabber__panel:nth-child({n})', '.tabber-converted .tabber__section'),
 }
 PROPS = ['color', 'backgroundColor', 'cursor', 'userSelect', 'webkitTouchCallout', 'whiteSpace',
