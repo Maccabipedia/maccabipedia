@@ -151,32 +151,29 @@ def tabber_of(tabs: list[dict], context: str | None = None) -> str:
     strip already sits in (`.records-list-tabs-container` and friends), where
     the four competition categories always use the same four glyphs.
     """
-    icons = icon_class(tabs)
-    if not icons:
-        # Said out loud, because the alternative is a strip that quietly
-        # stops being an icon bar and becomes a row of Hebrew words. The
-        # docstring used to claim this happened; it did not.
-        print(f'WARNING: icon set not recognised {icons_of(tabs)} - '
-              'converting to TEXT tabs', file=sys.stderr)
-
     lines = ['<tabber>']
     for tab in tabs:
         label = tab['tooltip']
-        # Qualified only when the CSS hides the label text - see the module
-        # docstring. On a visible tab, `ליגה - שיאני כיבושים` reads worse than
-        # a positional anchor.
-        if icons and context:
+        iconised = has_icon_rule(label)
+
+        if ICON.search(tab['label']) and not iconised:
+            # The old tab had an icon and the skin has no rule for its label,
+            # so the conversion loses that icon and shows words instead. Said
+            # out loud: silence here is what let strips quietly become text
+            # bars.
+            print(f'WARNING: no icon rule for {label!r} - it will show as '
+                  'text', file=sys.stderr)
+
+        # Qualified only when the label's text is hidden by an icon rule. On a
+        # visible tab, `ליגה - שיאני כיבושים` reads worse than a plain anchor.
+        if iconised and context:
             label = f'{label} - {context}'
         lines.append(f'|-|{label}=')
         lines.append(tab['body'].strip())
     lines.append('</tabber>')
     block = '\n'.join(lines)
 
-    # `tabber-converted` always: it is what the rhythm and heading styles are
-    # scoped to, and a text-tab strip needs those just as much as an icon one.
-    # The icon class is added only when the sequence was recognised.
-    classes = ' '.join(filter(None, ['tabber-converted', icons]))
-    return f'<div class="{classes}">\n{block}\n</div>'
+    return f'<div class="tabber-converted">\n{block}\n</div>'
 
 
 # Icon sets the skin can reproduce in CSS, by the sequence of FontAwesome
@@ -186,19 +183,23 @@ def tabber_of(tabs: list[dict], context: str | None = None) -> str:
 # sequence converts to text tabs and says so, rather than showing four icons
 # in the wrong order.
 ICON = re.compile(r'<i\b[^>]*class="(?P<classes>[^"]+)"')
-# Measured across all 51 strips on the local wiki: three sequences, and the
-# CSS carries one class for each. A sequence not listed here converts to TEXT
-# tabs with a warning - four icons in the wrong order would be worse than
-# words, and silently so.
-ICON_SETS = {
-    ('far fa-circle', 'fas fa-home', 'fas fa-trophy', 'fas fa-euro-sign'):
-        'tabber-icons-competitions',
-    ('far fa-circle', 'fas fa-home', 'fas fa-trophy', 'fas fa-euro-sign',
-     'fas fa-asterisk'):
-        'tabber-icons-competitions-plus',
-    ('far fa-circle', 'fas fa-home', 'fas fa-trophy', 'fas fa-globe'):
-        'tabber-icons-competitions-globe',
+# The labels the skin has an icon rule for - `.tab-icon(…)` calls in
+# atoms/tabber-converted.less, keyed on the label rather than the tab's
+# position. Keep the two in step: a label here with no rule there renders as
+# hidden text, and a rule there with no entry here means no warning when an
+# icon is dropped.
+ICON_LABELS = {
+    'משחקים רשמיים', 'כל המסגרות', 'יתר המסגרות', 'ליגה', 'גביע',
+    'בינלאומי', 'אירופה',
 }
+
+
+def has_icon_rule(label: str) -> bool:
+    # `יתר המפעלים (רשמיים)` is matched by prefix in the CSS, so compare the
+    # same way rather than demanding the parenthetical too.
+    return (label in ICON_LABELS
+            or any(label.startswith(known) for known in ICON_LABELS)
+            or label.startswith('יתר המפעלים'))
 
 
 def icons_of(tabs: list[dict]) -> tuple[str, ...]:
@@ -207,11 +208,6 @@ def icons_of(tabs: list[dict]) -> tuple[str, ...]:
         found = ICON.search(tab['label'])
         sequence.append(found.group('classes').strip() if found else '')
     return tuple(sequence)
-
-
-def icon_class(tabs: list[dict]) -> str | None:
-    """The wrapper class whose CSS restores this strip's icons, if known."""
-    return ICON_SETS.get(icons_of(tabs))
 
 
 DIV_TAG = re.compile(r'<div\b[^>]*>|</div>', re.IGNORECASE)

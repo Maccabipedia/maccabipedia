@@ -1,43 +1,47 @@
 // Make a <tabber> strip converted from <shtml> look like the strip it replaced.
 //
-// See `.claude/shtml_free_tabs_design.md`. The radio-hack strips are being
-// converted to TabberNeue, which this wiki already ships; these rules close
-// the visual differences measured between the old and new rendering of the
-// same template, each one verified with a screenshot diff rather than by eye:
+// See `.claude/shtml_free_tabs_design.md`. One tab mechanism for the whole
+// wiki: TabberNeue, which this wiki already ships. Tab labels stay PLAIN TEXT,
+// because TabberNeue builds each panel's id from the label and this wiki
+// writes that id into the address bar - so the label is what makes a tab link
+// shareable and readable. Icons therefore cannot live in the label; they come
+// from here.
 //
-//   1. the tabs showed FontAwesome icons, not text. The tab NAME must stay
-//      plain text - TabberNeue builds each panel's anchor id from it, and
-//      markup there produced ids like
-//      `#tabber-tabpanel-&lt;i_class=&quot;far_fa-circle&quot;...`, which this
-//      wiki then writes into the address bar
-//      ($wgTabberNeueUpdateLocationOnTabChange). So the icon is ::before
-//      content keyed on tab position.
-//   2. `.tab-header` inside a panel was styled by
-//      `.slim-tabs .content>div .tab-header`, an ancestor the converted
-//      markup no longer has, so the heading lost its colour, underline and
-//      600 weight.
-//   3. the vertical rhythm: the panel started 12px higher and every row was
-//      2px shorter, which compounds down a ten-row list.
-//   4. the row striping shifted by one row - fixed where the striping lives
-//      (atoms/records-list.less), by counting `nth-of-type` rather than
-//      `nth-child`, so the empty `<p class="mw-empty-elt">` MediaWiki puts at
-//      the top of a panel cannot shift it again.
+// Keyed on the LABEL, not on the tab's position. Position keying was the first
+// attempt and it failed two ways that a review caught: a fifth tab in a
+// four-icon strip rendered as a blank clickable box, and reordering two tabs
+// left the glyphs in place, silently wrong. With label keying the icon travels
+// with its label, and a label with no rule below simply KEEPS ITS TEXT - the
+// fallback is words, never a blank box.
 //
-// EVERY rule here is scoped to `.tabber-converted`, the wrapper the converter
-// emits. Written unscoped, three of them reached every tabber on the wiki -
-// the main page, the portals, the profile pages, all 15 templates that used
-// <tabber> before this work. A review measured it in the browser. That was the
-// one thing in this change that could have altered production.
+// Everything is scoped to `.tabber-converted`, the wrapper the converter
+// emits. Written unscoped, three of these rules reached every tabber on the
+// wiki, the main page included.
 
 // FontAwesome 6.5.2, loaded from the CDN in LocalSettings.
 @fa-free: "Font Awesome 6 Free";
 
-// Geometry, for EVERY converted strip - including one whose icon set was not
-// recognised and which therefore renders as text tabs. Those need the layout
-// and the rhythm just as much; what they must not get is `font-size: 0`,
-// which would hide their labels with no glyph to replace them.
+// One label, one glyph. `font-size: 0` and the glyph are set TOGETHER, so a
+// label without a rule cannot end up hidden and iconless.
+.tab-icon(@label; @glyph; @weight: 900) {
+  .tabber__tab[href^="#tabber-tabpanel-@{label}"] {
+    font-size: 0;
+    line-height: 1;
+
+    &::before {
+      font-family: @fa-free;
+      font-weight: @weight;
+      font-size: 1rem;
+      display: inline-block;
+      padding: 6px;
+      line-height: 1.4;
+      content: @glyph;
+    }
+  }
+}
+
 .tabber-converted {
-  // Taken from the measured `.slim-tabs ul` box: 5px above it, 40px tall,
+  // Geometry, from the measured `.slim-tabs ul` box: 5px above it, 40px tall,
   // equal columns across the width. Stated outright rather than arrived at
   // through padding, because the panel below inherits any error and 2px there
   // shifts every row on the page.
@@ -66,9 +70,9 @@
     flex: 1;
     min-height: 40px;
 
-    // OUTSIDE the pill. The old markup padded the `li` around the `label`,
-    // and the label carried the background - so padding here would widen the
-    // pill instead of insetting it, and it ran flush to the edge.
+    // OUTSIDE the pill: the old markup padded the `li` around the `label`,
+    // and the label carried the background, so padding here would widen the
+    // pill instead of insetting it.
     margin: 0 5px;
 
     text-align: center;
@@ -78,7 +82,7 @@
 
     // The same pill the radio strip gave the checked label - and no bar.
     // TabberNeue marks the active tab with `box-shadow: 0 -2px 0 … inset`,
-    // which drew a blue line under the pill that the old strip never had.
+    // which drew a blue line under the pill the old strip never had.
     &[aria-selected="true"] {
       cursor: default;
       color: @blue;
@@ -86,6 +90,21 @@
       box-shadow: none;
     }
   }
+
+  // The eight labels these strips use, measured across every strip on the
+  // wiki. A ninth label shows its text until someone adds it here.
+  //
+  // בינלאומי takes the euro for all of them. Five strips used a globe for
+  // that same label and the rest a euro; one label cannot have two glyphs
+  // without a per-strip override, and the euro is what the other 12 used.
+  .tab-icon(~"משחקים_רשמיים"; "\f111"; 400);   // far fa-circle
+  .tab-icon(~"כל_המסגרות"; "\f111"; 400);
+  .tab-icon(~"יתר_המסגרות"; "\f111"; 400);
+  .tab-icon(~"ליגה"; "\f015");                  // fa-home
+  .tab-icon(~"גביע"; "\f091");                  // fa-trophy
+  .tab-icon(~"בינלאומי"; "\f153");              // fa-euro-sign
+  .tab-icon(~"אירופה"; "\f153");
+  .tab-icon(~"יתר_המפעלים"; "\f069");           // fa-asterisk
 
   // `.slim-tabs .content` carried `margin-top: 10px`, and
   // `.slim-tabs .content > div` set `line-height: 1.4` where a
@@ -98,7 +117,8 @@
     line-height: 1.4;
   }
 
-  // The panel heading, restored.
+  // The panel heading, restored: the colour, the 65px underline and the 600
+  // weight that `.slim-tabs .content>div .tab-header` gave it.
   .tabber__panel .tab-header {
     display: block;
     color: @blue;
@@ -115,64 +135,4 @@
       background-color: @blue;
     }
   }
-}
-
-// Icons. Applied only to a strip whose icon sequence the converter
-// RECOGNISED, because the glyphs are keyed on tab position: a set it does not
-// know would get four icons in the wrong order, so it gets text tabs instead
-// and the converter says so on stderr.
-.icon-tab-base() {
-  // The label text stays in the DOM and is not shown. It is part of the
-  // tab's accessible name, which the old icon-only markup never provided -
-  // but not all of it: measured through the accessibility tree, the name is
-  // "\f111 משחקים רשמיים", because a ::before glyph counts as text content.
-  // The old `<i>` carried aria-hidden, so it contributed nothing; here the
-  // glyph is announced as an unknown character before the label.
-  font-size: 0;
-  line-height: 1;
-
-  &::before {
-    font-family: @fa-free;
-    font-weight: 900; // fas
-    font-size: 1rem;
-    display: inline-block;
-    padding: 6px;
-    line-height: 1.4;
-  }
-}
-
-.icon-circle() {
-  content: "\f111";
-  font-weight: 400; // far fa-circle is the regular face
-}
-
-// The three sequences the strips on this wiki actually use, measured across
-// all 51 of them: 12 with four competition icons, 12 with a fifth for
-// יתר-רשמיים, and 1 that uses a globe where the others use the euro.
-.tabber-icons-competitions .tabber__tab {
-  .icon-tab-base();
-
-  &:nth-child(1)::before { .icon-circle(); }
-  &:nth-child(2)::before { content: "\f015"; } // fa-home
-  &:nth-child(3)::before { content: "\f091"; } // fa-trophy
-  &:nth-child(4)::before { content: "\f153"; } // fa-euro-sign
-}
-
-.tabber-icons-competitions-plus .tabber__tab {
-  .icon-tab-base();
-
-  &:nth-child(1)::before { .icon-circle(); }
-  &:nth-child(2)::before { content: "\f015"; } // fa-home
-  &:nth-child(3)::before { content: "\f091"; } // fa-trophy
-  &:nth-child(4)::before { content: "\f153"; } // fa-euro-sign
-  &:nth-child(5)::before { content: "\f069"; } // fa-asterisk
-}
-
-.tabber-icons-competitions-globe .tabber__tab {
-  .icon-tab-base();
-
-  &:nth-child(1)::before { .icon-circle(); }
-  &:nth-child(2)::before { content: "\f015"; } // fa-home
-  &:nth-child(3)::before { content: "\f091"; } // fa-trophy
-  &:nth-child(4)::before { content: "\f0ac"; } // fa-globe
 }
