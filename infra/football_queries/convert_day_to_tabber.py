@@ -75,6 +75,62 @@ def read_local(title: str) -> str:
     return result.stdout
 
 
+PROD_SANDBOX = TEMPLATE + '/ארגז חול טאברים'
+ROLLBACK = Path('infra/football_queries/fixtures/day_template_tabber_rollback.json')
+APPLY_SUMMARY = ('תצוגה בקריאה אחת ל-[[יחידה:FootballStatsBlock]] עם טאבים '
+                 '(tabber) במקום shtml - מספרים זהים ב-366 התאריכים')
+REVERT_SUMMARY = 'חזרה לגרסת ה-shtml שלפני המעבר לטאבים'
+
+
+def production(options) -> int:
+    """Sandbox, apply or revert on production. One page, one edit each."""
+    import json
+    import time
+
+    sys.path.insert(0, 'infra/football_queries')
+    sys.path.insert(0, 'packages/maccabipediabot/src')
+    from compare_prod_day_pages import publish, read_page, site
+
+    connection = site()
+
+    if options.prod_revert:
+        if not ROLLBACK.exists():
+            raise SystemExit(f'no rollback at {ROLLBACK} - refusing to guess')
+        record = json.loads(ROLLBACK.read_text(encoding='utf-8'))
+        print(f'restoring revision {record["revision"]}')
+        result = publish(connection, TEMPLATE, record['text'], REVERT_SUMMARY)
+        print(f'  {result}')
+        return 0 if result == 'ok' else 1
+
+    live = read_page(connection, TEMPLATE)
+    candidate = candidate_of(live)
+
+    if options.prod_sandbox:
+        result = publish(connection, PROD_SANDBOX, candidate,
+                         'בדיקת תצוגת טאברים לפני החלפה')
+        print(f'{PROD_SANDBOX}: {result}')
+        return 0 if result == 'ok' else 1
+
+    sandbox = read_page(connection, PROD_SANDBOX)
+    if sandbox.strip() != candidate.strip():
+        raise SystemExit('the sandbox does not hold this candidate - the check '
+                         'that passed was of something else. Refusing.')
+
+    import pywikibot as pw
+    revision = pw.Page(connection, TEMPLATE).latest_revision
+    ROLLBACK.write_text(json.dumps({
+        'title': TEMPLATE, 'revision': revision.revid,
+        'timestamp': str(revision.timestamp),
+        'recorded': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
+        'text': live,
+    }, ensure_ascii=False, indent=1), encoding='utf-8')
+    print(f'rollback recorded: revision {revision.revid} -> {ROLLBACK}')
+
+    result = publish(connection, TEMPLATE, candidate, APPLY_SUMMARY)
+    print(f'{TEMPLATE}: {result}')
+    return 0 if result == 'ok' else 1
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--local', action='store_true',
@@ -85,11 +141,21 @@ def main() -> None:
                         help='write the REAL template on the local wiki, not '
                              'the sandbox. Undo with scripts/restore-db.sh, '
                              'which restores the committed snapshot')
+    parser.add_argument('--prod-sandbox', action='store_true',
+                        help='PRODUCTION: write the candidate to a sandbox '
+                             'template only')
+    parser.add_argument('--prod-apply', action='store_true',
+                        help='PRODUCTION: record the rollback, then replace '
+                             'the live template (refuses unless the sandbox '
+                             'holds exactly this candidate)')
+    parser.add_argument('--prod-revert', action='store_true',
+                        help='PRODUCTION: restore the recorded rollback text')
     options = parser.parse_args()
 
+    if options.prod_sandbox or options.prod_apply or options.prod_revert:
+        sys.exit(production(options))
     if not options.local:
-        raise SystemExit('only --local is implemented; production is a '
-                         'separate, approved flow')
+        raise SystemExit('pass --local, or one of the --prod-* modes')
 
     live = read_local(TEMPLATE)
     candidate = candidate_of(live)

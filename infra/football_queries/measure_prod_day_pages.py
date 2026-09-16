@@ -19,7 +19,7 @@ import urllib.request
 
 API = 'https://www.maccabipedia.co.il/api.php'
 AGENT = 'MaccabipediaBot/1.0 (roeebaba@gmail.com) latency measurement'
-TEMPLATE = 'סטטיסטיקה/תצוגה/ימים/סיכום תוצאות'
+TEMPLATE = sys.argv[1] if len(sys.argv) > 1 else 'סטטיסטיקה/תצוגה/ימים/סיכום תוצאות'
 
 # A spread across the calendar: league-season dates, summer dates with almost
 # no games, and the European-night months.
