@@ -149,9 +149,67 @@ def compare_tab(old: dict, new: dict) -> str | None:
     return None
 
 
+RENDER = render
+PROD_SITE = None
+
+
+def prod_render(wikitext: str) -> str:
+    """A read-only preview render on production (action=parse, saves nothing)."""
+    import time
+    time.sleep(1.0)  # paced: this is production
+    return PROD_SITE.simple_request(
+        action='parse', text=wikitext, title='ארגז חול', prop='text',
+        contentmodel='wikitext', formatversion=2, disablelimitreport=1,
+        format='json').submit()['parse']['text']
+
+
+def prod_sample() -> list[str]:
+    """The referees a production check must include, then a random 20.
+
+    Named cases, from production data: the 3 busiest assistants, a referee who
+    was BOTH main and assistant (the nested page), and a referee page with no
+    assistant games at all (the section renders four empty boxes).
+    """
+    import random
+
+    def cargo(**params):
+        return PROD_SITE.simple_request(action='cargoquery', format='json',
+                                        limit='5000', **params).submit()['cargoquery']
+
+    assistants, mains = {}, set()
+    for row in cargo(tables='Games_Referees,Football_Games',
+                     join_on='Games_Referees._pageID=Football_Games._pageID',
+                     fields='Games_Referees.AssistantReferees__full=a, Football_Games.Refs=r'):
+        for name in (row['title'].get('a') or '').split(','):
+            if name.strip():
+                assistants[name.strip()] = assistants.get(name.strip(), 0) + 1
+        if (row['title'].get('r') or '').strip():
+            mains.add(row['title']['r'].strip())
+
+    pages, parameters = [], {'action': 'query', 'list': 'embeddedin', 'format': 'json',
+                             'eititle': 'תבנית:שופט כדורגל', 'eilimit': '500'}
+    while True:
+        response = PROD_SITE.simple_request(**parameters).submit()
+        pages += [row['title'] for row in response['query']['embeddedin']]
+        if 'continue' not in response:
+            break
+        parameters.update(response['continue'])
+    page_names = [title.split(':', 1)[1].rsplit(' (שופט)', 1)[0] for title in pages]
+
+    busiest = [name for name, _ in sorted(assistants.items(), key=lambda p: -p[1])[:3]]
+    both = sorted(name for name in assistants if name in mains)[:1]
+    none = sorted(name for name in page_names if name not in assistants and name not in mains)[:1]
+    random.seed(20260917)
+    rest = random.sample(sorted(set(assistants) - set(busiest) - set(both)), 20)
+    print(f'sample: busiest {busiest}, both roles {both}, no games {none}, +20 random')
+    if not both or not none:
+        raise SystemExit('a required case is missing from production data')
+    return busiest + both + none + rest
+
+
 def compare(name: str, new_name: str | None = None) -> tuple[str, str, int]:
-    old_page = render(OLD % name)
-    new_page = render(NEW % (new_name or name))
+    old_page = RENDER(OLD % name)
+    new_page = RENDER(NEW % (new_name or name))
     for label, page in (('old', old_page), ('new', new_page)):
         errors = [marker for marker in ERROR_MARKERS if marker in page]
         if errors:
@@ -184,9 +242,22 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--selftest', action='store_true',
                         help='two referees crossed must FAIL')
+    parser.add_argument('--prod', action='store_true',
+                        help='render on PRODUCTION, read-only: the live section '
+                             'against the sandbox written by convert_referee_section.py '
+                             '--prod-sandbox, for a sample with the required cases')
     options = parser.parse_args()
 
-    names = assistant_referees()
+    global RENDER, PROD_SITE
+    if options.prod:
+        sys.path.insert(0, 'infra/football_queries')
+        sys.path.insert(0, 'packages/maccabipediabot/src')
+        from compare_prod_day_pages import site  # noqa: PLC0415
+        PROD_SITE = site()
+        RENDER = prod_render
+        names = prod_sample()
+    else:
+        names = assistant_referees()
     if not names:
         raise SystemExit('no assistant referees in the local data - nothing to compare')
 
