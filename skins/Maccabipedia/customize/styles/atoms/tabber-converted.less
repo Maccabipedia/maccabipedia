@@ -157,15 +157,6 @@
     padding-inline: 5px;
   }
 
-  // A panel holding only its heading (a leaderboard tab with no players):
-  // the underline's 4px bottom margin collapsed OUT of the old panel div and
-  // added nothing, but TabberNeue's panel is overflow-x:auto, which contains
-  // it - measured, the empty tab stood 4px taller. With rows below, the margin
-  // sits between heading and rows in both, so only the last-child case changes.
-  .tabber__panel > .tab-header:last-child::after {
-    margin-bottom: 0;
-  }
-
   // The panel heading, restored: the colour, the 65px underline and the 600
   // weight that `.slim-tabs .content>div .tab-header` gave it.
   .tabber__panel .tab-header {
