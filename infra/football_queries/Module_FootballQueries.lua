@@ -471,8 +471,11 @@ end
 ---    events sums rows, while a cell counting games must count DISTINCT game
 ---    pages. Mixing the two without saying so inflates the game cell by the
 ---    number of events, which looks like a plausible number.
-function FootballQueries.aggregate(shared, cells, options)
-	options = options or {}
+--- Compiles cells into one SELECT's fields over one WHERE: the part `aggregate`
+--- and `leaderboard` share. Every rule below applies to both - the Team default
+--- inside each cell, HOLDS only in the WHERE, the sum guards - so the two
+--- primitives cannot drift apart on what a cell means.
+local function compileCells(shared, cells)
 	if #cells == 0 then
 		error('FootballQueries: aggregate needs at least one cell', 0)
 	end
@@ -583,7 +586,7 @@ function FootballQueries.aggregate(shared, cells, options)
 		-- Aliases are positional: a Hebrew cell name is not a safe SQL alias.
 		local alias = 'c' .. index
 		aliases[index] = { alias = alias, name = cell.name,
-		                   sums = cell.sum ~= nil }
+		                   sums = cell.sum ~= nil, condition = condition }
 
 		if cell.sum then
 			-- A cell that sums a column of the base table rather than counting
@@ -627,6 +630,19 @@ function FootballQueries.aggregate(shared, cells, options)
 		end
 	end
 
+	return {
+		tables = tables,
+		join = join,
+		where = whereOf(sharedBuilder),
+		fields = fields,
+		aliases = aliases,
+	}
+end
+
+function FootballQueries.aggregate(shared, cells, options)
+	options = options or {}
+	local compiled = compileCells(shared, cells)
+
 	-- Ungrouped on purpose. A leaderboard needs GROUP BY, ordering, a limit and
 	-- HAVING, and it needs the group column in the SELECT - a different
 	-- primitive, not an option on this one. An earlier version accepted
@@ -645,9 +661,9 @@ function FootballQueries.aggregate(shared, cells, options)
 		end
 	end
 
-	local rows = runCargo(tables, table.concat(fields, ','), {
-		join = join,
-		where = whereOf(sharedBuilder),
+	local rows = runCargo(compiled.tables, table.concat(compiled.fields, ','), {
+		join = compiled.join,
+		where = compiled.where,
 		limit = options.limit or 2,
 	})
 
@@ -662,7 +678,7 @@ function FootballQueries.aggregate(shared, cells, options)
 			.. 'aggregate always returns one row, so this is a failed query, '
 			.. 'not an empty result', 0)
 	end
-	for _, entry in ipairs(aliases) do
+	for _, entry in ipairs(compiled.aliases) do
 		-- COUNT over no rows is 0; SUM over no rows is NULL, and the
 		-- templates render that as an empty cell rather than a zero. The
 		-- difference is visible on a date with no games, so a summing cell
@@ -674,6 +690,202 @@ function FootballQueries.aggregate(shared, cells, options)
 		values[entry.name] = value
 	end
 	return values
+end
+
+-- Defined below `leaderboard`, which reads more naturally top-down; declared
+-- here so it is a local rather than a global.
+local narrowShared
+
+--- Ranks one column's counts: non-zero only, count DESC then name ASC, top N.
+---
+--- The name tiebreak is a deliberate departure. The templates order by the
+--- count alone, so tied players come back in whatever order MySQL returns and
+--- the last row of a top ten can change between two renders of the same page.
+---
+--- Lua compares bytes; the "עוד" page's ORDER BY uses MySQL's collation. For
+--- Hebrew names both follow the letter order, but for mixed-case Latin names
+--- or trailing spaces the two can differ, so a player tied exactly at rank ten
+--- could show in the box and again on the "עוד" page, or on neither. Accepted:
+--- it needs such a name inside a tie at the cutoff.
+local function rank(entries, top)
+	local ranked = {}
+	for _, entry in ipairs(entries) do
+		if entry.count > 0 then
+			ranked[#ranked + 1] = entry
+		end
+	end
+	table.sort(ranked, function(left, right)
+		if left.count ~= right.count then
+			return left.count > right.count
+		end
+		return left.name < right.name
+	end)
+
+	local shown = {}
+	for index = 1, math.min(top, #ranked) do
+		shown[index] = ranked[index]
+	end
+	return {
+		rows = shown,
+		players = #ranked,
+		-- MORE than `top`, where Cargo's own link appears at EQUAL to the
+		-- limit and so sends a tab of exactly ten players to an empty page.
+		more = #ranked > top,
+	}
+end
+
+--- The column a leaderboard's group key names, for callers that build a link
+--- to the same ranking (the "עוד" page). Raises for an unknown key.
+function FootballQueries.groupKeyColumn(groupBy)
+	local key = Fields.groupKeys[groupBy or '']
+	if not key then
+		error(string.format(
+			'FootballQueries: leaderboard needs groupBy naming a group key, '
+			.. 'got "%s"', tostring(groupBy)), 0)
+	end
+	return key
+end
+
+--- Any number of leaderboards that share one WHERE, from ONE grouped query.
+---
+---   FootballQueries.leaderboard(
+---     { ['עוזר שופט'] = 'דודו ביטון', ['קטגוריית מפעל'] = 'רשמי' },
+---     { { name = 'league-apps', grain = 'event',
+---         filters = { ['מספר אירוע'] = '1,5', ['קטגוריית מפעל'] = 'ליגה' } } },
+---     { groupBy = 'player', top = 10 })
+---
+--- Returns, per column name: rows = {{name, count}} (top N), players = how
+--- many had a non-zero count, more = whether there are more than N.
+---
+--- The template runs one grouped query per leaderboard plus one more per tab
+--- just to count its rows. Here every column is a conditional count over the
+--- same groups, so the ordering, the top N and the distinct count all come from
+--- one result - four boxes of four tabs is 32 queries in the template, one here.
+function FootballQueries.leaderboard(shared, columns, options)
+	options = options or {}
+	for name in pairs(options) do
+		if name ~= 'groupBy' and name ~= 'top' then
+			error(string.format(
+				'FootballQueries: leaderboard does not take "%s"', name), 0)
+		end
+	end
+	local key = FootballQueries.groupKeyColumn(options.groupBy)
+	local top = tonumber(options.top or 10)
+	if not top or top < 1 or top ~= math.floor(top) then
+		error(string.format(
+			'FootballQueries: leaderboard top must be a positive whole number, '
+			.. 'got "%s"', tostring(options.top)), 0)
+	end
+	if #columns == 0 then
+		error('FootballQueries: leaderboard needs at least one column', 0)
+	end
+
+	local compiled = compileCells(narrowShared(shared, columns), columns)
+	local keyTable = key:match('^([^.]+)%.')
+	if not (',' .. compiled.tables .. ','):find(',' .. keyTable .. ',', 1, true) then
+		error(string.format(
+			'FootballQueries: leaderboard groups by %s, but no column reaches '
+			.. '%s', key, keyTable), 0)
+	end
+
+	local rows = runCargo(compiled.tables,
+		key .. '=g,' .. table.concat(compiled.fields, ','), {
+			join = compiled.join,
+			where = compiled.where,
+			groupBy = key,
+			-- Every group, so the top N and the distinct count are exact; the
+			-- limit guard in runCargo raises instead of ranking a cut-off list.
+			limit = Fields.maxLimit,
+		})
+
+	local result = {}
+	for _, entry in ipairs(compiled.aliases) do
+		local entries = {}
+		for _, row in ipairs(rows) do
+			entries[#entries + 1] = {
+				-- A blank name is kept as a blank row, as the template shows
+				-- one (none exist on production: 0 events, measured).
+				name = row.g or '',
+				count = tonumber(row[entry.alias]) or 0,
+			}
+		end
+		result[entry.name] = rank(entries, top)
+	end
+	return result
+end
+
+--- ONE column of a leaderboard as a standalone query - the shared WHERE plus
+--- that column's own condition - for a link to the same ranking (the "עוד"
+--- page). Compiled by the same code as the merged query, so a link cannot
+--- count something its box does not: rebuilding it from a filter set lost
+--- Competitions.Official = 1 on the league tab, because the tab's category
+--- and the shared רשמי are the same filter name.
+function FootballQueries.leaderboardColumnQuery(shared, columns, name)
+	for _, column in ipairs(columns) do
+		if column.name == name then
+			-- The column alone, so the WHERE narrows to ITS event types rather
+			-- than the whole widget's union - the link states its own query.
+			local compiled = compileCells(narrowShared(shared, { column }), { column })
+			return {
+				tables = compiled.tables,
+				join = compiled.join,
+				where = compiled.where .. ' AND ' .. compiled.aliases[1].condition,
+			}
+		end
+	end
+	error(string.format(
+		'FootballQueries: the leaderboard has no column named "%s"', name), 0)
+end
+
+--- The shared filters of a leaderboard, narrowed. Used by the query and by the
+--- per-column link query alike, so both carry the same WHERE.
+narrowShared = function(shared, columns)
+	-- Every column counts some event types. Their union goes into the WHERE so
+	-- rows outside all of them are never grouped; it cannot change a column's
+	-- count, because each column still applies its own types in its CASE.
+	local narrowed = {}
+	for name, value in pairs(shared) do
+		narrowed[name] = value
+	end
+	if narrowed['מספר אירוע'] == nil then
+		local types, seen, everyColumn = {}, {}, true
+		for _, column in ipairs(columns) do
+			local value = column.filters and column.filters['מספר אירוע']
+			if not value or mw.text.trim(tostring(value)) == '' then
+				everyColumn = false
+				break
+			end
+			for _, item in ipairs(splitList(value)) do
+				if not seen[item] then
+					seen[item] = true
+					types[#types + 1] = item
+				end
+			end
+		end
+		if everyColumn then
+			narrowed['מספר אירוע'] = table.concat(types, ',')
+		end
+	end
+
+	-- Maccabi's side into the WHERE when no column asks for a side. Every
+	-- column would apply Team = 1 in its own CASE anyway, so the counts are
+	-- unchanged; what changes is that the opponent players - over half the
+	-- groups, 345 for one referee locally - are never grouped, returned and
+	-- ranked at zero. `aggregate` cannot do this (a WHERE on the events table
+	-- turns its LEFT JOIN inner and loses eventless games); a leaderboard
+	-- groups by an events column, so it has no eventless rows to lose.
+	if narrowed['מכבי'] == nil then
+		local anySide = false
+		for _, column in ipairs(columns) do
+			if column.filters and column.filters['מכבי'] ~= nil then
+				anySide = true
+			end
+		end
+		if not anySide then
+			narrowed['מכבי'] = 'כן'
+		end
+	end
+	return narrowed
 end
 
 --- Rows for one filter set. `options` is this module's own interface and is

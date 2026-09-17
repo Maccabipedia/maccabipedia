@@ -28,6 +28,12 @@ return {
 		events = 'Games_Events',
 		sideColumn = 'Games_Events.Team',
 	},
+
+	-- What a leaderboard may rank. A query option, so English, like groupBy.
+	-- Coaches and seasons go here when their leaderboards are converted.
+	groupKeys = {
+		player = 'Games_Events.PlayerName',
+	},
 	sides = {
 		maccabi = 1,
 		opponent = 0,

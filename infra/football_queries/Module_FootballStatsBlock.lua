@@ -466,6 +466,20 @@ end
 --- itself into the panel. That is not hypothetical - it is how the old strips'
 --- `class="fas fa-home"` labels broke when they were first converted - so the
 --- labels are refused here rather than mangled on 366 pages.
+local function tabberOf(tabStrip, panelOf)
+	local parts = {}
+	for _, tab in ipairs(tabStrip) do
+		if tab.label:find('=', 1, true) or tab.label:find('|', 1, true) then
+			error(string.format(
+				'FootballStatsBlock: the tab label "%s" contains = or |, which '
+				.. 'tabber uses as separators', tab.label), 0)
+		end
+		parts[#parts + 1] = string.format('%s%s=%s',
+			#parts == 0 and '' or '|-|', tab.label, panelOf(tab))
+	end
+	return table.concat(parts)
+end
+
 local function tabberBody(block, values)
 	local heading = block.tabHeading
 	if not heading then
@@ -482,23 +496,12 @@ local function tabberBody(block, values)
 			heading.cell), 0)
 	end
 
-	local parts = {}
-	for _, entry in ipairs(block.tabStrip) do
-		if entry.label:find('=', 1, true) or entry.label:find('|', 1, true) then
-			error(string.format(
-				'FootballStatsBlock: the tab label "%s" contains = or |, which '
-				.. 'tabber uses as separators', entry.label), 0)
-		end
-
+	return tabberOf(block.tabStrip, function(entry)
 		local tabCells = cellsOfTab(block, values, entry.category)
-		parts[#parts + 1] = string.format('%s%s=%s\n%s',
-			#parts == 0 and '' or '|-|',
-			entry.label,
-			string.format(heading.format, entry.heading,
-				valueText(tabCells[heading.cell])),
-			renderRows(block, tabCells))
-	end
-	return table.concat(parts)
+		return string.format(heading.format, entry.heading,
+				valueText(tabCells[heading.cell]))
+			.. '\n' .. renderRows(block, tabCells)
+	end)
 end
 
 --- The whole widget - tab strip, headings and all four panels - from ONE query
@@ -538,7 +541,126 @@ local function render(frame)
 		.. '</div>'
 end
 
+--- The "עוד" link for one tab: Cargo's own ViewData page, showing rows 11-110
+--- of that tab's ranking, as the templates' `more results text` link does.
+--- The query is that tab's own column compiled with the rest of the widget, so
+--- the link and the box cannot disagree about what is being counted.
+local function moreLink(declaration, shared, columns, columnName)
+	local query = FootballQueries.leaderboardColumnQuery(shared, columns, columnName)
+	local key = FootballQueries.groupKeyColumn(declaration.groupBy)
+	local url = mw.uri.fullUrl('מיוחד:ViewData', {
+		tables = query.tables,
+		join_on = query.join,
+		where = query.where,
+		fields = key .. ', COUNT(*)',
+		group_by = key,
+		order_by = 'COUNT(*) DESC, ' .. key,
+		format = 'template',
+		template = declaration.rowTemplate,
+		offset = tostring(declaration.top),
+		limit = '100',
+	})
+	-- Inside a div on one line. On its own line the external link is wrapped
+	-- in a <p> - a paragraph margin the templates' raw Cargo link never had -
+	-- and the parser leaves an empty <p> beside the panel, which shifted
+	-- :nth-child counting and silently disabled the panel fade.
+	return string.format('<div>[%s %s]</div>', tostring(url), declaration.moreText)
+end
+
+--- Four leaderboard boxes, each a tabber, from ONE query:
+---   {{#invoke:FootballStatsBlock|leaderboards|בלוק=referee-assistant|שופט=…}}
+---
+--- Its own argument contract, unlike `render`: the block's entity argument is
+--- passed directly and nothing is read from the calling template. The referee
+--- section's caller carries שם להצגה and הסתר הערת סוג עמוד, neither of which is
+--- a filter, so reading them would raise; passing the name explicitly is the
+--- only way the right name reaches the query.
+local function leaderboards(frame)
+	local blockName = mw.text.trim(frame.args['בלוק'] or '')
+	local declaration = Blocks[blockName]
+	if not declaration or not declaration.boxes then
+		error(string.format(
+			'FootballStatsBlock: no leaderboard block declared as "%s"',
+			blockName), 0)
+	end
+	for key in pairs(frame.args) do
+		if key ~= 'בלוק' and key ~= declaration.entity then
+			error(string.format(
+				'FootballStatsBlock: leaderboards takes only בלוק and %s, got "%s"',
+				declaration.entity, tostring(key)), 0)
+		end
+	end
+
+	-- An empty name is refused, never passed on: the query layer reads an
+	-- empty filter as "no filter", so the page would rank every player in
+	-- every game under this referee's name.
+	local entity = mw.text.trim(frame.args[declaration.entity] or '')
+	if entity == '' then
+		error(string.format(
+			'FootballStatsBlock: leaderboards needs a non-empty %s',
+			declaration.entity), 0)
+	end
+
+	local shared = {}
+	for name, value in pairs(declaration.shared or {}) do
+		shared[name] = value
+	end
+	shared[declaration.entityFilter] = entity
+
+	local columns = {}
+	for _, box in ipairs(declaration.boxes) do
+		for _, tab in ipairs(declaration.tabStrip) do
+			local filters = {}
+			for name, value in pairs(box.filters) do
+				filters[name] = value
+			end
+			filters['קטגוריית מפעל'] = tab.category
+			columns[#columns + 1] = {
+				name = box.key .. '/' .. tab.category,
+				grain = 'event',
+				filters = filters,
+			}
+		end
+	end
+
+	local results = FootballQueries.leaderboard(shared, columns,
+		{ groupBy = declaration.groupBy, top = declaration.top })
+
+	local out = {}
+	for _, box in ipairs(declaration.boxes) do
+		local body = tabberOf(declaration.tabStrip, function(tab)
+			local result = results[box.key .. '/' .. tab.category]
+
+			local lines = { string.format(declaration.tabHeading, tab.heading,
+				result.players, box.noun) }
+			for _, row in ipairs(result.rows) do
+				lines[#lines + 1] = frame:expandTemplate{
+					title = declaration.rowTemplate,
+					args = { row.name, tostring(row.count) },
+				}
+			end
+			if result.more then
+				lines[#lines + 1] = moreLink(declaration, shared, columns,
+					box.key .. '/' .. tab.category)
+			end
+
+			return table.concat(lines, '\n')
+		end)
+
+		out[#out + 1] = table.concat({
+			'<div class="records-list-tabs-container" id="שיאנים">',
+			string.format('<div class="title">%s</div>', box.title),
+			'<div class="list"><div class="tabber-converted">'
+				.. frame:extensionTag('tabber', body)
+				.. '</div></div>',
+			'</div>',
+		}, '\n')
+	end
+	return table.concat(out, '\n')
+end
+
 return {
+	leaderboards = leaderboards,
 	block = block,
 	prime = prime,
 	tab = tab,
