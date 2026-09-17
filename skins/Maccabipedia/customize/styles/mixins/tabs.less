@@ -1,9 +1,9 @@
 .branches-tabs() {
-    .tabber__header {
+    .tabber__header:not(.tabber-converted .tabber__header) {
         box-shadow: unset;
         margin-block-end: @space-small;
 
-        nav.tabber__tabs {
+        nav.tabber__tabs:not(.tabber-converted .tabber__tabs) {
             display: flex;
             align-items: center;
             flex-wrap: wrap;
@@ -100,11 +100,11 @@
 }
 
 .profile-tabs() {
-    header.tabber__header {
+    header.tabber__header:not(.tabber-converted .tabber__header) {
         box-shadow: inset 0 -1px 0 0 @gray-lightest;
     }
 
-    nav.tabber__tabs {
+    nav.tabber__tabs:not(.tabber-converted .tabber__tabs) {
         display: flex;
         align-items: center;
         flex-wrap: wrap;
