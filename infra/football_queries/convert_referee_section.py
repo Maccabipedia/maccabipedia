@@ -110,7 +110,14 @@ def production(options) -> int:
                          'that passed was of something else. Refusing.')
 
     import pywikibot as pw
-    revision = pw.Page(connection, TEMPLATE).latest_revision
+    page = pw.Page(connection, TEMPLATE)
+    revision = page.latest_revision
+    # The text and the revision id from the same revision, and the page must
+    # still be what the candidate was built from: publish sends no base
+    # timestamp, so an edit landing in between would otherwise be overwritten
+    # and the rollback would name the wrong revision.
+    if revision.text.strip() != live.strip():
+        raise SystemExit('the section changed while this ran - refusing; run again')
     ROLLBACK.write_text(json.dumps({
         'title': TEMPLATE, 'revision': revision.revid,
         'timestamp': str(revision.timestamp),

@@ -177,9 +177,14 @@ def prod_sample() -> list[str]:
                                         limit='5000', **params).submit()['cargoquery']
 
     assistants, mains = {}, set()
-    for row in cargo(tables='Games_Referees,Football_Games',
-                     join_on='Games_Referees._pageID=Football_Games._pageID',
-                     fields='Games_Referees.AssistantReferees__full=a, Football_Games.Refs=r'):
+    games = cargo(tables='Games_Referees,Football_Games',
+                  join_on='Games_Referees._pageID=Football_Games._pageID',
+                  fields='Games_Referees.AssistantReferees__full=a, Football_Games.Refs=r')
+    if len(games) >= 5000:
+        # A cut-off list would under-count assistants and could label a real
+        # assistant as the "no games" case.
+        raise SystemExit('the referee query hit its 5000-row limit - page it first')
+    for row in games:
         for name in (row['title'].get('a') or '').split(','):
             if name.strip():
                 assistants[name.strip()] = assistants.get(name.strip(), 0) + 1
@@ -194,7 +199,9 @@ def prod_sample() -> list[str]:
         if 'continue' not in response:
             break
         parameters.update(response['continue'])
-    page_names = [title.split(':', 1)[1].rsplit(' (שופט)', 1)[0] for title in pages]
+    # Referee pages only: embeddedin also lists templates and sandboxes.
+    page_names = [title.split(':', 1)[1].rsplit(' (שופט)', 1)[0]
+                  for title in pages if title.endswith(' (שופט)')]
 
     busiest = [name for name, _ in sorted(assistants.items(), key=lambda p: -p[1])[:3]]
     both = sorted(name for name in assistants if name in mains)[:1]
@@ -264,7 +271,10 @@ def main() -> None:
     if options.selftest:
         verdict, detail, _ = compare(names[0], new_name=names[1])
         print(f'selftest: {names[0]} old vs {names[1]} new -> {verdict}: {detail}')
-        sys.exit(0 if verdict == 'FAIL' else 1)
+        # A FAIL for the wrong reason proves nothing: a missing sandbox fails
+        # as "not the tabber version" without comparing a single number.
+        compared = any(word in detail for word in ('heading', 'counts', 'players with'))
+        sys.exit(0 if verdict == 'FAIL' and compared else 1)
 
     tally, total_rows = {}, 0
     for name in names:
