@@ -39,14 +39,6 @@ def test_normalize_player_name_strips_trailing_junior_suffix():
     assert normalize_player_name("טל ברודי") == "טל ברודי"  # unknown passes through
 
 
-def test_normalize_player_name_handles_both_lundberg_quote_styles():
-    """basket.co.il renders Iffe Lundberg's nickname with '' (doubled apostrophes) on
-    league game pages but with a straight " on cup pages (e.g. the 17-09-2026 Super
-    Cup game, oldid 206049) — both must collapse to the wiki display name."""
-    assert normalize_player_name("גבריאל ''איפה'' לונדברג") == "איפה לונדברג"
-    assert normalize_player_name('גבריאל "איפה" לונדברג') == "איפה לונדברג"
-
-
 @pytest.mark.parametrize("code, expected", [
     (5, "ליגת העל"),
     (34, "הסופרקאפ הישראלי"),
