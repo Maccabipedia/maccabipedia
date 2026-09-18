@@ -437,6 +437,7 @@ _STADIUM_NAMES: dict[str, str] = {
 
 _PLAYER_NAME_NORMALIZE: dict[str, str] = {
     "גבריאל ''איפה'' לונדברג": "איפה לונדברג",
+    'גבריאל "איפה" לונדברג': "איפה לונדברג",
 }
 
 # Only stable, single-meaning game_type codes live here. ליגת העל playoffs are

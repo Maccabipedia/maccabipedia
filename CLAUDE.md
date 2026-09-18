@@ -46,6 +46,12 @@ Use `utf-8-sig` encoding when writing CSV/TXT/JSON files with Hebrew text that m
 ### Never use pywikibot's file_page.upload() — use requests directly
 Produces malformed HTTP (bad MIME headers, LF-only line endings) → Apache 400. Use `requests.post(..., files=...)` with pywikibot session cookies. Reference: `upload_basketball_tickets.py` → `_upload_file_via_requests()`.
 
+### Finding "who last edited X" — use recentchanges/revisions, not search
+`search_pages` ranks by relevance, not recency, so a page from yesterday can be missing from the first page of results even when `total_hits` is much larger than `limit`. For "last edits" / "who fixed this recently", use `site.recentchanges()` or `page.revisions(reverse=True)` (pywikibot) sorted by timestamp instead.
+
+### basket.co.il quotes player nicknames inconsistently across competition types
+League game pages render a nicknamed player's box-score name with a doubled apostrophe (`''`), but cup pages (e.g. Israeli Super Cup) use a straight `"`. `_PLAYER_NAME_NORMALIZE` in `basketball/translations.py` needs both quote-style variants per nicknamed player, or a future new page type will upload the raw, unnormalized name again.
+
 ## 5. Workflows
 
 ### PR Workflow (all PRs)
