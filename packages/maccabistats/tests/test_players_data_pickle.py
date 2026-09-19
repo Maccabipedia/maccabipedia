@@ -190,12 +190,15 @@ def test_players_data_required_for_player_stats():
 
 
 def test_goalkeepers_from_profiles_and_recent_games(monkeypatch):
-    """Maccabi keepers come from their profile, others from the games they kept goal in; one-word names are dropped."""
+    """Maccabi keepers come from their profile, others from 2+ games they kept goal in; one-word names are dropped."""
     crawled_rows = {
         "Profiles": [{"_pageName": "בוני גינצבורג", "MainPosition": 1},
                      {"_pageName": "ערן זהבי", "MainPosition": 4}],
-        "Games_Events": [{"_pageName": "משחק", "PlayerName": "דניאל טננבאום"},
-                         {"_pageName": "משחק", "PlayerName": "גינצבורג"}],
+        "Games_Events": [{"_pageName": "משחק א", "PlayerName": "דניאל טננבאום"},
+                         {"_pageName": "משחק ב", "PlayerName": "דניאל טננבאום"},
+                         {"_pageName": "משחק א", "PlayerName": "גינצבורג"},
+                         {"_pageName": "משחק ב", "PlayerName": "גינצבורג"},
+                         {"_pageName": "משחק ג", "PlayerName": "אבי נמני"}],
     }
     monkeypatch.setattr("maccabistats.maccabipedia.players.MaccabiPediaCargoChunksCrawler",
                         lambda tables_name, **kwargs: iter(crawled_rows[tables_name]))

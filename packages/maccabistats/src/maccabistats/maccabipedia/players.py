@@ -1,5 +1,5 @@
 import logging
-from collections import defaultdict
+from collections import Counter, defaultdict
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Dict, FrozenSet
@@ -26,6 +26,8 @@ _GOALKEEPER_POSITION = 1
 _GOALKEEPER_SUB_EVENT_CODES = "111,211"
 # Old games list many players by one name (לוי, מזרחי), which would match outfield players today
 _RECENT_GOALKEEPERS_YEARS = 10
+# A single keeper mark may be a mistake (it happened: an outfield player got a bench keeper's mark)
+_MIN_GOALKEEPER_GAMES = 2
 
 
 class MaccabiPediaPlayers(object):
@@ -62,10 +64,14 @@ class MaccabiPediaPlayers(object):
                 tables_name="Games_Events",
                 tables_fields="Games_Events._pageName, Games_Events.PlayerName",
                 where_condition=f"Games_Events.SubType IN ({_GOALKEEPER_SUB_EVENT_CODES}) AND Games_Events.Date >= '{since}'")
-            return frozenset(event["PlayerName"] for event in goalkeepers_events if " " in event["PlayerName"].strip())
+            games_per_goalkeeper = Counter(player_name for player_name, _ in
+                                           {(event["PlayerName"], event["_pageName"]) for event in goalkeepers_events})
         except (ValueError, requests.RequestException):
             logger.exception("Could not crawl the recent goalkeepers, keeping only the profiles' goalkeepers")
             return frozenset()
+
+        return frozenset(player_name for player_name, games in games_per_goalkeeper.items()
+                         if games >= _MIN_GOALKEEPER_GAMES and " " in player_name.strip())
 
     @staticmethod
     def _crawl_players_data() -> Dict[str, MaccabiPediaPlayerData]:

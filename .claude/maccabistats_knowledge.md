@@ -321,7 +321,7 @@ The CI flow is fetch (`fetch_games_from_maccabi_tlv_site`: crawl → general fix
 ### Players data (`maccabipedia/players.py` → `MaccabiGamesStats.players_data`)
 `MaccabiPediaPlayers` is crawled from MaccabiPedia's Cargo whenever a source is parsed, and pickled with the games, so it's available offline wherever the games are:
 - `players_dates` and `home_players`: from `Profiles` (DoB, HomePlayer).
-- `goalkeepers`: `Profiles.MainPosition == 1` (Maccabi players, including debuts), plus anyone with a `Games_Events` 111/211 row in the last 10 years, skipping one-word names. The game uploader marks `הרכב-שוער`/`ספסל-שוער` from it.
+- `goalkeepers`: `Profiles.MainPosition == 1` (Maccabi players, including debuts), plus anyone with `Games_Events` 111/211 rows in at least 2 games in the last 10 years (a single mark may be a mistake), skipping one-word names. So an opponent keeper met for the first or second time stays unmarked. The game uploader marks `הרכב-שוער`/`ספסל-שוער` from it.
 Anything the uploader needs from the wiki itself belongs here rather than in a new query at upload time.
 
 ### Game Upload Flow

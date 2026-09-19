@@ -1,9 +1,9 @@
 ## Version 2.71 ##
 
     Players data (MaccabiPediaPlayers) now has `goalkeepers`: Maccabi players whose
-    profile's main position is goalkeeper, plus anyone who kept goal in a MaccabiPedia
-    game in the last 10 years (one-word names skipped, since old games list many
-    players by one name). Crawled with the rest of the players data and saved with
+    profile's main position is goalkeeper, plus anyone who kept goal in at least 2
+    MaccabiPedia games in the last 10 years (a single mark may be a mistake; one-word
+    names are skipped, since old games list many players by one name). Crawled with the rest of the players data and saved with
     the games, so the game uploader can mark goalkeepers on new game pages.
 
 ## Version 2.70 ##
