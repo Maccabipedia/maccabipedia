@@ -10,10 +10,22 @@ the container and cannot reach production even by accident. This one can, so
 it is deliberately separate, writes nothing without --publish, and does only
 one thing: put the module pages on the wiki.
 
-Publishing a module changes NOTHING that readers see. A module runs only when
-a page invokes it, and none does - that is a second, later edit to one
-template, with its own approval. --check proves that claim after publishing by
-asking the wiki who transcludes each module.
+Publishing a module changes what readers see on EVERY page that already
+invokes it - since #193 the day pages and since #195 the referee pages. Each
+publish marks those pages for re-rendering and their next view runs the new
+code, so a publish is a live change to them, not an inert upload. Before
+publishing, capture an uncached render of a few of those pages' converted
+sections (action=parse with text=, not page=, which can return the cache);
+after publishing, render them again and diff. --check lists who calls each
+module so the size of that is visible; --probe renders the entry points,
+leaderboards included, from raw text on production without saving anything.
+
+Order matters in both directions. Forward, the blocks data goes first: the
+old renderer ignores fields it does not know. Rolling back is the reverse
+case - republish ONLY Module:FootballStatsBlock from the previous commit. Its
+old code ignores the newer blocks data, whereas publishing the old blocks
+data first leaves the NEW renderer reading fields that are gone, and every
+page using it errors until the second write lands.
 
 Two production facts this has to survive:
 
@@ -59,7 +71,7 @@ DOCS = {
     'Module_FootballStatsBlock_tiud.wiki': 'Module:FootballStatsBlock/תיעוד',
 }
 
-SUMMARY = ('פרסום יחידת השליפות של סטטיסטיקת הכדורגל - אף דף אינו קורא לה '
+SUMMARY = ('עדכון יחידות סטטיסטיקת הכדורגל '
            '(deployed from infra/football_queries)')
 
 
@@ -199,12 +211,14 @@ def check(connection) -> int:
             problems += 1
         print(f'{state}{title}')
 
-    print('\nwho calls these modules:')
+    # Callers are expected (day and referee pages invoke these), so they are
+    # reported, not counted as problems: the number is how many live pages a
+    # publish re-renders.
+    print('\nwho calls these modules (every one re-renders on publish):')
     for title in MODULES.values():
         using = callers(connection, title)
         print(f'  {title}: {len(using)} page(s)'
               + (f' -> {using[:5]}' if using else ''))
-        problems += len(using)
     return problems
 
 
@@ -229,6 +243,13 @@ def probe(connection) -> int:
          '|שחקן=ערן זהבי|קטגוריית מפעל=ליגה}}'),
         ('an unsupported filter must raise, not return a total',
          '{{#invoke:FootballQueries|count|בית או חוץ=בית}}'),
+        # The entry point the referee pages run live, and the one the season
+        # pages will: four boxes each, from one query.
+        ('referee-assistant leaderboards: four boxes',
+         '{{#invoke:FootballStatsBlock|leaderboards|בלוק=referee-assistant'
+         '|שופט=דודו ביטון}}'),
+        ('season leaderboards: four boxes',
+         '{{#invoke:FootballStatsBlock|leaderboards|בלוק=season|עונה=2023/24}}'),
     ]
 
     failures = 0
@@ -241,13 +262,32 @@ def probe(connection) -> int:
         error = 'scribunto-error' in html
         expected_error = 'must raise' in description
 
+        boxes = html.count('records-list-tabs-container')
         if error != expected_error:
             failures += 1
             print(f'FAIL  {description}\n      {html[:300]}')
+        elif 'four boxes' in description and boxes != 4:
+            failures += 1
+            print(f'FAIL  {description}: {boxes} boxes rendered')
         else:
             body = html.replace('\n', ' ')[:160]
             print(f'OK    {description}\n      {body}')
     return failures
+
+
+def refuse_uncommitted_sources(with_docs: bool) -> None:
+    """Publish only what is committed. The module files on disk are not always
+    what git holds: tests/mutate.py rewrites them in place, and two runs at
+    once can leave a mutation behind - one did, 2026-09-19, silently deleting
+    the &quot; entry from FootballQueries' entity table."""
+    import subprocess
+
+    paths = [str(source) for source, _ in targets(with_docs=with_docs)]
+    dirty = subprocess.run(['git', 'status', '--porcelain', '--', *paths],
+                           capture_output=True, text=True, check=True).stdout
+    if dirty.strip():
+        raise SystemExit('refusing to publish: these files differ from the last '
+                         f'commit -\n{dirty}commit or restore them first')
 
 
 def main() -> None:
@@ -266,6 +306,9 @@ def main() -> None:
 
     if not (options.check or options.publish or options.probe):
         parser.error('nothing to do - pass --check, --publish or --probe')
+
+    if options.publish:
+        refuse_uncommitted_sources(options.with_docs)
 
     connection = site()
     print(f'connected to {connection}\n')

@@ -51,6 +51,8 @@ def main() -> None:
     parser.add_argument('--converted', default='',
                         help='the converted template, when it is not the '
                              'original plus the sandbox suffix')
+    parser.add_argument('--width', type=int, default=1100)
+    parser.add_argument('--height', type=int, default=900)
     options = parser.parse_args()
 
     out = Path(options.out)
@@ -67,8 +69,9 @@ def main() -> None:
     stem = options.title.split('/')[-1].replace(' ', '-')
     with sync_playwright() as runner:
         browser = runner.chromium.launch()
-        page = browser.new_page(viewport={'width': 1100, 'height': 900},
-                                device_scale_factor=2)
+        page = browser.new_page(
+            viewport={'width': options.width, 'height': options.height},
+            device_scale_factor=2)
 
         page.goto(url_of(BEFORE_PAGE), wait_until='networkidle')
         shoot(page, out / f'{stem}-before.png', 'before')

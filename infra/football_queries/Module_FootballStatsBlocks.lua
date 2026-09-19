@@ -83,6 +83,9 @@ return {
 		top = 10,
 		rowTemplate = 'סטטיסטיקות/הצגת שיאנים/הצגת שחקן/כדורגל',
 		moreText = 'עוד',
+		-- No default: a block declared without this raises rather than
+		-- silently borrowing another block's wrapper markup.
+		boxOpen = '<div class="records-list-tabs-container" id="שיאנים">',
 
 		-- Tab order, labels and headings as the strips have them.
 		tabStrip = {
@@ -109,6 +112,47 @@ return {
 			{ key = 'assists', title = 'שיאני בישולים', noun = 'שחקנים שונים',
 			  filters = { ['מספר אירוע'] = '4' } },
 			{ key = 'cards', title = 'שיאני צהובים', noun = 'שחקנים שונים',
+			  filters = { ['מספר אירוע'] = '7', ['תת אירוע'] = '71' } },
+		},
+	},
+
+	-- The four leaderboard boxes on a season page (תבנית:עונת כדורגל), from
+	-- ONE grouped query where the season-only wrapper templates run 32. Same
+	-- primitive as referee-assistant; differs only where production's own
+	-- templates differ (read 2026-09-18, not copied from the sibling block):
+	-- the cards box is titled שיאני מוצהבים (not צהובים), tab 4 reads
+	-- בינלאומי on both the label and the heading (not אירופה), and the box
+	-- wrapper carries no id - the season page puts id="שיאנים" on the parent
+	-- players-records-container grid instead. See .claude/football_queries.md,
+	-- "Leaderboards".
+	['season'] = {
+		entity = 'עונה',
+		entityFilter = 'עונה',
+		shared = { ['קטגוריית מפעל'] = 'רשמי' },
+		groupBy = 'player',
+		top = 10,
+		rowTemplate = 'סטטיסטיקות/הצגת שיאנים/הצגת שחקן/כדורגל',
+		moreText = 'עוד',
+		boxOpen = '<div class="records-list-tabs-container">',
+
+		tabStrip = {
+			{ category = 'רשמי', label = 'משחקים רשמיים',
+			  heading = 'משחקים רשמיים' },
+			{ category = 'ליגה', label = 'ליגה', heading = 'ליגה' },
+			{ category = 'גביע', label = 'גביע', heading = 'גביע המדינה' },
+			{ category = 'בינלאומי', label = 'בינלאומי', heading = 'בינלאומי' },
+		},
+		tabHeading = '<div class="tab-header">%s (%s %s)</div>',
+
+		boxes = {
+			{ key = 'appearances', title = 'שיאני הופעות',
+			  noun = 'מופיעים שונים',
+			  filters = { ['מספר אירוע'] = '1,5' } },
+			{ key = 'goals', title = 'שיאני כיבושים', noun = 'כובשים שונים',
+			  filters = { ['מספר אירוע'] = '3', ['ללא תת אירוע'] = '33' } },
+			{ key = 'assists', title = 'שיאני בישולים', noun = 'שחקנים שונים',
+			  filters = { ['מספר אירוע'] = '4' } },
+			{ key = 'cards', title = 'שיאני מוצהבים', noun = 'שחקנים שונים',
 			  filters = { ['מספר אירוע'] = '7', ['תת אירוע'] = '71' } },
 		},
 	},

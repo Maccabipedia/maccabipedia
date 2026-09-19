@@ -376,5 +376,145 @@ check('the widget refuses what would silently mislead', function()
 	equals(#stub.calls, 0, 'nothing queried on a refusal')
 end)
 
+-- ------------------------------------------------------- season leaderboard
+
+-- Same primitive, a season page instead of a referee page: entity עונה is a
+-- plain text filter (Football_Games.Season), not HOLDS, so the box wrapper
+-- carries no id (the parent players-records-container grid has it instead),
+-- and tab 4 reads בינלאומי on both the label and the heading, not אירופה.
+local function seasonFrame(season, extra)
+	local direct = { ['בלוק'] = 'season', ['עונה'] = season }
+	for key, value in pairs(extra or {}) do
+		direct[key] = value
+	end
+	return stub.newFrame({}, direct)
+end
+
+check('the season widget: one query, four boxes, wrapper without id', function()
+	local html = widget().leaderboards(seasonFrame('2020/21'))
+	equals(#stub.calls, 1, 'one query for all 16 leaderboards')
+	equals(#stub.extensionTags, 4, 'a tabber per box')
+	local _, boxes = html:gsub('records%-list%-tabs%-container', '')
+	equals(boxes, 4, 'four box wrappers')
+	lacks(html, 'id="שיאנים"', 'the parent grid carries the id, not the box')
+	contains(html, '<div class="title">שיאני הופעות</div>', 'appearances title')
+	contains(html, '<div class="title">שיאני מוצהבים</div>', 'cards title, not צהובים')
+	contains(stub.calls[1].options.where, 'Football_Games.Season = "2020/21"',
+		'the direct argument becomes a plain season filter')
+	lacks(stub.calls[1].options.where, 'HOLDS', 'season is not a HOLDS filter')
+	contains(stub.calls[1].options.where, 'Competitions.Official = 1',
+		'every tab under Official = 1, as the templates had it')
+end)
+
+check('the season widget: tab 4 is בינלאומי, not אירופה', function()
+	widget().leaderboards(seasonFrame('2020/21'))
+	local appearances = stub.extensionTags[1].content
+	contains(appearances, '|-|בינלאומי=<div class="tab-header">בינלאומי (0 ',
+		'season tab 4 label and heading are both בינלאומי')
+	lacks(appearances, 'אירופה', 'season never says אירופה')
+end)
+
+check('the season widget refuses an empty season', function()
+	expectError('needs a non-empty עונה', function()
+		widget().leaderboards(seasonFrame('  '))
+	end)
+	equals(#stub.calls, 0, 'nothing queried on a refusal')
+end)
+
+check('the season widget: only בלוק and עונה are accepted', function()
+	expectError('takes only בלוק and עונה', function()
+		widget().leaderboards(seasonFrame('2020/21', { ['שחקן'] = 'X' }))
+	end)
+end)
+
+check('the season widget: each box counts exactly its template\'s events', function()
+	widget().leaderboards(seasonFrame('2020/21'))
+	local fields = stub.calls[1].fields
+	local columns = {}
+	for column in (fields .. ',SUM('):gmatch('SUM%((.-)%)=c%d+,') do
+		columns[#columns + 1] = column
+	end
+	equals(#columns, 16, 'four boxes of four tabs')
+	contains(columns[1], 'EventType IN (1, 5)', 'appearances')
+	contains(columns[5], 'EventType IN (3)', 'goals')
+	contains(columns[5], 'SubType != 33', 'goals without own goals')
+	contains(columns[9], 'EventType IN (4)', 'assists')
+	contains(columns[13], 'EventType IN (7)', 'cards')
+	contains(columns[13], 'SubType IN (71)', 'yellow cards only')
+end)
+
+check('the season widget: tab labels, headings, box titles and nouns', function()
+	local row = { g = 'ערן זהבי' }
+	for box = 1, 4 do
+		for tab = 1, 4 do
+			row[column(box, tab)] = '0'
+		end
+	end
+	row[column(1, 1)] = '52'
+	row[column(1, 2)] = '36'
+	stub.willReturn({ row, { g = 'שרן ייני', [column(1, 1)] = '47' } })
+	local html = widget().leaderboards(seasonFrame('2021/22'))
+
+	local appearances = stub.extensionTags[1].content
+	contains(appearances, 'משחקים רשמיים=<div class="tab-header">משחקים רשמיים '
+		.. '(2 מופיעים שונים)</div>', 'first tab label and heading')
+	contains(appearances, '|-|ליגה=<div class="tab-header">ליגה (1 מופיעים שונים)',
+		'league tab label and heading')
+	contains(appearances, '|-|גביע=<div class="tab-header">גביע המדינה (0 ',
+		'cup heading differs from its label')
+	contains(appearances, 'ROW(ערן זהבי|52)\nROW(שרן ייני|47)', 'rows in rank order')
+	contains(stub.extensionTags[2].content, 'כובשים שונים', 'goals noun')
+	contains(stub.extensionTags[3].content, 'שחקנים שונים', 'assists noun')
+	contains(stub.extensionTags[4].content, 'שחקנים שונים', 'cards noun')
+	contains(html, '<div class="title">שיאני כיבושים</div>', 'goals title')
+	contains(html, '<div class="title">שיאני בישולים</div>', 'assists title')
+end)
+
+check('the season widget: ten rows, and "עוד" only past ten', function()
+	local rows = {}
+	for index = 1, 11 do
+		rows[index] = { g = 'שחקן ' .. index, [column(1, 1)] = tostring(50 - index),
+		                [column(1, 2)] = index <= 10 and '5' or '0' }
+	end
+	stub.willReturn(rows)
+	widget().leaderboards(seasonFrame('2021/22'))
+	local appearances = stub.extensionTags[1].content
+	local officialTab = appearances:match('^(.-)|%-|ליגה=')
+	local leagueTab = appearances:match('|%-|ליגה=(.-)|%-|')
+	local _, shown = officialTab:gsub('ROW%(', '')
+	equals(shown, 10, 'eleven players, ten shown')
+	lacks(officialTab, 'ROW(שחקן 11|', 'the eleventh is behind the link')
+	contains(officialTab, ' עוד]', 'link text')
+	contains(officialTab, 'Football_Games.Season = "2021/22"', 'the link keeps the season')
+	lacks(leagueTab, 'ViewData', 'exactly ten players: no link')
+end)
+
+-- Every wrapper tag, exactly: a substring check would also pass with extra
+-- attributes appended, and the referee markup is live in production.
+local function wrappersOf(html)
+	local found = {}
+	for tag in html:gmatch('<div class="records%-list%-tabs%-container"[^>]*>') do
+		found[#found + 1] = tag
+	end
+	return found
+end
+
+check('the referee-assistant box wrappers are byte-identical to before boxOpen', function()
+	local tags = wrappersOf(widget().leaderboards(refereeFrame('דודו ביטון')))
+	equals(#tags, 4, 'one wrapper per box')
+	for _, tag in ipairs(tags) do
+		equals(tag, '<div class="records-list-tabs-container" id="שיאנים">',
+			'unchanged by making the wrapper block data')
+	end
+end)
+
+check('the season box wrappers carry no attribute beyond the class', function()
+	local tags = wrappersOf(widget().leaderboards(seasonFrame('2021/22')))
+	equals(#tags, 4, 'one wrapper per box')
+	for _, tag in ipairs(tags) do
+		equals(tag, '<div class="records-list-tabs-container">', 'no id, nothing else')
+	end
+end)
+
 print(string.format('\n%d passed, %d failed', passed, failed))
 os.exit(failed > 0 and 1 or 0)

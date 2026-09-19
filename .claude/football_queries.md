@@ -362,6 +362,58 @@ query. Deployed to prod as an entry point; the live template still uses
 Checked by `compare_day_widget.py` (`--selftest`, `--all`; a sample runs in
 CI). Details and the pixel work: `.claude/shtml_free_tabs_design.md` §7.
 
+## Leaderboards: `leaderboards` (referee and season pages)
+
+`{{#invoke:FootballStatsBlock|leaderboards|בלוק=…}}` renders four leaderboard
+boxes (הופעות / כיבושים / בישולים / מוצהבים|צהובים), four tabs each, as
+`<tabber>`s from **one** query instead of 32. Two blocks use it:
+`referee-assistant` (see `.claude/referee_leaderboards_spec.md`) and `season`,
+which `תבנית:עונת כדורגל` calls on the 104 season pages
+(`convert_season_section.py` swaps its four `הצגת שיאני …` lines for the invoke).
+
+`season` differs from `referee-assistant` only in data: entity `עונה` is a
+plain `Football_Games.Season` filter (no alias lookup); tab 4 is `בינלאומי`;
+the cards box is `שיאני מוצהבים`; and its wrapper `boxOpen` has **no** id -
+on season pages `id="שיאנים"` sits on the parent container. `boxOpen` is a
+required block field with no default; the referee one is the exact string the
+renderer used to hard-code, so referee markup is byte-identical.
+
+Deliberate departures, allowed by both comparison harnesses: players tied at
+the tenth place are ordered by name; a tab with exactly ten players has no
+"עוד" link (it led to an empty page); tab 4 shows the globe. Visible but not
+a data change: TabberNeue writes the URL hash on a tab click
+(`$wgTabberNeueUpdateLocationOnTabChange`), so a reloaded or shared link opens
+scrolled to the boxes - and panel ids carry the box's position on the page,
+so converting a tabbed strip above them later re-targets those links.
+
+Checks: `compare_season_leaderboards.py` (local; `--selftest` must FAIL) and
+`compare_referee_leaderboards.py`, both in CI. Each tab must read as many rows
+as its heading promises, or the tab fails. **The fixture must ship
+`תבנית:עונת כדורגל` unconverted** - the harness builds its OLD side from it;
+`convert_season_section.py --local --apply` is a demo layered on afterwards.
+Measured locally, section only: p50 737 → 388 ms. On production the section
+costs 714 ms of a 4.2 s cold page parse.
+
+**Production rollout, in order - stop at the first failure:**
+
+1. **Gate A - publish the modules.** Not inert: every day and referee page
+   invokes them and re-renders on its next view. First capture an uncached
+   render (`action=parse` with `text=`) of 3 referee sections; then
+   `deploy_modules_prod.py --publish`, `--check`, `--probe` (referee and
+   season `leaderboards` must each render four boxes); then re-render the 3
+   referees and byte-diff the `records-list-tabs-container` fragments. Any
+   difference → roll back.
+2. **Rollback order:** republish ONLY `Module:FootballStatsBlock` from the
+   previous commit. Its old code ignores the newer blocks data; publishing the
+   old blocks data first leaves the new renderer reading a missing `boxOpen` -
+   a Lua error on every referee page until the second write lands.
+3. **Before Gate B:** `compare_season_leaderboards.py --prod` - a read-only
+   sweep of all 104 production season pages, OLD template chain vs the
+   published module. It errors before Gate A and must pass after it.
+4. **Gate B - switch the template.** Edit `תבנית:עונת כדורגל` (keep the
+   previous text for revert), purge the season pages in batches of 10, and
+   open a few - an empty season, 1966/68, the current one.
+
 ## Not done yet
 
 - Departures from the templates, which will show as real diffs against the

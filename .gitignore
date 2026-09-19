@@ -1,6 +1,11 @@
 # Games papers folder
 games_papers_to_upload/
 
+# Local dev override for infra/local-wiki/ (e.g. rebinding the wiki port when
+# something else on the machine already holds 8080, or exposing it on a second
+# port for testing from a phone). Machine-specific, never committed.
+infra/local-wiki/docker-compose.override.yml
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

@@ -1,5 +1,16 @@
 """Old assistant-referee leaderboards against the one-invoke tabbers, locally.
 
+The 4 shared display templates the season comparison depends on
+(`סטטיסטיקה/תצוגה/שחקנים/שיאני …/עיצוב חדש`) were found, while building that
+comparison, to hold a stale `{{#invoke:שיאנים|section…}}` body in the
+committed DB fixture - the abandoned Module:שיאנים prototype from the closed
+PRs #188/#189 (see the referee spec's §2 "Out of scope"), not production's
+real `#cargo_query` wikitext. This module's own dedicated template
+(`.../עוזר שופט/עיצוב חדש`) was never touched by that prototype, which is why
+this comparison never surfaced it. Fixed in the fixture (production wikitext
+restored + re-signed, then re-snapshotted) 2026-09-18, and nine more
+templates of the same kind 2026-09-19 (PR #200).
+
     uv run python infra/football_queries/convert_referee_section.py --local
     uv run python infra/football_queries/compare_referee_leaderboards.py
     uv run python infra/football_queries/compare_referee_leaderboards.py --selftest
@@ -62,10 +73,22 @@ def link_query(href: str) -> dict:
 
     where = {squash(part) for part in re.split(r'\s+AND\s+', params.get('where', ''), flags=re.I)}
     where = {'Games_Events.Team=1' if part == 'Team=1' else part for part in where} - {'', '1=1'}
+    tables = {squash(part) for part in params.get('tables', '').split(',')}
+    join = {squash(part) for part in params.get('join_on', '').split(',')}
+    # The templates' #cargo_query has Games_Referees in a static `tables=`
+    # list regardless of whether a filter actually uses it (measured: no game
+    # has 2+ Games_Referees rows, and it is never SELECTed, so an unused join
+    # to it changes no row and no value). The module only joins what a filter
+    # touches, so it omits the table here when nothing in the WHERE names it -
+    # on referee pages that never happens (עוזר שופט always uses it), so this
+    # never fires there; on season pages it always does.
+    if not any('games_referees' in part.lower() for part in where):
+        tables -= {'Games_Referees'}
+        join = {part for part in join if 'games_referees' not in part.lower()}
     return {
         'where': where,
-        'tables': {squash(part) for part in params.get('tables', '').split(',')},
-        'join': {squash(part) for part in params.get('join_on', '').split(',')},
+        'tables': tables,
+        'join': join,
         'fields': squash(params.get('fields', '')).lower(),
         'group_by': squash(params.get('group_by', '')),
         # Newer Cargo writes its own links as order_by[0]; production's older
@@ -128,6 +151,14 @@ def compare_tab(old: dict, new: dict) -> str | None:
     """None when equal or differing only as the spec allows."""
     if old['header'] != new['header']:
         return f'heading {old["header"]!r} vs {new["header"]!r}'
+    # Every row the heading promises must have been extracted, on each side.
+    # Without this a row the ROW regex cannot read vanishes from BOTH sides
+    # and the tab still compares equal on what is left.
+    expected = min(players_in(old['header']), TOP)
+    for label, side in (('old', old), ('new', new)):
+        if expected < 0 or len(side['rows']) != expected:
+            return (f'{label} side: {len(side["rows"])} rows read, heading '
+                    f'{side["header"]!r} promises {expected}')
     old_counts = [count for _, count in old['rows']]
     new_counts = [count for _, count in new['rows']]
     if old_counts != new_counts:
