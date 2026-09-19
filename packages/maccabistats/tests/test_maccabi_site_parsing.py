@@ -1,4 +1,4 @@
-"""Club-site parsing, on HTML shaped like the 14-09-2026 derby's pages (maccabi-tlv.co.il)."""
+"""Club-site parsing, on HTML shaped like maccabi-tlv.co.il match pages."""
 from datetime import timedelta
 
 from bs4 import BeautifulSoup
@@ -58,10 +58,10 @@ def test_yellow_red_icon_is_a_second_yellow_not_a_red():
 
 
 def _enrich_with_events(events_html: str) -> TeamInGame:
-    opponent = TeamInGame("הפועל תל אביב", "", 1, [])
+    opponent = TeamInGame("בני יהודה", "", 1, [])
     events_page = BeautifulSoup(f'<article><div class="play-by-play-homepage"><ul class="play-by-play">'
                                 f'{events_html}</ul></div></article>', "html.parser")
-    maccabi, _ = MaccabiSiteGameEventsParser(_parse_maccabi_team(), opponent, events_page, "derby").enrich_teams_with_events()
+    maccabi, _ = MaccabiSiteGameEventsParser(_parse_maccabi_team(), opponent, events_page, "test-game-link").enrich_teams_with_events()
     return maccabi
 
 

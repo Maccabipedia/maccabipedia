@@ -69,7 +69,7 @@ class MaccabiSiteGameEventsParser(object):
         self.event_type_to_handler_function["goal"] = self.__handle_goal_event
         self.event_type_to_handler_function["sub"] = self.__handle_substitution_event
         self.event_type_to_handler_function["penalty-missed"] = self.__handle_penalty_missed_event
-        self.event_type_to_handler_function["secondyellow"] = self.__handle_second_yellow_card_missed_event
+        self.event_type_to_handler_function["secondyellow"] = self.__handle_second_yellow_card_event
         self.event_type_to_handler_function["whistle"] = self.__handle_ignored_events
 
     def enrich_teams_with_events(self):
@@ -100,14 +100,14 @@ class MaccabiSiteGameEventsParser(object):
                 logger.exception(
                     "\nUnknown error while parsing {event} at {event_time} from event page".format(event=event_text, event_time=event_time_in_minute))
 
+        # Not inside the second yellow handler: the events page lists events newest first, so when a second yellow
+        # is handled the player's first yellow isn't parsed yet (and the squad page shows only the yellow-red icon).
         self.__mark_first_yellow_cards()
 
         return self.maccabi_team, self.not_maccabi_team
 
     def __mark_first_yellow_cards(self):
-        """ A sent-off player's earlier yellow card is the first of two, the way MaccabiPedia records it.
-        Runs after all events, since the events page lists them newest first.
-        """
+        """ A sent-off player's earlier yellow card is the first of two, the way MaccabiPedia records it. """
         for player in self.maccabi_team.players + self.not_maccabi_team.players:
             for second_yellow in player.get_events_by_type(GameEventTypes.SECOND_YELLOW_CARD):
                 earlier_yellows = [event for event in player.get_events_by_type(GameEventTypes.YELLOW_CARD)
@@ -207,7 +207,7 @@ class MaccabiSiteGameEventsParser(object):
         logger.info(
             "Added penalty missed for player: {player}".format(player=player_name))
 
-    def __handle_second_yellow_card_missed_event(self, event_text, event_time_in_minute):
+    def __handle_second_yellow_card_event(self, event_text, event_time_in_minute):
         player_name = event_text.replace("כרטיס צהוב שני ל", "").strip()
         player = self.__find_one_player_with_name(player_name)
 

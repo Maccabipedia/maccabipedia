@@ -13,8 +13,8 @@ maccabistats_events_to_maccabipedia_events = {GameEventTypes.LINE_UP.value: "ה�
                                               GameEventTypes.SUBSTITUTION_IN.value: "מחליף",
                                               GameEventTypes.SUBSTITUTION_OUT.value: "מוחלף",
                                               GameEventTypes.YELLOW_CARD.value: "כרטיס צהוב",
-                                              GameEventTypes.FIRST_YELLOW_CARD.value: "כרטיס צהוב",
-                                              GameEventTypes.SECOND_YELLOW_CARD.value: "כרטיס צהוב",
+                                              GameEventTypes.FIRST_YELLOW_CARD.value: "כרטיס צהוב-ראשון",
+                                              GameEventTypes.SECOND_YELLOW_CARD.value: "כרטיס צהוב-שני",
                                               GameEventTypes.RED_CARD.value: "כרטיס אדום",
                                               GameEventTypes.CAPTAIN.value: "קפטן",
                                               GameEventTypes.PENALTY_MISSED.value: "פנדל-החמצה",
@@ -31,9 +31,6 @@ maccabistats_sub_events_to_maccabipedia_events = {GoalTypes.OWN_GOAL.value: "ע�
                                                   GoalTypes.BICYCLE_KICK.value: "עקרב",
                                                   GoalTypes.CORNER.value: "קרנר",
                                                   GoalTypes.CHEST.value: "חזה",
-                                                  # maccabistats keeps the yellow card's order in the event type
-                                                  GameEventTypes.FIRST_YELLOW_CARD.value: "ראשון",
-                                                  GameEventTypes.SECOND_YELLOW_CARD.value: "שני",
                                                   }
 
 SQUAD_RANK = {"הרכב": 0,
@@ -190,11 +187,8 @@ class PlayerEvent(object):
                                the sub type is just goal types atm, may be change in the future.
         :param maccabi_player: does this player is maccabi player
         """
-        if sub_event_type is None and event_type.value in maccabistats_sub_events_to_maccabipedia_events:
-            sub_event_type = event_type
-
-        sub_event_type = PlayerEvent._translate_sub_event_to_maccabipedia(sub_event_type) if sub_event_type else None
         event_type = PlayerEvent._translate_event_to_maccabipedia(event_type)
+        sub_event_type = PlayerEvent._translate_sub_event_to_maccabipedia(sub_event_type) if sub_event_type else None
 
         return PlayerEvent(name, number, time_occur, event_type, sub_event_type, maccabi_player)
 
