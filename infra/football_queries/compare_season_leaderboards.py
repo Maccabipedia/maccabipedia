@@ -14,7 +14,8 @@ REAL wrapper templates and the real invoke, for every season in the local
 data, and compares each box and tab: title, heading (with its distinct-player
 count), the ranked rows, and whether there is an "עוד" link. Shares its
 comparison rules with compare_referee_leaderboards.py (same allowed
-differences, §4.5 of the referee spec, reused by .claude/season_leaderboards_spec.md):
+differences, §4.5 of the referee spec; see .claude/football_queries.md,
+"Leaderboards"):
 
   1. tied players may be ordered differently, and at the top-10 boundary a
      different member of the tie may be shown - the counts must still match;
@@ -24,7 +25,7 @@ Rendering only the section, not the whole page, is deliberate: a season page
 carries other <shtml> strips above (seasonal numbers) and below (the games
 list) this section, which would break the referee harness's box/tab
 extraction if reused unmodified here (found by adversarial review before this
-ran once - see .claude/season_leaderboards_spec.md). The OLD and NEW section
+ran once). The OLD and NEW section
 texts are extracted from the LIVE template by convert_season_section.section_texts,
 never hand-copied, so they cannot drift from production.
 
@@ -56,8 +57,8 @@ from verify_tabs import ERROR_MARKERS, render  # noqa: E402
 VARDEFINE = '{{#vardefine:עונה להצגה|%s}}'
 
 # The season section's box wrapper carries no id (id="שיאנים" is on the
-# PARENT container the real page wraps this section in - see
-# .claude/season_leaderboards_spec.md §3), unlike the referee boxes.
+# PARENT container the real page wraps this section in), unlike the referee
+# boxes.
 BOX = re.compile(r'<div class="records-list-tabs-container">(.*?)'
                  r'(?=<div class="records-list-tabs-container"|\Z)', re.S)
 OLD_PANEL = re.compile(r'<div id="tab\d-content">(.*?)(?=<div id="tab\d-content">|\Z)', re.S)

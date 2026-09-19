@@ -133,7 +133,7 @@ jobs:
         # Renders only the שיאנים section (not the whole page through
         # {{עונת כדורגל}}: it carries other <shtml> strips above and below
         # this section that would break the box/tab extraction if the whole
-        # page were rendered - see .claude/season_leaderboards_spec.md §5.2).
+        # page were rendered - see compare_season_leaderboards.py's docstring).
         run: |
           uv run python infra/football_queries/convert_season_section.py --local
           uv run python infra/football_queries/compare_season_leaderboards.py --selftest

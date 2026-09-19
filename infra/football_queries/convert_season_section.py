@@ -6,7 +6,8 @@
 In `תבנית:עונת כדורגל` the four lines that call `עונת כדורגל/הצגת שיאני …`
 - 8 Cargo queries each - become one
 `{{#invoke:FootballStatsBlock|leaderboards|…}}` that renders the same four
-boxes, as tabbers, from one query. See .claude/season_leaderboards_spec.md.
+boxes, as tabbers, from one query. See .claude/football_queries.md,
+"Leaderboards".
 
 Local only. Production is a separate, approved step.
 """

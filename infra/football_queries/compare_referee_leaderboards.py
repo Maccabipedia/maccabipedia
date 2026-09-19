@@ -8,8 +8,8 @@ PRs #188/#189 (see the referee spec's §2 "Out of scope"), not production's
 real `#cargo_query` wikitext. This module's own dedicated template
 (`.../עוזר שופט/עיצוב חדש`) was never touched by that prototype, which is why
 this comparison never surfaced it. Fixed in the fixture (production wikitext
-restored + re-signed, then re-snapshotted) 2026-09-18 - see
-.claude/season_leaderboards_spec.md §7 for the full story.
+restored + re-signed, then re-snapshotted) 2026-09-18, and nine more
+templates of the same kind 2026-09-19 (PR #200).
 
     uv run python infra/football_queries/convert_referee_section.py --local
     uv run python infra/football_queries/compare_referee_leaderboards.py

@@ -123,8 +123,8 @@ return {
 	-- the cards box is titled שיאני מוצהבים (not צהובים), tab 4 reads
 	-- בינלאומי on both the label and the heading (not אירופה), and the box
 	-- wrapper carries no id - the season page puts id="שיאנים" on the parent
-	-- players-records-container grid instead. See
-	-- .claude/season_leaderboards_spec.md.
+	-- players-records-container grid instead. See .claude/football_queries.md,
+	-- "Leaderboards".
 	['season'] = {
 		entity = 'עונה',
 		entityFilter = 'עונה',
