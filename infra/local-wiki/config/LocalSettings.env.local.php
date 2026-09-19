@@ -16,18 +16,7 @@ if (!defined('MEDIAWIKI')) {
 ## docroot (mounted via docker-compose from config/htaccess) routes
 ## "/foo" → "index.php?title=foo" via mod_rewrite; AllowOverride is
 ## enabled in config/apache-allow-override.conf.
-## MediaWiki builds every ABSOLUTE url from $wgServer: ResourceLoader's
-## per-file script srcs in debug mode, Cargo's "more results" links, the logo.
-## A fixed "localhost:8080" therefore breaks this wiki for every device that
-## is not this host - a phone over Tailscale, another PC on the LAN - and it
-## breaks it silently: the page renders, then its jQuery request goes to the
-## PHONE's own localhost and everything depending on it dies.
-## Host-header detection is discouraged in PRODUCTION (prod hardcodes the real
-## domain in LocalSettings.env.prod.php, which this file never applies to);
-## for a dev wiki reached from several hosts it is the correct default.
-## MW_SITE_SERVER is install-time only - entrypoint.sh passes it to
-## install.php, whose config is written to /tmp and discarded.
-$wgServer = WebRequest::detectServer();
+$wgServer = getenv('MW_SITE_SERVER') ?: 'http://localhost:8080';
 $wgScriptPath = '';
 $wgArticlePath = '/$1';
 

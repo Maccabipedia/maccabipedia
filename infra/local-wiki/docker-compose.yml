@@ -23,10 +23,6 @@ services:
       # rejects that, so install.php silently fails to set it and login breaks.
       MW_ADMIN_PASSWORD: maccabi2026
       MW_SITE_NAME: "MaccabiPedia Dev"
-      # Install-time only: entrypoint.sh hands it to install.php, whose config
-      # is written to /tmp and discarded. It does NOT set the site URL —
-      # LocalSettings.env.local.php derives $wgServer per request instead, so
-      # the wiki works from a phone or another PC as well as from localhost.
       MW_SITE_SERVER: "http://localhost:8080"
       MW_SITE_LANG: "he"
     volumes:
