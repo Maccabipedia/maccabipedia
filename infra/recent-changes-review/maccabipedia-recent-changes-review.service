@@ -5,7 +5,10 @@ Description=MaccabiPedia recent-changes review — weekly headless Claude (Sonne
 Type=oneshot
 # `bash -lc`: systemd does not search ~/.local/bin, where `claude` and `uv` live; the login
 # profile puts them on PATH. Runs from the main clone, so it always uses master's prompt.
-ExecStart=/bin/bash -lc 'exec %h/code/maccabipedia_mediawikibot/infra/recent-changes-review/run.sh'
+# `bash run.sh`, never `exec run.sh`: this repo has core.fileMode=false, so git does not carry
+# the executable bit and a fresh checkout has run.sh as 0644 — the first installed run died
+# with 126 'cannot execute'.
+ExecStart=/bin/bash -lc 'exec bash %h/code/maccabipedia_mediawikibot/infra/recent-changes-review/run.sh'
 # Measured 2026-09-19: 9-11 minutes, for a week and for 90 days alike. One hour is ~6x that.
 TimeoutStartSec=3600
 
