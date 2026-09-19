@@ -7,6 +7,10 @@ edit, reverted bot edits) and facts humans type by hand that our data already ho
 - `prompt.md` — the whole brief. **Edit this file to change what the agent does.** When a
   suggestion is rejected, add the reason to its `MANUAL ON PURPOSE` list so it never returns.
 - `run.sh` — runs the prompt from the repo root, and holds the limits on what the agent can do.
+- `render_report.py` — after each run, `run.sh` renders the report to
+  `~/served_reports/recent_changes_review.html` on the reports shelf
+  (`maccabipedia-reports.service`). Our script renders it, not the agent, with raw HTML
+  escaped: the page quotes text strangers wrote, and the shelf is public.
 
 ## What keeps it safe
 
