@@ -151,6 +151,14 @@ def compare_tab(old: dict, new: dict) -> str | None:
     """None when equal or differing only as the spec allows."""
     if old['header'] != new['header']:
         return f'heading {old["header"]!r} vs {new["header"]!r}'
+    # Every row the heading promises must have been extracted, on each side.
+    # Without this a row the ROW regex cannot read vanishes from BOTH sides
+    # and the tab still compares equal on what is left.
+    expected = min(players_in(old['header']), TOP)
+    for label, side in (('old', old), ('new', new)):
+        if expected < 0 or len(side['rows']) != expected:
+            return (f'{label} side: {len(side["rows"])} rows read, heading '
+                    f'{side["header"]!r} promises {expected}')
     old_counts = [count for _, count in old['rows']]
     new_counts = [count for _, count in new['rows']]
     if old_counts != new_counts:

@@ -2,6 +2,12 @@
 
     uv run python infra/football_queries/compare_season_leaderboards.py
     uv run python infra/football_queries/compare_season_leaderboards.py --selftest
+    uv run python infra/football_queries/compare_season_leaderboards.py --prod
+
+--prod is the gate before switching production's template: a READ-ONLY sweep
+(action=parse&text=, nothing saved, one parse at a time) of every season page
+production has, OLD from production's own template chain against NEW from the
+published module. The local run covers only the fixture's four seasons.
 
 Renders ONLY the שיאנים section - not the whole season page - through the
 REAL wrapper templates and the real invoke, for every season in the local
@@ -34,6 +40,7 @@ import argparse
 import json
 import re
 import sys
+import time
 import urllib.parse
 import urllib.request
 from pathlib import Path
@@ -91,10 +98,64 @@ def local_seasons() -> list[str]:
     return seasons + ['1921', 'עונה שלא קיימת - ארגז חול']
 
 
+PROD_API = 'https://www.maccabipedia.co.il/api.php'
+PROD_UA = {'User-Agent': 'MaccabipediaBot/season-parity (infra/football_queries)'}
+# Pause between production renders: this is a read-only sweep of ~100
+# seasons, two parses each, on a shared host - sequential, never concurrent.
+PROD_PAUSE_SECONDS = 1.0
+
+
+def prod_api(params: dict, post: bool = False) -> dict:
+    params = dict(params, format='json', formatversion='2')
+    body = urllib.parse.urlencode(params).encode('utf-8')
+    request = (urllib.request.Request(PROD_API, data=body, headers=PROD_UA) if post else
+               urllib.request.Request(f'{PROD_API}?{body.decode()}', headers=PROD_UA))
+    with urllib.request.urlopen(request, timeout=180) as response:
+        data = json.loads(response.read().decode('utf-8'))
+    if 'error' in data:
+        raise SystemExit(f'production API error: {data["error"]}')
+    return data
+
+
+def prod_render(wikitext: str) -> str:
+    """The same uncached action=parse&text= render as verify_tabs.render, on
+    production. Saves nothing; only the Lua modules must already be there."""
+    time.sleep(PROD_PAUSE_SECONDS)
+    data = prod_api({'action': 'parse', 'text': wikitext, 'title': 'ארגז חול',
+                     'contentmodel': 'wikitext', 'prop': 'text',
+                     'disablelimitreport': 1}, post=True)
+    return data['parse']['text']
+
+
+def prod_template() -> str:
+    data = prod_api({'action': 'query', 'titles': TEMPLATE, 'prop': 'revisions',
+                     'rvprop': 'content', 'rvslots': 'main'})
+    return data['query']['pages'][0]['revisions'][0]['slots']['main']['content']
+
+
+def prod_seasons() -> list[str]:
+    """Every season whose page uses the season template on production -
+    the pages Gate B switches, empty seasons included."""
+    seasons, params = [], {'action': 'query', 'list': 'embeddedin',
+                           'eititle': TEMPLATE, 'einamespace': '0', 'eilimit': 'max'}
+    while True:
+        data = prod_api(params)
+        for page in data['query']['embeddedin']:
+            if page['title'].startswith('עונת '):
+                seasons.append(page['title'][len('עונת '):])
+        if 'continue' not in data:
+            break
+        params.update(data['continue'])
+    if not seasons:
+        raise SystemExit('production lists no season pages - nothing to compare')
+    return sorted(seasons)
+
+
 def compare(season: str, old_text: str, new_text: str,
-            new_season: str | None = None) -> tuple[str, str, int]:
-    old_page = render(VARDEFINE % season + old_text)
-    new_page = render(VARDEFINE % (new_season or season) + new_text)
+            new_season: str | None = None,
+            renderer=render) -> tuple[str, str, int]:
+    old_page = renderer(VARDEFINE % season + old_text)
+    new_page = renderer(VARDEFINE % (new_season or season) + new_text)
     for label, page in (('old', old_page), ('new', new_page)):
         errors = [marker for marker in ERROR_MARKERS if marker in page]
         if errors:
@@ -126,21 +187,30 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--selftest', action='store_true',
                         help='old text of one season vs new text of another must FAIL')
+    parser.add_argument('--prod', action='store_true',
+                        help='READ-ONLY sweep of every production season page '
+                             '(after the modules are published, before the '
+                             'template is switched)')
     options = parser.parse_args()
 
-    live = read_local(TEMPLATE)
-    old_text, new_text = section_texts(live)
-
-    seasons = local_seasons()
+    if options.prod:
+        old_text, new_text = section_texts(prod_template())
+        seasons, renderer = prod_seasons(), prod_render
+    else:
+        old_text, new_text = section_texts(read_local(TEMPLATE))
+        seasons, renderer = local_seasons(), render
 
     if options.selftest:
-        verdict, detail, _ = compare(seasons[0], old_text, new_text, new_season=seasons[1])
-        print(f'selftest: {seasons[0]} old vs {seasons[1]} new -> {verdict}: {detail}')
+        # Two seasons with games, not the empty ones that sort first on prod.
+        pair = [s for s in seasons if s.startswith('20')][:2] or seasons[:2]
+        verdict, detail, _ = compare(pair[0], old_text, new_text,
+                                     new_season=pair[1], renderer=renderer)
+        print(f'selftest: {pair[0]} old vs {pair[1]} new -> {verdict}: {detail}')
         sys.exit(0 if verdict == 'FAIL' else 1)
 
     tally, total_rows = {}, 0
     for season in seasons:
-        verdict, detail, rows = compare(season, old_text, new_text)
+        verdict, detail, rows = compare(season, old_text, new_text, renderer=renderer)
         tally[verdict] = tally.get(verdict, 0) + 1
         total_rows += rows
         if verdict != 'ok':
