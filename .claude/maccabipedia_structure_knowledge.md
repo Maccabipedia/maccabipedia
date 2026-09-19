@@ -209,6 +209,10 @@ Each event is one pipe-separated entry in the `|אירועי שחקנים=` para
 **The single-colon trap:**  
 A single `:` before the minute (e.g. `גול-נגיחה:67`) instead of `::` (e.g. `גול-נגיחה::67`) causes the template to tag the page as having illegal events, even though the type name is valid. Always use `::` between every field.
 
+**Two-yellows sending-off:** written as `כרטיס צהוב-ראשון` + `כרטיס צהוב-שני`, with **no** separate `כרטיס אדום`. The club site reports it as two plain yellows plus a red at the second yellow's minute; `football/game_page_fixes.py` converts it on upload.
+
+**Goalkeepers in Cargo:** `Games_Events.SubType` 111 = `הרכב-שוער`, 211 = `ספסל-שוער` (from `Games_Sub_Events_Mapping`). The club site's match squad page doesn't mark goalkeepers, so the uploader marks anyone with an earlier 111/211 row. A keeper's first wiki game has to be marked by hand.
+
 **Tracking category:** Pages with bad events are added to the `משחקים המכילים אירוע לא תקין` tracking category (populated by the `הזנת אירועי משחק` template's `#ברירת מחדל` branch for unknown main event types).
 
 ## 10. Basketball Player Stats (`|שחקנים מכבי=` / `|שחקנים יריבה=`)
