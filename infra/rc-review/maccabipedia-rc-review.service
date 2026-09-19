@@ -1,0 +1,10 @@
+[Unit]
+Description=MaccabiPedia recent-changes review — weekly headless Claude (Sonnet) over the wiki's edits
+
+[Service]
+Type=oneshot
+# `bash -lc`: systemd does not search ~/.local/bin, where `claude` and `uv` live; the login
+# profile puts them on PATH. Runs from the main clone, so it always uses master's prompt.
+ExecStart=/bin/bash -lc 'exec %h/code/maccabipedia_mediawikibot/infra/rc-review/run.sh'
+# Measured 2026-09-19: 10 min for a week of changes, 11 min for 90 days. One hour is ~6x that.
+TimeoutStartSec=3600
