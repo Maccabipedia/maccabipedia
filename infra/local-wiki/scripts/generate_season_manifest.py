@@ -177,6 +177,61 @@ def api_get(params):
     return response.json()
 
 
+def game_media_titles(season, fetch=cargo_fetch, api=api_get):
+    """The file-description pages behind a football season's games-list icons.
+
+    Each game row tests for its media with #ifexist (ticket, poster) and with
+    DPL galleries over categories (press, photos, programme); the season page
+    tests for the team photo. Both see only pages that exist LOCALLY - the
+    binaries then stream from the foreign repo - so without these pages every
+    such icon is silently absent locally and any before/after comparison of
+    them passes by comparing nothing.
+
+    Names are built exactly as the templates build them: the media date is
+    {{#time:d "ב"F Y|Date}}, expanded BY PRODUCTION rather than re-implemented
+    (Hebrew month forms), and the image checks try every extension, so they
+    are found by prefix.
+    """
+    games = fetch("Football_Games", "_pageName,Date", f'Season="{season}"')
+    pages = _clean(row["_pageName"] for row in games)
+    dates = [row.get("Date", "") for row in games]
+    expanded = api({"action": "expandtemplates", "prop": "wikitext",
+                    "text": "\n".join(f'{{{{#time:d "ב"F Y|{date}}}}}' for date in dates)})
+    media_dates = expanded["expandtemplates"]["wikitext"].split("\n")
+    if len(media_dates) != len(pages):
+        raise ValueError(f"expected {len(pages)} media dates, got {len(media_dates)}")
+
+    categories = []
+    for page, media_date in zip(pages, media_dates):
+        categories += [f"קטגוריה:עיתונות למשחק מה-{media_date}",
+                       f"קטגוריה:{page}/תמונות", f"קטגוריה:{page}/תוכניית משחק"]
+    titles = []
+    for start in range(0, len(categories), 50):
+        info = api({"action": "query", "prop": "categoryinfo",
+                    "titles": "|".join(categories[start:start + 50])})
+        for category in info.get("query", {}).get("pages", {}).values():
+            if not category.get("categoryinfo", {}).get("size"):
+                continue
+            params = {"action": "query", "list": "categorymembers",
+                      "cmtitle": category["title"], "cmlimit": "max"}
+            while True:
+                data = api(params)
+                titles += [member["title"] for member in data["query"]["categorymembers"]]
+                if "continue" not in data:
+                    break
+                params = {**params, **data["continue"]}
+
+    prefixes = [f"{kind} {media_date}" for media_date in media_dates
+                for kind in ("כרטיס משחק", "כרזת משחק")]
+    prefixes.append("תמונה קבוצתית " + season.replace("/", "-"))
+    for prefix in prefixes:
+        data = api({"action": "query", "list": "allimages", "aiprefix": prefix,
+                    "ailimit": "50"})
+        titles += ["קובץ:" + image["name"].replace("_", " ")
+                   for image in data["query"]["allimages"]]
+    return list(dict.fromkeys(titles))
+
+
 def expand_with_redirects(titles, api=api_get):
     """Append redirect pages so the seeded wiki keeps short-form links blue.
 
@@ -219,7 +274,10 @@ def main():
     parser.add_argument("season", help='season as on the wiki, e.g. "2024/25"')
     args = parser.parse_args()
 
-    titles = expand_with_redirects(collect_season_titles(args.sport, args.season))
+    titles = collect_season_titles(args.sport, args.season)
+    if args.sport == "football":
+        titles += game_media_titles(args.season)
+    titles = expand_with_redirects(list(dict.fromkeys(titles)))
     stem = f"season-{args.sport}-" + args.season.replace("/", "-")
     out_path = Path(__file__).parent / "content-manifests" / f"{stem}.manifest"
     header = (
