@@ -20,6 +20,7 @@ one entry here (plus the README sports line).
 import argparse
 import html
 import sys
+import time
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -30,6 +31,7 @@ API_ENDPOINT = "https://www.maccabipedia.co.il/api.php"
 # maccabistats placeholder values that must not become page titles.
 SENTINELS = {"Cant found coach", "Cant found referee", "Cant found stadium", ""}
 LIMIT = 2000
+API_PAUSE_SECONDS = 0.3
 
 
 @dataclass(frozen=True)
@@ -174,11 +176,16 @@ def api_get(params):
     # are the normal bot path.
     response = requests.post(API_ENDPOINT, data={"format": "json", **params}, timeout=60)
     response.raise_for_status()
+    # A season is a few hundred of these calls; production's shared host
+    # answers 508 when pushed, so keep a small gap between them.
+    time.sleep(API_PAUSE_SECONDS)
     return response.json()
 
 
 def game_media_titles(season, fetch=cargo_fetch, api=api_get):
-    """The file-description pages behind a football season's games-list icons.
+    """The pages behind a football season page's media: the file-description
+    pages of the games-list icons and of the season's collectibles, and the
+    day pages the game rows link their dates to.
 
     Each game row tests for its media with #ifexist (ticket, poster) and with
     DPL galleries over categories (press, photos, programme); the season page
@@ -195,13 +202,18 @@ def game_media_titles(season, fetch=cargo_fetch, api=api_get):
     games = fetch("Football_Games", "_pageName,Date", f'Season="{season}"')
     pages = _clean(row["_pageName"] for row in games)
     dates = [row.get("Date", "") for row in games]
+    # One expansion for both: the media date, and the day page each game row
+    # links its date to ("25 בפברואר") - a red link locally without it.
     expanded = api({"action": "expandtemplates", "prop": "wikitext",
-                    "text": "\n".join(f'{{{{#time:d "ב"F Y|{date}}}}}' for date in dates)})
-    media_dates = expanded["expandtemplates"]["wikitext"].split("\n")
-    if len(media_dates) != len(pages):
-        raise ValueError(f"expected {len(pages)} media dates, got {len(media_dates)}")
+                    "text": "\n".join(f'{{{{#time:d "ב"F Y|{date}}}}}\n{{{{#time:j "ב"F|{date}}}}}'
+                                      for date in dates)})
+    lines = expanded["expandtemplates"]["wikitext"].split("\n")
+    media_dates, day_pages = lines[0::2], lines[1::2]
+    if len(media_dates) != len(pages) or len(day_pages) != len(pages):
+        raise ValueError(f"expected {len(pages)} dates, got {len(lines)} lines")
 
-    categories = []
+    # The season's own collectibles block lists this category's files.
+    categories = [f"קטגוריה:עונת {season}/תמונות"]
     for page, media_date in zip(pages, media_dates):
         categories += [f"קטגוריה:עיתונות למשחק מה-{media_date}",
                        f"קטגוריה:{page}/תמונות", f"קטגוריה:{page}/תוכניית משחק"]
@@ -229,6 +241,7 @@ def game_media_titles(season, fetch=cargo_fetch, api=api_get):
                     "ailimit": "50"})
         titles += ["קובץ:" + image["name"].replace("_", " ")
                    for image in data["query"]["allimages"]]
+    titles += day_pages
     return list(dict.fromkeys(titles))
 
 
