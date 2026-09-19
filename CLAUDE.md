@@ -54,6 +54,21 @@ League game pages render a nicknamed player's box-score name with a doubled apos
 
 ## 5. Workflows
 
+### Finishing a Session
+
+Every session runs in a named tmux session that outlives the conversation. After a crash the
+restore tooling reopens every session that does not say its work is done — including yours, with
+nothing left to do.
+
+**When the work is done, run `finish-session --why "<what was done, what is left>"` as your last
+act** — after you have told the user everything, because it closes your tab on the spot. The
+session itself keeps running for a day: still in `list-sessions`, still on the user's phone, and
+`new-oracle <name>` brings the tab back at the PC.
+
+Never run it at an ordinary handoff. A session marked finished while work remains is skipped by
+the next crash restore, silently, and the user loses the tab. There is no `unfinish` and none is
+needed — any later activity in the session clears the marker by itself.
+
 ### PR Workflow (all PRs)
 
 **Before creating any PR:**
