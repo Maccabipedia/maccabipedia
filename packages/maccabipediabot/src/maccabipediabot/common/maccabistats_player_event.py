@@ -31,6 +31,11 @@ maccabistats_sub_events_to_maccabipedia_events = {GoalTypes.OWN_GOAL.value: "ע�
                                                   GoalTypes.CHEST.value: "חזה",
                                                   }
 
+# A two-yellows sending-off: the wiki writes the same event type with a sub-type
+maccabistats_yellow_cards_order_to_maccabipedia_sub_events = {GameEventTypes.FIRST_YELLOW_CARD.value: "ראשון",
+                                                              GameEventTypes.SECOND_YELLOW_CARD.value: "שני",
+                                                              }
+
 SQUAD_RANK = {"הרכב": 0,
               "קפטן": 1,
               "ספסל": 2,
@@ -185,6 +190,12 @@ class PlayerEvent(object):
                                the sub type is just goal types atm, may be change in the future.
         :param maccabi_player: does this player is maccabi player
         """
+        if event_type.value in maccabistats_yellow_cards_order_to_maccabipedia_sub_events:
+            return PlayerEvent(name, number, time_occur,
+                               maccabistats_events_to_maccabipedia_events[GameEventTypes.YELLOW_CARD.value],
+                               maccabistats_yellow_cards_order_to_maccabipedia_sub_events[event_type.value],
+                               maccabi_player)
+
         event_type = PlayerEvent._translate_event_to_maccabipedia(event_type)
         sub_event_type = PlayerEvent._translate_sub_event_to_maccabipedia(sub_event_type) if sub_event_type else None
 
