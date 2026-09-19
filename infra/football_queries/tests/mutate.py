@@ -483,6 +483,67 @@ MUTATIONS = [
      "\t\t\t  filters = { ['מספר אירוע'] = '1,5' } },\n"
      "\t\t\t{ key = 'goals', title = 'שיאני כיבושים', noun = 'כובשים שונים',\n"
      "\t\t\t  filters = { ['מספר אירוע'] = '3', ['ללא תת אירוע'] = '33' } },"),
+    # The season-numbers blocks: every cell's filter, the tab list, and the
+    # renderer's handling of a block that declares no rows.
+    ('season numbers: wins count draws', BLOCKS,
+     "{ name = 'wins', grain = 'game', filters = { ['תוצאה'] = 'ניצחון' } },\n"
+     "\t\t\t{ name = 'draws', grain = 'game', filters = { ['תוצאה'] = 'תיקו' } },\n"
+     "\t\t\t{ name = 'losses', grain = 'game', filters = { ['תוצאה'] = 'הפסד' } },\n"
+     "\t\t\t{ name = 'goalsFor'",
+     "{ name = 'wins', grain = 'game', filters = { ['תוצאה'] = 'תיקו' } },\n"
+     "\t\t\t{ name = 'draws', grain = 'game', filters = { ['תוצאה'] = 'תיקו' } },\n"
+     "\t\t\t{ name = 'losses', grain = 'game', filters = { ['תוצאה'] = 'הפסד' } },\n"
+     "\t\t\t{ name = 'goalsFor'"),
+    ('season numbers: draws count losses', BLOCKS,
+     "{ name = 'draws', grain = 'game', filters = { ['תוצאה'] = 'תיקו' } },\n"
+     "\t\t\t{ name = 'losses', grain = 'game', filters = { ['תוצאה'] = 'הפסד' } },\n"
+     "\t\t\t{ name = 'goalsFor'",
+     "{ name = 'draws', grain = 'game', filters = { ['תוצאה'] = 'הפסד' } },\n"
+     "\t\t\t{ name = 'losses', grain = 'game', filters = { ['תוצאה'] = 'הפסד' } },\n"
+     "\t\t\t{ name = 'goalsFor'"),
+    ('season numbers: losses count wins', BLOCKS,
+     "{ name = 'losses', grain = 'game', filters = { ['תוצאה'] = 'הפסד' } },\n"
+     "\t\t\t{ name = 'goalsFor'",
+     "{ name = 'losses', grain = 'game', filters = { ['תוצאה'] = 'ניצחון' } },\n"
+     "\t\t\t{ name = 'goalsFor'"),
+    ('season numbers: goals for sum the goals against', BLOCKS,
+     "{ name = 'goalsFor', grain = 'game', sum = 'כיבושים', filters = {} },\n"
+     "\t\t\t{ name = 'goalsAgainst', grain = 'game', sum = 'ספיגות', filters = {} },\n"
+     "\t\t\t{ name = 'cleanSheets'",
+     "{ name = 'goalsFor', grain = 'game', sum = 'ספיגות', filters = {} },\n"
+     "\t\t\t{ name = 'goalsAgainst', grain = 'game', sum = 'ספיגות', filters = {} },\n"
+     "\t\t\t{ name = 'cleanSheets'"),
+    ('season numbers: goals against sum the goals for', BLOCKS,
+     "{ name = 'goalsAgainst', grain = 'game', sum = 'ספיגות', filters = {} },\n"
+     "\t\t\t{ name = 'cleanSheets'",
+     "{ name = 'goalsAgainst', grain = 'game', sum = 'כיבושים', filters = {} },\n"
+     "\t\t\t{ name = 'cleanSheets'"),
+    ('season numbers: a clean sheet lets in one', BLOCKS,
+     "{ name = 'cleanSheets', grain = 'game', filters = { ['תוצאה יריבה'] = '0' } },",
+     "{ name = 'cleanSheets', grain = 'game', filters = { ['תוצאה יריבה'] = '1' } },"),
+    ('season numbers: yellows count reds', BLOCKS,
+     "{ name = 'yellows', grain = 'event',\n\t\t\t  filters = { ['תת אירוע'] = '71', ['מכבי'] = 'כן' } },",
+     "{ name = 'yellows', grain = 'event',\n\t\t\t  filters = { ['תת אירוע'] = '72', ['מכבי'] = 'כן' } },"),
+    ('season numbers: yellows are the opponent\'s', BLOCKS,
+     "{ name = 'yellows', grain = 'event',\n\t\t\t  filters = { ['תת אירוע'] = '71', ['מכבי'] = 'כן' } },",
+     "{ name = 'yellows', grain = 'event',\n\t\t\t  filters = { ['תת אירוע'] = '71', ['מכבי'] = 'לא' } },"),
+    ('season numbers: reds lose the second-yellow red', BLOCKS,
+     "filters = { ['תת אירוע'] = '72, 73', ['מכבי'] = 'כן' } },",
+     "filters = { ['תת אירוע'] = '72', ['מכבי'] = 'כן' } },"),
+    ('season numbers: reds are the opponent\'s', BLOCKS,
+     "filters = { ['תת אירוע'] = '72, 73', ['מכבי'] = 'כן' } },",
+     "filters = { ['תת אירוע'] = '72, 73', ['מכבי'] = 'לא' } },"),
+    ('season numbers: the results block loses its international tab', BLOCKS,
+     "['season-results'] = {\n\t\tentity = 'עונה',\n"
+     "\t\ttabs = { 'רשמי', 'ליגה', 'גביע', 'בינלאומי' },",
+     "['season-results'] = {\n\t\tentity = 'עונה',\n"
+     "\t\ttabs = { 'רשמי', 'ליגה', 'גביע' },"),
+    ('prime stores nothing for a block without rows', RENDERER,
+     "block.rows and renderRows(block, tabCells) or PRIMED })",
+     "block.rows and renderRows(block, tabCells) or '' })"),
+    ('tab shows a rowless block\'s marker', RENDERER,
+     "\tif not declaration.rows then\n",
+     "\tif false then\n"),
     ('season assists title changes', BLOCKS,
      "{ key = 'assists', title = 'שיאני בישולים', noun = 'שחקנים שונים',\n"
      "\t\t\t  filters = { ['מספר אירוע'] = '4' } },\n"

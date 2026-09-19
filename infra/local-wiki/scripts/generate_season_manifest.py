@@ -20,6 +20,7 @@ one entry here (plus the README sports line).
 import argparse
 import html
 import sys
+import time
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -30,6 +31,7 @@ API_ENDPOINT = "https://www.maccabipedia.co.il/api.php"
 # maccabistats placeholder values that must not become page titles.
 SENTINELS = {"Cant found coach", "Cant found referee", "Cant found stadium", ""}
 LIMIT = 2000
+API_PAUSE_SECONDS = 0.3
 
 
 @dataclass(frozen=True)
@@ -174,7 +176,73 @@ def api_get(params):
     # are the normal bot path.
     response = requests.post(API_ENDPOINT, data={"format": "json", **params}, timeout=60)
     response.raise_for_status()
+    # A season is a few hundred of these calls; production's shared host
+    # answers 508 when pushed, so keep a small gap between them.
+    time.sleep(API_PAUSE_SECONDS)
     return response.json()
+
+
+def game_media_titles(season, fetch=cargo_fetch, api=api_get):
+    """The pages behind a football season page's media: the file-description
+    pages of the games-list icons and of the season's collectibles, and the
+    day pages the game rows link their dates to.
+
+    Each game row tests for its media with #ifexist (ticket, poster) and with
+    DPL galleries over categories (press, photos, programme); the season page
+    tests for the team photo. Both see only pages that exist LOCALLY - the
+    binaries then stream from the foreign repo - so without these pages every
+    such icon is silently absent locally and any before/after comparison of
+    them passes by comparing nothing.
+
+    Names are built exactly as the templates build them: the media date is
+    {{#time:d "ב"F Y|Date}}, expanded BY PRODUCTION rather than re-implemented
+    (Hebrew month forms), and the image checks try every extension, so they
+    are found by prefix.
+    """
+    games = fetch("Football_Games", "_pageName,Date", f'Season="{season}"')
+    pages = _clean(row["_pageName"] for row in games)
+    dates = [row.get("Date", "") for row in games]
+    # One expansion for both: the media date, and the day page each game row
+    # links its date to ("25 בפברואר") - a red link locally without it.
+    expanded = api({"action": "expandtemplates", "prop": "wikitext",
+                    "text": "\n".join(f'{{{{#time:d "ב"F Y|{date}}}}}\n{{{{#time:j "ב"F|{date}}}}}'
+                                      for date in dates)})
+    lines = expanded["expandtemplates"]["wikitext"].split("\n")
+    media_dates, day_pages = lines[0::2], lines[1::2]
+    if len(media_dates) != len(pages) or len(day_pages) != len(pages):
+        raise ValueError(f"expected {len(pages)} dates, got {len(lines)} lines")
+
+    # The season's own collectibles block lists this category's files.
+    categories = [f"קטגוריה:עונת {season}/תמונות"]
+    for page, media_date in zip(pages, media_dates):
+        categories += [f"קטגוריה:עיתונות למשחק מה-{media_date}",
+                       f"קטגוריה:{page}/תמונות", f"קטגוריה:{page}/תוכניית משחק"]
+    titles = []
+    for start in range(0, len(categories), 50):
+        info = api({"action": "query", "prop": "categoryinfo",
+                    "titles": "|".join(categories[start:start + 50])})
+        for category in info.get("query", {}).get("pages", {}).values():
+            if not category.get("categoryinfo", {}).get("size"):
+                continue
+            params = {"action": "query", "list": "categorymembers",
+                      "cmtitle": category["title"], "cmlimit": "max"}
+            while True:
+                data = api(params)
+                titles += [member["title"] for member in data["query"]["categorymembers"]]
+                if "continue" not in data:
+                    break
+                params = {**params, **data["continue"]}
+
+    prefixes = [f"{kind} {media_date}" for media_date in media_dates
+                for kind in ("כרטיס משחק", "כרזת משחק")]
+    prefixes.append("תמונה קבוצתית " + season.replace("/", "-"))
+    for prefix in prefixes:
+        data = api({"action": "query", "list": "allimages", "aiprefix": prefix,
+                    "ailimit": "50"})
+        titles += ["קובץ:" + image["name"].replace("_", " ")
+                   for image in data["query"]["allimages"]]
+    titles += day_pages
+    return list(dict.fromkeys(titles))
 
 
 def expand_with_redirects(titles, api=api_get):
@@ -219,7 +287,10 @@ def main():
     parser.add_argument("season", help='season as on the wiki, e.g. "2024/25"')
     args = parser.parse_args()
 
-    titles = expand_with_redirects(collect_season_titles(args.sport, args.season))
+    titles = collect_season_titles(args.sport, args.season)
+    if args.sport == "football":
+        titles += game_media_titles(args.season)
+    titles = expand_with_redirects(list(dict.fromkeys(titles)))
     stem = f"season-{args.sport}-" + args.season.replace("/", "-")
     out_path = Path(__file__).parent / "content-manifests" / f"{stem}.manifest"
     header = (

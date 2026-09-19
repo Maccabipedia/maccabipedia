@@ -44,6 +44,10 @@ class PopulateLocalCargoData extends Maintenance {
 		// Manual escape hatch: re-store a single page (debugging, or after a
 		// page failed all its retries in a parallel run).
 		$this->addOption( 'title', 'Re-store only this page', false, true );
+		// Where to list the titles that failed every retry, one per line, so
+		// the caller can re-store just those - recreate-cargo-tables.sh does,
+		// with foreign images back on.
+		$this->addOption( 'failed-to', 'Append failed page titles to this file', false, true );
 	}
 
 	public function execute() {
@@ -150,8 +154,14 @@ class PopulateLocalCargoData extends Maintenance {
 					}
 					if ( $attempts >= 5 ) {
 						$failed++;
+						// The trace, not only the message: "Call to a member function
+						// getSha1() on bool" says nothing about which code made the call.
 						$this->output( "$label [$processed/$total] $prefixedTitle — ERROR after $attempts attempts: "
-							. $exception->getMessage() . "\n" );
+							. $exception->getMessage() . "\n" . $exception->getTraceAsString() . "\n" );
+						if ( $this->hasOption( 'failed-to' ) ) {
+							file_put_contents( $this->getOption( 'failed-to' ),
+								$prefixedTitle . "\n", FILE_APPEND | LOCK_EX );
+						}
 						break;
 					}
 					// Jitter so two workers that just collided on the same
