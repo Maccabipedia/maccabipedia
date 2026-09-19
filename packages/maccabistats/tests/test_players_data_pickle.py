@@ -184,3 +184,28 @@ def test_players_data_required_for_player_stats():
     games = [_make_game(datetime(2024, 9, 1))]
     with pytest.raises(TypeError):
         MaccabiGamesStats(games)
+
+
+# --- goalkeepers ---
+
+
+def test_goalkeepers_from_profiles_and_recent_games(monkeypatch):
+    """Maccabi keepers come from their profile, others from the games they kept goal in; one-word names are dropped."""
+    crawled_rows = {
+        "Profiles": [{"_pageName": "בוני גינצבורג", "MainPosition": 1},
+                     {"_pageName": "ערן זהבי", "MainPosition": 4}],
+        "Games_Events": [{"_pageName": "משחק", "PlayerName": "דניאל טננבאום"},
+                         {"_pageName": "משחק", "PlayerName": "גינצבורג"}],
+    }
+    monkeypatch.setattr("maccabistats.maccabipedia.players.MaccabiPediaCargoChunksCrawler",
+                        lambda tables_name, **kwargs: iter(crawled_rows[tables_name]))
+
+    assert MaccabiPediaPlayers().goalkeepers == frozenset({"בוני גינצבורג", "דניאל טננבאום"})
+
+
+def test_pickle_saved_before_goalkeepers_loads_with_none():
+    players = _make_players_instance()
+
+    restored = pickle.loads(pickle.dumps(players))
+
+    assert restored.goalkeepers == frozenset()

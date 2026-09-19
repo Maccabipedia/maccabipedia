@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import logging
 from collections import defaultdict
 from datetime import timedelta
-from typing import Optional
+from typing import AbstractSet, List, Optional
 
 from maccabistats.models.player_game_events import GameEventTypes, GoalTypes
+
+logger = logging.getLogger(__name__)
 
 maccabistats_events_to_maccabipedia_events = {GameEventTypes.LINE_UP.value: "הרכב",
                                               GameEventTypes.BENCHED.value: "ספסל",
@@ -231,3 +234,19 @@ class PlayerEvent(object):
             game_part = properties[5]
 
         return PlayerEvent(name, number, minute_occur, event_type_name, sub_event_type_name, team, game_part)
+
+
+def mark_goalkeepers(events: List[PlayerEvent], goalkeepers: AbstractSet[str]) -> None:
+    """
+    Write the line-up and bench events of known goalkeepers as הרכב-שוער / ספסל-שוער.
+    The club site doesn't say who the goalkeepers are; maccabistats' players data does (MaccabiPediaPlayers.goalkeepers).
+    """
+    line_up = maccabistats_events_to_maccabipedia_events[GameEventTypes.LINE_UP.value]
+    benched = maccabistats_events_to_maccabipedia_events[GameEventTypes.BENCHED.value]
+    for event in events:
+        if event.event_type in (line_up, benched) and event.sub_event_type is None and event.name in goalkeepers:
+            event.sub_event_type = "שוער"
+
+    for team in ("מכבי", "יריבה"):
+        if not any(event.team == team and event.event_type == line_up and event.sub_event_type == "שוער" for event in events):
+            logger.warning(f"No known goalkeeper in the {team} line-up, mark it by hand")

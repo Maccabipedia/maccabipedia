@@ -113,3 +113,31 @@ def test_first_and_second_yellow_are_yellow_card_sub_types():
 
     assert first_yellow.__maccabipedia__().strip() == "ערן זהבי::7::כרטיס צהוב-ראשון::39::מכבי"
     assert second_yellow.__maccabipedia__().strip() == "ערן זהבי::7::כרטיס צהוב-שני::45::מכבי"
+
+
+def test_known_goalkeepers_are_marked_in_line_up_and_bench():
+    from maccabipediabot.common.maccabistats_player_event import mark_goalkeepers
+
+    events = [PlayerEvent.from_maccabipedia_format("בוני גינצבורג::1::הרכב::0::מכבי"),
+              PlayerEvent.from_maccabipedia_format("אבי נמני::10::הרכב::0::מכבי"),
+              PlayerEvent.from_maccabipedia_format("דניאל טננבאום::19::ספסל::0::מכבי"),
+              PlayerEvent.from_maccabipedia_format("בוני גינצבורג::1::כרטיס צהוב::30::מכבי")]
+
+    mark_goalkeepers(events, frozenset({"בוני גינצבורג", "דניאל טננבאום"}))
+
+    assert [event.__maccabipedia__().strip() for event in events] == [
+        "בוני גינצבורג::1::הרכב-שוער::0::מכבי",
+        "אבי נמני::10::הרכב::0::מכבי",
+        "דניאל טננבאום::19::ספסל-שוער::0::מכבי",
+        "בוני גינצבורג::1::כרטיס צהוב::30::מכבי",
+    ]
+
+
+def test_line_up_without_a_known_goalkeeper_is_logged(caplog):
+    from maccabipediabot.common.maccabistats_player_event import mark_goalkeepers
+
+    events = [PlayerEvent.from_maccabipedia_format("אבי נמני::10::הרכב::0::מכבי")]
+
+    mark_goalkeepers(events, frozenset({"בוני גינצבורג"}))
+
+    assert "No known goalkeeper in the מכבי line-up" in caplog.text

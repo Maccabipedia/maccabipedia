@@ -318,6 +318,12 @@ If a game page comes out wrong (names, stadiums, competitions, events), fix it i
 
 The CI flow is fetch (`fetch_games_from_maccabi_tlv_site`: crawl → general fixes → specific fixes → serialize), then upload (loads the saved data). So anything the bot needs has to be in the saved data.
 
+### Players data (`maccabipedia/players.py` → `MaccabiGamesStats.players_data`)
+`MaccabiPediaPlayers` is crawled from MaccabiPedia's Cargo whenever a source is parsed, and pickled with the games, so it's available offline wherever the games are:
+- `players_dates` and `home_players`: from `Profiles` (DoB, HomePlayer).
+- `goalkeepers`: `Profiles.MainPosition == 1` (Maccabi players, including debuts), plus anyone with a `Games_Events` 111/211 row in the last 10 years, skipping one-word names. The game uploader marks `הרכב-שוער`/`ספסל-שוער` from it.
+Anything the uploader needs from the wiki itself belongs here rather than in a new query at upload time.
+
 ### Game Upload Flow
 1. Load games via `get_maccabi_stats_as_newest_wrapper()` or `load_from_maccabipedia_source()`
 2. Iterate `GameData` objects, extract metadata and player events

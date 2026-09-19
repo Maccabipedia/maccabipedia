@@ -1,7 +1,7 @@
 from collections import defaultdict
 from dataclasses import dataclass
-from datetime import datetime
-from typing import Dict
+from datetime import datetime, timedelta
+from typing import Dict, FrozenSet
 
 from dateutil.parser import parse as datetime_parser
 
@@ -13,11 +13,22 @@ class MaccabiPediaPlayerData(object):
     name: str
     birth_date: datetime
     is_home_player: bool
+    is_goalkeeper: bool = False
+
+
+# Profiles.MainPosition, see the wiki's Players_Positions table
+_GOALKEEPER_POSITION = 1
+# Games_Events.SubType of "הרכב-שוער" and "ספסל-שוער"
+_GOALKEEPER_SUB_EVENT_CODES = "111,211"
+# Old games list many players by one name (לוי, מזרחי), which would match outfield players today
+_RECENT_GOALKEEPERS_YEARS = 10
 
 
 class MaccabiPediaPlayers(object):
     missing_birth_date_value = datetime_parser("1000")
     _instance = None
+    # Pickles saved before goalkeepers were crawled load with none
+    goalkeepers: FrozenSet[str] = frozenset()
 
     @classmethod
     def default_birth_day_value(cls, *args, **kwargs):
@@ -32,12 +43,26 @@ class MaccabiPediaPlayers(object):
                                           self._players_data.items()})
         self.home_players = {player_data.name for player_data in self._players_data.values() if
                              player_data.is_home_player}
+        # Maccabi goalkeepers by their profile (so a debut is known too), opponents by the games they kept goal in
+        self.goalkeepers = frozenset(
+            {player_data.name for player_data in self._players_data.values() if player_data.is_goalkeeper}
+            | self._crawl_recent_goalkeepers())
+
+    @staticmethod
+    def _crawl_recent_goalkeepers() -> FrozenSet[str]:
+        since = (datetime.now() - timedelta(days=365 * _RECENT_GOALKEEPERS_YEARS)).strftime("%Y-%m-%d")
+        goalkeepers_events = MaccabiPediaCargoChunksCrawler(
+            tables_name="Games_Events",
+            tables_fields="Games_Events._pageName, Games_Events.PlayerName",
+            where_condition=f"Games_Events.SubType IN ({_GOALKEEPER_SUB_EVENT_CODES}) AND Games_Events.Date >= '{since}'")
+
+        return frozenset(event["PlayerName"] for event in goalkeepers_events if " " in event["PlayerName"].strip())
 
     @staticmethod
     def _crawl_players_data() -> Dict[str, MaccabiPediaPlayerData]:
         players_data_iterator = MaccabiPediaCargoChunksCrawler(
             tables_name="Profiles",
-            tables_fields="Profiles._pageName, Profiles.DoB, Profiles.HomePlayer")
+            tables_fields="Profiles._pageName, Profiles.DoB, Profiles.HomePlayer, Profiles.MainPosition")
 
         players_data = dict()
         for player_raw_data in players_data_iterator:
@@ -49,8 +74,11 @@ class MaccabiPediaPlayers(object):
             # We have players and coaches in the same table today, for coaches we don't set HomePlayer:
             is_home_player = bool(player_raw_data.get('HomePlayer', False))  # Should be 0 or 1
 
+            is_goalkeeper = player_raw_data.get('MainPosition') == _GOALKEEPER_POSITION
+
             players_data[player_name] = MaccabiPediaPlayerData(name=player_name, birth_date=birth_date,
-                                                               is_home_player=is_home_player)
+                                                               is_home_player=is_home_player,
+                                                               is_goalkeeper=is_goalkeeper)
 
         return players_data
 
