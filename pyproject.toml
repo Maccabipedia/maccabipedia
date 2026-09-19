@@ -11,11 +11,12 @@ testpaths = [
     "packages/maccabistats/tests",
     "infra/local-wiki/tests",
     "infra/perf/tests",
+    "infra/season_pages/tests",
     "tests",
 ]
 # Make `conftest.py` importable from sibling test files (no __init__.py per
 # project convention, so `from conftest import …` would otherwise fail).
-pythonpath = ["infra/local-wiki/tests", "infra/local-wiki/scripts", "infra/perf"]
+pythonpath = ["infra/local-wiki/tests", "infra/local-wiki/scripts", "infra/perf", "infra/season_pages"]
 addopts = "-m 'not integration'"
 markers = [
     "integration: tests that hit the live MaccabiPedia API (deselected by default)",
