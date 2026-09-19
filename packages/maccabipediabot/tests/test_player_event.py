@@ -107,9 +107,9 @@ def test_first_and_second_yellow_are_yellow_card_sub_types():
     from maccabistats.models.player_game_events import GameEventTypes
 
     first_yellow = PlayerEvent.from_maccabistats_event_type(
-        "סתיו טוריאל", 11, timedelta(minutes=39), GameEventTypes.FIRST_YELLOW_CARD, None, maccabi_player=False)
+        "ערן זהבי", 7, timedelta(minutes=39), GameEventTypes.FIRST_YELLOW_CARD, None, maccabi_player=True)
     second_yellow = PlayerEvent.from_maccabistats_event_type(
-        "סתיו טוריאל", 11, timedelta(minutes=45), GameEventTypes.SECOND_YELLOW_CARD, None, maccabi_player=False)
+        "ערן זהבי", 7, timedelta(minutes=45), GameEventTypes.SECOND_YELLOW_CARD, None, maccabi_player=True)
 
-    assert first_yellow.__maccabipedia__().strip() == "סתיו טוריאל::11::כרטיס צהוב-ראשון::39::יריבה"
-    assert second_yellow.__maccabipedia__().strip() == "סתיו טוריאל::11::כרטיס צהוב-שני::45::יריבה"
+    assert first_yellow.__maccabipedia__().strip() == "ערן זהבי::7::כרטיס צהוב-ראשון::39::מכבי"
+    assert second_yellow.__maccabipedia__().strip() == "ערן זהבי::7::כרטיס צהוב-שני::45::מכבי"

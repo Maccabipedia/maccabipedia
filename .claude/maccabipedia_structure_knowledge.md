@@ -167,14 +167,18 @@ Each event is one pipe-separated entry in the `|אירועי שחקנים=` para
 
 **Valid event types:**
 
-| Category | Valid values |
-|----------|-------------|
-| Goals | `גול-רגל`, `גול-פנדל`, `גול-נגיחה` |
-| Assists | `בישול-קלאסי`, `בישול-קרן`, `בישול-בעיטה חופשית`, `בישול-סחיטת פנדל`, `בישול-נגיחה` |
-| Lineup | `הרכב`, `הרכב-שוער`, `ספסל`, `ספסל-שוער` |
-| Substitutions | `מחליף`, `מוחלף` |
-| Cards | `כרטיס צהוב`, `כרטיס צהוב-ראשון`, `כרטיס צהוב-שני`, `כרטיס אדום` |
-| Other | `קפטן` |
+| Category | Valid values | Cargo `Games_Events` EventType / SubType |
+|----------|-------------|------------------------------------------|
+| Goals | `גול-רגל`, `גול-פנדל`, `גול-נגיחה` | 3 / 31 רגל, 35 פנדל, 32 נגיחה |
+| Assists | `בישול-קלאסי`, `בישול-קרן`, `בישול-בעיטה חופשית`, `בישול-סחיטת פנדל`, `בישול-נגיחה` | 4 / 41, 43, 42, 44, 47 |
+| Lineup | `הרכב`, `הרכב-שוער`, `ספסל`, `ספסל-שוער` | 1 / –, 111 · 2 / –, 211 |
+| Substitutions | `מחליף`, `מוחלף` | 5, 6 |
+| Cards | `כרטיס צהוב`, `כרטיס צהוב-ראשון`, `כרטיס צהוב-שני`, `כרטיס אדום` | 7 / 71, 74, 72, 73 |
+| Other | `קפטן` | 9 |
+
+Names come from the wiki's `Games_Events_Mapping` / `Games_Sub_Events_Mapping` tables. Watch out: the mapping names 71 "כרטיס צהוב ראשון", but 71 is the plain `כרטיס צהוב`, and `כרטיס צהוב-ראשון` is 74. maccabistats' `parse/maccabipedia/maccabipedia_parser.py` maps them to `YELLOW_CARD` / `FIRST_YELLOW_CARD` / `SECOND_YELLOW_CARD` / `RED_CARD`. The full subtype matrix is in `.claude/football_queries.md`.
+
+**Two-yellows sending-off:** written as `כרטיס צהוב-ראשון` + `כרטיס צהוב-שני`, with **no** separate `כרטיס אדום`. The club site shows it as one `yellow-red.png` icon on the squad page plus a `secondyellow` event on the events page (which lists events **newest first**); its parser maps both to `FIRST/SECOND_YELLOW_CARD`.
 
 **Common invalid/legacy types and their correct replacements:**
 
@@ -208,12 +212,6 @@ Each event is one pipe-separated entry in the `|אירועי שחקנים=` para
 
 **The single-colon trap:**  
 A single `:` before the minute (e.g. `גול-נגיחה:67`) instead of `::` (e.g. `גול-נגיחה::67`) causes the template to tag the page as having illegal events, even though the type name is valid. Always use `::` between every field.
-
-**Two-yellows sending-off:** written as `כרטיס צהוב-ראשון` + `כרטיס צהוב-שני`, with **no** separate `כרטיס אדום`. The club site shows it as one `yellow-red.png` icon on the squad page plus a `secondyellow` event on the events page, which lists events **newest first**; the club-site parser maps both to `FIRST/SECOND_YELLOW_CARD`.
-
-**Event codes:** Cargo code → maccabistats event type lives in `parse/maccabipedia/maccabipedia_parser.py`; the full event/subtype matrix is in `.claude/football_queries.md`.
-
-**Where to fix club-site data:** maccabistats, not the bot. `parse/name_normalization.py` runs on every name, `parse/general_fixes.py` has the stadium, referee, competition and player-name maps, and `parse/maccabi_tlv_site/` handles event parsing.
 
 **Tracking category:** Pages with bad events are added to the `משחקים המכילים אירוע לא תקין` tracking category (populated by the `הזנת אירועי משחק` template's `#ברירת מחדל` branch for unknown main event types).
 

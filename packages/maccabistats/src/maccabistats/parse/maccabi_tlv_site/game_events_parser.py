@@ -114,7 +114,10 @@ class MaccabiSiteGameEventsParser(object):
                                    # <=: the site writes stoppage time as 45/90, so both cards can share a minute
                                    if event.time_occur <= second_yellow.time_occur]
                 if earlier_yellows:
-                    min(earlier_yellows, key=lambda event: event.time_occur).event_type = GameEventTypes.FIRST_YELLOW_CARD
+                    first_yellow = min(earlier_yellows, key=lambda event: event.time_occur)
+                    first_yellow.event_type = GameEventTypes.FIRST_YELLOW_CARD
+                    logger.info("Changed yellow card to first yellow card for player: {player}, {event}"
+                                .format(player=player.name, event=first_yellow))
 
     def __find_one_player_with_name(self, player_name):
         """ Finds player by his name, validate that only 1 player have been found
@@ -244,7 +247,7 @@ class MaccabiSiteGameEventsParser(object):
         :rtype: str, GoalGameEvent
         """
 
-        player_name = event_text.replace("שער של", "").strip()
+        player_name = normalize_name(event_text.replace("שער של", ""))
         goal_type = GoalTypes.UNKNOWN
 
         if "(פנדל)" in player_name:
@@ -284,8 +287,7 @@ class MaccabiSiteGameEventsParser(object):
                 logger.info("Added goal event for player: {player}".format(player=player.name))
             except FoundNoMatchingPlayersByNameException:
                 logger.info("Adding event to half parsed event:{event}, for name:{name}".format(event=goal_event, name=player_name))
-                # Normalized like the squads' names, which fix_specific_games matches it against
-                self.halfed_parsed_events.append(dict(name=normalize_name(player_name), **goal_event.__dict__))
+                self.halfed_parsed_events.append(dict(name=player_name, **goal_event.__dict__))
 
     def __handle_yellow_card_event(self, event_text, event_time_in_minute):
         player_name = event_text.replace("כרטיס צהוב ל", "").strip()
@@ -303,9 +305,10 @@ class MaccabiSiteGameEventsParser(object):
         player_name = event_text.replace("כרטיס אדום ל", "").strip()
         player = self.__find_one_player_with_name(player_name)
 
-        # The squad page's yellow-red icon already recorded this sending-off as a second yellow
+        # Not seen in 2025/26-2026/27 (a second yellow comes as `secondyellow` only), so warn if the site starts doing it
         if GameEvent(GameEventTypes.SECOND_YELLOW_CARD, event_time_in_minute) in player.events:
-            logger.info("Red card is the second yellow for player: {player}".format(player=player.name))
+            logger.warning("Found a red card at the minute of a second yellow for player: {player}, "
+                           "treating it as the same sending-off. Game link: {link}".format(player=player.name, link=self.game_link))
             return
 
         red_card_event = GameEvent(GameEventTypes.RED_CARD, event_time_in_minute)
