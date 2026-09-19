@@ -246,6 +246,7 @@ def mark_goalkeepers(events: List[PlayerEvent], goalkeepers: AbstractSet[str]) -
     for event in events:
         if event.event_type in (line_up, benched) and event.sub_event_type is None and event.name in goalkeepers:
             event.sub_event_type = "שוער"
+            logger.info(f"Marked {event.name} ({event.team}) as goalkeeper: {event.event_type}-{event.sub_event_type}")
 
     for team in ("מכבי", "יריבה"):
         if not any(event.team == team and event.event_type == line_up and event.sub_event_type == "שוער" for event in events):
