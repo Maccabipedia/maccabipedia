@@ -231,8 +231,29 @@ version bump plus `deploy-skin`.
    the referee spec: production and local numbers are never assumed to
    transfer 1:1).
 
+   **Production, whole page** (measured 2026-09-19, supersedes the local
+   whole-page paragraph below for any statement about what readers pay): a
+   cold `action=parse&text=` of עונת 2024/25's real wikitext on production
+   takes **4.24 s walltime, 2.62 s CPU** - not ~10 s; that figure was local
+   Docker. MediaWiki's own transclusion timing profile splits it into
+   roughly four equal blocks plus one double one: games list 1.49 s (of
+   which **0.81 s** is 165 galleries rendered only to test whether a
+   match-programme / press / photos icon should appear - see below),
+   seasonal numbers 0.75 s, squad 0.72 s, and this section 0.71 s (OLD,
+   measured alone on production: parser walltime 714 ms, 21 expensive
+   functions). So on production this conversion is worth ~0.35 s of a 4.2 s
+   cold parse, about 8%. NEW has not been measured on production - the
+   modules are not published yet.
+
+   The galleries: `כדורגל/רשימת משחקים/הצגת משחק` (transcluded by 97
+   pages, all season pages) calls `הצגת גלריה לפי קטגוריה` three times per
+   game, each wrapped in `{{#תנאי: … | <icon> }}`. That template is a
+   `{{#dpl: category=…}}` emitting a whole `<gallery mode="packed">`; the
+   `#תנאי` only checks it is non-empty and discards the HTML. The largest
+   single saving on the page, and out of scope here.
+
    **The section number in the context of the whole page** (measured
-   2026-09-18, asked for directly - checked rather than assumed): rendering
+   2026-09-18, local, asked for directly - checked rather than assumed): rendering
    the REAL `{{עונת כדורגל}}` fresh (not `page=` + purge, which looked
    accepted but still returned a suspiciously-cached 49ms - `text=` never
    touches ParserCache, so this is the trustworthy number) costs **p50 10.3s,
