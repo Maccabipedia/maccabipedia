@@ -5,27 +5,27 @@ Follow CLAUDE.md throughout (scripts in files run with `uv run`, no inline pytho
 heredocs).
 
 You run HEADLESS: nobody can approve a prompt, and a question gets no answer.
-- Every file you create goes in `.cache/rc_review/` (gitignored). That OVERRIDES
+- Every file you create goes in `.cache/recent_changes_review/` (gitignored). That OVERRIDES
   CLAUDE.md's `.claude/tmp/` convention: writes under `.claude/` are refused here.
 - One command per Bash call. No `&&`, `|`, `;` or redirection — put logic in a script.
 - MACCABIPEDIA_UA_SCRIPT is already in your environment. Read it with os.environ inside
   the script; do not inspect it from the shell.
 - Stay inside this repo and the wiki API. Do not read other worktrees, `/mnt/`, Google
   Drive or source-data folders; if the cause lives outside the repo, say where and stop.
-- Scripts already in `.cache/rc_review/` from earlier runs are yours to reuse. Run them
+- Scripts already in `.cache/recent_changes_review/` from earlier runs are yours to reuse. Run them
   before writing new ones; rewrite one only if it fails.
 - If a tool call is refused, do not retry variants or probe the permission system. Do it
   another allowed way once; if that fails too, skip that step and say so in the report.
 
-1. WINDOW. Read .cache/rc_review/state.json for `last_run_utc`. Missing → look
+1. WINDOW. Read .cache/recent_changes_review/state.json for `last_run_utc`. Missing → look
    back 7 days. Review from that instant to now.
 
-2. FETCH. Write a script in .cache/rc_review/ that pages
+2. FETCH. Write a script in .cache/recent_changes_review/ that pages
    https://www.maccabipedia.co.il/api.php?action=query&list=recentchanges
    (rcprop=title|user|timestamp|comment|sizes|tags|ids|loginfo, rclimit=500, follow
    `rccontinue` until the window is covered), sends the MACCABIPEDIA_UA_SCRIPT user agent,
    checks status 200 and a JSON content type before parsing, saves the full JSON to
-   .cache/rc_review/, and prints only counts: by user, by namespace, by title prefix, by
+   .cache/recent_changes_review/, and prints only counts: by user, by namespace, by title prefix, by
    comment (first 60 chars), by tag.
    The `bot` flag is useless here: MaccabiBot is not bot-flagged. Classify by username.
    Automated = `MaccabiBot`, `MaccabipediaSpecialAgent` (our upload scripts: basketball
@@ -91,7 +91,7 @@ You run HEADLESS: nobody can approve a prompt, and a question gets no answer.
    Use Grep on .claude/maccabipedia_structure_knowledge.md for template and Cargo facts;
    never read it whole.
 
-5. REPORT. Write .cache/rc_review/review_<YYYY-MM-DD>.md. Open with "Live data issues"
+5. REPORT. Write .cache/recent_changes_review/review_<YYYY-MM-DD>.md. Open with "Live data issues"
    (page, revision ids, what is wrong now, the one-line fix) or "none". Then "Suggestions",
    then "Leads" (two lines each). Per suggestion:
    - Title: the change to make, as an imperative
@@ -105,10 +105,10 @@ You run HEADLESS: nobody can approve a prompt, and a question gets no answer.
 
 6. FILE. THIS IS A DRY RUN: do NOT create, move or comment on any Trello card. Trello is
    read-only for this run. Instead, end the report with a "Cards I would file" section:
-   the title `[RC review] <title>` for each.
+   the title `[Recent changes] <title>` for each.
 
 7. STATE. Only after the report is written, set `last_run_utc` in
-   .cache/rc_review/state.json to the timestamp of the NEWEST change you
+   .cache/recent_changes_review/state.json to the timestamp of the NEWEST change you
    fetched, not the wall clock.
 
 8. FINAL MESSAGE, at most 6 lines: any live data issue FIRST, then window covered, number of changes read, number of

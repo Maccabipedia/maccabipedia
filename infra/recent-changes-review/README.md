@@ -6,21 +6,21 @@ edit, reverted bot edits) and facts humans type by hand that our data already ho
 
 - `prompt.md` — the whole brief. **Edit this file to change what the agent does.** When a
   suggestion is rejected, add the reason to its `MANUAL ON PURPOSE` list so it never returns.
-- `run.sh` — runs the prompt from the repo root; result JSON lands in `.cache/rc_review/`.
-- `maccabipedia-rc-review.{service,timer}` — systemd user units.
+- `run.sh` — runs the prompt from the repo root; result JSON lands in `.cache/recent_changes_review/`.
+- `maccabipedia-recent-changes-review.{service,timer}` — systemd user units.
 
 ## Install
 
 ```
-cp infra/rc-review/maccabipedia-rc-review.service infra/rc-review/maccabipedia-rc-review.timer ~/.config/systemd/user/
+cp infra/recent-changes-review/maccabipedia-recent-changes-review.service infra/recent-changes-review/maccabipedia-recent-changes-review.timer ~/.config/systemd/user/
 systemctl --user daemon-reload
-systemctl --user enable --now maccabipedia-rc-review.timer
+systemctl --user enable --now maccabipedia-recent-changes-review.timer
 ```
 
-Run once by hand: `systemctl --user start maccabipedia-rc-review.service` (about 10 minutes,
-$3–4). Replay a window: delete `.cache/rc_review/state.json` (default look-back is 7 days).
+Run once by hand: `systemctl --user start maccabipedia-recent-changes-review.service` (about 10 minutes,
+$3–4). Replay a window: delete `.cache/recent_changes_review/state.json` (default look-back is 7 days).
 
-## Why `.cache/rc_review/` and not `.claude/tmp/`
+## Why `.cache/recent_changes_review/` and not `.claude/tmp/`
 
 Headless `claude -p` refuses every write under `.claude/`, even with `acceptEdits` and an
 `Edit(.claude/tmp/**)` allow rule (probed 2026-09-19; the first run spent $0.51 on 12 denied
