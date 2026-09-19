@@ -34,6 +34,20 @@ local function equals(actual, expected, what)
 	end
 end
 
+local function contains(text, piece, what)
+	if not tostring(text):find(piece, 1, true) then
+		error(string.format('%s\n        missing: %s\n        in:      %s',
+			what or 'not found', piece, tostring(text)), 0)
+	end
+end
+
+local function lacks(text, piece, what)
+	if tostring(text):find(piece, 1, true) then
+		error(string.format('%s\n        unexpected: %s\n        in: %s',
+			what or 'found', piece, tostring(text)), 0)
+	end
+end
+
 local function row(label, stat)
 	return '<div class="Top10Row"><div class="Top10RowName">' .. label
 		.. '</div><span class="Top10RowStat">' .. stat .. '</span></div>'
@@ -752,6 +766,114 @@ check('render refuses a caller passing a filter the block fixes', function(Block
 	if not tostring(message):find('cannot be passed in', 1, true) then
 		error('wrong error: ' .. tostring(message), 0)
 	end
+end)
+
+-- ------------------------------------------------------- season numbers
+-- תבנית:עונת כדורגל/הצגת מספרים עונתיים primes two blocks - games and cards,
+-- which cannot share a query - and each tab reads its eight numbers with value.
+
+local SEASON_RESULTS = { 'wins', 'draws', 'losses', 'goalsFor', 'goalsAgainst',
+                         'cleanSheets' }
+
+--- One row for a block's cells across the four tabs, c1..cN in prime's order.
+local function seasonRow(names, per)
+	local row, index = {}, 0
+	for _ = 1, 4 do
+		for _, name in ipairs(names) do
+			index = index + 1
+			row['c' .. index] = per[name] and tostring(per[name]) or nil
+		end
+	end
+	return row
+end
+
+local function primeSeason(Blocks, block, row)
+	stub.willReturn({ row })
+	Blocks.prime(stub.newFrame({ ['עונה'] = '2023/24' }, { ['בלוק'] = block }))
+end
+
+local function seasonValue(Blocks, block, tab, cell)
+	return Blocks.value(stub.newFrameKeepingVariables({}, {
+		['בלוק'] = block, ['תא'] = cell, ['קטגוריית מפעל'] = tab,
+		['עונה'] = '2023/24' }))
+end
+
+check('season results: one query for 24 numbers, filtered to the season', function(Blocks)
+	primeSeason(Blocks, 'season-results', seasonRow(SEASON_RESULTS,
+		{ wins = 34, draws = 9, losses = 12, goalsFor = 119, goalsAgainst = 61,
+		  cleanSheets = 14 }))
+	equals(#stub.calls, 1, 'one query')
+	contains(stub.calls[1].options.where, 'Football_Games.Season = "2023/24"',
+		'the season the container passes')
+	contains(stub.calls[1].tables, 'Football_Games', 'the games table is queried')
+	lacks(stub.calls[1].tables, 'Games_Events',
+		'goals are summed, so the events table must not be joined')
+	equals(seasonValue(Blocks, 'season-results', 'רשמי', 'wins'), '34', 'wins')
+	equals(seasonValue(Blocks, 'season-results', 'רשמי', 'cleanSheets'), '14',
+		'clean sheets')
+	equals(seasonValue(Blocks, 'season-results', 'בינלאומי', 'goalsAgainst'), '61',
+		'the fourth tab is read too')
+end)
+
+--- The SQL of each prime cell by alias: c1 = the first cell of the first tab.
+local function fieldsByAlias(fields)
+	local byAlias = {}
+	for field, alias in (fields .. ','):gmatch('(.-%)=(c%d+)),') do
+		byAlias[alias] = field
+	end
+	return byAlias
+end
+
+check('season results: each cell counts what its template counted', function(Blocks)
+	-- The stub answers by position, whatever the SQL says, so each cell's own
+	-- condition is asserted - "ResultOpt appears somewhere" would let wins
+	-- quietly count draws.
+	primeSeason(Blocks, 'season-results', seasonRow(SEASON_RESULTS, {}))
+	local cell = fieldsByAlias(stub.calls[1].fields)
+	contains(cell.c1, 'Football_Games.ResultOpt = 1 THEN', 'wins')
+	contains(cell.c2, 'Football_Games.ResultOpt = 2 THEN', 'draws')
+	contains(cell.c3, 'Football_Games.ResultOpt = 3 THEN', 'losses')
+	contains(cell.c4, 'THEN Football_Games.ResultMaccabi ELSE NULL', 'goals for: a sum')
+	contains(cell.c5, 'THEN Football_Games.ResultOpponent ELSE NULL', 'goals against')
+	contains(cell.c6, 'Football_Games.ResultOpponent = 0 THEN', 'clean sheets')
+	contains(cell.c1, 'Competitions.Official = 1', 'tab 1 is רשמי')
+	contains(cell.c7, 'Competitions.League = 1', 'tab 2 is ליגה')
+	contains(cell.c19, 'Competitions.International = 1', 'tab 4 is בינלאומי')
+	equals(cell.c25, nil, 'six cells times four tabs, no more')
+end)
+
+check('season results: an empty season reads 0 games and no goals', function(Blocks)
+	-- SUM over no games is NULL: value gives '', which the template itself
+	-- turns into 0 - exactly what its own SUM query returned.
+	primeSeason(Blocks, 'season-results', seasonRow(SEASON_RESULTS,
+		{ wins = 0, draws = 0, losses = 0, cleanSheets = 0 }))
+	equals(seasonValue(Blocks, 'season-results', 'רשמי', 'wins'), '0', 'no wins')
+	equals(seasonValue(Blocks, 'season-results', 'רשמי', 'goalsFor'), '', 'empty, not 0')
+end)
+
+check('season cards: Maccabi yellows and reds, one query', function(Blocks)
+	primeSeason(Blocks, 'season-cards', seasonRow({ 'yellows', 'reds' },
+		{ yellows = 121, reds = 5 }))
+	equals(#stub.calls, 1, 'one query')
+	local cell = fieldsByAlias(stub.calls[1].fields)
+	contains(cell.c1, 'Games_Events.SubType IN (71) THEN', 'yellows are subtype 71')
+	contains(cell.c2, 'Games_Events.SubType IN (72, 73) THEN', 'reds are 72 and 73')
+	contains(cell.c1, 'Games_Events.Team = 1', 'Maccabi\'s yellows, not the opponent\'s')
+	contains(cell.c2, 'Games_Events.Team = 1', 'Maccabi\'s reds')
+	contains(cell.c3, 'Competitions.League = 1', 'tab 2 is ליגה')
+	equals(seasonValue(Blocks, 'season-cards', 'ליגה', 'yellows'), '121', 'yellows')
+	equals(seasonValue(Blocks, 'season-cards', 'ליגה', 'reds'), '5', 'reds')
+end)
+
+check('a block without rows cannot be shown with tab', function(Blocks)
+	primeSeason(Blocks, 'season-cards', seasonRow({ 'yellows', 'reds' },
+		{ yellows = 1, reds = 0 }))
+	local ok, message = pcall(Blocks.tab, stub.newFrameKeepingVariables({}, {
+		['בלוק'] = 'season-cards', ['קטגוריית מפעל'] = 'ליגה', ['עונה'] = '2023/24' }))
+	if ok then
+		error('expected an error, none raised', 0)
+	end
+	contains(tostring(message), 'no rows to show', 'refused, not "primed" printed')
 end)
 
 print(string.format('\n%d passed, %d failed', passed, failed))

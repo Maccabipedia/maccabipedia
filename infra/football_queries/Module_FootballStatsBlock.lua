@@ -270,6 +270,9 @@ end
 -- labels.
 local VAR_PREFIX = 'FootballStatsBlock'
 
+--- What prime stores for a tab of a block that has no rows to render.
+local PRIMED = 'primed'
+
 local function variableName(blockName, entity, tab)
 	return string.format('%s/%s/%s/%s', VAR_PREFIX, blockName, entity, tab)
 end
@@ -363,9 +366,12 @@ local function prime(frame)
 				valueText(tabCells[cell.name]),
 			})
 		end
+		-- A block that only supplies numbers to its template declares no rows;
+		-- its tab variable then just records that prime ran, which is what
+		-- `value` checks before it trusts an empty cell.
 		frame:callParserFunction('#vardefine',
 			{ variableName(blockName, entity, tab),
-			  renderRows(block, tabCells) })
+			  block.rows and renderRows(block, tabCells) or PRIMED })
 	end
 
 	return ''
@@ -383,6 +389,14 @@ local function tab(frame)
 	if not declaration then
 		error(string.format(
 			'FootballStatsBlock: no block declared as "%s"', blockName), 0)
+	end
+
+	if not declaration.rows then
+		-- Its tab variable holds only prime's marker; returning that would
+		-- print "primed" where the numbers belong.
+		error(string.format(
+			'FootballStatsBlock: block "%s" has no rows to show - read its '
+			.. 'numbers with value', blockName), 0)
 	end
 
 	local entity = frame.args[declaration.entity]

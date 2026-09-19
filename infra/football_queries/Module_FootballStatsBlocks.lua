@@ -157,6 +157,40 @@ return {
 		},
 	},
 
+	-- The seasonal numbers at the top of a season page
+	-- (תבנית:עונת כדורגל/הצגת מספרים עונתיים): eight numbers per tab, which
+	-- the template fetched with eight query templates per tab - 32 queries.
+	-- These two blocks only SUPPLY the numbers: the container primes both once
+	-- and each tab reads them with `value`, keeping all of its own formatting
+	-- (percentages, per-game ratios, #number_format, hide-at-zero) and its
+	-- tab strip. So they declare no rows.
+	--
+	-- Two blocks, because goals are a SUM of a game column and the cards count
+	-- events: in one query the events join would multiply every game's goals
+	-- by its number of events, which the query layer refuses. 32 → 2.
+	['season-results'] = {
+		entity = 'עונה',
+		tabs = { 'רשמי', 'ליגה', 'גביע', 'בינלאומי' },
+		cells = {
+			{ name = 'wins', grain = 'game', filters = { ['תוצאה'] = 'ניצחון' } },
+			{ name = 'draws', grain = 'game', filters = { ['תוצאה'] = 'תיקו' } },
+			{ name = 'losses', grain = 'game', filters = { ['תוצאה'] = 'הפסד' } },
+			{ name = 'goalsFor', grain = 'game', sum = 'כיבושים', filters = {} },
+			{ name = 'goalsAgainst', grain = 'game', sum = 'ספיגות', filters = {} },
+			{ name = 'cleanSheets', grain = 'game', filters = { ['תוצאה יריבה'] = '0' } },
+		},
+	},
+	['season-cards'] = {
+		entity = 'עונה',
+		tabs = { 'רשמי', 'ליגה', 'גביע', 'בינלאומי' },
+		cells = {
+			{ name = 'yellows', grain = 'event',
+			  filters = { ['תת אירוע'] = '71', ['מכבי'] = 'כן' } },
+			{ name = 'reds', grain = 'event',
+			  filters = { ['תת אירוע'] = '72, 73', ['מכבי'] = 'כן' } },
+		},
+	},
+
 	-- תבנית:סטטיסטיקה/תצוגה/ימים/סיכום תוצאות לפי מפעל, and the tab strip
 	-- above it. Transcluded by 366 pages - one per day of the year - which
 	-- makes it the first block with real reach.
