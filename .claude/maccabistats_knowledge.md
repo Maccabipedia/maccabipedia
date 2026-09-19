@@ -308,6 +308,16 @@ PlayerEvent.from_maccabistats_event_type(name, number, time_occur,
     GameEventTypes.GOAL_SCORE, GoalTypes.PENALTY, maccabi_player=True)
 ```
 
+### Data fixes live in maccabistats, not the bot
+If a game page comes out wrong (names, stadiums, competitions, events), fix it in maccabistats' own fix layers, not in `gamesbot.py` before upload. They run while the data is parsed and saved, so every consumer gets the fix:
+- `parse/name_normalization.py` → `normalize_name()`: every name from the club site passes through it (spaces, RTL marks, geresh → apostrophe).
+- `parse/general_fixes.py` → `run_general_fixes()`: source-independent maps (`_stadiums_name_fixes`, `_players_name_fixes`, `_referees_name_fixes`, `_competitions_name_fixes`), team renames (`teams_names_changer.py`), season/fixture formats.
+- `parse/maccabi_tlv_site/fix_specific_games.py`: fixes for the club-site source and for single games.
+- `parse/maccabi_tlv_site/team_parser.py` / `game_events_parser.py`: how club-site squads and events become `GameEventTypes`.
+- `error_finder/`: `ErrorsFinder` for manually finding inconsistent data.
+
+The CI flow is fetch (`fetch_games_from_maccabi_tlv_site`: crawl → general fixes → specific fixes → serialize), then upload (loads the saved data). So anything the bot needs has to be in the saved data.
+
 ### Game Upload Flow
 1. Load games via `get_maccabi_stats_as_newest_wrapper()` or `load_from_maccabipedia_source()`
 2. Iterate `GameData` objects, extract metadata and player events
