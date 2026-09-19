@@ -13,6 +13,8 @@ maccabistats_events_to_maccabipedia_events = {GameEventTypes.LINE_UP.value: "ה�
                                               GameEventTypes.SUBSTITUTION_IN.value: "מחליף",
                                               GameEventTypes.SUBSTITUTION_OUT.value: "מוחלף",
                                               GameEventTypes.YELLOW_CARD.value: "כרטיס צהוב",
+                                              GameEventTypes.FIRST_YELLOW_CARD.value: "כרטיס צהוב-ראשון",
+                                              GameEventTypes.SECOND_YELLOW_CARD.value: "כרטיס צהוב-שני",
                                               GameEventTypes.RED_CARD.value: "כרטיס אדום",
                                               GameEventTypes.CAPTAIN.value: "קפטן",
                                               GameEventTypes.PENALTY_MISSED.value: "פנדל-החמצה",

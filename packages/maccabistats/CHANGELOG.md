@@ -1,3 +1,12 @@
+## Version 2.70 ##
+
+    Club-site games now match how MaccabiPedia records them:
+    - A two-yellows sending-off is a first + second yellow card. The squad page's
+      yellow-red icon used to parse as a plain red card and the events page's second
+      yellow as a plain yellow, so the player got two yellows and a red.
+    - Names have their Hebrew geresh (ג׳יימס) replaced by an apostrophe (ג'יימס).
+    - "בלומפילד" is renamed to "אצטדיון בלומפילד".
+
 ## Version 2.69 ##
 
     Validate the CargoExport response shape before iterating it, and log the raw body

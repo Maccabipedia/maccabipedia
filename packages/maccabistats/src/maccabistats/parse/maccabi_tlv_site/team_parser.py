@@ -102,7 +102,11 @@ class MaccabiSiteTeamParser(object):
 
         for card_event_time, card_img_bs in cards:
             card_link = card_img_bs.get("src")
-            if card_link.endswith("yellow.png"):
+            # A two-yellows sending-off shows as a single yellow-red icon at the second yellow's minute
+            if card_link.endswith("yellow-red.png"):
+                player_events.append(GameEvent(GameEventTypes.SECOND_YELLOW_CARD,
+                                               MaccabiSiteTeamParser.__strip_geresh_as_timedelta(card_event_time)))
+            elif card_link.endswith("yellow.png"):
                 player_events.append(GameEvent(GameEventTypes.YELLOW_CARD,
                                                MaccabiSiteTeamParser.__strip_geresh_as_timedelta(card_event_time)))
             elif card_link.endswith("red.png"):
