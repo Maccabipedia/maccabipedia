@@ -1,11 +1,15 @@
+import logging
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Dict, FrozenSet
 
+import requests
 from dateutil.parser import parse as datetime_parser
 
 from maccabistats.parse.maccabipedia.maccabipedia_cargo_chunks_crawler import MaccabiPediaCargoChunksCrawler
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -51,12 +55,17 @@ class MaccabiPediaPlayers(object):
     @staticmethod
     def _crawl_recent_goalkeepers() -> FrozenSet[str]:
         since = (datetime.now() - timedelta(days=365 * _RECENT_GOALKEEPERS_YEARS)).strftime("%Y-%m-%d")
-        goalkeepers_events = MaccabiPediaCargoChunksCrawler(
-            tables_name="Games_Events",
-            tables_fields="Games_Events._pageName, Games_Events.PlayerName",
-            where_condition=f"Games_Events.SubType IN ({_GOALKEEPER_SUB_EVENT_CODES}) AND Games_Events.Date >= '{since}'")
 
-        return frozenset(event["PlayerName"] for event in goalkeepers_events if " " in event["PlayerName"].strip())
+        # Only the uploader uses these, so a blocked Cargo response shouldn't fail the whole crawl
+        try:
+            goalkeepers_events = MaccabiPediaCargoChunksCrawler(
+                tables_name="Games_Events",
+                tables_fields="Games_Events._pageName, Games_Events.PlayerName",
+                where_condition=f"Games_Events.SubType IN ({_GOALKEEPER_SUB_EVENT_CODES}) AND Games_Events.Date >= '{since}'")
+            return frozenset(event["PlayerName"] for event in goalkeepers_events if " " in event["PlayerName"].strip())
+        except (ValueError, requests.RequestException):
+            logger.exception("Could not crawl the recent goalkeepers, keeping only the profiles' goalkeepers")
+            return frozenset()
 
     @staticmethod
     def _crawl_players_data() -> Dict[str, MaccabiPediaPlayerData]:

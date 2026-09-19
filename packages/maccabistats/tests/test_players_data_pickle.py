@@ -209,3 +209,14 @@ def test_pickle_saved_before_goalkeepers_loads_with_none():
     restored = pickle.loads(pickle.dumps(players))
 
     assert restored.goalkeepers == frozenset()
+
+
+def test_blocked_recent_goalkeepers_query_keeps_the_profiles_goalkeepers(monkeypatch):
+    def crawler(tables_name, **kwargs):
+        if tables_name == "Games_Events":
+            raise ValueError("CargoExport returned a bare str, expected a list of rows")
+        return iter([{"_pageName": "בוני גינצבורג", "MainPosition": 1}])
+
+    monkeypatch.setattr("maccabistats.maccabipedia.players.MaccabiPediaCargoChunksCrawler", crawler)
+
+    assert MaccabiPediaPlayers().goalkeepers == frozenset({"בוני גינצבורג"})
