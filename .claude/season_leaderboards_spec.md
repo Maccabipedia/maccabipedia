@@ -1,13 +1,14 @@
 # Season pages: the four leaderboard boxes on one query, as tabbers
 
 Status: SPEC v1 - not reviewed yet. Local only; nothing reaches production
-without Roee's ack. Sibling of `.claude/referee_leaderboards_spec.md`, whose
+without the owner's ack. Sibling of `.claude/referee_leaderboards_spec.md`, whose
 primitive and entry point this reuses; read that first.
 
 ## 1. What and why
 
-`תבנית:עונת כדורגל` is transcluded by the 107 football season pages
-(`קטגוריה:עונות כדורגל`, `עונת 1921` .. `עונת 2026/27`, measured 2026-09-18).
+`תבנית:עונת כדורגל` is transcluded by the 104 football season pages
+(`עונת 1921` .. `עונת 2026/27`, counted by transclusion on production
+2026-09-19; an earlier figure of 107 was wrong).
 Its `שיאנים` section is four boxes - שיאני הופעות / כיבושים / בישולים /
 מוצהבים - each through a season-only wrapper `עונת כדורגל/הצגת שיאני …`,
 which calls the SHARED `סטטיסטיקה/תצוגה/שחקנים/שיאני …/עיצוב חדש` with
@@ -133,7 +134,7 @@ Visual, not a data departure: tab 4 shows the tabber's globe icon
 inconsistency. Recorded here so the screenshot review does not flag it as a
 regression.
 
-**Also visual, and found only by Roee using the page (2026-09-19)**: the old
+**Also visual, and found only by the owner using the page (2026-09-19)**: the old
 boxes were `<shtml>` strips, so clicking a tab did nothing to the URL. The new
 ones are TabberNeue and `$wgTabberNeueUpdateLocationOnTabChange = true`
 (`LocalSettings.shared.php:380`), so a tab click now rewrites the location
@@ -146,11 +147,19 @@ Not introduced by this conversion - it is the standing site setting meeting a
 newly-converted page, and referee pages have behaved this way since #195 - but
 it is new **for season pages**, whose above-the-fold content (seasonal numbers,
 achievements, squad, league table) is a lot more than a referee page's. Three
-options, Roee's call, unresolved at time of writing: leave it (consistent with
+options, the owner's call: leave it (consistent with
 referee pages, and deep-linking a tab has its own value); turn the setting off
 site-wide (kills referee deep links too); or keep the hash selecting the tab
 but suppress the scroll, which is a skin change and therefore a `skin.json`
-version bump plus `deploy-skin`.
+version bump plus `deploy-skin`. Default taken 2026-09-19 and left standing
+by the owner: leave it, as on referee pages.
+
+Those hash links are also fragile. Panel ids carry the box's POSITION on the
+page (`LocalSettings.shared.php`, the TabberNeue id workaround: legacy ids
+are broken in the pinned version), so converting any tabbed strip ABOVE
+this section later - `מספרים עונתיים` is a named candidate - silently
+re-targets every tab link a reader has bookmarked or shared. Tab clicks use
+`history.replaceState`, so the Back button is not affected.
 
 ## 5. Verification (all local or read-only against production)
 
@@ -278,6 +287,22 @@ version bump plus `deploy-skin`.
   the deploy purges only module pages, so a cached-page diff could compare
   nothing) for 3 referees before and after, byte-diff the
   `records-list-tabs-container` fragment; any difference is a rollback.
+  Publishing is not inert: every day page (#193) and referee page (#195)
+  invokes these modules and re-renders on its next view.
+  `deploy_modules_prod.py --probe` renders `leaderboards` for a referee and
+  a season from raw text; before Gate A the season case fails (no block on
+  production yet), after it both must pass with four boxes.
+- **Rollback order.** Republish ONLY `Module:FootballStatsBlock` from the
+  previous commit - the old renderer never reads `boxOpen` and ignores the
+  extra block (checked against master's code). Publishing the old
+  `Module:FootballStatsBlocks` first would leave the NEW renderer
+  concatenating a missing `boxOpen`, a Lua error on every referee page until
+  the second write lands - and if the WAF refuses that write, indefinitely.
+- **Before Gate B**: the local comparison covers the fixture's 4 seasons
+  only. `compare_season_leaderboards.py --prod` sweeps all 104 production
+  season pages read-only (OLD from production's own template chain, NEW from
+  the published module, one parse at a time); it can only pass after Gate A,
+  and must, before the template is switched.
 - Join fan-out: none for `Games_Referees` on season data either (no game has
   2+ rows, measured on production; Cargo's join is LEFT, so games with none
   are kept either way) - same conclusion as the referee spec, re-verified
@@ -344,16 +369,18 @@ the module only joins tables a filter actually touches, so on season pages
 has 2+ `Games_Referees` rows (§6) and no field of it is ever selected, so
 including or omitting it from a LEFT JOIN cannot change which rows the link
 returns. `compare_referee_leaderboards.link_query()` now drops
-`Games_Referees` from both sides' compared table/join sets specifically when
-neither side's WHERE mentions it - which never fires for referee-assistant
-(its WHERE always does) and always fires for season, so the existing
+`Games_Referees` from EACH side's compared table/join set when THAT side's
+WHERE does not mention it. Applied per side, it cannot hide a real
+difference: if only one side's WHERE names the table, the WHERE sets already
+differ and that is reported. It never fires for referee-assistant (its WHERE
+always names the table) and always fires for season, so the existing
 33-referee comparison is provably unaffected (re-verified after the change:
 still 33/33, still fails its own selftest correctly).
 
 ### 7b. The same contamination, eight more templates (2026-09-19)
 
 Fixing the four shared `עיצוב חדש` templates above treated the symptom that
-happened to be visible. Roee then reported that a season page's first block
+happened to be visible. The owner then reported that a season page's first block
 title, `מספרים עונתיים`, was missing - reading it, reasonably, as damage from
 this conversion. The template diff showed this branch changed only the four
 lines, so the cause was elsewhere: `תבנית:עונת כדורגל/הצגת מספרים עונתיים`
