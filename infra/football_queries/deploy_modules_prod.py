@@ -275,6 +275,21 @@ def probe(connection) -> int:
     return failures
 
 
+def refuse_uncommitted_sources(with_docs: bool) -> None:
+    """Publish only what is committed. The module files on disk are not always
+    what git holds: tests/mutate.py rewrites them in place, and two runs at
+    once can leave a mutation behind - one did, 2026-09-19, silently deleting
+    the &quot; entry from FootballQueries' entity table."""
+    import subprocess
+
+    paths = [str(source) for source, _ in targets(with_docs=with_docs)]
+    dirty = subprocess.run(['git', 'status', '--porcelain', '--', *paths],
+                           capture_output=True, text=True, check=True).stdout
+    if dirty.strip():
+        raise SystemExit('refusing to publish: these files differ from the last '
+                         f'commit -\n{dirty}commit or restore them first')
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--check', action='store_true',
@@ -291,6 +306,9 @@ def main() -> None:
 
     if not (options.check or options.publish or options.probe):
         parser.error('nothing to do - pass --check, --publish or --probe')
+
+    if options.publish:
+        refuse_uncommitted_sources(options.with_docs)
 
     connection = site()
     print(f'connected to {connection}\n')
