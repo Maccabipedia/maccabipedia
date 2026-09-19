@@ -1,0 +1,11 @@
+[Unit]
+Description=Run the MaccabiPedia recent-changes review once a week
+
+[Timer]
+# Friday morning, box-local time. Persistent: a run missed while the box slept fires on next
+# boot instead of skipping the week.
+OnCalendar=Fri *-*-* 06:00:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

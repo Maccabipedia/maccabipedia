@@ -22,15 +22,26 @@ measured on 2026-09-19 with a probe run from the main checkout:
   hostile edit persist into later sessions).
 - `--max-budget-usd 6`, and scripts left in the cache by an earlier run are deleted, not re-run.
 
-**Not covered:** the agent can still write and run Python, which can read files and open
-sockets. Only OS confinement bounds that — the systemd unit should carry `ProtectHome=`-style
-options (`InaccessiblePaths=` for `~/.ssh`, pywikibot's `user-password.py`, other repos).
+The agent can still write and run Python, and no Claude flag governs what that Python does.
+The systemd unit does: `InaccessiblePaths=` hides `~/.ssh`, `~/.secrets`, `gh`'s token, this
+repo's `.mcp.json`, `infra/local-wiki/.env` and pywikibot's `user-password.py`, the other
+projects on the box and the Windows user folders. Probed under the full list: claude starts,
+`uv run` works, a write into `.cache/` lands, and the hidden paths cannot be listed.
+
+**Not covered:** the network is open (the job needs the wiki API), so whatever the agent can
+still read it could send. And running `run.sh` by hand gets the flags but not the unit's
+confinement.
 
 ## Scheduling
 
 It runs **locally**, not as a GitHub workflow: it uses the Claude subscription login on the
-box. A systemd user timer calls `run.sh` weekly; the units live with the box's other timers,
-not in this repo.
+box. A systemd user timer (`maccabipedia-recent-changes-review.timer`, Fridays 06:00,
+persistent) starts the service, which runs `run.sh` from the main clone.
+
+Register it once, from the main clone: `bash infra/recent-changes-review/install.sh`. It
+symlinks the two unit files into `~/.config/systemd/user/`, so the file in the repo is the
+unit — a merged change takes effect after `systemctl --user daemon-reload`. Start a run now
+with `systemctl --user start maccabipedia-recent-changes-review.service`.
 
 ## Running it by hand
 

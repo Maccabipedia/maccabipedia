@@ -1,0 +1,27 @@
+[Unit]
+Description=MaccabiPedia recent-changes review — weekly headless Claude (Sonnet) over the wiki's edits
+
+[Service]
+Type=oneshot
+# `bash -lc`: systemd does not search ~/.local/bin, where `claude` and `uv` live; the login
+# profile puts them on PATH. Runs from the main clone, so it always uses master's prompt.
+ExecStart=/bin/bash -lc 'exec %h/code/maccabipedia_mediawikibot/infra/recent-changes-review/run.sh'
+# Measured 2026-09-19: 9-11 minutes, for a week and for 90 days alike. One hour is ~6x that.
+TimeoutStartSec=3600
+
+# The agent reads text any wiki user can write, and it can write and run Python. run.sh's flags
+# stop the Claude tools; these stop the Python: everything on the box that holds a credential,
+# or is simply none of this job's business, does not exist for this process. A leading `-`
+# means "skip if missing". Measured on this box: a user unit with InaccessiblePaths cannot
+# list the path and can still read the repo. NOT blocked, on purpose: ~/.claude (the Claude
+# login itself), ~/.local and ~/.cache (claude, uv and its cache), and the repo.
+InaccessiblePaths=-%h/.ssh -%h/.secrets -%h/.gnupg -%h/.aws -%h/.netrc
+InaccessiblePaths=-%h/.config/gh -%h/.config/gcloud -%h/.config/maccabipedia
+InaccessiblePaths=-%h/apps -%h/code/the-kosho -%h/code/the-kosho-wt
+InaccessiblePaths=-%h/code/maccabipedia_mediawikibot/.mcp.json
+InaccessiblePaths=-%h/code/maccabipedia_mediawikibot/infra/local-wiki/.env
+InaccessiblePaths=-%h/code/maccabipedia_mediawikibot/packages/maccabipediabot/src/maccabipediabot/pywikibot_configs/user-password.py
+# /mnt/c/Users, not all of /mnt/c: claude stats /mnt/c/Program Files/ClaudeCode/
+# managed-settings.json at startup and refuses to run if it cannot (measured).
+InaccessiblePaths=-/mnt/c/Users -/mnt/d
+NoNewPrivileges=true
