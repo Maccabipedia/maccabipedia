@@ -1,24 +1,32 @@
 # Weekly recent-changes review
 
-Every Friday 06:00 a headless Claude (Sonnet) reads the wiki's recent changes and looks for
-two things: errors our bots made (a human fixing a bot's page, a bot saving over a human's
+Once a week a headless Claude (Sonnet) reads the wiki's recent changes and looks for two
+things: errors our bots made (a human fixing a bot's page, a bot saving over a human's
 edit, reverted bot edits) and facts humans type by hand that our data already holds.
 
 - `prompt.md` — the whole brief. **Edit this file to change what the agent does.** When a
   suggestion is rejected, add the reason to its `MANUAL ON PURPOSE` list so it never returns.
-- `run.sh` — runs the prompt from the repo root; result JSON lands in `.cache/recent_changes_review/`.
-- `maccabipedia-recent-changes-review.{service,timer}` — systemd user units.
+- `run.sh` — runs the prompt from the repo root.
 
-## Install
+## Scheduling
 
-```
-cp infra/recent-changes-review/maccabipedia-recent-changes-review.service infra/recent-changes-review/maccabipedia-recent-changes-review.timer ~/.config/systemd/user/
-systemctl --user daemon-reload
-systemctl --user enable --now maccabipedia-recent-changes-review.timer
-```
+It runs **locally**, not as a GitHub workflow: it uses the Claude subscription login on the
+box. A systemd user timer calls `run.sh` weekly; the units live with the box's other timers,
+not in this repo.
 
-Run once by hand: `systemctl --user start maccabipedia-recent-changes-review.service` (about 10 minutes,
-$3–4). Replay a window: delete `.cache/recent_changes_review/state.json` (default look-back is 7 days).
+## Running it by hand
+
+`bash infra/recent-changes-review/run.sh` — about 10 minutes, $2–4 of usage.
+
+Everything it writes goes to the gitignored `.cache/recent_changes_review/`:
+
+- `review_<date>.md` — the report.
+- `message.txt` — written only when there is a suggestion or a live data issue; a short
+  plain-text summary for whatever delivers the result. A quiet week writes none.
+- `state.json` — where the last run stopped. Missing → a 7-day look-back; delete it to
+  replay a window.
+- the agent's own fetch scripts, reused by later runs, and `run_<date>.json` (turns, cost,
+  refused tool calls).
 
 ## Why `.cache/recent_changes_review/` and not `.claude/tmp/`
 

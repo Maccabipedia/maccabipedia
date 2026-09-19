@@ -82,11 +82,15 @@ You run HEADLESS: nobody can approve a prompt, and a question gets no answer.
      script (most of `maintenance/`, anything new whose batch has already been uploaded)
      whose output a human then tidied once is finished business — a fix there saves
      nobody anything. Check `git log` on the file: new and run once → drop it.
-   - No open card already covers it: `uv run python .claude/scripts/trello_list.py <listId>`
-     for Backlog, Next Up and In Progress (see .claude/trello.md).
+   - It was not already reported. Read the earlier `review_*.md` files in
+     .cache/recent_changes_review/ (their findings AND their "Looked at, not suggesting"
+     lists). Repeat a finding only if new edits since then back it, and say so.
+   - Only if `.mcp.json` exists: no open Trello card
+     already covers it — `uv run python .claude/scripts/trello_list.py <listId>` for
+     Backlog, Next Up and In Progress (see .claude/trello.md). Otherwise skip this check.
    Say how many pages and edits back each candidate, then sort it:
-   - SUGGESTION: 3 or more edits of the same shape, all four checks passed.
-   - LEAD: fewer than 3, or a check you could not complete. Report only, never a card.
+   - SUGGESTION: 3 or more edits of the same shape, every check above passed.
+   - LEAD: fewer than 3, or a check you could not complete. Report only, never messaged.
    - LIVE DATA ISSUE: a page that is wrong right now because of automation. Any count.
    Use Grep on .claude/maccabipedia_structure_knowledge.md for template and Cargo facts;
    never read it whole.
@@ -103,9 +107,12 @@ You run HEADLESS: nobody can approve a prompt, and a question gets no answer.
    suggesting" list with one line each, so the next run does not redo it.
    Zero suggestions is a valid result. Do not pad.
 
-6. FILE. THIS IS A DRY RUN: do NOT create, move or comment on any Trello card. Trello is
-   read-only for this run. Instead, end the report with a "Cards I would file" section:
-   the title `[Recent changes] <title>` for each.
+6. NOTIFY. Only if there is at least one SUGGESTION or LIVE DATA ISSUE, write
+   .cache/recent_changes_review/message.txt: plain text, no markdown, at most 8
+   lines, read on a phone — each live data issue first (page + what is wrong), then each
+   suggestion's title with its edit count. Whatever schedules this run delivers it, with the
+   report attached. Leads alone, or nothing found: do NOT create the file — a quiet week
+   sends nothing. Never write to Trello or the wiki.
 
 7. STATE. Only after the report is written, set `last_run_utc` in
    .cache/recent_changes_review/state.json to the timestamp of the NEWEST change you
