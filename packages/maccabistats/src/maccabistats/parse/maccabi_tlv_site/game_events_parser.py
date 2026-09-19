@@ -111,7 +111,8 @@ class MaccabiSiteGameEventsParser(object):
         for player in self.maccabi_team.players + self.not_maccabi_team.players:
             for second_yellow in player.get_events_by_type(GameEventTypes.SECOND_YELLOW_CARD):
                 earlier_yellows = [event for event in player.get_events_by_type(GameEventTypes.YELLOW_CARD)
-                                   if event.time_occur < second_yellow.time_occur]
+                                   # <=: the site writes stoppage time as 45/90, so both cards can share a minute
+                                   if event.time_occur <= second_yellow.time_occur]
                 if earlier_yellows:
                     min(earlier_yellows, key=lambda event: event.time_occur).event_type = GameEventTypes.FIRST_YELLOW_CARD
 
@@ -283,7 +284,8 @@ class MaccabiSiteGameEventsParser(object):
                 logger.info("Added goal event for player: {player}".format(player=player.name))
             except FoundNoMatchingPlayersByNameException:
                 logger.info("Adding event to half parsed event:{event}, for name:{name}".format(event=goal_event, name=player_name))
-                self.halfed_parsed_events.append(dict(name=player_name, **goal_event.__dict__))
+                # Normalized like the squads' names, which fix_specific_games matches it against
+                self.halfed_parsed_events.append(dict(name=normalize_name(player_name), **goal_event.__dict__))
 
     def __handle_yellow_card_event(self, event_text, event_time_in_minute):
         player_name = event_text.replace("כרטיס צהוב ל", "").strip()
@@ -300,6 +302,11 @@ class MaccabiSiteGameEventsParser(object):
     def __handle_red_card_event(self, event_text, event_time_in_minute):
         player_name = event_text.replace("כרטיס אדום ל", "").strip()
         player = self.__find_one_player_with_name(player_name)
+
+        # The squad page's yellow-red icon already recorded this sending-off as a second yellow
+        if GameEvent(GameEventTypes.SECOND_YELLOW_CARD, event_time_in_minute) in player.events:
+            logger.info("Red card is the second yellow for player: {player}".format(player=player.name))
+            return
 
         red_card_event = GameEvent(GameEventTypes.RED_CARD, event_time_in_minute)
         try:

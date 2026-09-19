@@ -43,7 +43,7 @@ def _parse_opponent_team() -> TeamInGame:
 def _card_events(team: TeamInGame, player_name: str) -> list[tuple[GameEventTypes, timedelta]]:
     player = next(player for player in team.players if player.name == player_name)
     card_events = [event for event in player.events if "Card" in event.event_type.value]
-    return [(event.event_type, event.time_occur) for event in sorted(card_events, key=lambda event: event.time_occur)]
+    return [(event.event_type, event.time_occur) for event in sorted(card_events, key=lambda event: (event.time_occur, event.event_type.value))]
 
 
 def test_geresh_becomes_apostrophe():
@@ -66,3 +66,27 @@ def test_sent_off_players_earlier_yellow_becomes_the_first_yellow():
     assert _card_events(opponent, "סתיו טוריאל") == [(GameEventTypes.FIRST_YELLOW_CARD, timedelta(minutes=39)),
                                                      (GameEventTypes.SECOND_YELLOW_CARD, timedelta(minutes=45))]
     assert _card_events(opponent, "פרנאן מאיימבו") == [(GameEventTypes.YELLOW_CARD, timedelta(minutes=45))]
+
+
+def _enrich_with_events(events_html: str) -> TeamInGame:
+    maccabi = TeamInGame("מכבי תל אביב", "קני מילר", 4, [])
+    events_page = BeautifulSoup(f'<article><div class="play-by-play-homepage"><ul class="play-by-play">'
+                                f'{events_html}</ul></div></article>', "html.parser")
+    _, opponent = MaccabiSiteGameEventsParser(maccabi, _parse_opponent_team(), events_page, "derby").enrich_teams_with_events()
+    return opponent
+
+
+def test_first_yellow_in_the_same_stoppage_time_minute_is_the_first_yellow():
+    opponent = _enrich_with_events(
+        '<li class="secondyellow"><div class="min">45</div><p>כרטיס צהוב שני לסתיו טוריאל</p></li>'
+        '<li class="yellow"><div class="min">45</div><p>כרטיס צהוב לסתיו טוריאל</p></li>')
+
+    assert _card_events(opponent, "סתיו טוריאל") == [(GameEventTypes.FIRST_YELLOW_CARD, timedelta(minutes=45)),
+                                                     (GameEventTypes.SECOND_YELLOW_CARD, timedelta(minutes=45))]
+
+
+def test_red_event_at_the_second_yellow_minute_is_not_a_second_sending_off():
+    opponent = _enrich_with_events(
+        '<li class="red"><div class="min">45</div><p>כרטיס אדום לסתיו טוריאל</p></li>')
+
+    assert _card_events(opponent, "סתיו טוריאל") == [(GameEventTypes.SECOND_YELLOW_CARD, timedelta(minutes=45))]

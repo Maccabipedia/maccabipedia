@@ -58,9 +58,9 @@ def fetch_known_goalkeepers() -> frozenset[str]:
             "limit": 5000,
         }, timeout=60)
         response.raise_for_status()
-        rows = parse_cargo_rows(response)
-    except (requests.RequestException, ValueError):
+        names = [(row.get("PlayerName") or "").strip() for row in parse_cargo_rows(response)]
+    except (requests.RequestException, ValueError, AttributeError):
         _logger.exception("Could not fetch the known goalkeepers, uploading without marking them")
         return frozenset()
 
-    return frozenset(row["PlayerName"] for row in rows if " " in row["PlayerName"].strip())
+    return frozenset(name for name in names if " " in name)
