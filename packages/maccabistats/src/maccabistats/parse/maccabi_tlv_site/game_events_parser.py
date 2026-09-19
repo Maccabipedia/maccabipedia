@@ -100,7 +100,20 @@ class MaccabiSiteGameEventsParser(object):
                 logger.exception(
                     "\nUnknown error while parsing {event} at {event_time} from event page".format(event=event_text, event_time=event_time_in_minute))
 
+        self.__mark_first_yellow_cards()
+
         return self.maccabi_team, self.not_maccabi_team
+
+    def __mark_first_yellow_cards(self):
+        """ A sent-off player's earlier yellow card is the first of two, the way MaccabiPedia records it.
+        Runs after all events, since the events page lists them newest first.
+        """
+        for player in self.maccabi_team.players + self.not_maccabi_team.players:
+            for second_yellow in player.get_events_by_type(GameEventTypes.SECOND_YELLOW_CARD):
+                earlier_yellows = [event for event in player.get_events_by_type(GameEventTypes.YELLOW_CARD)
+                                   if event.time_occur < second_yellow.time_occur]
+                if earlier_yellows:
+                    min(earlier_yellows, key=lambda event: event.time_occur).event_type = GameEventTypes.FIRST_YELLOW_CARD
 
     def __find_one_player_with_name(self, player_name):
         """ Finds player by his name, validate that only 1 player have been found
@@ -194,13 +207,12 @@ class MaccabiSiteGameEventsParser(object):
         player_name = event_text.replace("כרטיס צהוב שני ל", "").strip()
         player = self.__find_one_player_with_name(player_name)
 
-        # TODO - do we need second yellow event?
-        yellow_event = GameEvent(GameEventTypes.YELLOW_CARD, event_time_in_minute)
+        second_yellow_event = GameEvent(GameEventTypes.SECOND_YELLOW_CARD, event_time_in_minute)
         try:
-            player_event = self.__get_player_event(player, yellow_event)
+            player_event = self.__get_player_event(player, second_yellow_event)
             logger.info("Found second yellow event : {event}".format(event=player_event))
         except CantFindEventException:
-            player.add_event(yellow_event)
+            player.add_event(second_yellow_event)
             logger.info("Added second yellow event for player: {player}".format(player=player_name))
 
     def __handle_substitution_event(self, event_text, event_time_in_minute):

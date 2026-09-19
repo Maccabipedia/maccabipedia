@@ -209,7 +209,9 @@ Each event is one pipe-separated entry in the `|אירועי שחקנים=` para
 **The single-colon trap:**  
 A single `:` before the minute (e.g. `גול-נגיחה:67`) instead of `::` (e.g. `גול-נגיחה::67`) causes the template to tag the page as having illegal events, even though the type name is valid. Always use `::` between every field.
 
-**Two-yellows sending-off:** written as `כרטיס צהוב-ראשון` + `כרטיס צהוב-שני`, with **no** separate `כרטיס אדום`. The club site reports it as two plain yellows plus a red at the second yellow's minute; `football/game_page_fixes.py` converts it on upload.
+**Two-yellows sending-off:** written as `כרטיס צהוב-ראשון` + `כרטיס צהוב-שני`, with **no** separate `כרטיס אדום`. In maccabistats that's `FIRST_YELLOW_CARD` + `SECOND_YELLOW_CARD` (Cargo SubType 74 + 72; a plain yellow is 71). The club site shows it as one `yellow-red.png` icon on the squad page plus a `secondyellow` event on the events page, which lists events **newest first**; the club-site parser maps both.
+
+**Where to fix club-site data:** maccabistats, not the bot. `parse/name_normalization.py` runs on every name, `parse/general_fixes.py` has the stadium, referee, competition and player-name maps, and `parse/maccabi_tlv_site/` handles event parsing. The bot's `football/game_page_fixes.py` holds only what needs the wiki's own history (goalkeepers).
 
 **Goalkeepers in Cargo:** `Games_Events.SubType` 111 = `הרכב-שוער`, 211 = `ספסל-שוער` (from `Games_Sub_Events_Mapping`). The club site's match squad page doesn't mark goalkeepers, so the uploader marks anyone with an earlier 111/211 row. A keeper's first wiki game has to be marked by hand.
 
