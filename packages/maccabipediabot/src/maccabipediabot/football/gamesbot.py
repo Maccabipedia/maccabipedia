@@ -21,6 +21,9 @@ from maccabipediabot.common.logging_setup import setup_logging
 from maccabipediabot.common.page_names import build_football_game_page_name
 from maccabipediabot.common.maccabistats_player_event import PlayerEvent
 from maccabipediabot.common.prettify_games_pages import prettify_game_page_main_template
+from maccabipediabot.football.game_page_fixes import (fetch_known_goalkeepers, mark_goalkeepers,
+                                                      mark_second_yellow_cards, to_maccabipedia_name,
+                                                      to_maccabipedia_stadium)
 from maccabipediabot.football.sort_players_events import sort_player_events_in_games_page
 
 setup_logging(level=logging.INFO)
@@ -48,6 +51,8 @@ CROWD = "כמות קהל"
 BROADCAST = "גוף שידור"
 COSTUME = "מדים"
 PLAYERS_EVENTS = "אירועי שחקנים"
+# Filled later, by hand or by the videos bots. Written empty on new pages only, so an update never wipes them.
+VIDEO_FIELDS = ["תקציר וידאו", "תקציר וידאו2", "משחק מלא", "משחק מלא2"]
 
 REFRESH_PAGES = False
 JUST_EVENTS = True
@@ -134,6 +139,11 @@ def get_players_events_for_template(game):
          for player in game.not_maccabi_team.players if not player.has_event_type(GameEventTypes.LINE_UP)]
     )
 
+    for player_event in unsorted_events:
+        player_event.name = to_maccabipedia_name(player_event.name)
+    unsorted_events = mark_second_yellow_cards(unsorted_events)
+    mark_goalkeepers(unsorted_events, fetch_known_goalkeepers())
+
     events = sorted(unsorted_events, key=lambda player_event: player_event.minute_occur)
 
     # Remove the last new line
@@ -161,7 +171,7 @@ def __get_football_game_template_with_maccabistats_game_value(game):
         ROUND_IN_COMPETITION] = "" if game.fixture == "No round found" else game.fixture  # Empty for unknown rounds
     template_arguments[OPPONENT_NAME] = game.not_maccabi_team.name
     template_arguments[HOME_OR_AWAY] = "בית" if game.is_maccabi_home_team else "חוץ"
-    template_arguments[STADIUM] = game.stadium
+    template_arguments[STADIUM] = to_maccabipedia_stadium(game.stadium)
     template_arguments[MACCABI_RESULT] = game.maccabi_team.score
     template_arguments[OPPONENT_RESULT] = game.not_maccabi_team.score
     template_arguments[MACCABI_COACH] = "" if game.maccabi_team.coach == "Cant found coach" else game.maccabi_team.coach
@@ -228,6 +238,10 @@ def handle_new_page(game_page, game):
 
     for argument_name, argument_value in arguments.items():
         football_game_template.add(argument_name, argument_value)
+        # The video fields sit between the broadcast and the uniform on hand-written pages
+        if argument_name == BROADCAST:
+            for video_field in VIDEO_FIELDS:
+                football_game_template.add(video_field, "")
 
     game_page.text = str(football_game_template)
 
@@ -297,7 +311,7 @@ def collect_related_pages_from_game(game) -> set[str]:
     # Player pages live in the main namespace (no prefix)
     for player in game.maccabi_team.players:
         if player.name:
-            pages_to_purge.add(player.name)
+            pages_to_purge.add(to_maccabipedia_name(player.name))
 
     if game.maccabi_team.coach and game.maccabi_team.coach != "Cant found coach":
         pages_to_purge.add(game.maccabi_team.coach)
@@ -315,7 +329,7 @@ def collect_related_pages_from_game(game) -> set[str]:
         pages_to_purge.add(game.referee)
 
     if game.stadium:
-        pages_to_purge.add(game.stadium)
+        pages_to_purge.add(to_maccabipedia_stadium(game.stadium))
 
     return pages_to_purge
 
