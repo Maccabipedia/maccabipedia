@@ -25,7 +25,10 @@ old renderer ignores fields it does not know. Rolling back is the reverse
 case - republish ONLY Module:FootballStatsBlock from the previous commit. Its
 old code ignores the newer blocks data, whereas publishing the old blocks
 data first leaves the NEW renderer reading fields that are gone, and every
-page using it errors until the second write lands.
+page using it errors until the second write lands. One exception: once the
+season pages' מספרים עונתיים template reads the rowless season-results /
+season-cards blocks, a renderer older than them fails on those blocks - so
+revert those two templates first (.claude/season_pages.md), then the module.
 
 Two production facts this has to survive:
 

@@ -1,5 +1,6 @@
 """Unit tests for the season manifest generator (stubbed Cargo fetcher)."""
-from generate_season_manifest import collect_season_titles, expand_with_redirects
+from generate_season_manifest import (collect_season_titles, expand_with_redirects,
+                                      game_media_titles)
 
 # Stub fetcher: maps (tables, where) → canned CargoExport rows, real-name fixtures.
 _CANNED = {
@@ -117,3 +118,46 @@ def test_expand_with_redirects_adds_targets_and_sources():
     assert 'מכבי ת"א' in titles           # redirect source added
     assert titles[:2] == ["ביתר ירושלים", "מכבי תל אביב"]  # originals kept first
     assert len(titles) == len(set(titles))
+
+
+def test_game_media_titles_follow_the_templates_names():
+    game = "משחק:12-05-1968 מכבי תל אביב נגד הפועל תל אביב - ליגת העל"
+    press = "קטגוריה:עיתונות למשחק מה-12 במאי 1968"
+    requests = []
+
+    def stub_games(tables, fields, where, **kwargs):
+        assert (tables, where) == ("Football_Games", 'Season="1966/68"')
+        return [{"_pageName": game, "Date": "1968-05-12"}]
+
+    def stub_api(params):
+        requests.append(params)
+        if params["action"] == "expandtemplates":
+            assert params["text"] == ('{{#time:d "ב"F Y|1968-05-12}}\n'
+                                      '{{#time:j "ב"F|1968-05-12}}')
+            return {"expandtemplates": {"wikitext": "12 במאי 1968\n12 במאי"}}
+        if params.get("prop") == "categoryinfo":
+            # Only the press category has members; photos and programme do not.
+            assert press in params["titles"].split("|")
+            assert f"קטגוריה:{game}/תמונות" in params["titles"].split("|")
+            assert f"קטגוריה:{game}/תוכניית משחק" in params["titles"].split("|")
+            assert "קטגוריה:עונת 1966/68/תמונות" in params["titles"].split("|")
+            return {"query": {"pages": {"-1": {"title": press, "categoryinfo": {"size": 2}},
+                                        "-2": {"title": f"קטגוריה:{game}/תמונות"}}}}
+        if params.get("list") == "categorymembers":
+            assert params["cmtitle"] == press
+            return {"query": {"categorymembers": [{"title": "קובץ:מעריב 13-05-1968.jpg"},
+                                                  {"title": "קובץ:דבר 13-05-1968.jpg"}]}}
+        if params.get("list") == "allimages":
+            found = {"כרטיס משחק 12 במאי 1968": [{"name": "כרטיס_משחק_12_במאי_1968.JPG"}],
+                     "תמונה קבוצתית 1966-68": [{"name": "תמונה_קבוצתית_1966-68.jpg"}]}
+            return {"query": {"allimages": found.get(params["aiprefix"], [])}}
+        raise AssertionError(f"unexpected request {params}")
+
+    titles = game_media_titles("1966/68", fetch=stub_games, api=stub_api)
+
+    assert titles == ["קובץ:מעריב 13-05-1968.jpg", "קובץ:דבר 13-05-1968.jpg",
+                      "קובץ:כרטיס משחק 12 במאי 1968.JPG",   # any extension, by prefix
+                      "קובץ:תמונה קבוצתית 1966-68.jpg",
+                      "12 במאי"]                             # the day page the date links to
+    # Empty categories are never listed - only the one with members.
+    assert [r["cmtitle"] for r in requests if r.get("list") == "categorymembers"] == [press]

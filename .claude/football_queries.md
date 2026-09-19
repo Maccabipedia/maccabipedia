@@ -407,6 +407,10 @@ costs 714 ms of a 4.2 s cold page parse.
    previous commit. Its old code ignores the newer blocks data; publishing the
    old blocks data first leaves the new renderer reading a missing `boxOpen` -
    a Lua error on every referee page until the second write lands.
+   **Exception, once מספרים עונתיים runs on `season-results`/`season-cards`:**
+   those blocks have no rows and an older renderer's `prime` cannot handle
+   that, so revert the season-numbers tab and container templates first, then
+   the module (`.claude/season_pages.md`).
 3. **Before Gate B:** `compare_season_leaderboards.py --prod` - a read-only
    sweep of all 104 production season pages, OLD template chain vs the
    published module. It errors before Gate A and must pass after it.
