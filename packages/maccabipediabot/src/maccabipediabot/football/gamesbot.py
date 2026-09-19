@@ -21,7 +21,6 @@ from maccabipediabot.common.logging_setup import setup_logging
 from maccabipediabot.common.page_names import build_football_game_page_name
 from maccabipediabot.common.maccabistats_player_event import PlayerEvent
 from maccabipediabot.common.prettify_games_pages import prettify_game_page_main_template
-from maccabipediabot.football.game_page_fixes import fetch_known_goalkeepers, mark_goalkeepers
 from maccabipediabot.football.sort_players_events import sort_player_events_in_games_page
 
 setup_logging(level=logging.INFO)
@@ -136,8 +135,6 @@ def get_players_events_for_template(game):
                                                   maccabi_player=False)
          for player in game.not_maccabi_team.players if not player.has_event_type(GameEventTypes.LINE_UP)]
     )
-
-    mark_goalkeepers(unsorted_events, fetch_known_goalkeepers())
 
     events = sorted(unsorted_events, key=lambda player_event: player_event.minute_occur)
 
