@@ -51,3 +51,11 @@ if [ ! -s "$OUT/review_$STAMP.md" ]; then
     echo "no report written: $OUT/review_$STAMP.md is missing or empty"
     exit 3
 fi
+# Publish to the reports shelf (served by maccabipedia-reports.service). Rendered by our own
+# script, never by the agent: the page quotes text strangers wrote, and the shelf is public.
+SHELF="${RECENT_CHANGES_REVIEW_SHELF:-$HOME/served_reports}"
+if [ -d "$SHELF" ]; then
+    uv run python "$HERE/render_report.py" "$OUT/review_$STAMP.md" "$SHELF/recent_changes_review.html"
+else
+    echo "no reports shelf at $SHELF; report stays at $OUT/review_$STAMP.md"
+fi
