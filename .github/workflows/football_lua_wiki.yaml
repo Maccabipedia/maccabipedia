@@ -119,6 +119,26 @@ jobs:
           uv run python infra/football_queries/compare_day_widget.py --selftest
           uv run python infra/football_queries/compare_day_widget.py --dates 2020-01-03,2020-02-29,2020-03-15,2020-04-10,2020-05-20,2020-06-05,2020-07-25,2020-08-29,2020-09-18,2020-10-03,2020-11-07,2020-12-26
 
+      # The leaderboard() primitive, shared by both blocks below. Each
+      # selftest crosses two entities and must FAIL, or a comparison that
+      # extracts nothing would pass every one. Never run before this PR -
+      # confirmed by reading the workflow, not assumed - so both are new.
+      - name: "Referee leaderboards: 32 queries against 1"
+        run: |
+          uv run python infra/football_queries/convert_referee_section.py --local
+          uv run python infra/football_queries/compare_referee_leaderboards.py --selftest
+          uv run python infra/football_queries/compare_referee_leaderboards.py
+
+      - name: "Season leaderboards: 32 queries against 1"
+        # Renders only the שיאנים section (not the whole page through
+        # {{עונת כדורגל}}: it carries other <shtml> strips above and below
+        # this section that would break the box/tab extraction if the whole
+        # page were rendered - see .claude/season_leaderboards_spec.md §5.2).
+        run: |
+          uv run python infra/football_queries/convert_season_section.py --local
+          uv run python infra/football_queries/compare_season_leaderboards.py --selftest
+          uv run python infra/football_queries/compare_season_leaderboards.py
+
       # The checks above prove the widget SAYS the same thing. These prove it
       # BEHAVES the same: the panel fade, hover colours, no hover underline, no
       # page jump on a tab click, URL and keyboard behaviour. All of those
