@@ -48,6 +48,8 @@ CROWD = "כמות קהל"
 BROADCAST = "גוף שידור"
 COSTUME = "מדים"
 PLAYERS_EVENTS = "אירועי שחקנים"
+# Filled later, by hand or by the videos bots, so updating an existing page leaves them alone
+VIDEO_FIELDS = ["תקציר וידאו", "תקציר וידאו2", "משחק מלא", "משחק מלא2"]
 
 REFRESH_PAGES = False
 JUST_EVENTS = True
@@ -171,6 +173,8 @@ def __get_football_game_template_with_maccabistats_game_value(game):
     template_arguments[REFEREE_ASSISTERS] = ""
     template_arguments[CROWD] = "" if game.crowd == "Cant found crowd" else game.crowd
     template_arguments[BROADCAST] = ""
+    for video_field in VIDEO_FIELDS:
+        template_arguments[video_field] = ""
     template_arguments[COSTUME] = ""
     template_arguments[PLAYERS_EVENTS] = get_players_events_for_template(game)
 
@@ -200,6 +204,10 @@ def handle_existing_page(game_page, game):
         arguments = __get_football_game_template_with_maccabistats_game_value(game)
 
         for argument_name, argument_value in arguments.items():
+            # The source never has videos, only the page does (added by hand or by the videos bots)
+            if argument_name in VIDEO_FIELDS:
+                continue
+
             if str(argument_value) != football_game_template.get(argument_name).value and SHOULD_SHOW_DIFF:
                 logging.info("Found diff between arguments on this argument_name: {arg_name}\n"
                              "existing value: {existing_value}\nnew_value: {new_value}".

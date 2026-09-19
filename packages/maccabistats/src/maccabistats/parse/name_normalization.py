@@ -30,4 +30,9 @@ def normalize_name(name):
     if normalized_name != name_without_special_chars:
         logger.debug('normalized_name: {new_name}--->{old_name}'.format(new_name=normalized_name, old_name=name))
 
-    return normalized_name
+    # MaccabiPedia writes every name with an apostrophe, never a Hebrew geresh (׳)
+    name_with_apostrophe = normalized_name.replace("׳", "'")
+    if name_with_apostrophe != normalized_name:
+        logger.debug('name_with_apostrophe: {new_name}--->{old_name}'.format(new_name=name_with_apostrophe, old_name=name))
+
+    return name_with_apostrophe

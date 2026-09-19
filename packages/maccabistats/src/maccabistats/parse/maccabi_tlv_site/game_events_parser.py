@@ -69,7 +69,7 @@ class MaccabiSiteGameEventsParser(object):
         self.event_type_to_handler_function["goal"] = self.__handle_goal_event
         self.event_type_to_handler_function["sub"] = self.__handle_substitution_event
         self.event_type_to_handler_function["penalty-missed"] = self.__handle_penalty_missed_event
-        self.event_type_to_handler_function["secondyellow"] = self.__handle_second_yellow_card_missed_event
+        self.event_type_to_handler_function["secondyellow"] = self.__handle_second_yellow_card_event
         self.event_type_to_handler_function["whistle"] = self.__handle_ignored_events
 
     def enrich_teams_with_events(self):
@@ -100,7 +100,24 @@ class MaccabiSiteGameEventsParser(object):
                 logger.exception(
                     "\nUnknown error while parsing {event} at {event_time} from event page".format(event=event_text, event_time=event_time_in_minute))
 
+        # Not inside the second yellow handler: the events page lists events newest first, so when a second yellow
+        # is handled the player's first yellow isn't parsed yet (and the squad page shows only the yellow-red icon).
+        self.__mark_first_yellow_cards()
+
         return self.maccabi_team, self.not_maccabi_team
+
+    def __mark_first_yellow_cards(self):
+        """ A sent-off player's earlier yellow card is the first of two, the way MaccabiPedia records it. """
+        for player in self.maccabi_team.players + self.not_maccabi_team.players:
+            for second_yellow in player.get_events_by_type(GameEventTypes.SECOND_YELLOW_CARD):
+                earlier_yellows = [event for event in player.get_events_by_type(GameEventTypes.YELLOW_CARD)
+                                   # <=: the site writes stoppage time as 45/90, so both cards can share a minute
+                                   if event.time_occur <= second_yellow.time_occur]
+                if earlier_yellows:
+                    first_yellow = min(earlier_yellows, key=lambda event: event.time_occur)
+                    first_yellow.event_type = GameEventTypes.FIRST_YELLOW_CARD
+                    logger.info("Changed yellow card to first yellow card for player: {player}, {event}"
+                                .format(player=player.name, event=first_yellow))
 
     def __find_one_player_with_name(self, player_name):
         """ Finds player by his name, validate that only 1 player have been found
@@ -190,17 +207,16 @@ class MaccabiSiteGameEventsParser(object):
         logger.info(
             "Added penalty missed for player: {player}".format(player=player_name))
 
-    def __handle_second_yellow_card_missed_event(self, event_text, event_time_in_minute):
+    def __handle_second_yellow_card_event(self, event_text, event_time_in_minute):
         player_name = event_text.replace("כרטיס צהוב שני ל", "").strip()
         player = self.__find_one_player_with_name(player_name)
 
-        # TODO - do we need second yellow event?
-        yellow_event = GameEvent(GameEventTypes.YELLOW_CARD, event_time_in_minute)
+        second_yellow_event = GameEvent(GameEventTypes.SECOND_YELLOW_CARD, event_time_in_minute)
         try:
-            player_event = self.__get_player_event(player, yellow_event)
+            player_event = self.__get_player_event(player, second_yellow_event)
             logger.info("Found second yellow event : {event}".format(event=player_event))
         except CantFindEventException:
-            player.add_event(yellow_event)
+            player.add_event(second_yellow_event)
             logger.info("Added second yellow event for player: {player}".format(player=player_name))
 
     def __handle_substitution_event(self, event_text, event_time_in_minute):
@@ -231,7 +247,7 @@ class MaccabiSiteGameEventsParser(object):
         :rtype: str, GoalGameEvent
         """
 
-        player_name = event_text.replace("שער של", "").strip()
+        player_name = normalize_name(event_text.replace("שער של", ""))
         goal_type = GoalTypes.UNKNOWN
 
         if "(פנדל)" in player_name:
@@ -288,6 +304,12 @@ class MaccabiSiteGameEventsParser(object):
     def __handle_red_card_event(self, event_text, event_time_in_minute):
         player_name = event_text.replace("כרטיס אדום ל", "").strip()
         player = self.__find_one_player_with_name(player_name)
+
+        # Not seen in 2025/26-2026/27 (a second yellow comes as `secondyellow` only), so warn if the site starts doing it
+        if GameEvent(GameEventTypes.SECOND_YELLOW_CARD, event_time_in_minute) in player.events:
+            logger.warning("Found a red card at the minute of a second yellow for player: {player}, "
+                           "treating it as the same sending-off. Game link: {link}".format(player=player.name, link=self.game_link))
+            return
 
         red_card_event = GameEvent(GameEventTypes.RED_CARD, event_time_in_minute)
         try:
