@@ -74,6 +74,7 @@
       "Bash(uv run:*)",
       "Bash(uv sync:*)",
       "Bash(uv add:*)",
+      "Bash(finish-session:*)",
       "mcp__maccabipedia__*",
       "mcp__trello__*",
       "mcp__youtube__*"
