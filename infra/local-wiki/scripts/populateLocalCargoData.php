@@ -186,7 +186,12 @@ class PopulateLocalCargoData extends Maintenance {
 		}
 		$this->output( "$label done — $processed pages processed, $failed failed.\n" );
 		if ( $failed > 0 ) {
-			$this->fatalError( "$label $failed page(s) failed to store" );
+			// Exit 3, not the generic 1: "these pages failed to store, and
+			// they are listed in --failed-to" - which the caller can retry.
+			// Anything else that stops a worker (a DB error outside the
+			// per-page retry, a PHP fatal) exits otherwise and must not be
+			// mistaken for it.
+			$this->fatalError( "$label $failed page(s) failed to store", 3 );
 		}
 	}
 

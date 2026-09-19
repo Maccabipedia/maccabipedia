@@ -187,7 +187,8 @@ def game_media_titles(season, fetch=cargo_fetch, api=api_get):
     pages of the games-list icons and of the season's collectibles, and the
     day pages the game rows link their dates to.
 
-    Each game row tests for its media with #ifexist (ticket, poster) and with
+    Each game row tests for its media with #ifexist (the ticket - the poster
+    test sits inside an HTML comment in production's template and never runs) and with
     DPL galleries over categories (press, photos, programme); the season page
     tests for the team photo. Both see only pages that exist LOCALLY - the
     binaries then stream from the foreign repo - so without these pages every
@@ -233,8 +234,7 @@ def game_media_titles(season, fetch=cargo_fetch, api=api_get):
                     break
                 params = {**params, **data["continue"]}
 
-    prefixes = [f"{kind} {media_date}" for media_date in media_dates
-                for kind in ("כרטיס משחק", "כרזת משחק")]
+    prefixes = [f"כרטיס משחק {media_date}" for media_date in media_dates]
     prefixes.append("תמונה קבוצתית " + season.replace("/", "-"))
     for prefix in prefixes:
         data = api({"action": "query", "list": "allimages", "aiprefix": prefix,

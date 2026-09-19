@@ -776,12 +776,14 @@ local SEASON_RESULTS = { 'wins', 'draws', 'losses', 'goalsFor', 'goalsAgainst',
                          'cleanSheets' }
 
 --- One row for a block's cells across the four tabs, c1..cN in prime's order.
+--- Tab N gets per[name] + (N - 1) * 100, so a value read from the wrong tab
+--- shows: 34 wins in רשמי is 134 in ליגה and 334 in בינלאומי.
 local function seasonRow(names, per)
 	local row, index = {}, 0
-	for _ = 1, 4 do
+	for tab = 1, 4 do
 		for _, name in ipairs(names) do
 			index = index + 1
-			row['c' .. index] = per[name] and tostring(per[name]) or nil
+			row['c' .. index] = per[name] and tostring(per[name] + (tab - 1) * 100) or nil
 		end
 	end
 	return row
@@ -811,8 +813,10 @@ check('season results: one query for 24 numbers, filtered to the season', functi
 	equals(seasonValue(Blocks, 'season-results', 'רשמי', 'wins'), '34', 'wins')
 	equals(seasonValue(Blocks, 'season-results', 'רשמי', 'cleanSheets'), '14',
 		'clean sheets')
-	equals(seasonValue(Blocks, 'season-results', 'בינלאומי', 'goalsAgainst'), '61',
-		'the fourth tab is read too')
+	equals(seasonValue(Blocks, 'season-results', 'ליגה', 'wins'), '134',
+		'the second tab reads its own numbers')
+	equals(seasonValue(Blocks, 'season-results', 'בינלאומי', 'goalsAgainst'), '361',
+		'the fourth tab reads its own numbers')
 end)
 
 --- The SQL of each prime cell by alias: c1 = the first cell of the first tab.
@@ -861,8 +865,11 @@ check('season cards: Maccabi yellows and reds, one query', function(Blocks)
 	contains(cell.c1, 'Games_Events.Team = 1', 'Maccabi\'s yellows, not the opponent\'s')
 	contains(cell.c2, 'Games_Events.Team = 1', 'Maccabi\'s reds')
 	contains(cell.c3, 'Competitions.League = 1', 'tab 2 is ליגה')
-	equals(seasonValue(Blocks, 'season-cards', 'ליגה', 'yellows'), '121', 'yellows')
-	equals(seasonValue(Blocks, 'season-cards', 'ליגה', 'reds'), '5', 'reds')
+	equals(seasonValue(Blocks, 'season-cards', 'רשמי', 'yellows'), '121', 'yellows')
+	equals(seasonValue(Blocks, 'season-cards', 'ליגה', 'yellows'), '221',
+		'the league tab reads its own yellows')
+	equals(seasonValue(Blocks, 'season-cards', 'ליגה', 'reds'), '105',
+		'the league tab reads its own reds')
 end)
 
 check('a block without rows cannot be shown with tab', function(Blocks)

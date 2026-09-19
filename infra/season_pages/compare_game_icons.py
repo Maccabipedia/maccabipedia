@@ -21,7 +21,7 @@ import argparse
 import re
 import sys
 
-from wiki_api import call
+from season_api import call
 
 OLD = '{{{{#תנאי: {{{{הצגת גלריה לפי קטגוריה |שם קטגוריה={category} |אין תוצאות=}}}} |1|0}}}}'
 NEW = '{{{{#ifexpr: {{{{PAGESINCATEGORY:{category}|all|R}}}} > 0 |1|0}}}}'
@@ -119,7 +119,10 @@ def main() -> None:
         sys.exit(0 if disagreements else 1)
 
     total_games, total_shown, failures = 0, dict.fromkeys(CATEGORIES, 0), []
-    for season in options.seasons or seasons():
+    to_check = options.seasons or seasons()
+    if not to_check:
+        raise SystemExit('no seasons to compare - refusing to pass over nothing')
+    for season in to_check:
         count, shown, disagreements = compare(season, games(season))
         total_games += count
         for icon in CATEGORIES:

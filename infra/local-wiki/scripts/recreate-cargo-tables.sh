@@ -79,26 +79,33 @@ for (( worker=0; worker<WORKERS; worker++ )); do
     worker_pids+=($!)
 done
 
+# A worker exits 3 when its only failures are pages it listed in
+# FAILED_LIST, and anything else when it stopped for another reason. Only the
+# first kind can be fixed by the retry pass below.
 populate_status=0
+listed_failures=0
 for pid in "${worker_pids[@]}"; do
-    wait "$pid" || populate_status=1
+    worker_status=0
+    wait "$pid" || worker_status=$?
+    if [ "$worker_status" -eq 3 ]; then
+        listed_failures=1
+    elif [ "$worker_status" -ne 0 ]; then
+        populate_status=1
+    fi
 done
 
 # Second pass, foreign images ON, for what the fast pass could not store. A
 # page that uses a קובץ: page existing locally (the season manifests import
 # the games' media description pages) fails to store with foreign images off
 # - "Call to a member function getSha1() on bool" - and stores with them on.
-if [ "$populate_status" -ne 0 ]; then
+if [ "$listed_failures" -eq 1 ]; then
     mapfile -t failed_titles < <(compose_exec -T mediawiki cat "$FAILED_LIST" 2>/dev/null)
     echo "==> re-storing ${#failed_titles[@]} page(s) with foreign images on"
-    populate_status=0
+    [ "${#failed_titles[@]}" -gt 0 ] || populate_status=1  # exit 3 with nothing listed
     for title in "${failed_titles[@]}"; do
         compose_exec -T mediawiki php maintenance/populateLocalCargoData.php \
             --title "$title" || populate_status=1
     done
-    if [ "${#failed_titles[@]}" -eq 0 ]; then
-        populate_status=1  # a worker failed without listing a page: not a store failure
-    fi
 fi
 if [ "$populate_status" -ne 0 ]; then
     echo "ERROR: a populate worker failed — see the output above. The run is" >&2
