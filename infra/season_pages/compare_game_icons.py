@@ -18,16 +18,10 @@ and must FAIL: a comparison that cannot fail proves nothing.
 from __future__ import annotations
 
 import argparse
-import json
 import re
 import sys
-import time
-import urllib.parse
-import urllib.request
 
-API = 'https://www.maccabipedia.co.il/api.php'
-UA = {'User-Agent': 'MaccabipediaBot/game-icons (infra/season_pages)'}
-PAUSE_SECONDS = 1.0
+from wiki_api import call
 
 OLD = '{{{{#תנאי: {{{{הצגת גלריה לפי קטגוריה |שם קטגוריה={category} |אין תוצאות=}}}} |1|0}}}}'
 NEW = '{{{{#ifexpr: {{{{PAGESINCATEGORY:{category}|all|R}}}} > 0 |1|0}}}}'
@@ -42,15 +36,7 @@ CATEGORIES = {
 
 
 def api(params: dict, post: bool = False) -> dict:
-    params = dict(params, format='json', formatversion='2')
-    body = urllib.parse.urlencode(params).encode('utf-8')
-    request = (urllib.request.Request(API, data=body, headers=UA) if post else
-               urllib.request.Request(f'{API}?{body.decode()}', headers=UA))
-    with urllib.request.urlopen(request, timeout=300) as response:
-        data = json.loads(response.read().decode('utf-8'))
-    if 'error' in data:
-        raise SystemExit(f'API error: {data["error"]}')
-    return data
+    return call('prod', params, post)  # paced, with 508 back-off
 
 
 def seasons() -> list[str]:
@@ -92,7 +78,6 @@ def answers(season: str, rows: list[tuple[str, str]],
     data = api({'action': 'parse', 'title': f'עונת {season}', 'text': '\n'.join(lines),
                 'contentmodel': 'wikitext', 'prop': 'text', 'disablelimitreport': 1},
                post=True)
-    time.sleep(PAUSE_SECONDS)
     rendered = re.findall(r'ROW\[([01,\s]*)\]', data['parse']['text'])
     if len(rendered) != len(rows):
         raise SystemExit(f'{season}: {len(rows)} games but {len(rendered)} rendered rows')

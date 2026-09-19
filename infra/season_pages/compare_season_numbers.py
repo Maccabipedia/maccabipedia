@@ -16,34 +16,17 @@ Refuses to pass over nothing: each render must hold the four tab lists, and
 from __future__ import annotations
 
 import argparse
-import json
 import sys
-import time
-import urllib.parse
-import urllib.request
 
-WIKIS = {'local': 'http://localhost:8080/api.php',
-         'prod': 'https://www.maccabipedia.co.il/api.php'}
-UA = {'User-Agent': 'MaccabipediaBot/season-numbers (infra/season_pages)'}
+from wiki_api import WIKIS, call
+
 OLD = '{{עונת כדורגל/הצגת מספרים עונתיים |עונה=%s }}'
 NEW = '{{עונת כדורגל/הצגת מספרים עונתיים/ארגז חול |עונה=%s }}'
 ERRORS = ('scribunto-error', 'class="error"', 'nothing primed')
-PROD_PAUSE_SECONDS = 1.0
 
 
 def api(wiki: str, params: dict, post: bool = False) -> dict:
-    params = dict(params, format='json', formatversion='2')
-    body = urllib.parse.urlencode(params).encode('utf-8')
-    url = WIKIS[wiki]
-    request = (urllib.request.Request(url, data=body, headers=UA) if post else
-               urllib.request.Request(f'{url}?{body.decode()}', headers=UA))
-    with urllib.request.urlopen(request, timeout=300) as response:
-        data = json.loads(response.read().decode('utf-8'))
-    if 'error' in data:
-        raise SystemExit(f'{wiki} API error: {data["error"]}')
-    if wiki == 'prod':
-        time.sleep(PROD_PAUSE_SECONDS)
-    return data
+    return call(wiki, params, post)  # paced for production, with 508 back-off
 
 
 def render(wiki: str, season: str, template: str) -> str:
