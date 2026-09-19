@@ -20,12 +20,14 @@ ROW = (
 def test_each_gallery_test_becomes_a_category_size_test():
     swapped = candidate_of(ROW)
     assert 'הצגת גלריה לפי קטגוריה' not in swapped
-    assert ('{{#ifexpr: {{PAGESINCATEGORY:{{{PageName|}}}/תוכניית משחק|all|R}} > 0 '
-            '|<i class="fa-solid fa-book"></i>}}') in swapped
+    # Name-based categories decode Cargo's &quot; first: PAGESINCATEGORY takes
+    # the name literally, and every בית"ר game lost its photos icon without it.
+    assert ('{{#ifexpr: {{PAGESINCATEGORY:{{#replace:{{{PageName|}}}|&quot;|"}}/תוכניית משחק'
+            '|all|R}} > 0 |<i class="fa-solid fa-book"></i>}}') in swapped
     assert ('{{#ifexpr: {{PAGESINCATEGORY:עיתונות למשחק מה-{{#var: תאריך עבור מדיה}}|all|R}} > 0 '
             '|<i class="fa-solid fa-newspaper"></i>}}') in swapped
-    assert ('{{#ifexpr: {{PAGESINCATEGORY:{{{PageName|}}}/תמונות|all|R}} > 0 '
-            '|<i class="fa-solid fa-image"></i>}}') in swapped
+    assert ('{{#ifexpr: {{PAGESINCATEGORY:{{#replace:{{{PageName|}}}|&quot;|"}}/תמונות'
+            '|all|R}} > 0 |<i class="fa-solid fa-image"></i>}}') in swapped
 
 
 def test_nothing_else_changes():

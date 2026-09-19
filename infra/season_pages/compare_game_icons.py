@@ -21,18 +21,15 @@ import argparse
 import re
 import sys
 
+from convert_game_row_icons import CATEGORIES as TEMPLATE_CATEGORIES, OLD_TEST, PAGE_NAME, new_test
 from season_api import call
 
-OLD = '{{{{#תנאי: {{{{הצגת גלריה לפי קטגוריה |שם קטגוריה={category} |אין תוצאות=}}}} |1|0}}}}'
-NEW = '{{{{#ifexpr: {{{{PAGESINCATEGORY:{category}|all|R}}}} > 0 |1|0}}}}'
-# Placeholder for the media date the row template computes; replaced per game.
-MEDIA = '{media date}'
-# The three categories, exactly as the row template names them.
-CATEGORIES = {
-    'programme': '{page}/תוכניית משחק',
-    'press': 'עיתונות למשחק מה-' + MEDIA,
-    'photos': '{page}/תמונות',
-}
+# The converter's own strings, so this tests the literal wikitext it writes -
+# not a reconstruction. An earlier version rebuilt the tests itself and fed
+# them decoded page names, and so never saw that PAGESINCATEGORY does not
+# decode the &quot; the row actually receives.
+MEDIA_VARIABLE = '{{#var: תאריך עבור מדיה}}'
+CATEGORIES = dict(zip(('programme', 'press', 'photos'), TEMPLATE_CATEGORIES))
 
 
 def api(params: dict, post: bool = False) -> dict:
@@ -51,8 +48,9 @@ def games(season: str) -> list[tuple[str, str]]:
                 'limit': '500'})
     if 'cargoquery' not in data:
         raise SystemExit(f'cargoquery failed for {season}: {data}')
-    return [(row['title']['Page'].replace('&quot;', '"'), row['title']['Date'])
-            for row in data['cargoquery']]
+    # The page name exactly as a Cargo query hands it to the row template -
+    # quotes HTML-encoded as &quot;. Decoding it here is what hid the bug.
+    return [(row['title']['Page'], row['title']['Date']) for row in data['cargoquery']]
 
 
 def media_date(date: str) -> str:
@@ -71,9 +69,11 @@ def answers(season: str, rows: list[tuple[str, str]],
         other_page, other_date = rows[(index + shift) % len(rows)]
         cells = []
         for pattern in CATEGORIES.values():
-            old = pattern.replace('{page}', page).replace(MEDIA, media_date(date))
-            new = pattern.replace('{page}', other_page).replace(MEDIA, media_date(other_date))
-            cells += [OLD.format(category=old), NEW.format(category=new)]
+            old = (OLD_TEST % pattern + '1|0}}').replace(PAGE_NAME, page) \
+                .replace(MEDIA_VARIABLE, media_date(date))
+            new = (new_test(pattern) + '1|0}}').replace(PAGE_NAME, other_page) \
+                .replace(MEDIA_VARIABLE, media_date(other_date))
+            cells += [old, new]
         lines.append('ROW[' + ','.join(cells) + ']')
     data = api({'action': 'parse', 'title': f'עונת {season}', 'text': '\n'.join(lines),
                 'contentmodel': 'wikitext', 'prop': 'text', 'disablelimitreport': 1},

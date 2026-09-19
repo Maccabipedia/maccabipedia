@@ -34,6 +34,19 @@ CATEGORIES = (
 OLD_TEST = '{{#תנאי: {{הצגת גלריה לפי קטגוריה |שם קטגוריה=%s |אין תוצאות=}} |'
 NEW_TEST = '{{#ifexpr: {{PAGESINCATEGORY:%s|all|R}} > 0 |'
 
+# The row receives PageName from a Cargo query, which HTML-encodes a quote:
+# `משחק:11-09-1993 בית&quot;ר ירושלים נגד …`. The gallery's DPL decodes that
+# entity; PAGESINCATEGORY takes the name literally and finds no category -
+# every בית"ר game lost its photos icon until this. So the new test decodes it.
+# (No other entity occurs in Football_Games page names.)
+PAGE_NAME = '{{{PageName|}}}'
+DECODED_PAGE_NAME = '{{#replace:{{{PageName|}}}|&quot;|"}}'
+
+
+def new_test(category: str) -> str:
+    """The category-size test for one of CATEGORIES, as the template gets it."""
+    return NEW_TEST % category.replace(PAGE_NAME, DECODED_PAGE_NAME)
+
 
 def candidate_of(body: str) -> str:
     """The template with each gallery test replaced by a category-size test.
@@ -47,7 +60,7 @@ def candidate_of(body: str) -> str:
         if body.count(old) != 1:
             raise SystemExit(f'expected exactly one of {old!r}, found {body.count(old)} - '
                              'refusing')
-        body = body.replace(old, NEW_TEST % category)
+        body = body.replace(old, new_test(category))
     if 'הצגת גלריה לפי קטגוריה' in body:
         raise SystemExit('a gallery test is still there after the swap - refusing')
     return body
