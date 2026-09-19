@@ -21,8 +21,17 @@ fi
 
 mkdir -p "$WT_ROOT"
 
-# Create worktree with new branch from HEAD
-git -C "$REPO_ROOT" worktree add -b "$WORKTREE_NAME" "$WT_DIR" HEAD >&2
+# Cut from origin/master, not the main clone's HEAD. PRs merge on GitHub and nothing
+# fast-forwards the main clone afterwards, so its HEAD drifts — on 2026-09-19 it was 8 commits
+# behind and every new session missed the finish-session rule merged that morning (#199).
+# A failed fetch (offline) must not stop a session opening: fall back to the last-fetched
+# origin/master, and to HEAD only if that ref does not exist at all.
+# --no-track keeps what cutting from HEAD gave: no upstream until the session's own `push -u`.
+git -C "$REPO_ROOT" fetch -q origin master >&2 \
+    || echo "create-worktree: fetch failed — cutting from the last-fetched origin/master" >&2
+BASE=origin/master
+git -C "$REPO_ROOT" rev-parse -q --verify "$BASE" >/dev/null || BASE=HEAD
+git -C "$REPO_ROOT" worktree add --no-track -b "$WORKTREE_NAME" "$WT_DIR" "$BASE" >&2
 
 # Copy gitignored .claude config
 SRC="${REPO_ROOT}/.claude/settings.local.json"
