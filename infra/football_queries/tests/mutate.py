@@ -26,6 +26,15 @@ SUITES = [
 RENDERER = Path('infra/football_queries/Module_FootballStatsBlock.lua')
 BLOCKS = Path('infra/football_queries/Module_FootballStatsBlocks.lua')
 
+# The end of the season block's tab strip up to its first box - the only
+# place where a בינלאומי tab is followed by the appearances box, so a
+# mutation anchored on it matches the season block and nothing else.
+SEASON_TAB_TAIL = (
+    "\t\t\t{ category = 'בינלאומי', label = 'בינלאומי', heading = 'בינלאומי' },\n"
+    "\t\t},\n"
+    "\t\ttabHeading = '<div class=\"tab-header\">%s (%s %s)</div>',\n\n"
+    "\t\tboxes = {\n\t\t\t{ key = 'appearances', title = 'שיאני הופעות',")
+
 # (label, file, find, replace). `find` must appear exactly once, or the harness
 # says so instead of silently mutating the wrong place - which is how a broken
 # mutation once reported a false survivor.
@@ -415,6 +424,11 @@ MUTATIONS = [
     ('referee boxOpen loses its id', BLOCKS,
      "boxOpen = '<div class=\"records-list-tabs-container\" id=\"שיאנים\">',",
      "boxOpen = '<div class=\"records-list-tabs-container\">',"),
+    # Survived the old substring check: the id is still there, so contains()
+    # passed. The referee wrapper is live markup, so the test is exact now.
+    ('referee boxOpen gains an attribute', BLOCKS,
+     "boxOpen = '<div class=\"records-list-tabs-container\" id=\"שיאנים\">',",
+     "boxOpen = '<div class=\"records-list-tabs-container\" id=\"שיאנים\" dir=\"rtl\">',"),
     ('season boxOpen gains the referee id', BLOCKS,
      "\t\tboxOpen = '<div class=\"records-list-tabs-container\">',\n\n"
      "\t\ttabStrip = {\n\t\t\t{ category = 'רשמי', label = 'משחקים רשמיים',\n"
@@ -435,6 +449,47 @@ MUTATIONS = [
      "{ category = 'בינלאומי', label = 'אירופה', heading = 'אירופה' },\n\t\t},\n"
      "\t\ttabHeading = '<div class=\"tab-header\">%s (%s %s)</div>',\n\n"
      "\t\tboxes = {\n\t\t\t{ key = 'appearances', title = 'שיאני הופעות',"),
+    # The rest of the season block's data lines. Each is anchored on context
+    # only the season block has (the id-less boxOpen, the בינלאומי tab, the
+    # מוצהבים title) so it matches once, not in the referee block too.
+    ('season shows nine rows, not ten', BLOCKS,
+     "\t\ttop = 10,\n\t\trowTemplate = 'סטטיסטיקות/הצגת שיאנים/הצגת שחקן/כדורגל',\n"
+     "\t\tmoreText = 'עוד',\n\t\tboxOpen = '<div class=\"records-list-tabs-container\">',",
+     "\t\ttop = 9,\n\t\trowTemplate = 'סטטיסטיקות/הצגת שיאנים/הצגת שחקן/כדורגל',\n"
+     "\t\tmoreText = 'עוד',\n\t\tboxOpen = '<div class=\"records-list-tabs-container\">',"),
+    ('season "more" link reads differently', BLOCKS,
+     "\t\tmoreText = 'עוד',\n\t\tboxOpen = '<div class=\"records-list-tabs-container\">',",
+     "\t\tmoreText = 'עוד תוצאות',\n\t\tboxOpen = '<div class=\"records-list-tabs-container\">',"),
+    ('season league heading changes', BLOCKS,
+     "\t\t\t{ category = 'ליגה', label = 'ליגה', heading = 'ליגה' },\n"
+     "\t\t\t{ category = 'גביע', label = 'גביע', heading = 'גביע המדינה' },\n"
+     + SEASON_TAB_TAIL,
+     "\t\t\t{ category = 'ליגה', label = 'ליגה', heading = 'ליגת העל' },\n"
+     "\t\t\t{ category = 'גביע', label = 'גביע', heading = 'גביע המדינה' },\n"
+     + SEASON_TAB_TAIL),
+    ('season cup heading equals its label', BLOCKS,
+     "\t\t\t{ category = 'גביע', label = 'גביע', heading = 'גביע המדינה' },\n"
+     + SEASON_TAB_TAIL,
+     "\t\t\t{ category = 'גביע', label = 'גביע', heading = 'גביע' },\n"
+     + SEASON_TAB_TAIL),
+    ('season appearances noun changes', BLOCKS,
+     "\t\t\t{ key = 'appearances', title = 'שיאני הופעות',\n"
+     "\t\t\t  noun = 'מופיעים שונים',\n"
+     "\t\t\t  filters = { ['מספר אירוע'] = '1,5' } },\n"
+     "\t\t\t{ key = 'goals', title = 'שיאני כיבושים', noun = 'כובשים שונים',\n"
+     "\t\t\t  filters = { ['מספר אירוע'] = '3', ['ללא תת אירוע'] = '33' } },",
+     "\t\t\t{ key = 'appearances', title = 'שיאני הופעות',\n"
+     "\t\t\t  noun = 'שחקנים שונים',\n"
+     "\t\t\t  filters = { ['מספר אירוע'] = '1,5' } },\n"
+     "\t\t\t{ key = 'goals', title = 'שיאני כיבושים', noun = 'כובשים שונים',\n"
+     "\t\t\t  filters = { ['מספר אירוע'] = '3', ['ללא תת אירוע'] = '33' } },"),
+    ('season assists title changes', BLOCKS,
+     "{ key = 'assists', title = 'שיאני בישולים', noun = 'שחקנים שונים',\n"
+     "\t\t\t  filters = { ['מספר אירוע'] = '4' } },\n"
+     "\t\t\t{ key = 'cards', title = 'שיאני מוצהבים',",
+     "{ key = 'assists', title = 'שיאני מבשלים', noun = 'שחקנים שונים',\n"
+     "\t\t\t  filters = { ['מספר אירוע'] = '4' } },\n"
+     "\t\t\t{ key = 'cards', title = 'שיאני מוצהבים',"),
 ]
 
 

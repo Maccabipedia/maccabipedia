@@ -443,12 +443,77 @@ check('the season widget: each box counts exactly its template\'s events', funct
 	contains(columns[13], 'SubType IN (71)', 'yellow cards only')
 end)
 
-check('the referee-assistant box wrapper still carries id="שיאנים"', function()
-	-- Locks in the current byte-identical output through the boxOpen
-	-- refactor: this block's markup must not move when season's is added.
-	local html = widget().leaderboards(refereeFrame('דודו ביטון'))
-	contains(html, '<div class="records-list-tabs-container" id="שיאנים">',
-		'unchanged by making the wrapper block data')
+check('the season widget: tab labels, headings, box titles and nouns', function()
+	local row = { g = 'ערן זהבי' }
+	for box = 1, 4 do
+		for tab = 1, 4 do
+			row[column(box, tab)] = '0'
+		end
+	end
+	row[column(1, 1)] = '52'
+	row[column(1, 2)] = '36'
+	stub.willReturn({ row, { g = 'שרן ייני', [column(1, 1)] = '47' } })
+	local html = widget().leaderboards(seasonFrame('2021/22'))
+
+	local appearances = stub.extensionTags[1].content
+	contains(appearances, 'משחקים רשמיים=<div class="tab-header">משחקים רשמיים '
+		.. '(2 מופיעים שונים)</div>', 'first tab label and heading')
+	contains(appearances, '|-|ליגה=<div class="tab-header">ליגה (1 מופיעים שונים)',
+		'league tab label and heading')
+	contains(appearances, '|-|גביע=<div class="tab-header">גביע המדינה (0 ',
+		'cup heading differs from its label')
+	contains(appearances, 'ROW(ערן זהבי|52)\nROW(שרן ייני|47)', 'rows in rank order')
+	contains(stub.extensionTags[2].content, 'כובשים שונים', 'goals noun')
+	contains(stub.extensionTags[3].content, 'שחקנים שונים', 'assists noun')
+	contains(stub.extensionTags[4].content, 'שחקנים שונים', 'cards noun')
+	contains(html, '<div class="title">שיאני כיבושים</div>', 'goals title')
+	contains(html, '<div class="title">שיאני בישולים</div>', 'assists title')
+end)
+
+check('the season widget: ten rows, and "עוד" only past ten', function()
+	local rows = {}
+	for index = 1, 11 do
+		rows[index] = { g = 'שחקן ' .. index, [column(1, 1)] = tostring(50 - index),
+		                [column(1, 2)] = index <= 10 and '5' or '0' }
+	end
+	stub.willReturn(rows)
+	widget().leaderboards(seasonFrame('2021/22'))
+	local appearances = stub.extensionTags[1].content
+	local officialTab = appearances:match('^(.-)|%-|ליגה=')
+	local leagueTab = appearances:match('|%-|ליגה=(.-)|%-|')
+	local _, shown = officialTab:gsub('ROW%(', '')
+	equals(shown, 10, 'eleven players, ten shown')
+	lacks(officialTab, 'ROW(שחקן 11|', 'the eleventh is behind the link')
+	contains(officialTab, ' עוד]', 'link text')
+	contains(officialTab, 'Football_Games.Season = "2021/22"', 'the link keeps the season')
+	lacks(leagueTab, 'ViewData', 'exactly ten players: no link')
+end)
+
+-- Every wrapper tag, exactly: a substring check would also pass with extra
+-- attributes appended, and the referee markup is live in production.
+local function wrappersOf(html)
+	local found = {}
+	for tag in html:gmatch('<div class="records%-list%-tabs%-container"[^>]*>') do
+		found[#found + 1] = tag
+	end
+	return found
+end
+
+check('the referee-assistant box wrappers are byte-identical to before boxOpen', function()
+	local tags = wrappersOf(widget().leaderboards(refereeFrame('דודו ביטון')))
+	equals(#tags, 4, 'one wrapper per box')
+	for _, tag in ipairs(tags) do
+		equals(tag, '<div class="records-list-tabs-container" id="שיאנים">',
+			'unchanged by making the wrapper block data')
+	end
+end)
+
+check('the season box wrappers carry no attribute beyond the class', function()
+	local tags = wrappersOf(widget().leaderboards(seasonFrame('2021/22')))
+	equals(#tags, 4, 'one wrapper per box')
+	for _, tag in ipairs(tags) do
+		equals(tag, '<div class="records-list-tabs-container">', 'no id, nothing else')
+	end
 end)
 
 print(string.format('\n%d passed, %d failed', passed, failed))
