@@ -379,13 +379,62 @@ MUTATIONS = [
     ('the heading shows the box title instead of the noun', RENDERER,
      'result.players, box.noun) }', 'result.players, box.title) }'),
     ('the referee tabs lose Official = 1', BLOCKS,
-     "shared = { ['קטגוריית מפעל'] = 'רשמי' },", 'shared = {},'),
+     "entityFilter = 'עוזר שופט',\n\t\t-- Every tab of the templates' query carries"
+     " Competitions.Official = 1,\n\t\t-- the league tab included - so רשמי is"
+     " SHARED, and each tab's own\n\t\t-- category joins it inside its column.\n"
+     "\t\tshared = { ['קטגוריית מפעל'] = 'רשמי' },",
+     "entityFilter = 'עוזר שופט',\n\t\tshared = {},"),
+    ('the season tabs lose Official = 1', BLOCKS,
+     "entityFilter = 'עונה',\n\t\tshared = { ['קטגוריית מפעל'] = 'רשמי' },",
+     "entityFilter = 'עונה',\n\t\tshared = {},"),
     ('the cards box counts every card, not yellows', BLOCKS,
-     "noun = 'שחקנים שונים',\n\t\t\t  filters = { ['מספר אירוע'] = '7', ['תת אירוע'] = '71' } },",
-     "noun = 'שחקנים שונים',\n\t\t\t  filters = { ['מספר אירוע'] = '7' } },"),
+     "{ key = 'cards', title = 'שיאני צהובים', noun = 'שחקנים שונים',\n"
+     "\t\t\t  filters = { ['מספר אירוע'] = '7', ['תת אירוע'] = '71' } },",
+     "{ key = 'cards', title = 'שיאני צהובים', noun = 'שחקנים שונים',\n"
+     "\t\t\t  filters = { ['מספר אירוע'] = '7' } },"),
+    ('the season cards box counts every card, not yellows', BLOCKS,
+     "{ key = 'cards', title = 'שיאני מוצהבים', noun = 'שחקנים שונים',\n"
+     "\t\t\t  filters = { ['מספר אירוע'] = '7', ['תת אירוע'] = '71' } },",
+     "{ key = 'cards', title = 'שיאני מוצהבים', noun = 'שחקנים שונים',\n"
+     "\t\t\t  filters = { ['מספר אירוע'] = '7' } },"),
     ('the goals box counts own goals', BLOCKS,
-     "filters = { ['מספר אירוע'] = '3', ['ללא תת אירוע'] = '33' } },",
-     "filters = { ['מספר אירוע'] = '3' } },"),
+     "{ key = 'goals', title = 'שיאני כיבושים', noun = 'כובשים שונים',\n"
+     "\t\t\t  -- Own goals out, for this box only. In the shared WHERE it\n"
+     "\t\t\t  -- would also drop subtype-33 rows from the other boxes.\n"
+     "\t\t\t  filters = { ['מספר אירוע'] = '3', ['ללא תת אירוע'] = '33' } },",
+     "{ key = 'goals', title = 'שיאני כיבושים', noun = 'כובשים שונים',\n"
+     "\t\t\t  filters = { ['מספר אירוע'] = '3' } },"),
+    ('the season goals box counts own goals', BLOCKS,
+     "{ key = 'goals', title = 'שיאני כיבושים', noun = 'כובשים שונים',\n"
+     "\t\t\t  filters = { ['מספר אירוע'] = '3', ['ללא תת אירוע'] = '33' } },",
+     "{ key = 'goals', title = 'שיאני כיבושים', noun = 'כובשים שונים',\n"
+     "\t\t\t  filters = { ['מספר אירוע'] = '3' } },"),
+    # boxOpen: no default, and each block's own wrapper must not drift onto
+    # the other's - the season box must never gain id="שיאנים", and the
+    # referee box must never lose it.
+    ('referee boxOpen loses its id', BLOCKS,
+     "boxOpen = '<div class=\"records-list-tabs-container\" id=\"שיאנים\">',",
+     "boxOpen = '<div class=\"records-list-tabs-container\">',"),
+    ('season boxOpen gains the referee id', BLOCKS,
+     "\t\tboxOpen = '<div class=\"records-list-tabs-container\">',\n\n"
+     "\t\ttabStrip = {\n\t\t\t{ category = 'רשמי', label = 'משחקים רשמיים',\n"
+     "\t\t\t  heading = 'משחקים רשמיים' },\n"
+     "\t\t\t{ category = 'ליגה', label = 'ליגה', heading = 'ליגה' },\n"
+     "\t\t\t{ category = 'גביע', label = 'גביע', heading = 'גביע המדינה' },\n"
+     "\t\t\t{ category = 'בינלאומי', label = 'בינלאומי', heading = 'בינלאומי' },",
+     "\t\tboxOpen = '<div class=\"records-list-tabs-container\" id=\"שיאנים\">',\n\n"
+     "\t\ttabStrip = {\n\t\t\t{ category = 'רשמי', label = 'משחקים רשמיים',\n"
+     "\t\t\t  heading = 'משחקים רשמיים' },\n"
+     "\t\t\t{ category = 'ליגה', label = 'ליגה', heading = 'ליגה' },\n"
+     "\t\t\t{ category = 'גביע', label = 'גביע', heading = 'גביע המדינה' },\n"
+     "\t\t\t{ category = 'בינלאומי', label = 'בינלאומי', heading = 'בינלאומי' },"),
+    ('season tab 4 reads אירופה like the referee block', BLOCKS,
+     "{ category = 'בינלאומי', label = 'בינלאומי', heading = 'בינלאומי' },\n\t\t},\n"
+     "\t\ttabHeading = '<div class=\"tab-header\">%s (%s %s)</div>',\n\n"
+     "\t\tboxes = {\n\t\t\t{ key = 'appearances', title = 'שיאני הופעות',",
+     "{ category = 'בינלאומי', label = 'אירופה', heading = 'אירופה' },\n\t\t},\n"
+     "\t\ttabHeading = '<div class=\"tab-header\">%s (%s %s)</div>',\n\n"
+     "\t\tboxes = {\n\t\t\t{ key = 'appearances', title = 'שיאני הופעות',"),
 ]
 
 

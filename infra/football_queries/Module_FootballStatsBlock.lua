@@ -648,7 +648,7 @@ local function leaderboards(frame)
 		end)
 
 		out[#out + 1] = table.concat({
-			'<div class="records-list-tabs-container" id="שיאנים">',
+			declaration.boxOpen,
 			string.format('<div class="title">%s</div>', box.title),
 			'<div class="list"><div class="tabber-converted">'
 				.. frame:extensionTag('tabber', body)

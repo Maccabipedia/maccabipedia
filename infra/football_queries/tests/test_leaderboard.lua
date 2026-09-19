@@ -376,5 +376,80 @@ check('the widget refuses what would silently mislead', function()
 	equals(#stub.calls, 0, 'nothing queried on a refusal')
 end)
 
+-- ------------------------------------------------------- season leaderboard
+
+-- Same primitive, a season page instead of a referee page: entity עונה is a
+-- plain text filter (Football_Games.Season), not HOLDS, so the box wrapper
+-- carries no id (the parent players-records-container grid has it instead),
+-- and tab 4 reads בינלאומי on both the label and the heading, not אירופה.
+local function seasonFrame(season, extra)
+	local direct = { ['בלוק'] = 'season', ['עונה'] = season }
+	for key, value in pairs(extra or {}) do
+		direct[key] = value
+	end
+	return stub.newFrame({}, direct)
+end
+
+check('the season widget: one query, four boxes, wrapper without id', function()
+	local html = widget().leaderboards(seasonFrame('2020/21'))
+	equals(#stub.calls, 1, 'one query for all 16 leaderboards')
+	equals(#stub.extensionTags, 4, 'a tabber per box')
+	local _, boxes = html:gsub('records%-list%-tabs%-container', '')
+	equals(boxes, 4, 'four box wrappers')
+	lacks(html, 'id="שיאנים"', 'the parent grid carries the id, not the box')
+	contains(html, '<div class="title">שיאני הופעות</div>', 'appearances title')
+	contains(html, '<div class="title">שיאני מוצהבים</div>', 'cards title, not צהובים')
+	contains(stub.calls[1].options.where, 'Football_Games.Season = "2020/21"',
+		'the direct argument becomes a plain season filter')
+	lacks(stub.calls[1].options.where, 'HOLDS', 'season is not a HOLDS filter')
+	contains(stub.calls[1].options.where, 'Competitions.Official = 1',
+		'every tab under Official = 1, as the templates had it')
+end)
+
+check('the season widget: tab 4 is בינלאומי, not אירופה', function()
+	widget().leaderboards(seasonFrame('2020/21'))
+	local appearances = stub.extensionTags[1].content
+	contains(appearances, '|-|בינלאומי=<div class="tab-header">בינלאומי (0 ',
+		'season tab 4 label and heading are both בינלאומי')
+	lacks(appearances, 'אירופה', 'season never says אירופה')
+end)
+
+check('the season widget refuses an empty season', function()
+	expectError('needs a non-empty עונה', function()
+		widget().leaderboards(seasonFrame('  '))
+	end)
+	equals(#stub.calls, 0, 'nothing queried on a refusal')
+end)
+
+check('the season widget: only בלוק and עונה are accepted', function()
+	expectError('takes only בלוק and עונה', function()
+		widget().leaderboards(seasonFrame('2020/21', { ['שחקן'] = 'X' }))
+	end)
+end)
+
+check('the season widget: each box counts exactly its template\'s events', function()
+	widget().leaderboards(seasonFrame('2020/21'))
+	local fields = stub.calls[1].fields
+	local columns = {}
+	for column in (fields .. ',SUM('):gmatch('SUM%((.-)%)=c%d+,') do
+		columns[#columns + 1] = column
+	end
+	equals(#columns, 16, 'four boxes of four tabs')
+	contains(columns[1], 'EventType IN (1, 5)', 'appearances')
+	contains(columns[5], 'EventType IN (3)', 'goals')
+	contains(columns[5], 'SubType != 33', 'goals without own goals')
+	contains(columns[9], 'EventType IN (4)', 'assists')
+	contains(columns[13], 'EventType IN (7)', 'cards')
+	contains(columns[13], 'SubType IN (71)', 'yellow cards only')
+end)
+
+check('the referee-assistant box wrapper still carries id="שיאנים"', function()
+	-- Locks in the current byte-identical output through the boxOpen
+	-- refactor: this block's markup must not move when season's is added.
+	local html = widget().leaderboards(refereeFrame('דודו ביטון'))
+	contains(html, '<div class="records-list-tabs-container" id="שיאנים">',
+		'unchanged by making the wrapper block data')
+end)
+
 print(string.format('\n%d passed, %d failed', passed, failed))
 os.exit(failed > 0 and 1 or 0)
