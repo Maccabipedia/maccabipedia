@@ -1,10 +1,9 @@
 # Newspaper Archives (Google Drive scans)
 
 Scanned Israeli newspapers on the MaccabiPedia shared Google Drive, used to verify
-game dates, scores and venues against primary press coverage. Mounted locally at
-`<drive root>/מכביפדיה_ראשי/ארכיונים/ארכיון עיתונים/` (on the WSL dev box the Drive
-is under `/mnt/d/maccabipedia_google_drive/`; set `MACCABIPEDIA_NEWSPAPER_ARCHIVE`
-to the `ארכיון עיתונים` folder for the search script).
+game dates, scores and venues against primary press coverage. The folder is
+`מכביפדיה_ראשי/ארכיונים/ארכיון עיתונים/` on the Drive; point
+`MACCABIPEDIA_NEWSPAPER_ARCHIVE` at your local mount of it for the search script.
 
 ## What's there
 
@@ -21,8 +20,10 @@ to the `ארכיון עיתונים` folder for the search script).
 
 Full issue vs single page matters: in Yedioth only the pages someone chose to scan
 exist, so a story may live on a page that is simply not in the archive. Hadashot
-HaSport has every page of every issue, but it is a football-first paper —
-basketball appears as a front-page box, a page-3 sidebar, or a photo caption.
+HaSport has every page of every issue, but it is a football-first paper: basketball
+coverage is thin and not guaranteed. In the 1962–1964 issues read so far it showed
+up sometimes as a front-page box, sometimes as a page-3 sidebar or a photo caption,
+and some issues had none at all — so check every page, not just the front.
 
 ## How to search
 
