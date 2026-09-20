@@ -21,18 +21,23 @@ ARCHIVE_ROOT_ENV = "MACCABIPEDIA_NEWSPAPER_ARCHIVE"
 
 # source -> (subfolder under the archive root, filename glob per day)
 # yedioth: single pre-selected pages per day, has a text layer.
+# yedioth-full: complete issues, has a text layer.
 # hadashot: full daily issues, image-only scans (no text layer).
 SOURCES = {
     "yedioth": (Path("ארכיון ידיעות אחרונות") / "עמודים בודדים", "{iso}_p*.pdf"),
+    "yedioth-full": (Path("ארכיון ידיעות אחרונות") / "עיתונים מלאים", "{iso}*.pdf"),
     "hadashot": (Path("ארכיון חדשות הספורט"), "{mdy}*.pdf"),
 }
 
 _BIDI_CHARS = "".join(
-    chr(c) for c in [*range(0x200E, 0x2010), *range(0x202A, 0x202F), *range(0x2066, 0x206A)]
+    chr(codepoint)
+    for codepoint in [*range(0x200E, 0x2010), *range(0x202A, 0x202F), *range(0x2066, 0x206A)]
 )
 _BIDI_RE = re.compile(f"[{re.escape(_BIDI_CHARS)}]")
 _HEBREW_RE = re.compile(r"[֐-׿]")
+_PAGE_NUMBER_RE = re.compile(r"_p(\d+)\.pdf$")
 NO_TEXT_LAYER = "__NO_TEXT_LAYER__"
+EXTRACTION_FAILED = "__EXTRACTION_FAILED__"
 
 
 def strip_bidi(text: str) -> str:
@@ -43,6 +48,11 @@ def has_text_layer(text: str, min_hebrew_chars: int = 80) -> bool:
     return len(_HEBREW_RE.findall(text)) >= min_hebrew_chars
 
 
+def _page_sort_key(pdf_path: str) -> tuple[int, str]:
+    match = _PAGE_NUMBER_RE.search(pdf_path)
+    return (int(match.group(1)) if match else 0, pdf_path)
+
+
 def candidate_files(archive_root: Path, source: str, start: date, end: date) -> list[str]:
     subfolder, pattern = SOURCES[source]
     files: list[str] = []
@@ -51,18 +61,21 @@ def candidate_files(archive_root: Path, source: str, start: date, end: date) -> 
         year_dir = archive_root / subfolder / str(day.year)
         if year_dir.is_dir():
             name = pattern.format(iso=day.isoformat(), mdy=day.strftime("%m-%d-%Y"))
-            files.extend(sorted(glob.glob(str(year_dir / name))))
+            matches = glob.glob(os.path.join(glob.escape(str(year_dir)), name))
+            files.extend(sorted(matches, key=_page_sort_key))
         day += timedelta(days=1)
     return files
 
 
 def extract_text(pdf_path: str) -> str:
-    for args in (["pdftotext", pdf_path, "-"], ["pdftotext", "-layout", pdf_path, "-"]):
-        result = subprocess.run(args, capture_output=True, timeout=60)
-        text = strip_bidi(result.stdout.decode("utf-8", errors="replace"))
-        if has_text_layer(text):
-            return text
-    return NO_TEXT_LAYER
+    try:
+        result = subprocess.run(["pdftotext", pdf_path, "-"], capture_output=True, timeout=60)
+    except (FileNotFoundError, subprocess.TimeoutExpired) as error:
+        return f"{EXTRACTION_FAILED}: {error}"
+    if result.returncode != 0:
+        return f"{EXTRACTION_FAILED}: pdftotext exit {result.returncode}: {result.stderr.decode(errors='replace').strip()}"
+    text = strip_bidi(result.stdout.decode("utf-8", errors="replace"))
+    return text if has_text_layer(text) else NO_TEXT_LAYER
 
 
 def find_hits(text: str, terms: Iterable[str], context: int = 3) -> list[tuple[str, int, str]]:
@@ -95,6 +108,9 @@ def search(
             text = extractor(pdf)
             if text == NO_TEXT_LAYER:
                 print(f"  NO TEXT LAYER (render and read visually): {pdf}")
+                continue
+            if text.startswith(EXTRACTION_FAILED):
+                print(f"  EXTRACTION FAILED: {pdf} - {text.split(': ', 1)[1]}")
                 continue
             hits = find_hits(text, terms, context)
             if not hits:

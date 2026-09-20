@@ -37,7 +37,7 @@ Wiki page with full list: `https://www.maccabipedia.co.il/מקורות_שימו�
 - ProQuest Global (**requires TAU access**): https://www.proquest.com/?accountid=14765
 
 **Local newspaper scans (MaccabiPedia shared Google Drive, `ארכיונים/ארכיון עיתונים/`):**
-- Yedioth Ahronoth single sports pages (1960s+, text-searchable), Hadashot HaSport full daily issues (1961–64, image-only), plus Sport HaBoker 1936–46, Aspaklaria 1947–48, Sport Israel 1949–50, Maariv 1994. Layout, search script and how to date a game from them: `.claude/newspaper_archives.md`.
+- Yedioth Ahronoth single sports pages 1939–2021 and full issues 1940–2019 (both text-searchable), Hadashot HaSport full daily issues 1954–84 (image-only), plus Sport HaBoker 1936–46, Aspaklaria 1947–48, Sport Israel 1949–50, Maariv 1994. Layout, search script and how to date a game from them: `.claude/newspaper_archives.md`.
 
 **Photos:**
 - Getty Images: https://www.gettyimages.com/photos/maccabi-tel-aviv

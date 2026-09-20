@@ -10,8 +10,9 @@ to the `ארכיון עיתונים` folder for the search script).
 
 | Folder | Coverage | Form | Text layer |
 |---|---|---|---|
-| `ארכיון ידיעות אחרונות/עמודים בודדים/<year>/` | 1960s onward, near-daily | **Single pre-selected pages** (`YYYY-MM-DD_p<N>.pdf`, usually the sports pages) | Yes (pdftotext works, bidi-mangled) |
-| `ארכיון חדשות הספורט/<year>/` | 1961–1964 seen, near-daily | **Full issues** (`MM-DD-YYYY.pdf`, 4–6 pages, daily sports paper) | **No** — image-only scans |
+| `ארכיון ידיעות אחרונות/עמודים בודדים/<year>/` | 1939–2021, near-daily | **Single pre-selected pages** (`YYYY-MM-DD_p<N>.pdf`, usually the sports pages) | Yes (pdftotext works, bidi-mangled) |
+| `ארכיון ידיעות אחרונות/עיתונים מלאים/<year>/` | 1940–2019 | **Full issues** (`YYYY-MM-DD.pdf`, ~9 pages) | Yes — search this when the single-page folder lacks the day |
+| `ארכיון חדשות הספורט/<year>/` | 1954–1984, near-daily | **Full issues** (`MM-DD-YYYY.pdf`, 4–6 pages, daily sports paper) | **No** — image-only scans |
 | `ארכיון ספורט הבקר/<year>/` | 1936–1946 | issues | unverified |
 | `ארכיון אספקלריה של הספורט/<year>/` | 1947–1948 | issues | unverified |
 | `ארכיון ספורט ישראל/<year>/` | 1949–1950 | issues | unverified |
@@ -25,9 +26,10 @@ basketball appears as a front-page box, a page-3 sidebar, or a photo caption.
 
 ## How to search
 
-1. **Text-layer search first (Yedioth only):**
-   `uv run python -m maccabipediabot.maintenance.papers.search_newspaper_archive --date 1963-11-19 --before 2 --after 4 --terms ברנר 79:64`
-   It prints HIT / no hit per page and flags `NO TEXT LAYER` files explicitly.
+1. **Text-layer search first (both Yedioth folders):**
+   `uv run python -m maccabipediabot.maintenance.papers.search_newspaper_archive --date 1963-11-19 --before 2 --after 4 --terms ברנר 79:64 --sources yedioth yedioth-full`
+   It prints HIT / no hit per file, flags `NO TEXT LAYER` (image-only) and `EXTRACTION FAILED`
+   (pdftotext error, e.g. a Drive file not yet synced) explicitly, and exits 1 when nothing hit.
    Search the opponent name and the exact score (`79:64` and `64:79` — both orders appear,
    and the text layer often inserts a space: `64 :79`; try the opponent name alone when a score misses).
 2. **A text miss is not proof of absence.** Digits and Hebrew are often garbled by
