@@ -21,6 +21,7 @@ from maccabipediabot.common.logging_setup import setup_logging
 from maccabipediabot.common.page_names import build_football_game_page_name
 from maccabipediabot.common.maccabistats_player_event import PlayerEvent, mark_goalkeepers
 from maccabipediabot.common.prettify_games_pages import prettify_game_page_main_template
+from maccabipediabot.football.opponent_goalkeepers import fetch_opponent_goalkeepers
 from maccabipediabot.football.sort_players_events import sort_player_events_in_games_page
 
 setup_logging(level=logging.INFO)
@@ -337,8 +338,8 @@ def upload_games_to_maccabipedia(maccabi_games_to_add: MaccabiGamesStats):
     logging.info("Should save : {save}".format(save=SHOULD_SAVE))
     logging.info("Should show diff: {diff}\n".format(diff=SHOULD_SHOW_DIFF))
 
-    # Crawled from MaccabiPedia at fetch time and saved with the games
-    goalkeepers = maccabi_games_to_add.players_data.goalkeepers
+    # Maccabi's keepers come from their profiles (crawled at fetch time), the opponents' from their games
+    goalkeepers = maccabi_games_to_add.players_data.goalkeepers | fetch_opponent_goalkeepers()
     logging.info(f"Known goalkeepers: {len(goalkeepers)}")
 
     # Collect pages to purge across all games

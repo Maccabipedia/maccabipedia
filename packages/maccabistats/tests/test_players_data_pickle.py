@@ -189,19 +189,13 @@ def test_players_data_required_for_player_stats():
 # --- goalkeepers ---
 
 
-def test_goalkeepers_from_profiles_and_recent_games(monkeypatch):
-    """Maccabi keepers come from their profile, others from 2+ games they kept goal in; one-word names are dropped."""
-    crawled_rows = {
-        "Profiles": [{"_pageName": "בוני גינצבורג", "MainPosition": 1},
-                     {"_pageName": "ערן זהבי", "MainPosition": 4}],
-        "Games_Events": [{"_pageName": "משחק א", "PlayerName": "דניאל טננבאום"},
-                         {"_pageName": "משחק ב", "PlayerName": "דניאל טננבאום"},
-                         {"_pageName": "משחק א", "PlayerName": "גינצבורג"},
-                         {"_pageName": "משחק ב", "PlayerName": "גינצבורג"},
-                         {"_pageName": "משחק ג", "PlayerName": "אבי נמני"}],
-    }
+def test_goalkeepers_are_the_players_whose_profile_says_so(monkeypatch):
+    profiles = [{"_pageName": "בוני גינצבורג", "MainPosition": 1},
+                {"_pageName": "דניאל טננבאום", "MainPosition": 1},
+                {"_pageName": "ערן זהבי", "MainPosition": 4},
+                {"_pageName": "אבי נמני"}]
     monkeypatch.setattr("maccabistats.maccabipedia.players.MaccabiPediaCargoChunksCrawler",
-                        lambda tables_name, **kwargs: iter(crawled_rows[tables_name]))
+                        lambda **kwargs: iter(profiles))
 
     assert MaccabiPediaPlayers().goalkeepers == frozenset({"בוני גינצבורג", "דניאל טננבאום"})
 
@@ -212,14 +206,3 @@ def test_pickle_saved_before_goalkeepers_loads_with_none():
     restored = pickle.loads(pickle.dumps(players))
 
     assert restored.goalkeepers == frozenset()
-
-
-def test_blocked_recent_goalkeepers_query_keeps_the_profiles_goalkeepers(monkeypatch):
-    def crawler(tables_name, **kwargs):
-        if tables_name == "Games_Events":
-            raise ValueError("CargoExport returned a bare str, expected a list of rows")
-        return iter([{"_pageName": "בוני גינצבורג", "MainPosition": 1}])
-
-    monkeypatch.setattr("maccabistats.maccabipedia.players.MaccabiPediaCargoChunksCrawler", crawler)
-
-    assert MaccabiPediaPlayers().goalkeepers == frozenset({"בוני גינצבורג"})

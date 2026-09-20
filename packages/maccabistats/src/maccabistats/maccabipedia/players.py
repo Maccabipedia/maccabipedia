@@ -1,15 +1,11 @@
-import logging
-from collections import Counter, defaultdict
+from collections import defaultdict
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Dict, FrozenSet
 
-import requests
 from dateutil.parser import parse as datetime_parser
 
 from maccabistats.parse.maccabipedia.maccabipedia_cargo_chunks_crawler import MaccabiPediaCargoChunksCrawler
-
-logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -22,12 +18,6 @@ class MaccabiPediaPlayerData(object):
 
 # Profiles.MainPosition, see the wiki's Players_Positions table
 _GOALKEEPER_POSITION = 1
-# Games_Events.SubType of "הרכב-שוער" and "ספסל-שוער"
-_GOALKEEPER_SUB_EVENT_CODES = "111,211"
-# Old games list many players by one name (לוי, מזרחי), which would match outfield players today
-_RECENT_GOALKEEPERS_YEARS = 10
-# A single keeper mark may be a mistake (it happened: an outfield player got a bench keeper's mark)
-_MIN_GOALKEEPER_GAMES = 2
 
 
 class MaccabiPediaPlayers(object):
@@ -49,29 +39,9 @@ class MaccabiPediaPlayers(object):
                                           self._players_data.items()})
         self.home_players = {player_data.name for player_data in self._players_data.values() if
                              player_data.is_home_player}
-        # Maccabi goalkeepers by their profile (so a debut is known too), opponents by the games they kept goal in
-        self.goalkeepers = frozenset(
-            {player_data.name for player_data in self._players_data.values() if player_data.is_goalkeeper}
-            | self._crawl_recent_goalkeepers())
-
-    @staticmethod
-    def _crawl_recent_goalkeepers() -> FrozenSet[str]:
-        since = (datetime.now() - timedelta(days=365 * _RECENT_GOALKEEPERS_YEARS)).strftime("%Y-%m-%d")
-
-        # Only the uploader uses these, so a blocked Cargo response shouldn't fail the whole crawl
-        try:
-            goalkeepers_events = MaccabiPediaCargoChunksCrawler(
-                tables_name="Games_Events",
-                tables_fields="Games_Events._pageName, Games_Events.PlayerName",
-                where_condition=f"Games_Events.SubType IN ({_GOALKEEPER_SUB_EVENT_CODES}) AND Games_Events.Date >= '{since}'")
-            games_per_goalkeeper = Counter(player_name for player_name, _ in
-                                           {(event["PlayerName"], event["_pageName"]) for event in goalkeepers_events})
-        except (ValueError, requests.RequestException):
-            logger.exception("Could not crawl the recent goalkeepers, keeping only the profiles' goalkeepers")
-            return frozenset()
-
-        return frozenset(player_name for player_name, games in games_per_goalkeeper.items()
-                         if games >= _MIN_GOALKEEPER_GAMES and " " in player_name.strip())
+        # By their profile, so a keeper is known from his debut. Opponents have no profile - the bot looks them up
+        self.goalkeepers = frozenset(player_data.name for player_data in self._players_data.values()
+                                     if player_data.is_goalkeeper)
 
     @staticmethod
     def _crawl_players_data() -> Dict[str, MaccabiPediaPlayerData]:
