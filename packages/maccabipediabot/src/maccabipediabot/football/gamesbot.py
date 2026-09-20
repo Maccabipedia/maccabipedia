@@ -19,8 +19,10 @@ from maccabistats.models.player_game_events import GameEventTypes
 from maccabistats.stats.maccabi_games_stats import MaccabiGamesStats
 from maccabipediabot.common.logging_setup import setup_logging
 from maccabipediabot.common.page_names import build_football_game_page_name
-from maccabipediabot.common.maccabistats_player_event import PlayerEvent
+from maccabipediabot.common.maccabistats_player_event import (MACCABI_TEAM, OPPONENT_TEAM, PlayerEvent,
+                                                              mark_goalkeepers)
 from maccabipediabot.common.prettify_games_pages import prettify_game_page_main_template
+from maccabipediabot.football.opponent_goalkeepers import fetch_opponent_goalkeepers
 from maccabipediabot.football.sort_players_events import sort_player_events_in_games_page
 
 setup_logging(level=logging.INFO)
@@ -93,12 +95,13 @@ def generate_page_name_from_game(game):
     )
 
 
-def get_players_events_for_template(game):
+def get_players_events_for_template(game, goalkeepers):
     """
     Return the events as they should be written to template:
     the separator between players attributes is '::'
     the separator between players is ','
     :type game: maccabistats.models.game_data.GameData
+    :param goalkeepers: the known goalkeepers names per team, see mark_goalkeepers
     :return:
     """
 
@@ -136,6 +139,8 @@ def get_players_events_for_template(game):
          for player in game.not_maccabi_team.players if not player.has_event_type(GameEventTypes.LINE_UP)]
     )
 
+    mark_goalkeepers(unsorted_events, goalkeepers)
+
     events = sorted(unsorted_events, key=lambda player_event: player_event.minute_occur)
 
     # Remove the last new line
@@ -144,7 +149,7 @@ def get_players_events_for_template(game):
     return wikimedia_formatted_events
 
 
-def __get_football_game_template_with_maccabistats_game_value(game):
+def __get_football_game_template_with_maccabistats_game_value(game, goalkeepers):
     """
     Return dict of the (template arguments->data taken from game).
     :type game: maccabistats.models.game_data.GameData
@@ -176,12 +181,12 @@ def __get_football_game_template_with_maccabistats_game_value(game):
     for video_field in VIDEO_FIELDS:
         template_arguments[video_field] = ""
     template_arguments[COSTUME] = ""
-    template_arguments[PLAYERS_EVENTS] = get_players_events_for_template(game)
+    template_arguments[PLAYERS_EVENTS] = get_players_events_for_template(game, goalkeepers)
 
     return template_arguments
 
 
-def handle_existing_page(game_page, game):
+def handle_existing_page(game_page, game, goalkeepers):
     """
     :type game_page: pywikibot.page.Page
     :type game: maccabistats.models.game_data.GameData
@@ -191,7 +196,7 @@ def handle_existing_page(game_page, game):
         parsed_mw_text = mwparserfromhell.parse(game_page.text)
         football_game_template = parsed_mw_text.filter_templates(football_games_template_name)[0]
 
-        arguments = __get_football_game_template_with_maccabistats_game_value(game)
+        arguments = __get_football_game_template_with_maccabistats_game_value(game, goalkeepers)
 
         football_game_template.add(PLAYERS_EVENTS, arguments[PLAYERS_EVENTS])
 
@@ -201,7 +206,7 @@ def handle_existing_page(game_page, game):
         parsed_mw_text = mwparserfromhell.parse(game_page.text)
         football_game_template = parsed_mw_text.filter_templates(football_games_template_name)[0]
 
-        arguments = __get_football_game_template_with_maccabistats_game_value(game)
+        arguments = __get_football_game_template_with_maccabistats_game_value(game, goalkeepers)
 
         for argument_name, argument_value in arguments.items():
             # The source never has videos, only the page does (added by hand or by the videos bots)
@@ -224,7 +229,7 @@ def handle_existing_page(game_page, game):
             game_page.text += "<!--{num}-->".format(num=randint(0, 10000))
 
 
-def handle_new_page(game_page, game):
+def handle_new_page(game_page, game, goalkeepers):
     """
     :type game_page: pywikibot.page.Page
     :type game: maccabistats.models.game_data.GameData
@@ -232,7 +237,7 @@ def handle_new_page(game_page, game):
 
     football_game_template = get_football_games_template_object()
 
-    arguments = __get_football_game_template_with_maccabistats_game_value(game)
+    arguments = __get_football_game_template_with_maccabistats_game_value(game, goalkeepers)
 
     for argument_name, argument_value in arguments.items():
         football_game_template.add(argument_name, argument_value)
@@ -240,7 +245,7 @@ def handle_new_page(game_page, game):
     game_page.text = str(football_game_template)
 
 
-def create_or_update_game_page(game, overwrite_existing_pages: bool = True) -> bool:
+def create_or_update_game_page(game, goalkeepers, overwrite_existing_pages: bool = True) -> bool:
     """Returns True if the page was saved, False if skipped."""
     logging.info(f"create_or_update_game_page : {game}")
 
@@ -255,10 +260,10 @@ def create_or_update_game_page(game, overwrite_existing_pages: bool = True) -> b
             return False
 
         logging.info("Page : {name} exists, check for updates\n".format(name=page_name))
-        handle_existing_page(game_page, game)
+        handle_existing_page(game_page, game, goalkeepers)
     else:
         logging.info("Page : {name} does not exists, creating\n".format(name=page_name))
-        handle_new_page(game_page, game)
+        handle_new_page(game_page, game, goalkeepers)
 
     logging.info("")  # Empty line
     if SHOULD_SAVE:
@@ -334,11 +339,19 @@ def upload_games_to_maccabipedia(maccabi_games_to_add: MaccabiGamesStats):
     logging.info("Should save : {save}".format(save=SHOULD_SAVE))
     logging.info("Should show diff: {diff}\n".format(diff=SHOULD_SHOW_DIFF))
 
+    # Maccabi's keepers come from their profiles (crawled at fetch time), the opponents' from their games.
+    # A Maccabi keeper may play against us for another club, but an opponent's name should not mark a Maccabi player.
+    maccabi_goalkeepers = maccabi_games_to_add.players_data.goalkeepers
+    goalkeepers = {MACCABI_TEAM: maccabi_goalkeepers,
+                   OPPONENT_TEAM: maccabi_goalkeepers | fetch_opponent_goalkeepers()}
+    logging.info(f"Known goalkeepers: {len(maccabi_goalkeepers)} of Maccabi, "
+                 f"{len(goalkeepers[OPPONENT_TEAM])} that may play for an opponent")
+
     # Collect pages to purge across all games
     all_pages_to_purge = set()
 
     for game in maccabi_games_to_add:
-        was_saved = create_or_update_game_page(game, overwrite_existing_pages=False)
+        was_saved = create_or_update_game_page(game, goalkeepers, overwrite_existing_pages=False)
         if was_saved:
             pages_from_game = collect_related_pages_from_game(game)
             all_pages_to_purge.update(pages_from_game)
@@ -360,7 +373,7 @@ def upload_games_to_maccabipedia(maccabi_games_to_add: MaccabiGamesStats):
         existing_games = get_games_that_has_existing_pages(maccabi_games_to_add.games)
 
         for game in existing_games:
-            create_or_update_game_page(game)
+            create_or_update_game_page(game, goalkeepers)
             pages_from_game = collect_related_pages_from_game(game)
             all_pages_to_purge.update(pages_from_game)
 

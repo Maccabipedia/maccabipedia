@@ -1,3 +1,10 @@
+## Version 2.71 ##
+
+    Players data (MaccabiPediaPlayers) now has `goalkeepers`: the Maccabi players whose
+    profile's main position is goalkeeper, from the same Profiles crawl as the rest of the
+    players data. Saved with the games, so the game uploader can mark goalkeepers on new
+    game pages (it looks the opponents' keepers up by itself, as they have no profile).
+
 ## Version 2.70 ##
 
     Club-site games now match how MaccabiPedia records them:
