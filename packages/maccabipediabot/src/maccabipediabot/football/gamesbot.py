@@ -19,7 +19,8 @@ from maccabistats.models.player_game_events import GameEventTypes
 from maccabistats.stats.maccabi_games_stats import MaccabiGamesStats
 from maccabipediabot.common.logging_setup import setup_logging
 from maccabipediabot.common.page_names import build_football_game_page_name
-from maccabipediabot.common.maccabistats_player_event import PlayerEvent, mark_goalkeepers
+from maccabipediabot.common.maccabistats_player_event import (MACCABI_TEAM, OPPONENT_TEAM, PlayerEvent,
+                                                              mark_goalkeepers)
 from maccabipediabot.common.prettify_games_pages import prettify_game_page_main_template
 from maccabipediabot.football.opponent_goalkeepers import fetch_opponent_goalkeepers
 from maccabipediabot.football.sort_players_events import sort_player_events_in_games_page
@@ -100,7 +101,7 @@ def get_players_events_for_template(game, goalkeepers):
     the separator between players attributes is '::'
     the separator between players is ','
     :type game: maccabistats.models.game_data.GameData
-    :param goalkeepers: names of known goalkeepers (MaccabiPediaPlayers.goalkeepers)
+    :param goalkeepers: the known goalkeepers names per team, see mark_goalkeepers
     :return:
     """
 
@@ -338,9 +339,13 @@ def upload_games_to_maccabipedia(maccabi_games_to_add: MaccabiGamesStats):
     logging.info("Should save : {save}".format(save=SHOULD_SAVE))
     logging.info("Should show diff: {diff}\n".format(diff=SHOULD_SHOW_DIFF))
 
-    # Maccabi's keepers come from their profiles (crawled at fetch time), the opponents' from their games
-    goalkeepers = maccabi_games_to_add.players_data.goalkeepers | fetch_opponent_goalkeepers()
-    logging.info(f"Known goalkeepers: {len(goalkeepers)}")
+    # Maccabi's keepers come from their profiles (crawled at fetch time), the opponents' from their games.
+    # A Maccabi keeper may play against us for another club, but an opponent's name should not mark a Maccabi player.
+    maccabi_goalkeepers = maccabi_games_to_add.players_data.goalkeepers
+    goalkeepers = {MACCABI_TEAM: maccabi_goalkeepers,
+                   OPPONENT_TEAM: maccabi_goalkeepers | fetch_opponent_goalkeepers()}
+    logging.info(f"Known goalkeepers: {len(maccabi_goalkeepers)} of Maccabi, "
+                 f"{len(goalkeepers[OPPONENT_TEAM])} that may play for an opponent")
 
     # Collect pages to purge across all games
     all_pages_to_purge = set()

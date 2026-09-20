@@ -324,7 +324,8 @@ The CI flow is fetch (`fetch_games_from_maccabi_tlv_site`: crawl → general fix
 - `goalkeepers`: `Profiles.MainPosition == 1`, so a Maccabi keeper is known from his debut.
 
 This class holds **Maccabi players only**, since `Profiles` has no opponent pages. The uploader looks opponent goalkeepers up itself (`football/opponent_goalkeepers.py`): names with `Games_Events` 111/211 rows in at least 2 games (a single mark may be a mistake), skipping one-word names, so an opponent keeper met for the first time stays unmarked. It marks `הרכב-שוער`/`ספסל-שוער` from both sets.
-Anything the uploader needs from the wiki itself belongs here rather than in a new query at upload time.
+
+Data about Maccabi players that the uploader needs from the wiki belongs in this class, so it's crawled once and saved with the games. Only what this class can't hold, like opponents, is queried at upload time.
 
 ### Game Upload Flow
 1. Load games via `get_maccabi_stats_as_newest_wrapper()` or `load_from_maccabipedia_source()`

@@ -23,6 +23,8 @@ def fetch_opponent_goalkeepers() -> FrozenSet[str]:
     """Opponents who kept goal in at least 2 MaccabiPedia games.
 
     Marking goalkeepers is optional, so a failed query returns none instead of failing the upload.
+    The game is then uploaded without the opponent's goalkeepers, and since existing pages are not
+    overwritten, a later run won't add them - the warning in the log is the only sign to fix it by hand.
     """
     try:
         goalkeeper_events = MaccabiPediaCargoChunksCrawler(
@@ -44,7 +46,7 @@ def trusted_goalkeeper_names(goalkeeper_events) -> FrozenSet[str]:
     players as לוי, מזרחי) and names marked in a single game (which may be a mistake).
     """
     games_per_goalkeeper = Counter(player_name for player_name, _ in
-                                   {(event["PlayerName"], event["_pageName"]) for event in goalkeeper_events})
+                                   {(event.get("PlayerName", ""), event.get("_pageName", "")) for event in goalkeeper_events})
 
     return frozenset(player_name for player_name, games in games_per_goalkeeper.items()
                      if games >= _MIN_GOALKEEPER_GAMES and " " in player_name.strip())
