@@ -29,6 +29,7 @@ MODULES = {
     'Module_FootballQueries_Fields.lua': 'Module:FootballQueries/Fields',
     'Module_FootballStatsBlocks.lua': 'Module:FootballStatsBlocks',
     'Module_FootballStatsBlock.lua': 'Module:FootballStatsBlock',
+    'Module_FootballSeasonSquad.lua': 'Module:FootballSeasonSquad',
 }
 SOURCE_DIR = Path('infra/football_queries')
 
@@ -57,6 +58,8 @@ WIKI_PAGES = {
         'Module:FootballStatsBlocks/תיעוד',
     'Module_FootballStatsBlock_tiud.wiki':
         'Module:FootballStatsBlock/תיעוד',
+    'Module_FootballSeasonSquad_tiud.wiki':
+        'Module:FootballSeasonSquad/תיעוד',
 }
 WIKI_PAGES_DIR = SOURCE_DIR / 'wiki_pages'
 

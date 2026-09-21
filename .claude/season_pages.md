@@ -105,6 +105,102 @@ would now break every season page: the old `prime` renders rows, and these
 blocks have none (`ipairs(nil)`). Revert the tab, then the container, and only
 then the module.
 
+## Change 3 — the ticket icon without the 39-name search
+
+Each row asks `{{תיקון פורמט תמונה}}` whether a ticket image exists; that
+helper tries the exact name and then 38 case/extension variants, each an
+`#ifexist`. A season whose tickets are missing pays ~39 lookups per game.
+Measured on production: the check alone costs 296 ms (2011/12), 735 ms
+(1993/94), 1,251 ms (1985/86), 2,057 ms (1966/68 - 2,479 expensive calls).
+
+Of the **2,355** ticket files on production, **2,354 are `.jpg` and one is
+`.png`** (`כרטיס משחק 14 באוגוסט 2004.png`); no case variants exist *among
+tickets*. MediaWiki does not normalise an extension's case on upload, though,
+and the wiki holds 274 `.JPG`, 179 `.jpeg` and 46 `.PNG` files elsewhere - so
+the row now tests **four** names (`jpg`, `JPG`, `png`, `jpeg`), as nested
+`#קיים` over `קובץ:כרטיס משחק <date>.<ext>`, and stops at the first hit:
+**735 ms → 94 ms** per season (median; two names would be 70 ms), with the
+same answer for every game sampled. The row only asks whether a ticket EXISTS
+(the icon carries no link), so the helper's other job - returning the
+corrected name - is not needed here. **The shared helper itself is untouched**: team photos and
+posters still use it, as does the commented-out poster line in this row.
+
+Not verifiable locally: with foreign images off, a local `#ifexist` on a file
+the local wiki does not hold answers "no" either way, so both sides agree
+vacuously. Verified on production instead.
+
+**Rollout (2026-09-20; its scripts were one-offs and are not in the repo):**
+old and new test side by side for all 3,506 games (0 disagreements, with a
+selftest that had to fail) → the games list of every season captured before
+and after the row edit with `compare_games_list.py` → 101/101 byte-identical
+→ look at `עמוד ראשי`.
+
+## Change 4 — the squad card's shirt number (correctness, not speed)
+
+`תבנית:עונת כדורגל/הצגת סגל/הצגת שחקן` asked Cargo for the player's number
+with `group by=ge.PlayerName` and `order by=COUNT(ge.PlayerNumber) DESC`.
+Grouping by the name alone makes `ge.PlayerNumber` a bare column and leaves
+the ORDER BY sorting a **single** group, so the number shown was whichever
+row MySQL returned first - storage order, which reflects when each game page
+was last saved. מיקו בלו 1978/79: the 1978-12-02 game (number 13) has row ID
+4,195,261 and the 1979-06-06 game (number 3) has 4,064,234, so the page
+showed 3. שגיב יחזקאל 2024/25 showed 29 against a mode of 11.
+
+Now `group by=ge.PlayerName, ge.PlayerNumber` and
+`order by=COUNT(*) DESC, MIN(fg.Date) ASC` - Cargo accepts both aggregates in
+ORDER BY - i.e. **the number worn in most of that season's games, ties going
+to the season's earliest game**. Blank numbers stay excluded, and a player
+with no number is still shown without one. **87 of 1,378 player-seasons
+changed** (only 213 ever wore more than one number; ties-to-latest would have
+changed 94). It is not a speed change: 42 cards cost 374 ms before and 378 ms
+after.
+
+**Rollout:** list the expected changes from Cargo (season, player, old, new)
+→ capture the squad block of every season with `action=parse&text=` → edit
+the card template (keep the old text) → capture again → every difference must
+be a number on the list, changing to exactly the listed value, and the
+players and their order must be untouched. Run 2026-09-20: 2,451 cards over
+101 seasons, 87 numbers moved, all 87 as predicted, nothing else.
+
+## Change 5 — the squad from 8 queries instead of ~90
+
+`Module:FootballSeasonSquad` renders what `תבנית:עונת כדורגל/הצגת סגל` built
+from 1 + 5 + 2N queries (the season's players, one per position, then per
+card a profile query and a shirt-number query): the season's players, the five
+position lists, **all** profiles in one query and **all** shirt numbers in one.
+The template keeps its `קפטן בעונה המוצגת` line and calls the module.
+
+**Why five position queries remain.** Most old profiles have no
+`MainNumber`, so within a position the order is MySQL's tie order. A single
+query - Profiles `IN` the season's players, or the events-to-Profiles join -
+returns those ties in a different order (1926 already differs). The module
+issues the filter template's exact five queries, without a LIMIT, so the SQL
+and the order stay today's. The filter template itself stays: the players
+portal (`קטגוריה:שחקנים`) uses it too.
+
+Behaviours reproduced on purpose, each with a stub test: the filter's
+`&#39;` fix; `#arrayunique` per position (empty names dropped; a player with
+two positions shows twice); first Profiles row wins (two pages have duplicate
+identical rows); only the FIRST player name decides whether the list renders;
+a shirt number that equals 0 is hidden (the card's `#שווה` compared it
+numerically with its `000` default); the captain matches **FullHebName** with
+`"` as `&quot;` (how `format=template` handed it to the card); the `#קיים`
+link check; `#arrayprint` trimming each card. No players at all → one query
+and an empty shell, where an `IN ()` would raise.
+
+Measured on production, the unsaved module passed as TemplateSandbox text:
+**101/101 seasons byte-identical** (288 captain icons on each side), and the
+block went **733 → 163 ms (2024/25), 583 → 129 (2005/06), 518 → 107
+(1985/86)**. One season differed once in paragraph whitespace with identical
+expanded wikitext, and matched on three reruns - a flaky parse, not the module.
+
+**Rollout:** publish the module (inert: nothing calls it) → render every full
+season page with `תבנית:עונת כדורגל/הצגת סגל` overridden through TemplateSandbox
+and compare with today's, byte for byte (catches any page variable the old
+chain leaked and something later read) → edit the template (keep the old
+text) → look at 2024/25, 1985/86, 1926. Revert: the old template text; the
+module can stay.
+
 ## Load when switching
 
 Purging in small batches does not pace anything: a template edit invalidates
