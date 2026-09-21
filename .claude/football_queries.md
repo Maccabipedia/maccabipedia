@@ -418,6 +418,73 @@ costs 714 ms of a 4.2 s cold page parse.
    previous text for revert), purge the season pages in batches of 10, and
    open a few - an empty season, 1966/68, the current one.
 
+## Rewriting a template chain as a module — lessons from the season squad (2026-09-21)
+
+`Module:FootballSeasonSquad` (season pages, `.claude/season_pages.md` Change 5)
+does not use the query layer: it renders cards, not statistics, and talks to
+`mw.ext.cargo.query` directly. What it took to replace ~90 template queries
+with 3 without changing a byte of the cards:
+
+**Gate on production without editing it.** Production accepts TemplateSandbox
+parameters on `action=parse` and `action=expandtemplates`:
+`templatesandboxtitle`, `templatesandboxtext`, `templatesandboxcontentmodel`
+(`Scribunto` for a module, `wikitext` for a template). The UNSAVED text
+renders in place, so an old-vs-new comparison over every page needs no
+`/ארגז חול` copy and no edit. One page is overridden per request: to test a
+template that calls a new module, save the module first (inert - nothing calls
+it) or put the `#invoke` straight into the parse text. The same trick measures
+what one piece of a template costs: override it with that piece removed and
+take the difference in `limitreport-walltime`.
+
+**`mw.ext.cargo.query` is not `#cargo_query`.**
+- It returns raw database values. `#cargo_query format=template` hands the
+  template HTML-encoded values (a `"` arrives as `&quot;`), and a template that
+  compared against it compared encoded text - the captain check needs
+  FullHebName re-encoded to match.
+- Alias every field: an unaliased `ge.PlayerName` comes back with no key.
+- NULL comes back as `nil`, not `''`.
+- A query with no limit gets Cargo's default of 100 and truncates silently.
+  Set a limit and raise when a result reaches it - unless the point is to
+  keep a template's SQL exactly, in which case keep its (absent) limit too.
+- `_pageName IN ()` raises. The template's version failed silently and its
+  output was hidden by an emptiness check; the module must skip the query.
+- Module output is not re-preprocessed: `<nowiki>` and other tags must go
+  through `frame:extensionTag`. Links and `[[קובץ:…]]` are fine as plain text.
+
+**Wikitext semantics the module has to copy:** `#שווה` (`#ifeq`) compares
+numerically when both sides are numbers, so `0` equals the `000` default and a
+shirt number 0 was hidden. `#arrayunique` drops empty elements.
+`#arrayprint` trims each item. Parser functions trim their results. A card
+template's trailing newline disappears inside `#arrayprint`.
+
+**Any rewrite reorders MySQL's ties.** A template that sorts by a column with
+many NULLs (MainNumber on old profiles) shows ties in whatever order MySQL
+returns them, and a different query - even the same table with an IN list
+instead of `HOLDS` - returns them differently. Byte-identity then means
+keeping the old queries. The squad first did (8 queries, 101/101 identical);
+the maintainer then chose a defined order, which retired them. Decide that
+up front.
+
+**Gates that cannot pass vacuously.**
+- Prime both sides the way the real page does (`עונה להצגה`, `קפטנים`), and
+  require something the priming produces to appear on both (captain icons),
+  or both sides render nothing and agree.
+- Prove the new side ran the new code (the module in `prop=templates`, or a
+  season that must differ).
+- A selftest that must fail: season A's old block against season B's new;
+  for a deliberate reorder, today's order graded against the new rule.
+- For a deliberate visible change, the gate allows exactly that change: the
+  same cards per position byte for byte, only the order different, and the
+  new order checked against Cargo by separately written code.
+- Whole pages byte-identical outside the changed block, with the new template
+  swapped in by TemplateSandbox - that catches page variables the old chain
+  leaked and something later read.
+- A production parse can flake (a `<p class="mw-empty-elt">` shift with
+  identical `expandtemplates` output). Rerun before chasing one whitespace diff.
+
+The verification scripts were one-offs and are not in the repo; the above is
+enough to rebuild them.
+
 ## Not done yet
 
 - Departures from the templates, which will show as real diffs against the
