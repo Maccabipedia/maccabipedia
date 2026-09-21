@@ -1,10 +1,10 @@
 --[[
 Tests for Module:FootballSeasonSquad.
 
-The output has to be byte-identical to the templates it replaces, so these
-assert exact strings and the exact SQL. Queries come in a fixed order:
-season players, the five positions (שוער, הגנה, קישור, התקפה, ללא עמדה),
-profiles, shirt numbers.
+The cards have to be byte-identical to the templates', so these assert exact
+strings and the exact SQL; only the card order within a position is new.
+Queries come in a fixed order: season players (with games), profiles, shirt
+numbers.
 
 Run from the repository root:
     lua5.1 infra/football_queries/tests/test_season_squad.lua
@@ -62,9 +62,6 @@ end
 --- is the page's קפטנים variable.
 local function render(squad, data, args, captains)
 	stub.willReturn(data.season or {})
-	for position = 1, 5 do
-		stub.willReturn((data.positions or {})[position] or {})
-	end
 	stub.willReturn(data.profiles or {})
 	stub.willReturn(data.numbers or {})
 	local frame = stub.newFrame({}, args or { ['עונה'] = '2024/25', ['שחקנים'] = '' })
@@ -74,24 +71,37 @@ local function render(squad, data, args, captains)
 end
 
 local ZAHAVI = { page = 'ערן זהבי', fullName = 'ערן זהבי', wholeCareer = nil,
-	homePlayer = '1', rootedPlayer = nil, foreignPlayer = nil }
+	homePlayer = '1', rootedPlayer = nil, foreignPlayer = nil, position = '4',
+	mainNumber = '7' }
 local SHPIGLER = { page = 'מרדכי שפיגלר', fullName = 'מרדכי (מוטל\'ה) שפיגלר',
-	wholeCareer = '1', homePlayer = '1', rootedPlayer = '1', foreignPlayer = '1' }
+	wholeCareer = '1', homePlayer = '1', rootedPlayer = '1', foreignPlayer = '1',
+	position = '4', mainNumber = '9' }
 
+--- Season rows: names, each with one game unless given as { name, games }.
 local function names(...)
 	local rows = {}
-	for index, name in ipairs({ ... }) do
-		rows[index] = { name = name }
+	for index, entry in ipairs({ ... }) do
+		if type(entry) == 'table' then
+			rows[index] = { name = entry[1], games = tostring(entry[2]) }
+		else
+			rows[index] = { name = entry, games = '1' }
+		end
 	end
 	return rows
 end
 
-local function pages(...)
-	local rows = {}
-	for index, name in ipairs({ ... }) do
-		rows[index] = { pageName = name }
+--- A bare profile: a page in a position, optionally with a MainNumber.
+local function profile(page, position, mainNumber)
+	return { page = page, fullName = page, position = position, mainNumber = mainNumber }
+end
+
+--- Card names in page order, for cards rendered without a shirt number.
+local function cardNames(html)
+	local found = {}
+	for name in html:gmatch('<span class="name">([^<]+)</span>') do
+		found[#found + 1] = name
 	end
-	return rows
+	return table.concat(found, ' | ')
 end
 
 local function number(name, shirt, games, firstGame)
@@ -102,8 +112,7 @@ end
 check('the whole block for one player', function(squad)
 	local html = render(squad, {
 		season = names('ערן זהבי'),
-		positions = { {}, {}, {}, pages('ערן זהבי'), {} },
-		profiles = { { page = 'ערן זהבי', fullName = 'ערן זהבי' } },
+		profiles = { profile('ערן זהבי', '4') },
 	})
 	equals(html, '<div class="players-section-container" id="סגל שחקנים">\n'
 		.. '<div class="title">סגל שחקנים</div>\n'
@@ -118,33 +127,15 @@ check('the whole block for one player', function(squad)
 		.. '</div>\n</div>\n</div>', 'block')
 end)
 
-check('the season players query is the template\'s, with no limit', function(squad)
+check('the season players query: the template\'s, plus games per player', function(squad)
 	render(squad, { season = names('ערן זהבי') })
 	local query = stub.calls[1]
 	equals(query.tables, 'Football_Games=fg, Games_Events=ge', 'tables')
-	equals(query.fields, 'ge.PlayerName=name', 'fields')
+	equals(query.fields, 'ge.PlayerName=name, COUNT(DISTINCT fg._pageName)=games', 'fields')
 	equals(query.options.join, 'fg._pageName=ge._pageName', 'join')
 	equals(query.options.where, '1=1 AND fg.Season="2024/25" AND ge.Team=1', 'where')
 	equals(query.options.groupBy, 'ge.PlayerName', 'group by')
-	equals(query.options.limit, nil, 'limit')
-end)
-
-check('the five position queries are the filter template\'s', function(squad)
-	render(squad, { season = names('ערן זהבי', "ג'וזף ולאחוביץ'") })
-	local list = '_pageName IN ("ערן זהבי", "ג\'וזף ולאחוביץ\'")'
-	equals(stub.calls[2].options.where, list .. ' And Position HOLDS "1"', 'שוער')
-	equals(stub.calls[3].options.where, list .. ' And Position HOLDS "2"', 'הגנה')
-	equals(stub.calls[4].options.where, list .. ' And Position HOLDS "3"', 'קישור')
-	equals(stub.calls[5].options.where, list .. ' And Position HOLDS "4"', 'התקפה')
-	equals(stub.calls[6].options.where, list .. ' AND Position HOLDS NOT "1"'
-		.. ' AND Position HOLDS NOT "2" AND Position HOLDS NOT "3"'
-		.. ' AND Position HOLDS NOT "4"', 'ללא עמדה')
-	for call = 2, 6 do
-		equals(stub.calls[call].tables, 'Profiles', 'tables')
-		equals(stub.calls[call].fields, '_pageName=pageName', 'fields')
-		equals(stub.calls[call].options.orderBy, 'MainNumber ASC', 'order')
-		equals(stub.calls[call].options.limit, nil, 'limit')
-	end
+	equals(query.options.limit, 5000, 'limit')
 end)
 
 check('a double quote in a name is escaped inside the IN list', function(squad)
@@ -152,37 +143,35 @@ check('a double quote in a name is escaped inside the IN list', function(squad)
 	contains(stub.calls[2].options.where, '("אלי \\"הקטן\\" דריקס")', 'escaped')
 end)
 
-check('profiles and shirt numbers are one query each, with a limit', function(squad)
+check('three queries: players, profiles, shirt numbers', function(squad)
 	render(squad, {
 		season = names('ערן זהבי', 'מרדכי שפיגלר'),
-		positions = { {}, pages('ערן זהבי'), {}, pages('מרדכי שפיגלר'), {} },
 		profiles = { ZAHAVI, SHPIGLER },
 	})
-	equals(#stub.calls, 8, 'queries')
-	equals(stub.calls[7].tables, 'Profiles', 'profiles table')
-	equals(stub.calls[7].fields, '_pageName=page, FullHebName=fullName, '
+	equals(#stub.calls, 3, 'queries')
+	equals(stub.calls[2].tables, 'Profiles', 'profiles table')
+	equals(stub.calls[2].fields, '_pageName=page, FullHebName=fullName, '
 		.. 'WholeCareer=wholeCareer, HomePlayer=homePlayer, '
-		.. 'RootedPlayer=rootedPlayer, ForeignPlayer=foreignPlayer', 'profile fields')
-	equals(stub.calls[7].options.where, '_pageName IN ("ערן זהבי", "מרדכי שפיגלר")', 'profiles where')
-	equals(stub.calls[7].options.limit, 5000, 'profiles limit')
-	equals(stub.calls[8].fields, 'ge.PlayerName=name, ge.PlayerNumber=number, '
+		.. 'RootedPlayer=rootedPlayer, ForeignPlayer=foreignPlayer, '
+		.. 'Position=position, MainNumber=mainNumber', 'profile fields')
+	equals(stub.calls[2].options.where, '_pageName IN ("ערן זהבי", "מרדכי שפיגלר")', 'profiles where')
+	equals(stub.calls[2].options.limit, 5000, 'profiles limit')
+	equals(stub.calls[3].fields, 'ge.PlayerName=name, ge.PlayerNumber=number, '
 		.. 'COUNT(*)=games, MIN(fg.Date)=firstGame', 'number fields')
-	equals(stub.calls[8].options.where, '1=1 AND ge.Team=1 AND fg.Season="2024/25"'
+	equals(stub.calls[3].options.where, '1=1 AND ge.Team=1 AND fg.Season="2024/25"'
 		.. ' AND ge.PlayerNumber != ""', 'number where')
-	equals(stub.calls[8].options.groupBy, 'ge.PlayerName, ge.PlayerNumber', 'number group')
-	equals(stub.calls[8].options.join, 'fg._pageName=ge._pageName', 'number join')
-	equals(stub.calls[8].options.limit, 5000, 'number limit')
+	equals(stub.calls[3].options.groupBy, 'ge.PlayerName, ge.PlayerNumber', 'number group')
+	equals(stub.calls[3].options.join, 'fg._pageName=ge._pageName', 'number join')
+	equals(stub.calls[3].options.limit, 5000, 'number limit')
 end)
 
 check('the shirt-number season is the page variable, as the card read it', function(squad)
 	stub.willReturn(names('ערן זהבי'))
-	stub.willReturn(pages('ערן זהבי'))
-	for _ = 1, 4 do stub.willReturn({}) end
 	stub.willReturn({ ZAHAVI })
 	local frame = stub.newFrame({}, { ['עונה'] = '2024/25', ['שחקנים'] = '' })
 	stub.variables['עונה להצגה'] = '2023/24'
 	squad.render(frame)
-	contains(stub.calls[8].options.where, 'fg.Season="2023/24"', 'season variable')
+	contains(stub.calls[3].options.where, 'fg.Season="2023/24"', 'season variable')
 	contains(stub.calls[1].options.where, 'fg.Season="2024/25"', 'season argument')
 end)
 
@@ -195,97 +184,132 @@ end)
 
 check('an empty first name hides the whole list, as the template tested', function(squad)
 	local html = render(squad, {
-		positions = { pages('ערן זהבי'), {}, {}, {}, {} },
 		profiles = { ZAHAVI },
 	}, { ['עונה'] = '2024/25', ['שחקנים'] = ' , ערן זהבי' })
 	lacks(html, 'class="list"', 'list')
 	lacks(html, 'ערן זהבי', 'card')
+	equals(#stub.calls, 1, 'no profile query')
 end)
 
-check('a hand-entered list replaces the season query and is trimmed', function(squad)
-	stub.willReturn(pages('ערן זהבי'))
-	for _ = 1, 4 do stub.willReturn({}) end
-	stub.willReturn({ ZAHAVI })
-	local frame = stub.newFrame({}, { ['עונה'] = '2024/25', ['שחקנים'] = ' ערן זהבי ,מרדכי שפיגלר ' })
-	stub.variables['עונה להצגה'] = '2024/25'
-	local html = squad.render(frame)
-	equals(stub.calls[1].tables, 'Profiles', 'no season query')
-	contains(stub.calls[1].options.where, '_pageName IN ("ערן זהבי", "מרדכי שפיגלר")', 'list')
+check('a hand-entered list replaces the season names and is trimmed', function(squad)
+	local html = render(squad, {
+		season = names('אבי כהן'),
+		profiles = { ZAHAVI },
+	}, { ['עונה'] = '2024/25', ['שחקנים'] = ' ערן זהבי ,מרדכי שפיגלר ' })
+	equals(stub.calls[2].options.where, '_pageName IN ("ערן זהבי", "מרדכי שפיגלר")', 'list')
 	contains(html, 'ערן זהבי</span>', 'card')
+end)
+
+check('a hand-entered list still orders by the season\'s games', function(squad)
+	local html = render(squad, {
+		season = names({ 'אבי כהן', 3 }, { 'רפי לוי', 9 }),
+		profiles = { profile('אבי כהן', '3'), profile('רפי לוי', '3') },
+	}, { ['עונה'] = '2024/25', ['שחקנים'] = 'אבי כהן, רפי לוי' })
+	equals(cardNames(html), 'רפי לוי | אבי כהן', 'games order')
 end)
 
 check('the apostrophe fix of the filter\'s output template', function(squad)
 	local html = render(squad, {
 		season = names("ג'וזף ולאחוביץ'"),
-		positions = { {}, pages('ג&#39;וזף ולאחוביץ&#39;'), {}, {}, {} },
-		profiles = { { page = "ג'וזף ולאחוביץ'", fullName = "ג'וזף ולאחוביץ'" } },
+		profiles = { profile('ג&#39;וזף ולאחוביץ&#39;', '2') },
 	})
 	contains(html, "<span class=\"name\">ג'וזף ולאחוביץ'</span>", 'decoded')
 end)
 
-check('a position repeats nobody, but two positions both show a player', function(squad)
+check('a player holding two positions shows in both', function(squad)
 	local html = render(squad, {
 		season = names('ערן זהבי'),
-		positions = { {}, pages('ערן זהבי', 'ערן זהבי'), pages('ערן זהבי'), {}, {} },
-		profiles = { ZAHAVI },
+		profiles = { profile('ערן זהבי', '2, 3') },
 	})
 	equals(count(html, 'class="player-container"'), 2, 'cards')
 	contains(html, 'שחקני הגנה|הגנה', 'defence')
 	contains(html, 'שחקני קישור|קישור', 'midfield')
 	lacks(html, 'שוערים', 'empty position')
-	equals(stub.calls[7].options.where, '_pageName IN ("ערן זהבי")', 'one profile lookup')
 end)
 
-check('positions render in their fixed order, cards in query order', function(squad)
+check('no position, or none of 1-4, is ללא עמדה', function(squad)
 	local html = render(squad, {
-		season = names('ערן זהבי', 'מרדכי שפיגלר', 'אבי כהן'),
-		positions = { pages('אבי כהן'), {}, {}, pages('מרדכי שפיגלר', 'ערן זהבי'),
-			pages('רפי לוי') },
-		profiles = { ZAHAVI, SHPIGLER, { page = 'אבי כהן', fullName = 'אבי כהן' },
-			{ page = 'רפי לוי', fullName = 'רפי לוי' } },
+		season = names('אבי כהן', 'רפי לוי', 'ערן זהבי'),
+		profiles = { profile('אבי כהן', nil), profile('רפי לוי', '5'), profile('ערן זהבי', '4') },
 	})
-	local keeper = html:find('אבי כהן</span>', 1, true)
-	local first = html:find('מרדכי שפיגלר</span>', 1, true)
-	local second = html:find('ערן זהבי</span>', 1, true)
-	local none = html:find('ללא עמדה', 1, true)
-	if not (keeper < first and first < second and second < none) then
-		error('order: keeper, then attack in query order, then ללא עמדה', 0)
+	local none = html:find('<div class="position-title">ללא עמדה</div>', 1, true)
+	local attack = html:find('שחקני התקפה|התקפה', 1, true)
+	if not (none and attack and attack < none) then
+		error('ללא עמדה must exist and come after התקפה', 0)
 	end
+	equals(cardNames(html), 'ערן זהבי | אבי כהן | רפי לוי', 'cards')
 end)
 
-check('an empty name is dropped, as #arrayunique dropped it', function(squad)
+check('positions render in their fixed order', function(squad)
+	local html = render(squad, {
+		season = names('רפי לוי', 'ערן זהבי', 'אבי כהן', 'שלמה כהן', 'דוד פרימו'),
+		profiles = { profile('רפי לוי', nil), profile('ערן זהבי', '4'),
+			profile('אבי כהן', '3'), profile('שלמה כהן', '2'), profile('דוד פרימו', '1') },
+	})
+	equals(cardNames(html), 'דוד פרימו | שלמה כהן | אבי כהן | ערן זהבי | רפי לוי', 'positions')
+end)
+
+check('order: MainNumber ascending, a missing one first', function(squad)
+	local html = render(squad, {
+		season = names({ 'אבי כהן', 1 }, { 'רפי לוי', 1 }, { 'ערן זהבי', 1 }, { 'שלמה כהן', 1 }),
+		profiles = { profile('אבי כהן', '3', '10'), profile('רפי לוי', '3', '9'),
+			profile('ערן זהבי', '3', nil), profile('שלמה כהן', '3', '2') },
+	})
+	equals(cardNames(html), 'ערן זהבי | שלמה כהן | רפי לוי | אבי כהן', 'numbers as numbers')
+end)
+
+check('order: a MainNumber tie goes to more games, then the name', function(squad)
+	local html = render(squad, {
+		season = names({ 'רפי לוי', 4 }, { 'אבי כהן', 12 }, { 'דוד פרימו', 4 },
+			{ 'שלמה כהן', 30 }),
+		profiles = { profile('רפי לוי', '3'), profile('אבי כהן', '3'),
+			profile('דוד פרימו', '3'), profile('שלמה כהן', '3', '5') },
+	})
+	equals(cardNames(html), 'אבי כהן | דוד פרימו | רפי לוי | שלמה כהן', 'games, then name')
+end)
+
+check('an empty page name is dropped, as #arrayunique dropped it', function(squad)
 	local html = render(squad, {
 		season = names('ערן זהבי'),
-		positions = { pages(''), {}, {}, pages('ערן זהבי'), {} },
-		profiles = { ZAHAVI },
+		profiles = { profile('', '1'), ZAHAVI },
 	})
 	lacks(html, 'שוערים', 'a position holding only an empty name')
-	equals(stub.calls[7].options.where, '_pageName IN ("ערן זהבי")', 'no empty lookup')
+	equals(count(html, 'class="player-container"'), 1, 'cards')
+end)
+
+check('a repeated player name is looked up once', function(squad)
+	render(squad, { season = names('ערן זהבי'), profiles = { ZAHAVI } },
+		{ ['עונה'] = '2024/25', ['שחקנים'] = 'ערן זהבי, ערן זהבי, ' })
+	equals(stub.calls[2].options.where, '_pageName IN ("ערן זהבי")', 'unique, no empty')
 end)
 
 check('a duplicated profile row: the first wins', function(squad)
 	local html = render(squad, {
 		season = names('ערן זהבי'),
-		positions = { {}, {}, {}, pages('ערן זהבי'), {} },
-		profiles = { ZAHAVI, { page = 'ערן זהבי', fullName = 'ערן זהבי', wholeCareer = '1' } },
+		profiles = { ZAHAVI, { page = 'ערן זהבי', fullName = 'ערן זהבי', wholeCareer = '1',
+			position = '4' } },
 	})
 	lacks(html, 'maccabi_career', 'second row ignored')
 	contains(html, 'player_property_home', 'first row used')
+	equals(count(html, 'class="player-container"'), 1, 'one card')
 end)
 
 check('a name with no profile row renders no card', function(squad)
 	local html = render(squad, {
-		season = names('ערן זהבי'),
-		positions = { {}, {}, {}, pages('ערן זהבי', 'אבי כהן'), {} },
+		season = names('ערן זהבי', 'אבי כהן'),
 		profiles = { ZAHAVI },
 	})
 	equals(count(html, 'class="player-container"'), 1, 'cards')
 end)
 
+check('players but no profiles: the list shell, no position', function(squad)
+	local html = render(squad, { season = names('אבי כהן') })
+	contains(html, '<div class="list">\n</div>', 'empty list')
+end)
+
 local function numbered(squad, rows)
 	return render(squad, {
 		season = names('ערן זהבי'),
-		positions = { {}, {}, {}, pages('ערן זהבי'), {} },
 		profiles = { ZAHAVI },
 		numbers = rows,
 	})
@@ -325,7 +349,6 @@ end)
 local function flagged(squad, profile, captains)
 	return render(squad, {
 		season = names(profile.page),
-		positions = { {}, {}, {}, pages(profile.page), {} },
 		profiles = { profile },
 	}, nil, captains)
 end

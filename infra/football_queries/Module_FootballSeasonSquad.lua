@@ -6,27 +6,26 @@ Wiki page: Module:FootballSeasonSquad
 תבנית:עונת כדורגל/הצגת סגל built the squad from one Cargo query per position
 and then TWO per player - the profile fields, then the shirt number inside
 the card - about 90 queries on a 42-player season. This renders the same
-HTML from eight: the season's players, the five position lists, every
-profile at once, and every shirt number at once.
+cards from three: the season's players with their games, every profile at
+once, and every shirt number at once.
 
 Template body:
     {{#invoke:FootballSeasonSquad|render|עונה={{{עונה|}}}|שחקנים={{{שחקנים|}}}}}
 
-The five position queries are kept exactly as the filter template wrote them
-(same WHERE, same ORDER BY, no LIMIT). Most old profiles have no MainNumber,
-so their order is MySQL's tie order, and a single combined query returns
-those ties differently - measured against all 101 season pages. Only these
-five keep today's card order.
+Card order within a position: MainNumber ascending, a missing one first (as
+MySQL sorted it); then most games that season; then the name. The templates
+stopped at MainNumber, and most old profiles have none, so their order was
+whatever MySQL returned - the games-then-name tie-break is a deliberate
+change, decided 2026-09-21. Wherever MainNumbers differ, the order is today's.
 
-The output must be byte-identical to the templates', so their oddities are
-reproduced and marked where they are not obvious.
+Everything else must be byte-identical to the templates', so their oddities
+are reproduced and marked where they are not obvious.
 ]]
 
 local p = {}
 
--- Cargo applies its default limit to a query that names none. The season and
--- position queries keep that, so their SQL stays the templates'; these two
--- collapse many per-player queries and set their own.
+-- Cargo truncates silently at a query's limit, so every query sets one and a
+-- result that reaches it is an error.
 local QUERY_LIMIT = 5000
 
 local POSITIONS = {
@@ -107,53 +106,92 @@ local function limited(tables, fields, options)
 	return rows
 end
 
+--- The season's Maccabi players in the query's (name) order, and the number
+--- of games each one has an event in.
 local function seasonPlayers(season)
-	local rows = mw.ext.cargo.query('Football_Games=fg, Games_Events=ge', 'ge.PlayerName=name', {
-		join = 'fg._pageName=ge._pageName',
-		where = '1=1 AND fg.Season="' .. season .. '" AND ge.Team=1',
-		groupBy = 'ge.PlayerName',
-	})
-	local names = {}
+	local rows = limited('Football_Games=fg, Games_Events=ge',
+		'ge.PlayerName=name, COUNT(DISTINCT fg._pageName)=games', {
+			join = 'fg._pageName=ge._pageName',
+			where = '1=1 AND fg.Season="' .. season .. '" AND ge.Team=1',
+			groupBy = 'ge.PlayerName',
+		})
+	local names, games = {}, {}
 	for index, row in ipairs(rows) do
 		names[index] = trim(row.name)
+		games[names[index]] = tonumber(row.games) or 0
 	end
-	return names
-end
-
---- One position, as כדורגל/סינון רשימת שחקנים לפי עמדה asked for it, with
---- כדורגל/תיקון שם לרשימת שחקנים מסוננת's apostrophe fix.
-local function positionPlayers(players, code)
-	local condition
-	if code then
-		condition = ' And Position HOLDS "' .. code .. '"'
-	else
-		condition = ' AND Position HOLDS NOT "1" AND Position HOLDS NOT "2"'
-			.. ' AND Position HOLDS NOT "3" AND Position HOLDS NOT "4"'
-	end
-	local rows = mw.ext.cargo.query('Profiles', '_pageName=pageName', {
-		where = '_pageName IN (' .. inList(players) .. ')' .. condition,
-		orderBy = 'MainNumber ASC',
-	})
-	local names = {}
-	for index, row in ipairs(rows) do
-		names[index] = trim((row.pageName or ''):gsub('&#39;', "'"))
-	end
-	return unique(names)
+	return names, games
 end
 
 --- Every profile the cards need, first row per page - as `limit=1` took it.
+--- The filter template's output passed through a `&#39;` fix; so does this.
 local function profiles(names)
 	local rows = limited('Profiles', '_pageName=page, FullHebName=fullName, '
 		.. 'WholeCareer=wholeCareer, HomePlayer=homePlayer, '
-		.. 'RootedPlayer=rootedPlayer, ForeignPlayer=foreignPlayer', {
+		.. 'RootedPlayer=rootedPlayer, ForeignPlayer=foreignPlayer, '
+		.. 'Position=position, MainNumber=mainNumber', {
 			where = '_pageName IN (' .. inList(names) .. ')',
 		})
-	local byPage = {}
+	local byPage, pages = {}, {}
 	for _, row in ipairs(rows) do
-		local page = trim(row.page)
-		byPage[page] = byPage[page] or row
+		local page = trim((row.page or ''):gsub('&#39;', "'"))
+		if page ~= '' and not byPage[page] then
+			byPage[page] = row
+			pages[#pages + 1] = page
+		end
 	end
-	return byPage
+	return byPage, pages
+end
+
+--- The position codes a profile holds (Position is a list field).
+local function heldCodes(profile)
+	local held = {}
+	for _, code in ipairs(splitList(profile.position or '')) do
+		held[code] = true
+	end
+	return held
+end
+
+--- MainNumber ascending with a missing one first, as MySQL sorted it; then
+--- most games this season; then the name.
+local function cardOrder(byPage, games)
+	return function(first, second)
+		local firstNumber = tonumber(byPage[first].mainNumber)
+		local secondNumber = tonumber(byPage[second].mainNumber)
+		if firstNumber ~= secondNumber then
+			if firstNumber == nil then return true end
+			if secondNumber == nil then return false end
+			return firstNumber < secondNumber
+		end
+		local firstGames, secondGames = games[first] or 0, games[second] or 0
+		if firstGames ~= secondGames then
+			return firstGames > secondGames
+		end
+		return first < second
+	end
+end
+
+--- The players of each position, in card order. ללא עמדה holds none of 1-4.
+local function positionLists(byPage, pages, games)
+	local lists = {}
+	for index, position in ipairs(POSITIONS) do
+		local list = {}
+		for _, page in ipairs(pages) do
+			local held = heldCodes(byPage[page])
+			local inPosition
+			if position.code then
+				inPosition = held[position.code]
+			else
+				inPosition = not (held['1'] or held['2'] or held['3'] or held['4'])
+			end
+			if inPosition then
+				list[#list + 1] = page
+			end
+		end
+		table.sort(list, cardOrder(byPage, games))
+		lists[index] = list
+	end
+	return lists
 end
 
 --- The number each player wore in most of the season's games, ties going to
@@ -234,36 +272,25 @@ end
 function p.render(frame)
 	local season = checkedSeason(frame.args['עונה'])
 	local given = frame.args['שחקנים']
-	local players = trim(given) ~= '' and splitList(given) or seasonPlayers(season)
+	-- Games order the cards even when the page hands over its own list.
+	local seasonNames, games = seasonPlayers(season)
+	local players = trim(given) ~= '' and splitList(given) or seasonNames
 
-	local lists = {}
 	-- The template tested only the FIRST name: an empty one hides the list.
-	if (players[1] or '') ~= '' then
-		for index, position in ipairs(POSITIONS) do
-			lists[index] = positionPlayers(players, position.code)
-		end
-	end
-
-	local everyone = {}
-	for _, names in pairs(lists) do
-		for _, name in ipairs(names) do
-			everyone[#everyone + 1] = name
-		end
-	end
-	everyone = unique(everyone)
+	local listed = (players[1] or '') ~= ''
+	local everyone = unique(players)
 
 	local html = {}
-	if #everyone > 0 then
-		local byPage = profiles(everyone)
+	if listed and #everyone > 0 then
+		local byPage, pages = profiles(everyone)
+		local lists = positionLists(byPage, pages, games)
 		local numbers = shirtNumbers(checkedSeason(
 			frame:callParserFunction('#var', { 'עונה להצגה' })))
 		local captains = splitList(frame:callParserFunction('#var', { 'קפטנים' }))
 		for index, position in ipairs(POSITIONS) do
 			local cards = {}
 			for _, name in ipairs(lists[index]) do
-				if byPage[name] then
-					cards[#cards + 1] = card(frame, name, byPage[name], numbers[name], captains)
-				end
+				cards[#cards + 1] = card(frame, name, byPage[name], numbers[name], captains)
 			end
 			if #lists[index] > 0 then
 				html[#html + 1] = '<div class="position-list">\n<div class="position-title">'
@@ -274,7 +301,7 @@ function p.render(frame)
 	end
 
 	local list = ''
-	if (players[1] or '') ~= '' then
+	if listed then
 		list = '<div class="list">\n' .. table.concat(html) .. '</div>'
 	end
 	return '<div class="players-section-container" id="סגל שחקנים">\n'

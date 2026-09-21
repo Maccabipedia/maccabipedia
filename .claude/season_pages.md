@@ -162,25 +162,31 @@ be a number on the list, changing to exactly the listed value, and the
 players and their order must be untouched. Run 2026-09-20: 2,451 cards over
 101 seasons, 87 numbers moved, all 87 as predicted, nothing else.
 
-## Change 5 — the squad from 8 queries instead of ~90
+## Change 5 — the squad from 3 queries instead of ~90, in a defined order
 
 `Module:FootballSeasonSquad` renders what `תבנית:עונת כדורגל/הצגת סגל` built
 from 1 + 5 + 2N queries (the season's players, one per position, then per
-card a profile query and a shirt-number query): the season's players, the five
-position lists, **all** profiles in one query and **all** shirt numbers in one.
-The template keeps its `קפטן בעונה המוצגת` line and calls the module.
+card a profile query and a shirt-number query) from **three**: the season's
+players with their games, **all** profiles (with Position and MainNumber),
+and **all** shirt numbers. The template keeps its `קפטן בעונה המוצגת` line and
+calls the module. The filter template stays: the players portal
+(`קטגוריה:שחקנים`) uses it too.
 
-**Why five position queries remain.** Most old profiles have no
-`MainNumber`, so within a position the order is MySQL's tie order. A single
-query - Profiles `IN` the season's players, or the events-to-Profiles join -
-returns those ties in a different order (1926 already differs). The module
-issues the filter template's exact five queries, without a LIMIT, so the SQL
-and the order stay today's. The filter template itself stays: the players
-portal (`קטגוריה:שחקנים`) uses it too.
+**The card order is the one deliberate change** (decided 2026-09-21). The
+templates sorted a position by `MainNumber` and stopped; most old profiles
+have none, so their order was whatever MySQL returned - and a different query
+returns those ties differently (1926 already did), so no rewrite could keep
+it. Now: `MainNumber` ascending, a missing one first (as MySQL placed NULL);
+then most games that season; then the name. Wherever MainNumbers differ the
+order is today's. It first reproduced today's order with the five position
+queries kept (8 queries, 101/101 byte-identical); the defined order saves
+those five, only ~5-20 ms, so the reason for it is a meaningful order, not
+speed.
 
 Behaviours reproduced on purpose, each with a stub test: the filter's
-`&#39;` fix; `#arrayunique` per position (empty names dropped; a player with
-two positions shows twice); first Profiles row wins (two pages have duplicate
+`&#39;` fix; empty names dropped as `#arrayunique` dropped them (a player
+holding two positions would show twice - none does: every profile holds one
+position or none); first Profiles row wins (two pages have duplicate
 identical rows); only the FIRST player name decides whether the list renders;
 a shirt number that equals 0 is hidden (the card's `#שווה` compared it
 numerically with its `000` default); the captain matches **FullHebName** with
@@ -189,17 +195,22 @@ link check; `#arrayprint` trimming each card. No players at all → one query
 and an empty shell, where an `IN ()` would raise.
 
 Measured on production, the unsaved module passed as TemplateSandbox text:
-**101/101 seasons byte-identical** (288 captain icons on each side), and the
-block went **733 → 163 ms (2024/25), 583 → 129 (2005/06), 518 → 107
-(1985/86)**. One season differed once in paragraph whitespace with identical
-expanded wikitext, and matched on three reruns - a flaky parse, not the module.
+the block went **733 → 143 ms (2024/25), 583 → 121 (2005/06), 518 → 102
+(1985/86)**. The gate for the reorder: per season, the same positions, the
+same cards byte for byte within each, everything outside the cards
+byte-identical, and the new order checked against Cargo by separately written
+code (fed today's order it must fail - it does).
+
+A production parse can flake: one season once differed in `<p
+class="mw-empty-elt">` placement with identical expanded wikitext, and matched
+on three reruns. Rerun before chasing a single whitespace difference.
 
 **Rollout:** publish the module (inert: nothing calls it) → render every full
-season page with `תבנית:עונת כדורגל/הצגת סגל` overridden through TemplateSandbox
-and compare with today's, byte for byte (catches any page variable the old
-chain leaked and something later read) → edit the template (keep the old
-text) → look at 2024/25, 1985/86, 1926. Revert: the old template text; the
-module can stay.
+season page with `תבנית:עונת כדורגל/הצגת סגל` overridden through TemplateSandbox:
+outside the squad byte-identical to today's (catches a page variable the old
+chain leaked and something later read), the squad by the gate above → edit
+the template (keep the old text) → look at 2024/25, 1985/86, 1926. Revert:
+the old template text; the module can stay.
 
 ## Load when switching
 
