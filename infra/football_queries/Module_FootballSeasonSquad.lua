@@ -72,12 +72,14 @@ local function unique(items)
 	return result
 end
 
---- A season goes into the SQL as it is, as the templates did; anything but
---- digits and a slash is refused rather than quoted.
+--- A season goes into the SQL as it is, as the templates did, so anything but
+--- digits and a slash never reaches a query: it gives nil, and nil means no
+--- rows - what the templates showed for a season that matched nothing (a
+--- draft or /ארגז חול copy of a season page, whose name is not a season).
 local function checkedSeason(season)
 	season = trim(season)
 	if not season:match('^[%d/]*$') then
-		error('FootballSeasonSquad: not a season: ' .. season, 0)
+		return nil
 	end
 	return season
 end
@@ -94,7 +96,7 @@ local function inList(names)
 	return table.concat(literals, ', ')
 end
 
---- For the two queries that set a limit: a result that reached it is an
+--- Every query goes through here: a result that reached the limit is an
 --- error, never a short answer - Cargo truncates silently.
 local function limited(tables, fields, options)
 	options.limit = QUERY_LIMIT
@@ -109,6 +111,9 @@ end
 --- The season's Maccabi players in the query's (name) order, and the number
 --- of games each one has an event in.
 local function seasonPlayers(season)
+	if not season then
+		return {}, {}
+	end
 	local rows = limited('Football_Games=fg, Games_Events=ge',
 		'ge.PlayerName=name, COUNT(DISTINCT fg._pageName)=games', {
 			join = 'fg._pageName=ge._pageName',
@@ -195,10 +200,16 @@ local function positionLists(byPage, pages, games)
 end
 
 --- The number each player wore in most of the season's games, ties going to
---- the number worn in the earliest one; blanks never count.
+--- the number worn in the earliest one; blanks never count. GAMES, not event
+--- rows: a game has one row per event, so COUNT(*) would weigh a number by
+--- the goals and cards scored in it.
 local function shirtNumbers(season)
+	if not season then
+		return {}
+	end
 	local rows = limited('Football_Games=fg, Games_Events=ge',
-		'ge.PlayerName=name, ge.PlayerNumber=number, COUNT(*)=games, MIN(fg.Date)=firstGame', {
+		'ge.PlayerName=name, ge.PlayerNumber=number, '
+			.. 'COUNT(DISTINCT fg._pageName)=games, MIN(fg.Date)=firstGame', {
 			join = 'fg._pageName=ge._pageName',
 			where = '1=1 AND ge.Team=1 AND fg.Season="' .. season
 				.. '" AND ge.PlayerNumber != ""',

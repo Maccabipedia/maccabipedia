@@ -157,7 +157,7 @@ check('three queries: players, profiles, shirt numbers', function(squad)
 	equals(stub.calls[2].options.where, '_pageName IN ("ערן זהבי", "מרדכי שפיגלר")', 'profiles where')
 	equals(stub.calls[2].options.limit, 5000, 'profiles limit')
 	equals(stub.calls[3].fields, 'ge.PlayerName=name, ge.PlayerNumber=number, '
-		.. 'COUNT(*)=games, MIN(fg.Date)=firstGame', 'number fields')
+		.. 'COUNT(DISTINCT fg._pageName)=games, MIN(fg.Date)=firstGame', 'number fields')
 	equals(stub.calls[3].options.where, '1=1 AND ge.Team=1 AND fg.Season="2024/25"'
 		.. ' AND ge.PlayerNumber != ""', 'number where')
 	equals(stub.calls[3].options.groupBy, 'ge.PlayerName, ge.PlayerNumber', 'number group')
@@ -391,7 +391,7 @@ check('a missing page gets no link', function(squad)
 	contains(html, '<div class="player-container"><span class="name">', 'no link')
 end)
 
-check('a truncated profiles or numbers answer is an error', function(squad)
+check('a truncated shirt-numbers answer is an error', function(squad)
 	local many = {}
 	for index = 1, 5000 do
 		many[index] = number('ערן זהבי', tostring(index), 1, '2024-08-01')
@@ -401,10 +401,20 @@ check('a truncated profiles or numbers answer is an error', function(squad)
 	contains(message, 'hit the limit of 5000', 'message')
 end)
 
-check('a season that is not a season is refused', function(squad)
-	local ok, message = pcall(render, squad, {}, { ['עונה'] = '2024" OR 1', ['שחקנים'] = '' })
-	equals(ok, false, 'raised')
-	contains(message, 'not a season', 'message')
+check('a season that is not a season queries nothing and shows the empty shell', function(squad)
+	local html = render(squad, {}, { ['עונה'] = '2024" OR 1', ['שחקנים'] = '' })
+	equals(#stub.calls, 0, 'no query')
+	contains(html, '<div class="players-list-container">\n\n</div>\n</div>', 'empty shell')
+end)
+
+check('a page variable that is not a season gives no numbers, still the cards', function(squad)
+	stub.willReturn(names('ערן זהבי'))
+	stub.willReturn({ ZAHAVI })
+	local frame = stub.newFrame({}, { ['עונה'] = '2024/25', ['שחקנים'] = '' })
+	stub.variables['עונה להצגה'] = '2024/25/ארגז חול'
+	local html = squad.render(frame)
+	equals(#stub.calls, 2, 'no shirt-number query')
+	contains(html, '<span class="name">ערן זהבי</span>', 'card without a number')
 end)
 
 print(string.format('%d passed, %d failed', passed, failed))

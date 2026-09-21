@@ -155,6 +155,14 @@ changed** (only 213 ever wore more than one number; ties-to-latest would have
 changed 94). It is not a speed change: 42 cards cost 374 ms before and 378 ms
 after.
 
+**Correction (2026-09-21, found in review):** that query's `COUNT(*)` counts
+EVENT ROWS, not games - a game has one row per event, so a number was weighed
+by the goals and cards scored in it. The 87 were measured the same way. The
+squad module (Change 5) counts `COUNT(DISTINCT fg._pageName)`, i.e. games,
+which moves 11 more player-seasons (e.g. אילון אלמוג 2022/23: 8 games in each
+of 11 and 29, more events in 29 - by games a tie, so the earlier game's 11).
+The card template itself no longer renders on season pages.
+
 **Rollout:** list the expected changes from Cargo (season, player, old, new)
 → capture the squad block of every season with `action=parse&text=` → edit
 the card template (keep the old text) → capture again → every difference must
@@ -168,7 +176,8 @@ players and their order must be untouched. Run 2026-09-20: 2,451 cards over
 from 1 + 5 + 2N queries (the season's players, one per position, then per
 card a profile query and a shirt-number query) from **three**: the season's
 players with their games, **all** profiles (with Position and MainNumber),
-and **all** shirt numbers. The template keeps its `קפטן בעונה המוצגת` line and
+and **all** shirt numbers (most GAMES that season, ties to the earliest game -
+see the correction under Change 4). The template keeps its `קפטן בעונה המוצגת` line and
 calls the module. The filter template stays: the players portal
 (`קטגוריה:שחקנים`) uses it too.
 
