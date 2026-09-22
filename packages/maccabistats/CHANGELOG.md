@@ -1,8 +1,8 @@
 ## Version 2.72 ##
 
-    The FTP games uploader fails at once, naming the missing secrets, when any of
-    MACCABIPEDIA_FTP / _USERNAME / _PASSWORD is empty, instead of loading the games and
-    dying inside ftplib's login with an unrelated NoneType error.
+    Removed the `upload_maccabipedia_games_to_ftp` GitHub Actions script and its workflow.
+    The MaccabiPedia.games file it published was only read by the old Telegram bot,
+    which is dead, and the workflow had been failing and then disabled since mid-2026.
 
 ## Version 2.71 ##
 
