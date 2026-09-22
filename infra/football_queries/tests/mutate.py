@@ -546,6 +546,19 @@ MUTATIONS = [
     ('tab shows a rowless block\'s marker', RENDERER,
      "\tif not declaration.rows then\n",
      "\tif false then\n"),
+    # The stadium block is derived from the season block; its three lines.
+    ('stadium derives from the referee block', BLOCKS,
+     "blocks['stadium'] = copied(blocks['season'])",
+     "blocks['stadium'] = copied(blocks['referee-assistant'])"),
+    ('stadium takes a single stadium argument', BLOCKS,
+     "blocks['stadium'].entity = 'אצטדיונים'",
+     "blocks['stadium'].entity = 'אצטדיון'"),
+    ('stadium filters through the alias lookup', BLOCKS,
+     "blocks['stadium'].entityFilter = 'אצטדיונים'",
+     "blocks['stadium'].entityFilter = 'אצטדיון'"),
+    ('stadium filters by season', BLOCKS,
+     "blocks['stadium'].entityFilter = 'אצטדיונים'",
+     "blocks['stadium'].entityFilter = 'עונה'"),
     ('season assists title changes', BLOCKS,
      "{ key = 'assists', title = 'שיאני בישולים', noun = 'שחקנים שונים',\n"
      "\t\t\t  filters = { ['מספר אירוע'] = '4' } },\n"
