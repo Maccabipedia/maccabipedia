@@ -320,4 +320,112 @@ function p.render(frame)
 		.. '<div class="players-list-container">\n' .. list .. '\n</div>\n</div>'
 end
 
+-- ------------------------------------------------------------ players portal
+
+local PORTAL_CARD = 'פורטל שחקני כדורגל/הצגת סגל נוכחי/הצגת שחקן'
+
+--- A value as `#cargo_query format=template` handed it to a template:
+--- htmlspecialchars with PHP's default flags - `"` becomes &quot;, and an
+--- apostrophe stays as it is (ג'יימס טברנייר renders with a plain ').
+local function asTemplateArgument(value)
+	return (tostring(value or ''):gsub('&', '&amp;'):gsub('<', '&lt;'):gsub('>', '&gt;')
+		:gsub('"', '&quot;'))
+end
+
+--- MainNumber ascending, a missing one first (as MySQL sorted NULL); ties,
+--- which MySQL left in any order, by name.
+local function byMainNumber(profileOf)
+	return function(first, second)
+		local firstNumber = tonumber(profileOf[first][1].mainNumber)
+		local secondNumber = tonumber(profileOf[second][1].mainNumber)
+		if firstNumber ~= secondNumber then
+			if firstNumber == nil then return true end
+			if secondNumber == nil then return false end
+			return firstNumber < secondNumber
+		end
+		return first < second
+	end
+end
+
+--- `פורטל שחקני כדורגל/הצגת סגל נוכחי` from ONE query. The template ran one
+--- Profiles query per position (five) and one per player for the card - 32
+--- on today's squad. The card itself is still the template, fed the same
+--- named values `format=template` gave it, so its markup cannot drift.
+---   {{#invoke:FootballSeasonSquad|portal|סגל נוכחי={{{סגל נוכחי|}}}}}
+function p.portal(frame)
+	local squad = unique(splitList(frame.args['סגל נוכחי']))
+	local profileOf, pages = {}, {}
+	if #squad > 0 then
+		local rows = limited('Profiles', '_pageName=page, FullHebName=fullName, '
+			.. 'ProfilePicture=picture, DoB=born, Height=height, MainNumber=mainNumber, '
+			.. 'Position=position, WholeCareer=wholeCareer, HomePlayer=homePlayer, '
+			.. 'RootedPlayer=rootedPlayer, ForeignPlayer=foreignPlayer', {
+				where = '_pageName IN (' .. inList(squad) .. ')',
+			})
+		-- Every row, as the card query rendered every row of a page.
+		for _, row in ipairs(rows) do
+			local page = trim(row.page)
+			if not profileOf[page] then
+				profileOf[page] = {}
+				pages[#pages + 1] = page
+			end
+			table.insert(profileOf[page], row)
+		end
+	end
+
+	local function cards(list)
+		local out = {}
+		for _, page in ipairs(list) do
+			local rendered = {}
+			for _, profile in ipairs(profileOf[page]) do
+				rendered[#rendered + 1] = frame:expandTemplate{ title = PORTAL_CARD, args = {
+					PageName = asTemplateArgument(page),
+					PlayerName = asTemplateArgument(profile.fullName),
+					ProfilePicture = asTemplateArgument(profile.picture),
+					DoB = asTemplateArgument(profile.born),
+					Height = asTemplateArgument(profile.height),
+					MainNumber = asTemplateArgument(profile.mainNumber),
+					Position = asTemplateArgument(profile.position),
+					WholeCareer = asTemplateArgument(profile.wholeCareer),
+					HomePlayer = asTemplateArgument(profile.homePlayer),
+					RootedPlayer = asTemplateArgument(profile.rootedPlayer),
+					ForeignPlayer = asTemplateArgument(profile.foreignPlayer),
+				} }
+			end
+			-- #arrayprint trimmed each item.
+			out[#out + 1] = trim(table.concat(rendered))
+		end
+		return table.concat(out)
+	end
+
+	local html = {}
+	for _, position in ipairs(POSITIONS) do
+		local list = {}
+		for _, page in ipairs(pages) do
+			local held = heldCodes(profileOf[page][1])
+			local inPosition
+			if position.code then
+				inPosition = held[position.code]
+			else
+				inPosition = not (held['1'] or held['2'] or held['3'] or held['4'])
+			end
+			if inPosition then
+				list[#list + 1] = page
+			end
+		end
+		table.sort(list, byMainNumber(profileOf))
+		if position.code then
+			html[#html + 1] = '<div class="position-list-container">\n<div class="list-title">'
+				.. position.title .. '</div>\n<div class="list-container">' .. cards(list)
+				.. '</div>\n</div>'
+		elseif #list > 0 then
+			-- The template listed these by name only.
+			html[#html + 1] = '<div class="position-list-container">\n<div class="list-title">'
+				.. position.title .. '</div>\n<div class="list-container">'
+				.. table.concat(list, ', ') .. '</div>\n</div>'
+		end
+	end
+	return table.concat(html)
+end
+
 return p
