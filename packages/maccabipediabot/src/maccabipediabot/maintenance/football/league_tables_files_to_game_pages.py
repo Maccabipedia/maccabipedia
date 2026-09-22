@@ -1,5 +1,6 @@
 import logging
 import sys
+from maccabipediabot.common.page_names import build_football_game_page_name
 from maccabipediabot.common.wiki_login import get_site
 
 import mwparserfromhell
@@ -12,7 +13,6 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 logger.addHandler(logging.StreamHandler(sys.stdout))
 
-football_games_prefix = "משחק"
 football_games_template_name = "קטלוג משחקים"
 league_table_files_category_name = "קטגוריה:קטעי_עיתונות/טבלאות_ליגה"
 league_table_file_argument_name = "טבלת ליגה"
@@ -28,11 +28,12 @@ def generate_page_name_from_game(game):
     :rtype: str
     """
 
-    page_name = "{prefix}: {date} {home_team} נגד {away_team} - {competition}".format(prefix=football_games_prefix,
-                                                                                      date=game.date.strftime('%d-%m-%Y'),
-                                                                                      home_team=game.home_team.name,
-                                                                                      away_team=game.away_team.name,
-                                                                                      competition=game.competition)
+    page_name = build_football_game_page_name(
+        game_date=game.date,
+        home_team=game.home_team.name,
+        away_team=game.away_team.name,
+        competition=game.competition,
+    )
 
     page_name = page_name.replace('ביתר', 'בית"ר')  # Patch for now, we don't write beitar with ", as i should be.
 

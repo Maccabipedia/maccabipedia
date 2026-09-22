@@ -1,5 +1,6 @@
 import logging
 import sys
+from maccabipediabot.common.page_names import build_football_game_page_name
 from maccabipediabot.common.wiki_login import get_site
 
 import pywikibot as pw
@@ -12,7 +13,6 @@ logger.addHandler(logging.StreamHandler(sys.stdout))
 
 site = get_site()
 
-football_games_prefix = "משחק"
 
 
 def generate_page_name_from_game(game):
@@ -21,12 +21,12 @@ def generate_page_name_from_game(game):
     :rtype: str
     """
 
-    page_name = "{prefix}: {date} {home_team} נגד {away_team} - {competition}".format(prefix=football_games_prefix,
-                                                                                      date=game.date.strftime(
-                                                                                          '%d-%m-%Y'),
-                                                                                      home_team=game.home_team.name,
-                                                                                      away_team=game.away_team.name,
-                                                                                      competition=game.competition)
+    page_name = build_football_game_page_name(
+        game_date=game.date,
+        home_team=game.home_team.name,
+        away_team=game.away_team.name,
+        competition=game.competition,
+    )
 
     return page_name
 
