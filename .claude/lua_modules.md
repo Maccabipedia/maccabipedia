@@ -6,16 +6,30 @@ Design and the decisions behind it: `.claude/lua_modules_design.md`.
 query. **The repo is the source of truth**: the wiki copy is deployed from
 here, never edited on the wiki and copied back.
 
-The directory now holds every wiki Lua module and its harnesses, football or not
-(`Module:SeasonTrophies` serves three sports) - the name is historical. Rename it
-in the PR that adds the first `Module:Basketball*` module, not before: ~40 scripts,
-two workflows and five `.claude` docs reference the path.
+The directory holds every wiki Lua module and its harnesses for all three sports
+(renamed from `infra/football_queries/` on 2026-09-23, PR #230).
 
-The live list is `MODULES` in `deploy_modules_prod.py`; as of 2026-09-22:
-`FootballQueries`, `FootballQueries/Fields`, `FootballStatsBlocks`,
-`FootballStatsBlock`, `FootballSeasonSquad`, `FootballSeasonTable`,
-`FootballPlayerStats`, `FootballDate`, `SeasonTrophies`. Each file
-`Module_X.lua` is the wiki page `Module:X` (`_` for `/`).
+The live list is `MODULES` in `deploy_modules_prod.py`. Each file `Module_X.lua`
+is the wiki page `Module:X` (`_` for `/`). As of 2026-09-23 the shape is:
+
+| page | role |
+|---|---|
+| `Module:SportQueries` | **shared logic**: one Cargo query from one filter set. `new(Fields)` binds it to a sport's schema; it never names a sport, a table or a wiki page. |
+| `Module:StatsBlock` | **shared renderer**: a statistics block (cells, tabs, leaderboards) from one query. `new(Queries, blocksData, name)`. |
+| `Module:FootballQueries` | football's five-line shim: `SportQueries.new(mw.loadData('Module:FootballQueries/Fields'))`. The 1,687 pages that invoke it never noticed. |
+| `Module:FootballQueries/Fields` | football's schema (tables, columns, quote rules, filters, categories, sides, aggregates, entry points, `name`). |
+| `Module:FootballStatsBlock` / `…Blocks` | football's renderer shim and its block data. |
+| `FootballSeasonSquad`, `FootballSeasonTable`, `FootballPlayerStats`, `FootballDate` | standalone football modules built on the query module. |
+| `Module:SeasonTrophies` | the three-sport season trophy lists; its own small module by design. |
+
+**A new sport is a schema page and two shims**; the shared pages change only when
+the logic itself must (the grain rules and the `choice` handler that basketball
+needs - `.claude/tmp/sports_layer_plan.md` while it is in flight). Error messages
+carry the schema's `name`, which is why football's still read `FootballQueries: …`.
+Publish order: the shared pages, then a sport's schema, then its shims -
+`deploy_modules_prod.py --only` exists for that staged rollout, and each shim was
+gated on production first with `compare_module_swap.py` (live module vs the repo
+file through TemplateSandbox, byte for byte, on a page of every family).
 
 `Module` is the canonical name of namespace 828; the wiki displays it localised
 as `יחידה`, and the API normalises `Module:X` to `יחידה:X`. Either spelling
