@@ -266,9 +266,13 @@ def main() -> None:
         names = opponent_names(old_title, preamble_for(page_body, common.page_text(old_title)))
         old_page, old_outside, old_wall = render(old_title, False)
         new_page, new_outside, new_wall = render(new_title, True)
+        # Errors are looked for in the table only. The rest of the page must be
+        # byte-identical anyway, and the largest clubs' all-games list already
+        # carries "יותר מדי קריאות ל#זמן" (too many #time calls) on production.
         for label, page in (('old', old_page), ('new', new_page)):
-            if 'scribunto-error' in page or 'class="error"' in page:
-                return 'ERROR', f'{label} rendering carries an error', old_wall, new_wall
+            tables = TABLE.findall(page) or ['']
+            if 'scribunto-error' in tables[0] or 'class="error"' in tables[0]:
+                return 'ERROR', f'{label} table carries an error', old_wall, new_wall
         verdict, detail = check(table_rows(old_page), table_rows(new_page), direct_rows(names), ranks)
         if verdict == 'ok' and old_outside != new_outside:
             verdict, detail = 'FAIL', 'the page outside the table differs'
