@@ -56,6 +56,12 @@ and some issues had none at all — so check every page, not just the front.
   missing from its round's roundup is strong evidence it was not played that day.
 - Scores are printed opponent-first as often as Maccabi-first, and the halftime
   score usually sits in parentheses next to the final: `(30:54) 81:129`.
+- A 1950s lineup line such as `מכבי ת"א: בנדורי; פרופר, ריגל (מתניה); ...` lists the
+  players by position, goalkeeper first, with `;` between the lines of the formation.
+  In the one game read so far (IFK Göteborg, 4.3.1958), a name in parentheses was
+  **whoever played that position by the end**: a substitute or a teammate who moved
+  over. Work out the actual substitutions from the names that appear only in
+  parentheses, and confirm the reading on another game before relying on it.
 
 ## Known data problems
 
@@ -80,9 +86,3 @@ venue, crowd, referee, linesmen, goal minutes and two saved penalties. The Yedio
 missed it completely, because that week's scanned single pages were other pages. For a
 game against a foreign touring team, go straight to Hadashot HaSport the day after,
 front page first.
-
-Reading a 1950s lineup line: `מכבי ת"א: בנדורי; פרופר, ריגל (מתניה); ...` lists the
-players by position, goalkeeper first, with `;` between the lines of the formation. A
-name in parentheses is **whoever played that position by the end**. It can be a
-substitute or a teammate who moved over, so work out the actual substitutions from the
-names that appear only in parentheses.
