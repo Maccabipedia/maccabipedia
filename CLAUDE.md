@@ -49,6 +49,23 @@ Produces malformed HTTP (bad MIME headers, LF-only line endings) → Apache 400.
 ### Finding "who last edited X" — use recentchanges/revisions, not search
 `search_pages` ranks by relevance, not recency, so a page from yesterday can be missing from the first page of results even when `total_hits` is much larger than `limit`. For "last edits" / "who fixed this recently", use `site.recentchanges()` or `page.revisions(reverse=True)` (pywikibot) sorted by timestamp instead.
 
+### Where a page's render time goes — read MediaWiki's profile, don't delete pieces
+`action=parse&prop=limitreportdata` returns `limitreport-timingprofile`: every template with its
+ms, share and call count, summing to 100%. Deleting one call at a time and diffing walltime is
+worse twice over — a page varies ±0.05 s between identical renders, so anything under ~0.1 s is
+noise, and removing a container (a `#בחר` switch, a section wrapper) removes everything inside it,
+so those lines double-count and the list cannot be summed. Profile lines are inclusive of children
+too, so read the tree, not the column. The same report carries the walltime, node count and
+`expensivefunctioncount`. Scripts: `.claude/tmp/timing_profile.py` pattern.
+
+### Pick perf targets by traffic × render time, not by render time alone
+GA4 tells you what readers actually load (Organic Search only — the rest is bots,
+`.claude/google_analytics.md`); rendering those exact titles tells you what it costs. Measured
+2026-09-22: the most-read pages (songs in the `שיר:` namespace, chant categories, homepage) render
+in 0.04–0.65 s and are not worth touching, while `עונות` (1,538 views, 1.44 s) and
+`פורטל שחקנים` (3.1 s) are. GA `pageTitle` is not the wiki title — query `pagePath` to get titles
+that resolve.
+
 ### basket.co.il quotes player nicknames inconsistently across competition types
 League game pages render a nicknamed player's box-score name with a doubled apostrophe (`''`), but cup pages (e.g. Israeli Super Cup) use a straight `"`. `_PLAYER_NAME_NORMALIZE` in `basketball/translations.py` needs both quote-style variants per nicknamed player, or a future new page type will upload the raw, unnormalized name again.
 
