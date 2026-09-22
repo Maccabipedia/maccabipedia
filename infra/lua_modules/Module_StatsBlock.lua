@@ -647,6 +647,14 @@ function StatsBlock.new(Queries, blocksData, name)
 
 		local columns = {}
 		for _, box in ipairs(declaration.boxes) do
+			-- A box that sums a column (basketball's points) instead of counting
+			-- rows: the "עוד" link is a COUNT(*) ranking, so it would rank
+			-- something the box does not show - refused until it is generalised.
+			if box.sum and (declaration.moreText or '') ~= '' then
+				error(string.format(
+					NAME .. ': box "%s" sums a column, so the block cannot have a '
+					.. 'more link', box.key), 0)
+			end
 			for _, tab in ipairs(declaration.tabStrip) do
 				local filters = {}
 				for name, value in pairs(box.filters) do
@@ -656,13 +664,16 @@ function StatsBlock.new(Queries, blocksData, name)
 				columns[#columns + 1] = {
 					name = box.key .. '/' .. tab.category,
 					grain = 'event',
+					sum = box.sum,
 					filters = filters,
 				}
 			end
 		end
 
 		local results = FootballQueries.leaderboard(shared, columns,
-			{ groupBy = declaration.groupBy, top = declaration.top })
+			{ groupBy = declaration.groupBy, top = declaration.top,
+			  -- Football's templates hid zero counts; basketball's show them.
+			  keepZero = declaration.keepZero })
 
 		local out = {}
 		for _, box in ipairs(declaration.boxes) do
@@ -676,6 +687,11 @@ function StatsBlock.new(Queries, blocksData, name)
 						title = declaration.rowTemplate,
 						args = { row.name, tostring(row.count) },
 					}
+				end
+				-- A tab with nobody in it: football's templates printed nothing
+				-- (the heading alone), basketball's print a sentence.
+				if #result.rows == 0 and declaration.emptyText then
+					lines[#lines + 1] = declaration.emptyText
 				end
 				-- An empty moreText is a block that shows no link at all, as a
 				-- template called with `עוד תוצאות=` did.

@@ -784,5 +784,75 @@ check('the season block keeps its "עוד" link', function()
 	contains(stub.extensionTags[1].content, ' עוד]', 'deriving player-category left it alone')
 end)
 
+-- ---------------------------------------------- the knobs basketball needs
+-- A block that sums a column, keeps zero rows and prints a sentence on an
+-- empty tab, patched onto football's block data and schema; football's own
+-- blocks declare none of these and must not change.
+
+local function hoopsPatch(data)
+	if data.filters then
+		data.sumColumns['נקודות'] = 'Games_Events.SubType'
+	elseif data['referee-assistant'] then
+		local block = {}
+		for key, value in pairs(data['referee-assistant']) do
+			block[key] = value
+		end
+		block.moreText = ''
+		block.keepZero = true
+		block.emptyText = 'לא נמצאו שיאנים להצגה'
+		block.boxes = { { key = 'points', title = 'שיאני נקודות', noun = 'שחקנים',
+			sum = 'נקודות', filters = { ['מספר אירוע'] = '3' } } }
+		data['hoops'] = block
+	end
+end
+
+local function hoopsFrame(extra)
+	local direct = { ['בלוק'] = 'hoops', ['שופט'] = 'דודו ביטון' }
+	for key, value in pairs(extra or {}) do
+		direct[key] = value
+	end
+	return stub.newFrame({}, direct)
+end
+
+check('a box that sums a column sums it in every tab', function()
+	stub.dataPatch = hoopsPatch
+	stub.willReturn({ { g = 'שרן ייני', c1 = '31', c2 = '31', c3 = '0', c4 = '0' } })
+	widget().leaderboards(hoopsFrame())
+	contains(stub.calls[1].fields, 'THEN Games_Events.SubType ELSE NULL END)=c1', 'a sum, not a count')
+	lacks(stub.calls[1].fields, 'THEN 1 ELSE 0 END)=c1', 'the points column does not count rows')
+end)
+
+check('keepZero and emptyText reach the rendering', function()
+	stub.dataPatch = hoopsPatch
+	-- Points in the league tab only; the cup tab has nobody at all.
+	stub.willReturn({ { g = 'שרן ייני', c1 = '31', c2 = '31', c3 = '0', c4 = '0' } })
+	widget().leaderboards(hoopsFrame())
+	local body = stub.extensionTags[1].content
+	contains(body, 'ROW(שרן ייני|0)', 'the zero row is kept')
+	lacks(body, 'לא נמצאו שיאנים להצגה', 'a tab with a zero row is not empty')
+	stub.willReturn({})
+	widget().leaderboards(hoopsFrame())
+	contains(stub.extensionTags[1].content, 'לא נמצאו שיאנים להצגה', 'an empty tab says so')
+end)
+
+check('football blocks keep dropping zeroes and printing nothing on an empty tab', function()
+	stub.willReturn({ { g = 'ערן זהבי', c1 = '0' } })
+	widget().leaderboards(refereeFrame('דודו ביטון'))
+	lacks(stub.extensionTags[1].content, 'ROW(ערן זהבי|0)', 'zero dropped')
+	lacks(stub.extensionTags[1].content, 'לא נמצאו', 'no sentence')
+end)
+
+check('a summing box may not have a more link', function()
+	stub.dataPatch = function(data)
+		hoopsPatch(data)
+		if data['hoops'] then
+			data['hoops'].moreText = 'עוד'
+		end
+	end
+	expectError('sums a column, so the block cannot have a more link', function()
+		widget().leaderboards(hoopsFrame())
+	end)
+end)
+
 print(string.format('\n%d passed, %d failed', passed, failed))
 os.exit(failed > 0 and 1 or 0)

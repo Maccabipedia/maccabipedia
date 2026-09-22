@@ -29,8 +29,20 @@ return {
 	-- general name.
 	baseTable = 'Football_Games',
 	roles = {
-		events = 'Games_Events',
+		-- The column that says whose row it is on the multiplying table, and
+		-- the FILTER a template uses to ask for a side (מכבי=לא). A leaderboard
+		-- with no side asked for narrows to Maccabi's through this filter.
 		sideColumn = 'Games_Events.Team',
+		sideFilter = 'מכבי',
+		-- The filter a leaderboard narrows its rows by: all of its columns'
+		-- event types together. A sport with no such filter leaves this out
+		-- and nothing is narrowed. (Worded carefully: the wiki's firewall
+		-- refuses a body that mentions a SQL clause next to a set operation.)
+		narrowFilter = 'מספר אירוע',
+		-- TRANSITIONAL (see the note above competitionCategories below): the
+		-- logic live before this schema reads it; the new logic derives it from
+		-- the tables' grain.
+		events = 'Games_Events',
 	},
 
 	-- What a leaderboard may rank. A query option, so English, like groupBy.
@@ -41,8 +53,10 @@ return {
 	sides = {
 		maccabi = 1,
 		opponent = 0,
-		-- The parameter value that asks for the opponent's side.
+		-- The parameter values that ask for a side: anything but opponentValue
+		-- means Maccabi's, and maccabiValue is what the layer passes itself.
 		opponentValue = 'לא',
+		maccabiValue = 'כן',
 	},
 
 	-- Which tables exist and how each reaches the base table.
@@ -52,19 +66,31 @@ return {
 	-- games - ידידות and גביע מלצ'ט). So adding or omitting a join can never
 	-- change a row count, and the layer is free to join only what was asked
 	-- for. It is a cost decision, not a correctness one.
+	--
+	-- `grain` says what one row stands for. 'game': at most one row per game,
+	-- so joining it never multiplies (Games_Referees, Football_Games_Uniforms
+	-- and Competitions are all 1:1 with a game, measured as rows vs distinct
+	-- join keys on production). 'perPlayer': several rows per game - Games_Events
+	-- has up to 43 per game - so joining it multiplies the base rows, which is
+	-- what the layer's grain rules guard. A query may join at most one such
+	-- table.
 	tables = {
-		Football_Games = { base = true },
+		Football_Games = { base = true, grain = 'game' },
 		Games_Events = {
 			join = 'Football_Games._pageID = Games_Events._pageID',
+			grain = 'perPlayer',
 		},
 		Games_Referees = {
 			join = 'Football_Games._pageID = Games_Referees._pageID',
+			grain = 'game',
 		},
 		Football_Games_Uniforms = {
 			join = 'Football_Games._pageID = Football_Games_Uniforms._pageID',
+			grain = 'game',
 		},
 		Competitions = {
 			join = 'Football_Games.Competition = Competitions.OriginalName',
+			grain = 'game',
 		},
 	},
 
@@ -113,12 +139,32 @@ return {
 		['מפעל מקורי'] = { column = 'Competitions.OriginalName', kind = 'text' },
 		['מפעל נוכחי'] = { column = 'Competitions.CurrentName', kind = 'text' },
 		['מפעלים'] = { column = 'Football_Games.Competition', kind = 'list' },
-		['קטגוריית מפעל'] = { kind = 'competitionCategory' },
+		-- קטגוריית מפעל values, as the templates define them. יתר-רשמיים exists
+		-- in כמות אירועי שחקן and is silently ignored by כמות נתוני משחק today,
+		-- which hands that page the unfiltered total; here there is one
+		-- definition. A `choice` maps a word to a ready condition; `tables` are
+		-- joined for every choice.
+		['קטגוריית מפעל'] = { kind = 'competitionCategory', tables = { 'Competitions' }, choices = {
+			['ליגה'] = 'Competitions.League = 1',
+			['גביע'] = 'Competitions.Trophy = 1',
+			['בינלאומי'] = 'Competitions.International = 1',
+			['רשמי'] = 'Competitions.Official = 1',
+			['יתר-רשמיים'] = '(Competitions.Official = 1 AND Competitions.League = 0'
+				.. ' AND Competitions.Trophy = 0 AND Competitions.International = 0)',
+		} },
 		['יריבה'] = { column = 'Football_Games.Opponent', kind = 'opponentAliases' },
 		['יריבות'] = { column = 'Football_Games.Opponent', kind = 'list' },
 		['אצטדיון'] = { column = 'Football_Games.Stadium', kind = 'stadiumAliases' },
 		['אצטדיונים'] = { column = 'Football_Games.Stadium', kind = 'list' },
-		['תוצאה'] = { column = 'Football_Games.ResultOpt', kind = 'resultWord' },
+		-- תוצאה in words to Football_Games.ResultOpt, read from the Games_Results
+		-- table on production. תבנית:המרות/תוצאת משחק למספר spends a Cargo query
+		-- to look these three rows up; they are constant, so this layer does not.
+		-- (`column` is TRANSITIONAL: the logic live before this schema reads it.)
+		['תוצאה'] = { kind = 'resultWord', column = 'Football_Games.ResultOpt', choices = {
+			['ניצחון'] = 'Football_Games.ResultOpt = 1',
+			['תיקו'] = 'Football_Games.ResultOpt = 2',
+			['הפסד'] = 'Football_Games.ResultOpt = 3',
+		} },
 		['תוצאה מכבי'] = { column = 'Football_Games.ResultMaccabi', kind = 'number' },
 		['תוצאה יריבה'] = { column = 'Football_Games.ResultOpponent', kind = 'number' },
 		['ביתחוץ'] = { column = 'Football_Games.HomeAway', kind = 'text' },
@@ -132,9 +178,11 @@ return {
 		['פורמט תאריך'] = { kind = 'modifier' },
 	},
 
-	-- קטגוריית מפעל values, as the templates define them. יתר-רשמיים exists in
-	-- כמות אירועי שחקן and is silently ignored by כמות נתוני משחק today, which
-	-- hands that page the unfiltered total; here there is one definition.
+	-- TRANSITIONAL, remove once Module:SportQueries reads `choices` above and
+	-- `grain` on the tables (the PR after the one that added this note). The
+	-- logic live on the wiki while this schema is published still reads these
+	-- (and roles.events above); keeping them lets the schema go out first and the logic second
+	-- with no window in which football pages error.
 	competitionCategories = {
 		['ליגה'] = 'Competitions.League = 1',
 		['גביע'] = 'Competitions.Trophy = 1',
@@ -143,16 +191,11 @@ return {
 		['יתר-רשמיים'] = '(Competitions.Official = 1 AND Competitions.League = 0'
 			.. ' AND Competitions.Trophy = 0 AND Competitions.International = 0)',
 	},
-
-	-- תוצאה in words to Football_Games.ResultOpt, read from the Games_Results
-	-- table on production. תבנית:המרות/תוצאת משחק למספר spends a Cargo query to
-	-- look these three rows up; they are constant, so this layer does not.
 	resultWords = {
 		['ניצחון'] = 1,
 		['תיקו'] = 2,
 		['הפסד'] = 3,
 	},
-
 	-- Alias expansion. One stadium or club is stored under several names, so a
 	-- filter on either has to become an IN over every related name. Both are
 	-- self-joins, and they are not symmetrical - the stadium table relates rows

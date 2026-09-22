@@ -148,6 +148,40 @@ function SportQueries.new(Fields)
 		return tableName
 	end
 
+	--- What one row of a table stands for, declared per table in the schema:
+	--- 'game' (at most one row per base row - the game itself, its competition,
+	--- its referees) or 'perPlayer' (several rows per game - football's events,
+	--- basketball's per-player summaries). Joining a 'perPlayer' table multiplies
+	--- the base rows, which is what every grain rule below is about.
+	local function grainOf(tableName)
+		local declaration = Fields.tables[tableName]
+		local grain = declaration and declaration.grain
+		if grain ~= 'game' and grain ~= 'perPlayer' then
+			error(string.format(
+				NAME .. ': table %s declares no grain ("game" or "perPlayer")',
+				tableName), 0)
+		end
+		return grain
+	end
+
+	--- The one multiplying table a query joins, or nil. Two would multiply each
+	--- other and no cell grain can undo that, so two is an error.
+	local function multiplyingJoined(tables)
+		local names = {}
+		for name in pairs(tables) do
+			if grainOf(name) == 'perPlayer' then
+				names[#names + 1] = name
+			end
+		end
+		table.sort(names)
+		if #names > 1 then
+			error(string.format(
+				NAME .. ': the query joins two multiplying tables, %s and %s, '
+				.. 'which would multiply each other', names[1], names[2]), 0)
+		end
+		return names[1]
+	end
+
 	--- Collects WHERE conditions and the tables they require.
 	local Builder = {}
 	Builder.__index = Builder
@@ -279,7 +313,18 @@ function SportQueries.new(Fields)
 	end
 
 	handlers.list = function(builder, spec, value)
-		builder:addIn(spec.column, splitList(value))
+		local items = splitList(value)
+		if spec.stripPrefix then
+			-- A list the page built from category members carries the namespace
+			-- (basketball's "כדורסל:Name"), which the stored name lacks. Left on, IN
+			-- matches nothing and every box renders empty with no error.
+			for index, item in ipairs(items) do
+				if item:sub(1, #spec.stripPrefix) == spec.stripPrefix then
+					items[index] = item:sub(#spec.stripPrefix + 1)
+				end
+			end
+		end
+		builder:addIn(spec.column, items)
 	end
 
 	handlers.numberList = handlers.list
@@ -300,25 +345,27 @@ function SportQueries.new(Fields)
 		builder.teamConstrained = true
 	end
 
-	handlers.resultWord = function(builder, spec, value)
-		local resultOpt = Fields.resultWords[normalise(value)]
-		if not resultOpt then
+	--- A word the templates accept, mapped by the schema to a ready SQL
+	--- condition: קטגוריית מפעל (ליגה → Competitions.League = 1), תוצאה
+	--- (ניצחון → Football_Games.ResultOpt = 1). The spec names the tables the
+	--- conditions reach, and a choice may map to '' - a word that means "no
+	--- condition" (basketball's רשמי tab does). An unknown word is an error.
+	handlers.choice = function(builder, spec, value, _, name)
+		local condition = spec.choices[normalise(value)]
+		if condition == nil then
 			error(string.format(
-				NAME .. ': תוצאה must be ניצחון, תיקו or הפסד, got "%s"',
-				value), 0)
+				NAME .. ': unknown %s "%s"', name, value), 0)
 		end
-		builder:addComparison(spec.column, '=', resultOpt)
-	end
-
-	handlers.competitionCategory = function(builder, _, value)
-		local condition = Fields.competitionCategories[normalise(value)]
-		if not condition then
-			error(string.format(
-				NAME .. ': unknown קטגוריית מפעל "%s"', value), 0)
+		for _, tableName in ipairs(spec.tables or {}) do
+			builder.tables[tableName] = true
 		end
-		builder.tables.Competitions = true
-		builder:add(condition)
+		if condition ~= '' then
+			builder:add(condition)
+		end
 	end
+	-- The two choices every sport has, under the kind names the schemas use.
+	handlers.competitionCategory = handlers.choice
+	handlers.resultWord = handlers.choice
 
 	handlers.stadiumAliases = function(builder, spec, value)
 		builder:addIn(spec.column, expandAliases('stadium', value))
@@ -396,7 +443,7 @@ function SportQueries.new(Fields)
 			-- Templates pass every parameter whether or not it was set, so an empty
 			-- value means "not provided" rather than "match the empty string".
 			if value ~= nil and mw.text.trim(tostring(value)) ~= '' then
-				handlers[spec.kind](builder, spec, value, modifiers)
+				handlers[spec.kind](builder, spec, value, modifiers, name)
 			end
 		end
 
@@ -405,8 +452,9 @@ function SportQueries.new(Fields)
 		-- events query without it is not "unfiltered", it is wrong - it counts the
 		-- opponent's events too. Measured: a league goals count for one player
 		-- returns 152 without this and 150 with it, because two rows on that page
-		-- belong to the opposing side.
-		if builder.tables[Fields.roles.events] and not builder.teamConstrained
+		-- belong to the opposing side. The same holds for any sport's multiplying
+		-- table: its rows carry a side.
+		if multiplyingJoined(builder.tables) and not builder.teamConstrained
 				and not skipDefaults then
 			builder:addComparison(Fields.roles.sideColumn, '=', Fields.sides.maccabi)
 		end
@@ -490,7 +538,24 @@ function SportQueries.new(Fields)
 		end
 
 		local unionBuilder = buildInto(union)
+		-- A summed column's table is part of the query even when no filter
+		-- reaches it (basketball's points live on the per-player table; the
+		-- filters may all be about the game).
+		local sumColumnOf = {}
+		for _, cell in ipairs(cells) do
+			if cell.sum then
+				local column = Fields.sumColumns[cell.sum]
+				if not column then
+					error(string.format(
+						NAME .. ': cell "%s" sums "%s", which is not a known '
+						.. 'summable value', tostring(cell.name), tostring(cell.sum)), 0)
+				end
+				sumColumnOf[cell] = column
+				unionBuilder:needs(column)
+			end
+		end
 		local tables, join = tablesAndJoin(unionBuilder)
+		local multiplying = multiplyingJoined(unionBuilder.tables)
 
 		-- The WHERE carries the shared filters only, and deliberately NOT the Team
 		-- default. Putting Team in the WHERE of a merged query is wrong twice over,
@@ -507,7 +572,7 @@ function SportQueries.new(Fields)
 		-- So the default goes into each event cell's own CASE instead, where it
 		-- constrains the events being counted without touching the row set.
 		local sharedBuilder = buildInto(shared, true)
-		local teamDefaultNeeded = unionBuilder.tables[Fields.roles.events]
+		local teamDefaultNeeded = multiplying ~= nil
 			and not sharedBuilder.teamConstrained
 
 		local fields = {}
@@ -550,6 +615,12 @@ function SportQueries.new(Fields)
 			end
 
 			local cellBuilder = buildInto(cell.filters or {}, true, modifiers)
+			if sumColumnOf[cell] then
+				-- The summed column is something the cell reaches, so a sum over
+				-- the multiplying table gets the side constraint below like any
+				-- other cell that touches it.
+				cellBuilder:needs(sumColumnOf[cell])
+			end
 			local conditions = {}
 			for _, condition in ipairs(cellBuilder.conditions) do
 				conditions[#conditions + 1] = condition
@@ -564,7 +635,7 @@ function SportQueries.new(Fields)
 			-- 152-versus-150 measurement. A game-grain cell with no event filters
 			-- still gets nothing, which is correct - it counts games, not events.
 			if teamDefaultNeeded and not cellBuilder.teamConstrained
-					and cellBuilder.tables[Fields.roles.events] then
+					and cellBuilder.tables[multiplying] then
 				conditions[#conditions + 1] = string.format('%s = %s',
 					Fields.roles.sideColumn, Fields.sides.maccabi)
 			end
@@ -587,26 +658,32 @@ function SportQueries.new(Fields)
 			                   sums = cell.sum ~= nil, condition = condition }
 
 			if cell.sum then
-				-- A cell that sums a column of the base table rather than counting
-				-- rows: goals for, goals against. Joining the events table would
-				-- repeat each game once per event and multiply the sum, so that is
-				-- refused rather than quietly returned.
-				local column = Fields.sumColumns[cell.sum]
-				if not column then
-					error(string.format(
-						NAME .. ': cell "%s" sums "%s", which is not a known '
-						.. 'summable value', cell.name, tostring(cell.sum)), 0)
-				end
-				if grain ~= 'game' then
+				-- A cell that sums a column rather than counting rows. Its grain
+				-- is the grain of the column's TABLE, declared in the schema, and
+				-- the cell must say the same - a guess here multiplies numbers.
+				--   'game' column (goals for, goals against): the query must not
+				--   join a multiplying table, or each game repeats once per event
+				--   and the sum with it - refused rather than quietly returned.
+				--   'perPlayer' column (basketball's points): the cell is one row
+				--   per player per game, i.e. event grain, and its table is joined
+				--   above whether or not a filter reached it.
+				local column = sumColumnOf[cell]
+				local columnGrain = grainOf(tableOf(column))
+				if columnGrain == 'game' and grain ~= 'game' then
 					error(string.format(
 						NAME .. ': cell "%s" sums a game column, so its grain '
 						.. 'must be "game"', cell.name), 0)
 				end
-				if unionBuilder.tables[Fields.roles.events] then
+				if columnGrain == 'game' and multiplying then
 					error(string.format(
 						NAME .. ': cell "%s" sums a game column while the '
 						.. 'query joins %s, which would multiply it by the number '
-						.. 'of events', cell.name, Fields.roles.events), 0)
+						.. 'of events', cell.name, multiplying), 0)
+				end
+				if columnGrain == 'perPlayer' and grain ~= 'event' then
+					error(string.format(
+						NAME .. ': cell "%s" sums a per-player column, so its '
+						.. 'grain must be "event"', cell.name), 0)
 				end
 				-- ELSE NULL, not ELSE 0. SUM skips NULLs and is NULL when every
 				-- row is skipped, which is exactly what the template's own
@@ -623,6 +700,14 @@ function SportQueries.new(Fields)
 					'COUNT(DISTINCT CASE WHEN %s THEN %s._pageID END)=%s',
 					condition, Fields.baseTable, alias)
 			else
+				if not multiplying then
+					-- Counting rows of a query that joins no multiplying table is
+					-- counting games, and a cell that says "event" while doing that
+					-- is a game count wearing the wrong label.
+					error(string.format(
+						NAME .. ': cell "%s" counts events, but the query joins no '
+						.. 'multiplying table - declare grain "game"', cell.name), 0)
+				end
 				fields[index] = string.format(
 					'SUM(CASE WHEN %s THEN 1 ELSE 0 END)=%s', condition, alias)
 			end
@@ -705,10 +790,12 @@ function SportQueries.new(Fields)
 	--- or trailing spaces the two can differ, so a player tied exactly at rank ten
 	--- could show in the box and again on the "עוד" page, or on neither. Accepted:
 	--- it needs such a name inside a tie at the cutoff.
-	local function rank(entries, top)
+	local function rank(entries, top, keepZero)
 		local ranked = {}
 		for _, entry in ipairs(entries) do
-			if entry.count > 0 then
+			-- Football's templates had HAVING > 0; basketball's show a zero
+			-- (COALESCE), so a block may ask to keep them.
+			if entry.count > 0 or keepZero then
 				ranked[#ranked + 1] = entry
 			end
 		end
@@ -762,7 +849,7 @@ function SportQueries.new(Fields)
 	function Queries.leaderboard(shared, columns, options)
 		options = options or {}
 		for name in pairs(options) do
-			if name ~= 'groupBy' and name ~= 'top' then
+			if name ~= 'groupBy' and name ~= 'top' and name ~= 'keepZero' then
 				error(string.format(
 					NAME .. ': leaderboard does not take "%s"', name), 0)
 			end
@@ -807,7 +894,7 @@ function SportQueries.new(Fields)
 					count = tonumber(row[entry.alias]) or 0,
 				}
 			end
-			result[entry.name] = rank(entries, top)
+			result[entry.name] = rank(entries, top, options.keepZero)
 		end
 		return result
 	end
@@ -845,10 +932,11 @@ function SportQueries.new(Fields)
 		for name, value in pairs(shared) do
 			narrowed[name] = value
 		end
-		if narrowed['מספר אירוע'] == nil then
+		local narrowFilter = Fields.roles.narrowFilter
+		if narrowFilter and narrowed[narrowFilter] == nil then
 			local types, seen, everyColumn = {}, {}, true
 			for _, column in ipairs(columns) do
-				local value = column.filters and column.filters['מספר אירוע']
+				local value = column.filters and column.filters[narrowFilter]
 				if not value or mw.text.trim(tostring(value)) == '' then
 					everyColumn = false
 					break
@@ -861,7 +949,7 @@ function SportQueries.new(Fields)
 				end
 			end
 			if everyColumn then
-				narrowed['מספר אירוע'] = table.concat(types, ',')
+				narrowed[narrowFilter] = table.concat(types, ',')
 			end
 		end
 
@@ -872,15 +960,16 @@ function SportQueries.new(Fields)
 		-- ranked at zero. `aggregate` cannot do this (a WHERE on the events table
 		-- turns its LEFT JOIN inner and loses eventless games); a leaderboard
 		-- groups by an events column, so it has no eventless rows to lose.
-		if narrowed['מכבי'] == nil then
+		local sideFilter = Fields.roles.sideFilter
+		if sideFilter and narrowed[sideFilter] == nil then
 			local anySide = false
 			for _, column in ipairs(columns) do
-				if column.filters and column.filters['מכבי'] ~= nil then
+				if column.filters and column.filters[sideFilter] ~= nil then
 					anySide = true
 				end
 			end
 			if not anySide then
-				narrowed['מכבי'] = 'כן'
+				narrowed[sideFilter] = Fields.sides.maccabiValue
 			end
 		end
 		return narrowed
@@ -1035,6 +1124,9 @@ function SportQueries.new(Fields)
 				-- production instead of answering - the one guard this diagnostic
 				-- exists to be checked against.
 				grain = 'event',
+				-- מספר אירוע is a football filter: this probe is football's (its cells
+				-- are name:eventType pairs) and raises "unsupported filter" on a
+				-- schema without it, which is the right answer there.
 				filters = { ['מספר אירוע'] = eventType:gsub(';', ',') },
 			}
 		end
