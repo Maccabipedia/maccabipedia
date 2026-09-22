@@ -11,7 +11,7 @@ game dates, scores and venues against primary press coverage. The folder is
 |---|---|---|---|
 | `ארכיון ידיעות אחרונות/עמודים בודדים/<year>/` | 1939–2021, near-daily | **Single pre-selected pages** (`YYYY-MM-DD_p<N>.pdf`, usually the sports pages) | Yes (pdftotext works, bidi-mangled) |
 | `ארכיון ידיעות אחרונות/עיתונים מלאים/<year>/` | 1940–2019 | **Full issues** (`YYYY-MM-DD.pdf`, ~9 pages) | Yes — search this when the single-page folder lacks the day |
-| `ארכיון חדשות הספורט/<year>/` | 1954–1984, near-daily | **Full issues** (`MM-DD-YYYY.pdf`, 4–6 pages, daily sports paper) | **No** — image-only scans |
+| `ארכיון חדשות הספורט/<year>/` | 10-1954–1984, near-daily (1954 starts 10-10) | **Full issues** (`MM-DD-YYYY.pdf`, 4–6 pages, daily sports paper) | **No** — image-only scans |
 | `ארכיון ספורט הבקר/<year>/` | 1936–1946 | issues | unverified |
 | `ארכיון אספקלריה של הספורט/<year>/` | 1947–1948 | issues | unverified |
 | `ארכיון ספורט ישראל/<year>/` | 1949–1950 | issues | unverified |
