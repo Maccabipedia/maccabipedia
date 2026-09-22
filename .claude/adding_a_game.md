@@ -101,6 +101,11 @@ Basketball and volleyball use their own template from the table, with the same
 }}
 ```
 
+- **How many:** up to **2** newspapers for a regular game, and up to **5** for a
+  special one: the game that clinched a championship, a cup final, and other
+  milestone games of that weight. Ask Roee when it's unclear whether a game counts
+  as special. Count the scans already linked to the game before adding more, and
+  pick the most informative ones (full match report and lineups first).
 - **Existing scan:** add `סיווג` and `שיוך משחק` inside the template, and keep the
   rest of the page unchanged.
 - **New scan:** name it `<paper> DD-MM-YYYY <opponent> (<publish date>).jpg`,
