@@ -24,11 +24,13 @@ SUITES = [
     'infra/football_queries/tests/test_leaderboard.lua',
     'infra/football_queries/tests/test_season_squad.lua',
     'infra/football_queries/tests/test_season_table.lua',
+    'infra/football_queries/tests/test_player_stats.lua',
 ]
 RENDERER = Path('infra/football_queries/Module_FootballStatsBlock.lua')
 BLOCKS = Path('infra/football_queries/Module_FootballStatsBlocks.lua')
 SQUAD = Path('infra/football_queries/Module_FootballSeasonSquad.lua')
 SEASON_TABLE = Path('infra/football_queries/Module_FootballSeasonTable.lua')
+PLAYER_STATS = Path('infra/football_queries/Module_FootballPlayerStats.lua')
 
 # The end of the season block's tab strip up to its first box - the only
 # place where a בינלאומי tab is followed by the appearances box, so a
@@ -43,6 +45,37 @@ SEASON_TAB_TAIL = (
 # says so instead of silently mutating the wrong place - which is how a broken
 # mutation once reported a false survivor.
 MUTATIONS = [
+    # Module:FootballPlayerStats - each number's semantics, the cache, the name.
+    ('player stats: games cells count event rows', PLAYER_STATS, "if cell.grain == 'games' then", 'if false then'),
+    ('player stats: games not distinct', PLAYER_STATS, "'COUNT(DISTINCT CASE WHEN '", "'COUNT(CASE WHEN '"),
+    ('player stats: own goals counted', PLAYER_STATS, ' AND Games_Events.SubType != 33', ''),
+    ('player stats: reds lose the straight red', PLAYER_STATS, 'SubType IN (72, 73)', 'SubType IN (72)'),
+    ('player stats: clean sheets on one conceded', PLAYER_STATS,
+     'Football_Games.ResultOpponent = 0', 'Football_Games.ResultOpponent = 1'),
+    ('player stats: the cup tab reads the league', PLAYER_STATS,
+     "['גביע'] = 'Competitions.Trophy = 1'", "['גביע'] = 'Competitions.League = 1'"),
+    ('player stats: opponents\' events counted', PLAYER_STATS,
+     "' AND Games_Events.Team = 1',", "'',"),
+    ('player stats: an empty count prints empty', PLAYER_STATS,
+     "whole(row['c' .. categoryIndex .. '_' .. cellIndex], '0'))", "whole(row['c' .. categoryIndex .. '_' .. cellIndex], ''))"),
+    ('player stats: conceded over nothing prints 0', PLAYER_STATS,
+     "whole(concededRow['c' .. categoryIndex], '')", "whole(concededRow['c' .. categoryIndex], '0')"),
+    ('player stats: penalties conceded over nothing prints empty', PLAYER_STATS,
+     "whole(penaltyRow['c' .. categoryIndex], '0')", "whole(penaltyRow['c' .. categoryIndex], '')"),
+    ('player stats: technical games conceded', PLAYER_STATS,
+     "' AND Games_Events.EventType IN (1, 5) AND Football_Games.Technical = -1',",
+     "' AND Games_Events.EventType IN (1, 5)',"),
+    ('player stats: the keeper\'s own penalties', PLAYER_STATS, 'ge2.Team = 0', 'ge2.Team = 1'),
+    ('player stats: every call queries again', PLAYER_STATS, "if stored(frame, marker) == '' then", 'if true then'),
+    ('player stats: players share numbers', PLAYER_STATS,
+     "'FootballPlayerStats|' .. player .. '|'", "'FootballPlayerStats|' .. '|'"),
+    ('player stats: any row count accepted', PLAYER_STATS, 'if #rows ~= 1 then', 'if false then'),
+    ('player stats: the ampersand guard removed', PLAYER_STATS, "if name:find('&', 1, true) then", 'if false then'),
+    ('player stats: the apostrophe entity kept', PLAYER_STATS, """:gsub('&#39;', "'")""", ''),
+    ('player stats: a double quote not escaped', PLAYER_STATS,
+     """:gsub('"', '\\\\"') .. '"'""", """ .. '"'"""),
+    ('player stats: keeper numbers from the outfield query', PLAYER_STATS,
+     "\t\tif keeper then\n\t\t\tprimeKeeper(frame, player)", "\t\tif false then\n\t\t\tprimeKeeper(frame, player)"),
     # Module:FootballSeasonTable - every line that decides a row or its place.
     ('season table: wins counts draws', SEASON_TABLE,
      "wins(1) .. '=wins, '", "wins(2) .. '=wins, '"),

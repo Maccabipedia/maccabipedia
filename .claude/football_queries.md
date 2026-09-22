@@ -528,6 +528,43 @@ shows nothing, as before. `compare_referee_season_table.py` (61 main + 20 of
 module publish carrying it gets a 302 to abuse.spd.co.il. Write such
 conditions as separate `if` branches; diagnose with `allow_redirects=False`.
 
+## Player pages: `Module:FootballPlayerStats`
+
+A player page's statistics column (`פרופיל כדורגל/הצגת עמודת סטטיסטיקה/שחקן`,
+five tabs × `…/שחקן/הצגה`) was ~2.3 of its ~3.5 s: 15 query templates per tab,
+75 queries. Only `…/הצגה` changed: each `#vardefine`'s query call became
+`{{#invoke:FootballPlayerStats|value|שחקן={{#var: שם להצגה}}|קטגוריית מפעל=…|תא=…}}`,
+every `#vardefine` and all formatting kept. The first value for a player runs ONE
+query for all 13 outfield numbers of all five tabs and stores them in page
+variables; the first keeper number runs the two keeper queries - 3 a page.
+
+Mirrored per number (checked on production 2026-09-22): appearances /
+substitutions / clean sheets count games CONTAINING the events (the templates
+listed games grouped by page and counted them); goals … losses count event
+ROWS (10 player/game pairs have two appearance events, so wins can exceed
+appearances there, as before); conceded = ROUND(SUM(ResultOpponent)) over the
+appearance rows of non-technical games (`Technical = -1`), EMPTY when none;
+penalties conceded = a self-join (ge1 the keeper's appearance, ge2 the
+opponent's SubType 35), 0 when none. Standalone module with raw queries: the
+layer refuses a sum over event rows and has no aliases, and keeping the layer
+untouched kept every other page untouched. No duplicate pages, titles with
+commas or duplicate Games_Referees rows exist, so the joins the templates used
+and this one skips cannot change a count.
+
+**Cargo refuses `CASE WHEN (`**: its field parser reads `WHEN (` as a call to
+a function WHEN() ("פונקציית ה־SQL בשם WHEN() אינה מותרת"). Conditions are AND
+chains without parentheses.
+
+Gate: `compare_player_stats.py`, batched - 4 players' columns per
+`action=parse` separated by markers, live `…/הצגה` vs the candidate through
+TemplateSandbox (the module published first, inert), each column byte for byte
+in the keeper view (it holds every row), each player's official appearances
+against a direct Cargo count, NEW must list the module among its templates.
+760/760 identical (~48 min); 8 whole pages byte-identical.
+`player_pages.py` reads the players' column names 50 pages per request.
+**LIVE 2026-09-22** (previous revision 174539): ערן זהבי 3.9 → 1.5 s, אבי כהן
+3.5 → 1.6 s, 0 script errors.
+
 ## `switch_template_prod.py`
 
 The last step of a rollout, runnable without a paste: `apply` refuses unless

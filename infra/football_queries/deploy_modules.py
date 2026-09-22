@@ -31,6 +31,7 @@ MODULES = {
     'Module_FootballStatsBlock.lua': 'Module:FootballStatsBlock',
     'Module_FootballSeasonSquad.lua': 'Module:FootballSeasonSquad',
     'Module_FootballSeasonTable.lua': 'Module:FootballSeasonTable',
+    'Module_FootballPlayerStats.lua': 'Module:FootballPlayerStats',
 }
 SOURCE_DIR = Path('infra/football_queries')
 
