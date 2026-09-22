@@ -32,7 +32,11 @@ SPORTS = {
 }
 SHARED_PAGES = ['עונות', 'עמוד ראשי']
 BATCH = 40
-SEASON = re.compile(r'<span>(\d{4}(?:/\d{2,4})?)</span>')
+# The season row of all three pages; football wraps the season in one more <span> than
+# basketball and volleyball do.
+SEASON_ROW = re.compile(r'<div class="season-list-item-container.*?</div>', re.S)
+SEASON = re.compile(r'class="season[^"]*">(?:<span>)?\s*(\d{4}(?:/\d{2,4})?)')
+ROW_OF_ANY_PAGE = re.compile(r'<div class="season-(?:list-item-)?container[^"]*".*?</div>', re.S)
 
 
 def candidate_of(sport: str, body: str) -> str:
@@ -47,7 +51,9 @@ def seasons_of(sport: str) -> list[str]:
     """The seasons the sport's own page lists, read out of its live render."""
     page = SPORTS[sport]['page']
     html, _ = parse(page, page_text(page))
-    seasons = list(dict.fromkeys(SEASON.findall(html)))
+    rows = SEASON_ROW.findall(html)
+    seasons = list(dict.fromkeys(season for row in rows for season in SEASON.findall(row)))
+    assert len(seasons) == len(rows), f'{sport}: {len(rows)} rows but {len(seasons)} seasons read'
     assert len(seasons) > 40, f'{sport}: only {len(seasons)} seasons found on {page}'
     return seasons
 
@@ -93,7 +99,9 @@ def compare_seasons(sport: str) -> int:
           f'selftest (shifted by one): {shifted} disagree')
     for line in problems[:10]:
         print('   ', line)
-    ok = not problems and ran_module and with_trophies >= 20 and shifted >= 10
+    # Volleyball's 29 titles sit in 18 seasons, the smallest of the three; below that
+    # many non-empty lists the comparison is not exercising much.
+    ok = not problems and ran_module and with_trophies >= 15 and shifted >= 10
     return 0 if ok else 1
 
 
@@ -108,8 +116,15 @@ def compare_pages(sport: str) -> int:
         new, new_wall = parse(title, text, override)
         # Only the season rows: the rest of עמוד ראשי (and the pages' galleries) differ
         # between two identical renders.
-        old_rows = re.findall(r'<div class="season-list-item-container.*?</div>', old, re.S)
-        new_rows = re.findall(r'<div class="season-list-item-container.*?</div>', new, re.S)
+        # The sport pages and עונות use season-list-item-container; עמוד ראשי's own
+        # recent-seasons box uses season-container. Compare whichever the page has -
+        # a page with neither would compare nothing, so that is an error below.
+        old_rows = ROW_OF_ANY_PAGE.findall(old)
+        new_rows = ROW_OF_ANY_PAGE.findall(new)
+        if not old_rows:
+            print(f'  {title}: NO season rows found - the gate would prove nothing')
+            failed += 1
+            continue
         same = old_rows == new_rows and old.count('שגיאת סקריפט') == new.count('שגיאת סקריפט')
         failed += not same
         print(f'  {title}: {len(old_rows)} season rows, '

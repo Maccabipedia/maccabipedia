@@ -259,6 +259,12 @@ def probe(connection) -> int:
          '|שופט=דודו ביטון}}'),
         ('season leaderboards: four boxes',
          '{{#invoke:FootballStatsBlock|leaderboards|בלוק=season|עונה=2023/24}}'),
+        # The multi-sport module: a sport whose tables are not football's, and a
+        # sport that does not exist.
+        ('a basketball season\'s trophies',
+         '{{#invoke:SeasonTrophies|list|ענף=כדורסל|עונה=2023/24}}'),
+        ('an unknown sport must raise, not return an empty list',
+         '{{#invoke:SeasonTrophies|list|ענף=טניס|עונה=2023/24}}'),
     ]
 
     failures = 0
