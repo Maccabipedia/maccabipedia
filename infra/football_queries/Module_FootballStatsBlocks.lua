@@ -300,4 +300,32 @@ blocks['referee-main'].boxes[1].boxOpen =
 	'<div class="records-list-tabs-container" id="שיאנים">'
 blocks['referee-main'].boxes[4].title = 'שיאני צהובים'
 
+-- The players portal (קטגוריה:שחקנים): the same four boxes over ALL games -
+-- no entity, so the entry point accepts only בלוק. The page splits them
+-- around its current-squad box (goals and assists above it, appearances and
+-- cards below), so two blocks, one query each. Titles as the page has them,
+-- the assists one with its trailing space. The wrapper carries the page's own
+-- class (its title decorator) and the converted-tabber row styling's.
+local function portalBlock(keys, titles)
+	local block = copied(blocks['season'])
+	block.entity = nil
+	block.entityFilter = nil
+	block.boxOpen = '<div class="records-container records-list-tabs-container">'
+	local byKey = {}
+	for _, box in ipairs(block.boxes) do
+		byKey[box.key] = box
+	end
+	block.boxes = {}
+	for index, key in ipairs(keys) do
+		byKey[key].title = titles[index]
+		block.boxes[index] = byKey[key]
+	end
+	return block
+end
+
+blocks['players-goals-assists'] = portalBlock(
+	{ 'goals', 'assists' }, { 'שיאני כיבושים', 'שיאני בישולים ' })
+blocks['players-appearances-cards'] = portalBlock(
+	{ 'appearances', 'cards' }, { 'שיאני הופעות', 'שיאני מוצהבים' })
+
 return blocks
