@@ -45,6 +45,7 @@ OLD_LINES = '\n'.join(f'{{{{שופט כדורגל/הצגת שיאני {box}/שו
 INVOKE = '{{#invoke:FootballStatsBlock|leaderboards|בלוק=referee-main|שופט={{#var: שם להצגה}}}}'
 OLD_BOX = re.compile(r'<div class="records-list-tabs-container"[^>]*>(.*?)'
                      r'(?=<div class="records-list-tabs-container"|\Z)', re.S)
+TABBER_NUMBER = re.compile(r'((?:id|href|aria-controls|aria-labelledby)="#?tabber[^"]*?)-\d+"')
 # The four boxes sit in the banner-container after the balance box.
 SECTION = re.compile(r'<div class="records-list-tabs-container".*?(?=</div>\s*<div class="games-records-container">)', re.S)
 
@@ -108,13 +109,20 @@ def full_side(title: str, candidate: str, new: bool):
                 'templatesandboxcontentmodel': 'wikitext'} if new else None
     page, wall = common.parse(title, common.page_text(title), override)
     sections = SECTION.findall(page)
-    if len(sections) != 1:
+    # A referee who was also an assistant shows both sections, main first
+    # (תבנית:שופט כדורגל puts them in a tabber in that order).
+    if len(sections) not in (1, 2):
         raise ValueError(f'{"new" if new else "old"} page holds {len(sections)} leaderboard sections')
     if new:
         ids = re.findall(r'<div class="records-list-tabs-container"([^>]*)>', sections[0])
         if ids != [' id="שיאנים"', '', '', '']:
             raise ValueError(f'new box wrappers carry {ids}, not the id on the first only')
-    return sections[0], SECTION.sub('', page), wall
+    # TabberNeue numbers every tabber by its position on the page, so the four
+    # new boxes shift the numbers of the assistant section's tabbers after
+    # them (tabber-1 -> tabber-5). That renumbering is the one difference
+    # allowed outside the section; everything else must match byte for byte.
+    outside = TABBER_NUMBER.sub(r'\1-N"', SECTION.sub('', page, count=1))
+    return sections[0], outside, wall
 
 
 def main() -> None:
