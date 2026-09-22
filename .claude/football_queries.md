@@ -564,6 +564,30 @@ against a direct Cargo count, NEW must list the module among its templates.
 `player_pages.py` reads the players' column names 50 pages per request.
 **LIVE 2026-09-22** (previous revision 174539): ערן זהבי 3.9 → 1.5 s, אבי כהן
 3.5 → 1.6 s, 0 script errors.
+## Game dates without `#time`: `Module:FootballDate`
+
+ParserFunctions gives a page ~6000 bytes of `#time` format strings. The shared
+date template (`המרות/המרות תאריך/תאריך מלא לפורמט הצגה`, linked form
+`[[d "ב"F|j "ב"F]] [[Y]]`) spends ~25 of them, so ~240 dates; past that every
+date prints "יותר מדי קריאות ל#זמן" (no tracking category - you only see it).
+The opponent all-games row (`יריבת כדורגל/הצגת כל המשחקים/הצגת משחק`) called
+it once per game: הפועל תל אביב (242 games) lost its 2 oldest dates, מכבי חיפה
+(233) was 7 games away. Stadium, coach, player and referee pages were checked
+at their largest (בלומפילד, אברהם גרנט, מיקו בלו; max referee 106) - no error.
+
+`{{#invoke:FootballDate|full|{{{Date|}}}}}` builds the same text from the
+digits and a month table; anything but `YYYY-MM-DD` (empty included) goes back
+through the template. The shared template itself is untouched - it sits on
+18.5k pages incl. files and other sports. Per-row `#invoke` costs nothing
+measurable (242 rows: 2.82 → 2.74 s, within noise).
+
+Gate `compare_opponent_dates.py`: `dates` renders every distinct
+Football_Games.Date both ways (OLD in batches of 150, under the budget; NEW
+via TemplateSandbox with the unsaved module) - 3509/3509 identical, selftest
+with two months swapped caught 745; `pages` compares rows only (the page's
+leaderboards differ from themselves between two unchanged renders).
+**LIVE 2026-09-22** (row template previous revision 202192), 301 pages purged,
+Hapoel 0 errors.
 
 ## `switch_template_prod.py`
 
