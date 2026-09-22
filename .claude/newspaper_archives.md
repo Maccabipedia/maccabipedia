@@ -56,6 +56,16 @@ and some issues had none at all — so check every page, not just the front.
   missing from its round's roundup is strong evidence it was not played that day.
 - Scores are printed opponent-first as often as Maccabi-first, and the halftime
   score usually sits in parentheses next to the final: `(30:54) 81:129`.
+- Football lineup boxes (Davar, 1970s) end the match report: `מכבי ת"א: GK;
+  defenders; midfielders; forwards`, semicolons between lines, surnames only, and
+  a substitute in parentheses right after the player he replaced —
+  `ג. מכנס (סלימן)` = מכנס off, סלימן on. No substitution minutes are printed. Match
+  each surname against the season's Cargo squad before writing it, and never add
+  a first name the squad does not confirm. Guest players (e.g. Beitar loanees in a
+  friendly) will not be in the squad — search `Games_Events` wiki-wide for them.
+- Scans come out small and blurry on the wiki. Crop the lineup box and upscale it
+  4–6x (PIL, LANCZOS) before reading. Foreign names still come out garbled, so
+  record them as printed and flag the unclear ones.
 
 ## Known data problems
 
