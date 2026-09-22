@@ -41,6 +41,7 @@ TEMPLATE_PREFIX = 'תבנית:טבלת בית בינלאומי כדורגל '
 SEASON_TEMPLATE = 'תבנית:עונת כדורגל'
 MACCABI = 'מכבי תל אביב'
 SUMMARY = 'MaccabiBot - טבלת שלב הבתים במפעל הבינלאומי של העונה'
+EXISTS = 'EXISTS - left alone'
 
 # A league phase (36 clubs) shows this many rows around Maccabi, with their real positions.
 WINDOW = 7
@@ -273,19 +274,25 @@ def publish(connection, season: str, group: dict) -> str:
     title = TEMPLATE_PREFIX + season
     wanted = template_text(group)
     if pw.Page(connection, title).exists():
-        return 'EXISTS - left alone'
+        return EXISTS
     fields = {'action': (None, 'edit'), 'title': (None, title), 'text': (None, wanted),
               'summary': (None, SUMMARY), 'token': (None, connection.tokens['csrf']),
               'format': (None, 'json'), 'bot': (None, '1'), 'createonly': (None, '1')}
     response = pw_http.session.post(connection.base_url('/api.php'), files=fields,
                                     headers={'Accept': 'application/json'}, timeout=120)
     if 'application/json' not in response.headers.get('Content-Type', ''):
-        return f'REFUSED ({response.status_code}, {response.headers.get("Content-Type", "?")})'
+        # Production emits PHP notices that can spoil a successful save's body, so
+        # say whether the page landed rather than only that the answer was unusable.
+        landed = 'landed anyway' if pw.Page(connection, title).exists() else 'nothing written'
+        return (f'REFUSED ({response.status_code}, '
+                f'{response.headers.get("Content-Type", "?")}) - {landed}')
     answer = response.json()
     if 'error' in answer:
         return f'ERROR {answer["error"].get("code")}'
     time.sleep(1)
     fresh = pw.Page(connection, title)
+    if not fresh.exists():
+        return 'MISSING AFTER SAVE'
     fresh.get(force=True)
     return 'ok' if fresh.text.strip() == wanted.strip() else 'MISMATCH'
 
@@ -296,7 +303,8 @@ def main() -> None:
     commands.add_parser('check')
     candidate_parser = commands.add_parser('candidate')
     candidate_parser.add_argument('--out', type=Path, required=True)
-    candidate_parser.add_argument('--compare', action='append', default=[],
+    # Required: a candidate nobody compared against production proves nothing.
+    candidate_parser.add_argument('--compare', action='append', required=True,
                                   help='a season whose page must render unchanged (repeatable)')
     renderer_parser = commands.add_parser('renderer')
     renderer_parser.add_argument('--out', type=Path, required=True)
@@ -348,7 +356,9 @@ def main() -> None:
     for season in seasons:
         outcome = publish(connection, season, groups[season])
         print(f'{season}: {outcome}', flush=True)
-        if outcome != 'ok':
+        # A page created by an earlier run is fine to skip - that is what makes
+        # --all resumable after a partial run. Anything else stops the sweep.
+        if outcome not in ('ok', EXISTS):
             raise SystemExit('stopping at the first page that did not land cleanly')
         time.sleep(3)
 

@@ -19,22 +19,45 @@ page. The season template never changes. After either, purge the season page.
 
 | Sport | Template per season | Count | Section title |
 |---|---|---|---|
-| Football | `טבלת ליגת כדורגל <season>` | 89 | טבלת הליגה |
+| Football | `טבלת ליגת כדורגל <season>` | 100 | טבלת הליגה |
 | Football | `טבלת בית בינלאומי כדורגל <season>` | 17 | from the template (see below) |
 | Basketball | `טבלת ליגת כדורסל <season>` | 72 | טבלת הליגה |
 | Basketball | `טבלת יורוליג <season>` (2016/17→) | 10 | טבלת יורוליג |
 | Basketball | `טבלת יורוליג בתים <season>` (2001/02–2015/16) | 15 | טבלת יורוליג (בתים) |
 | Basketball | `טבלת יורוליג טופ16 <season>` (2001/02–2014/15) | 14 | טבלת יורוליג (טופ 16) |
-| Volleyball | `טבלת ליגת כדורעף <season>` | 44 | טבלת ליגה |
+| Volleyball | `טבלת ליגת כדורעף <season>` | 43 | טבלת ליגה |
+| Basketball | ~40 more European tables, named per competition (see below) | | טבלת דירוג |
 
-Renderers: `תבנית:טבלת ליגת כדורגל` (football and volleyball's sibling `טבלת כדורעף`),
-`תבנית:טבלת כדורסל` (basketball). Same row format everywhere:
-`שם^מש'^נצ'^תיקו^הפ'^זכות^חובה^נק'`, rows separated by commas.
-Basketball's columns are points for/against instead of goals.
+Counts are `list=allpages&apnamespace=10&apprefix=`, minus the renderer itself where it
+shares the prefix. **Don't count by category**: `קטגוריה:טבלאות ליגת כדורגל` holds 89 of
+the 100 football tables (1928, 1929, 1930, 1933, 1936, 1941, 1942, 1943, 1945/46,
+2004/05 and 2008/09 are outside it). Note also `טבלת יורוליג` as a prefix returns 39 —
+10 of its own, plus בתים and טופ16.
 
-Basketball also takes up to three free-form tables straight from the season page,
-`טבלה משתנה1..3` with `כותרת טבלה משתנה1..3` — used for one-off rankings. Football
-has no equivalent.
+**Three renderers, three different row formats** (rows separated by commas, fields by `^`):
+
+| Renderer | Fields |
+|---|---|
+| `תבנית:טבלת ליגת כדורגל` | `שם^מש'^נצ'^תיקו^הפ'^שע' זכות^שע' חובה^נק'` (8) |
+| `תבנית:טבלת כדורסל` | `שם^מש'^נצ'^הפ'^נק' זכות^נק' חובה^נק'` (7, **no draw column**) |
+| `תבנית:טבלת ליגת כדורעף` | `שם^מש'^נצ'^הפ'^נ"ז^נ"ח^מערכות זכות^מערכות חובה^נק'` (9) |
+
+Volleyball's renderer *is* `תבנית:טבלת ליגת כדורעף`, the same page as its per-season
+prefix — there is no `תבנית:טבלת כדורעף`. Each renderer documents its own format in
+its `<noinclude>`; read that before writing rows.
+
+**Basketball has a generic route that football lacks.** `טבלה משתנה1..3` on the season
+page, each with `כותרת טבלה משתנה1..3`, takes **the name of a table template** (not
+wikitext): `תבנית:עונת כדורסל/הצגת טבלה` expands `{{תבנית: {{{טבלה}}} }}`. So
+`כדורסל:עונת 1987/88` carries `|טבלה משתנה1=טבלת גביע אירופה לאלופות (כדורסל) 1987/88`
+with its own title, and about 40 such tables exist: `טבלת גביע אירופה לאלופות (כדורסל)`
+(21), `טבלת פיב״א יורוליג מוקדמות …`, `טבלת הליגה האירופית (כדורסל)` (4),
+`טבלת גביע קוראץ׳ (כדורסל)`, `טבלת סופרוליג בית מוקדם (כדורסל)`. They all share one
+table-of-contents entry, "טבלת דירוג".
+
+That is the alternative football did **not** take: football hard-codes one name per
+season (below). If a third kind of football table is ever needed, copy basketball's
+`טבלה משתנה` route rather than adding another hard-coded name.
 
 ## Football's international group table (cards #540 / #161, 2026-09-22)
 
@@ -61,7 +84,10 @@ table-of-contents entry and for the `{{פרק}}` section after the league table.
 That works through `מספר יורדות`'s neighbour on the renderer, **`מיקום ראשון`**: the
 position of the first row (rows are numbered from it, and only a real 1st place gets
 the `champion` highlight). Without it the renderer numbers from 1, exactly as before —
-verified byte for byte across all 89 league tables. It is a template-level parameter
+verified byte for byte across the 89 league tables in `קטגוריה:טבלאות ליגת כדורגל` —
+which, as above, is not all 100. The 11 outside it were checked separately: they
+render with no error and no row of theirs carries a 9th field.
+It is a template-level parameter
 and **not a 9th row field**, because three live league tables (1946/47 Hapoel Petah
 Tikva, 1970/71 Hapoel Kfar Saba, 1974/75 Hakoah Maccabi Ramat Gan) already carry a
 stray 9th field in one row.
@@ -75,8 +101,10 @@ for the rollout order of season-page changes in general.
 
 ## Game pages already hold the press tables — use them
 
-**`תבנית:קטלוג משחקים` takes `|טבלת ליגה=<file>`, and 71 European group games carry a
-scanned newspaper/UEFA table "after matchday N".** That is a primary source for the
+**`תבנית:קטלוג משחקים` takes `|טבלת ליגה=<file>`, and 72 European group games carry a
+scanned newspaper/UEFA table "after matchday N".** (Match the parameter allowing
+spaces — `|טבלת ליגה =` appears too, and MediaWiki trims it; a strict `=` match finds
+only 71.) That is a primary source for the
 standings of that round, and for the last matchday it is the final table. It beats
 en.wikipedia, RSSSF and wildstat, which copy each other.
 

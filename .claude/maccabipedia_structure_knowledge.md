@@ -138,8 +138,8 @@ missing size, request it: `api.php?action=query&prop=imageinfo&iiprop=url&iiurlw
 generates the file and the URL returns 200 right away.
 
 **`|טבלת ליגה=<file>` on a game page is a standings scan, and a primary source.**
-`תבנית:קטלוג משחקים` takes it, and 71 European group games carry a newspaper/UEFA
-table "after matchday N" — for the last matchday, the final table. Checked in
+`תבנית:קטלוג משחקים` takes it, and 72 European group games carry a newspaper/UEFA
+table "after matchday N" (search the parameter allowing a space before `=`) — for the last matchday, the final table. Checked in
 September 2026 against en.wikipedia/RSSSF/wildstat: the scans won twice (1980/81
 Intertoto goals, 1970/71 counting a walkover). Look here before trusting an online
 database for an old table. Details: `.claude/season_page_tables.md`.
