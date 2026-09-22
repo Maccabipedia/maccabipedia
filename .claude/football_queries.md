@@ -454,6 +454,32 @@ page loadData's it and is queued for re-parse; off-peak, read back, then
 batches of 10 → spot-check a few, and check for script errors. Revert: the old
 template text. The block data can stay.
 
+### Main-referee pages: block `referee-main`
+
+`תבנית:שופט כדורגל/שופט ראשי` (~440 referee pages) called four wrappers
+around the same `עיצוב חדש` boxes with `שופטים=<name>` (`Refs IN ("name")`),
+now `{{#invoke:FootballStatsBlock|leaderboards|בלוק=referee-main|שופט=…}}`.
+Derived from `season` with the existing `שופט` filter (`Refs = "name"`, the
+same rows). Two differences read from production's wrappers: **only the first
+box carries `id="שיאנים"`** (the table of contents' anchor) - so the renderer
+now lets a box carry its own `boxOpen` - and the cards box is **שיאני
+צהובים**.
+
+`compare_referee_main_leaderboards.py` reuses the stadium gate. Before
+publishing only the block data can be overridden, so the id is checked by the
+stub tests and by `--full`. Outside the section `--full` allows exactly one
+difference: a referee who was also an assistant shows both sections in a
+tabber, and the four new tabbers **renumber** the assistant section's
+tabbers after them (`tabber-1` → `tabber-5`), which only moves a saved link
+to one of those tabs.
+
+**LIVE 2026-09-22** (template revision 206183). Sandbox gate over 149 referees
+(88 in order + 61 chosen: 46 quoted names, the 10 busiest, both roles, no
+official games), `--full` over 14; section ~0.6 → ~0.1 s. One `--full` FAIL
+(משה אשכנזי) was a production parse flake: two old renders and the new one
+were identical on rerun. The comparison's link normaliser had to learn that
+an apostrophe inside a name (`ג'ורג' אשקר`) is not a SQL string delimiter.
+
 **Production rollout, in order - stop at the first failure:**
 
 1. **Gate A - publish the modules.** Not inert: every day and referee page
