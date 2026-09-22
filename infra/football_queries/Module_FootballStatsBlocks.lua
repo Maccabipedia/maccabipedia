@@ -286,4 +286,18 @@ blocks['stadium'] = copied(blocks['season'])
 blocks['stadium'].entity = 'אצטדיונים'
 blocks['stadium'].entityFilter = 'אצטדיונים'
 
+-- The four main-referee leaderboard boxes on a referee page
+-- (תבנית:שופט כדורגל/שופט ראשי): the same four box templates, filtered by
+-- the referee (שופטים = Football_Games.Refs IN (the one name), which is the
+-- `שופט` filter). Two differences from the season boxes, read from
+-- production's wrapper templates 2026-09-22: only the FIRST box carries the
+-- page's id="שיאנים" (the table of contents links to it), and the cards box
+-- is titled שיאני צהובים.
+blocks['referee-main'] = copied(blocks['season'])
+blocks['referee-main'].entity = 'שופט'
+blocks['referee-main'].entityFilter = 'שופט'
+blocks['referee-main'].boxes[1].boxOpen =
+	'<div class="records-list-tabs-container" id="שיאנים">'
+blocks['referee-main'].boxes[4].title = 'שיאני צהובים'
+
 return blocks

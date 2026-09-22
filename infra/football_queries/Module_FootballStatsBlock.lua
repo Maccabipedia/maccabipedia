@@ -662,7 +662,9 @@ local function leaderboards(frame)
 		end)
 
 		out[#out + 1] = table.concat({
-			declaration.boxOpen,
+			-- A box may open with its own wrapper: the main-referee section
+			-- puts the page's id="שיאנים" anchor on its FIRST box only.
+			box.boxOpen or declaration.boxOpen,
 			string.format('<div class="title">%s</div>', box.title),
 			'<div class="list"><div class="tabber-converted">'
 				.. frame:extensionTag('tabber', body)

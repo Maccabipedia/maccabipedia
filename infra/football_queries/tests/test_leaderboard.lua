@@ -611,5 +611,64 @@ check('the stadium "עוד" link keeps the stadium names', function()
 		'the link counts the same games as the box')
 end)
 
+-- ------------------------------------------------- main-referee leaderboard
+
+local function refereeMainFrame(name, extra)
+	local direct = { ['בלוק'] = 'referee-main', ['שופט'] = name }
+	for key, value in pairs(extra or {}) do
+		direct[key] = value
+	end
+	return stub.newFrame({}, direct)
+end
+
+check('the main-referee widget: one query filtered by the referee', function()
+	widget().leaderboards(refereeMainFrame('אלון יפת'))
+	equals(#stub.calls, 1, 'one query for all 16 leaderboards')
+	equals(#stub.extensionTags, 4, 'a tabber per box')
+	contains(stub.calls[1].options.where, 'Football_Games.Refs = "אלון יפת"',
+		'the templates\' Refs IN (one name), as the שופט filter')
+	lacks(stub.calls[1].options.where, 'AssistantReferees',
+		'the main referee, not the assistant')
+	contains(stub.calls[1].options.where, 'Competitions.Official = 1',
+		'every tab under Official = 1, as the templates had it')
+end)
+
+check('the main-referee widget: the id on the first box only', function()
+	local tags = wrappersOf(widget().leaderboards(refereeMainFrame('אלון יפת')))
+	equals(#tags, 4, 'one wrapper per box')
+	equals(tags[1], '<div class="records-list-tabs-container" id="שיאנים">',
+		'the table of contents anchor, on the appearances box')
+	for index = 2, 4 do
+		equals(tags[index], '<div class="records-list-tabs-container">',
+			'no id on the other boxes')
+	end
+end)
+
+check('the main-referee widget: titles, with the cards box as צהובים', function()
+	local html = widget().leaderboards(refereeMainFrame('אלון יפת'))
+	contains(html, '<div class="title">שיאני הופעות</div>', 'appearances title')
+	contains(html, '<div class="title">שיאני כיבושים</div>', 'goals title')
+	contains(html, '<div class="title">שיאני בישולים</div>', 'assists title')
+	contains(html, '<div class="title">שיאני צהובים</div>', 'cards title')
+	lacks(html, 'שיאני מוצהבים', 'not the season title')
+end)
+
+check('the main-referee widget leaves the season block untouched', function()
+	local tags = wrappersOf(widget().leaderboards(seasonFrame('2021/22')))
+	equals(tags[1], '<div class="records-list-tabs-container">',
+		'deriving referee-main must not give the season boxes the id')
+	contains(widget().leaderboards(seasonFrame('2021/22')),
+		'<div class="title">שיאני מוצהבים</div>', 'nor rename its cards box')
+end)
+
+check('the main-referee widget refuses an empty name and other arguments', function()
+	expectError('needs a non-empty שופט', function()
+		widget().leaderboards(refereeMainFrame(' '))
+	end)
+	expectError('takes only בלוק and שופט', function()
+		widget().leaderboards(refereeMainFrame('אלון יפת', { ['עונה'] = '2021/22' }))
+	end)
+end)
+
 print(string.format('\n%d passed, %d failed', passed, failed))
 os.exit(failed > 0 and 1 or 0)
