@@ -77,12 +77,14 @@ none there (see step 7).
 - Title as in the table, home team first, `בית חוץ=בית/חוץ/נייטרלי`.
 - **No space after the colon:** `משחק:29-08-1954 …`, never `משחק: 29-08-1954 …`.
   On 2026-09-22 the 1954 Lazio friendly was created as `משחק: 29-08-1954 …` and
-  had to be moved 40 minutes later, which left a redirect behind. Two old
-  pages still carry the space (1939, 1970). Other code builds the spaced form too:
-  the older docs, the papers bot's `_generate_page_name_from_game`, and old
-  wikilinks such as the season-page prose. So assert the exact title in the save
-  script (`assert not title.startswith("משחק: ")`) instead of copying it from
-  those sources.
+  had to be moved 40 minutes later, which left a redirect behind. No live game
+  page has the space. The two spaced `_pageName`s that Cargo still returns (1939,
+  1970) are stale rows of redirects left by a 2023 MaccabiBot move. Old wikilinks
+  (e.g. season-page prose) and wiki template docs still show the spaced form, so
+  don't copy a title from them. Build it with
+  `maccabipediabot.common.page_names.build_football_game_page_name(game_date=...,
+  home_team=..., away_team=..., competition=...)`, which is what
+  `football/gamesbot.py` uses.
 - Copy the layout from an existing page of the same sport and era (basketball and
   volleyball: also check what their game bot writes). Football example:
   `משחק:05-12-1989 מכבי תל אביב נגד דינמו טביליסי - ידידות`, with friendlies as
@@ -124,12 +126,13 @@ Basketball and volleyball use their own template from the table, with the same
 - **`סיווג`:** the template accepts `טבלת ליגה`, `טבלת גביע`, `לקראת משחק`,
   `סיקור משחק`, `רגע ממשחק`, `סיקור מחזור`, `הגרלת גביע`, `אחר`. A match report is
   `סיקור משחק`; a preview is `לקראת משחק`.
-- **New scan:** name it `<paper> DD-MM-YYYY <opponent> (<DD-MM-YYYY publish date>).jpg`,
-  using the *game* date in the name and the publication date in brackets (older
-  files also use `DD.MM.YYYY` in the brackets). For a second page of the same paper
-  and day, add a number before the brackets: `<paper> DD-MM-YYYY <opponent> 2
-  (<publish date>).jpg`. The `תאריך פרסום` param takes `DD-MM-YYYY`. Check
-  the name is not taken, then upload with MCP `upload_file(filename, file_path, text,
+- **New scan:** name it `<paper> DD-MM-YYYY <opponent> (DD.MM.YYYY).jpg`: the
+  *game* date in the name and the publication date in brackets. Dots in the
+  brackets are the most common form (dashes also appear, e.g. the two Anderlecht
+  files). For a second page of the same paper and day, add a suffix after the
+  brackets: `… (02.01.1972) עיתון2.jpg` is the usual form, and `(2)` also appears.
+  The `תאריך פרסום` param always takes `DD-MM-YYYY`, whatever the file name uses.
+  Check the name is not taken, then upload with MCP `upload_file(filename, file_path, text,
   comment)` (a requests multipart post). Do **not** use
   `football/papers/upload_games_papers_bot.py` for this: it calls
   `FilePage.upload()` (broken, see CLAUDE.md), it finds the game through
@@ -141,7 +144,10 @@ Basketball and volleyball use their own template from the table, with the same
   page's parsed HTML. A wrong title lands the file in a tracking category:
   football `קטעי עיתונות עם שיוך לא תקין למשחק` (and an empty param
   `קטעי עיתונות ללא שיוך למשחק`); basketball/volleyball
-  `עיתוני <sport> עם שיוך לא תקין למשחק`.
+  `עיתוני <sport> עם שיוך לא תקין למשחק` (and an empty param
+  `עיתוני <sport> ללא שיוך למשחק`). These only catch a title that doesn't exist:
+  a link to a redirect (e.g. the old spaced title) passes silently, so check the
+  title against the table above yourself.
 
 ## 7. Purge and report
 
@@ -149,8 +155,10 @@ Basketball and volleyball use their own template from the table, with the same
   the structure-knowledge file §3. For football that is the opponent, the season,
   the competition, the stadium, every Maccabi player with a profile, both coaches
   and the referee. §3 has no basketball list and the basketball bot has no purge
-  logic (only the videos bot purges, and only season pages), so for basketball purge the same kinds of pages under the `כדורסל:`
-  prefix. Use `site.purgepages(...,
-  forcelinkupdate=True)` in batches of 10 and skip pages that don't exist.
+  logic (only the videos bot purges, and only season pages), so for basketball
+  purge the same kinds of pages under the `כדורסל:` prefix. Use
+  `maccabipediabot.common.wiki_purge.purge_pages(site, titles, chunk_size=10)`,
+  which dedups and sets `forcelinkupdate`. Pass `chunk_size=10`, because the
+  default of 50 times out on Cargo-heavy player profiles.
 - Trello: comment the page link, the sources, the names left unclear and the fields
   left blank. Move the card only once the maintainer says so.
