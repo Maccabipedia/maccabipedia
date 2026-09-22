@@ -113,6 +113,7 @@ Every tool call result stays in context forever. Keep all outputs small:
 - `.claude/maccabipedia_structure_knowledge.md` — Game pages, player pages, templates, Cargo API
 - `.claude/maccabipedia_research_sources.md` — External data sources: rosters, match results, historical records, photos, video
 - `.claude/newspaper_archives.md` — Scanned newspapers on the shared Google Drive: which archives exist (Yedioth single pages vs Hadashot HaSport full issues), the text-layer search script (`maintenance/papers/search_newspaper_archive.py`), and how to date a game from the press
+- `.claude/adding_a_football_game.md` — adding one missing historical football game by hand: proving it is missing, finding and reading the newspaper scans, resolving names without inventing them, the canary game page, uploading/linking newspaper files (`שיוך משחק`, MCP `upload_file`, not the papers bot), purge
 - `.claude/maccabistats_knowledge.md` — maccabistats Python package API reference
 - `.claude/maccabipedia_youtube_channel.md` — MaccabiPedia YouTube channel conventions + Google Drive backup layout (used by `restore_deleted_football_video`)
 - `.claude/basketball_videos.md` — attaching game videos from the club and EuroLeague channels: title traps (Hebrew scores read right to left), the match keys, the slots, and how to run the backfill and the scheduled job
