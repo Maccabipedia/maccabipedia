@@ -1,3 +1,9 @@
+## Version 2.72 ##
+
+    The FTP games uploader fails at once, naming the missing secrets, when any of
+    MACCABIPEDIA_FTP / _USERNAME / _PASSWORD is empty, instead of loading the games and
+    dying inside ftplib's login with an unrelated NoneType error.
+
 ## Version 2.71 ##
 
     Players data (MaccabiPediaPlayers) now has `goalkeepers`: the Maccabi players whose

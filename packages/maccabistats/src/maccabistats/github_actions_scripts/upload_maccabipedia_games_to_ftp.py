@@ -10,14 +10,26 @@ MACCABIPEDIA_GAMES_FILE_NAME_ON_FTP = 'MaccabiPedia.games'  # We use this file n
 MACCABIPEDIA_FTP_FOLDERS_PREFIX = 'domains/maccabipedia.co.il/public_html/'
 
 
+FTP_ENV_NAMES = ('MACCABIPEDIA_FTP', 'MACCABIPEDIA_FTP_USERNAME', 'MACCABIPEDIA_FTP_PASSWORD')
+
+
+def _read_ftp_credentials() -> tuple[str, str, str]:
+    # A missing GitHub secret reaches the job as an empty string, and ftplib.FTP(host='')
+    # never connects, so login() dies with an unrelated NoneType.sendall. Name the secrets instead.
+    missing_env_names = [name for name in FTP_ENV_NAMES if not os.environ.get(name, '').strip()]
+    if missing_env_names:
+        raise RuntimeError(f'Missing or empty FTP secrets: {", ".join(missing_env_names)}')
+
+    ftp_address, ftp_username, ftp_password = (os.environ[name] for name in FTP_ENV_NAMES)
+    return ftp_address, ftp_username, ftp_password
+
+
 def upload_maccabipedia_games_to_maccabipedia_ftp() -> None:
+    ftp_address, ftp_username, ftp_password = _read_ftp_credentials()
+
     logging.info('Loading MaccabiPedia games')
     latest_maccabipedia_games_file = MaccabiPediaSource().find_last_created_source_maccabi_games_file()
     logging.info(f'Last maccabipedia games file: {latest_maccabipedia_games_file}')
-
-    ftp_address = os.environ['MACCABIPEDIA_FTP']
-    ftp_username = os.environ['MACCABIPEDIA_FTP_USERNAME']
-    ftp_password = os.environ['MACCABIPEDIA_FTP_PASSWORD']
 
     maccabipedia_ftp = ftplib.FTP(host=ftp_address)
     maccabipedia_ftp.login(user=ftp_username,
