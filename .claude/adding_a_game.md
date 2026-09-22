@@ -160,5 +160,8 @@ Basketball and volleyball use their own template from the table, with the same
   `maccabipediabot.common.wiki_purge.purge_pages(site, titles, chunk_size=10)`,
   which dedups and sets `forcelinkupdate`. Pass `chunk_size=10`, because the
   default of 50 times out on Cargo-heavy player profiles.
+- Check the render only after the purge: a brand-new game page's first cached render
+  has no lineups or events. Then check that every newspaper thumbnail on it
+  loads. Both traps and their fixes are in the structure-knowledge file.
 - Trello: comment the page link, the sources, the names left unclear and the fields
   left blank. Move the card only once the maintainer says so.

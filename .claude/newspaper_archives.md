@@ -63,6 +63,11 @@ and some issues had none at all — so check every page, not just the front.
   each surname against the season's Cargo squad before writing it, and never add
   a first name the squad does not confirm. Guest players (e.g. Beitar loanees in a
   friendly) will not be in the squad — search `Games_Events` wiki-wide for them.
+  Hadashot HaSport in the 1950s prints the same format. In the one game read there
+  (IFK Göteborg, 4.3.1958), a parenthesized name was **whoever played that position
+  by the end**, which can be a teammate who moved over rather than a substitute.
+  So the parentheses alone do not give the substitutions: work them out from the
+  names that appear only in parentheses.
 - Scans come out small and blurry on the wiki. Crop the lineup box and upscale it
   4–6x (PIL, LANCZOS) before reading. Foreign names still come out garbled, so
   record them as printed and flag the unclear ones.
@@ -88,3 +93,11 @@ The basketball doc-vs-wiki audit (2026-09): 115 score/date discrepancies between
 typed historical results list and the wiki were each settled against these scans.
 The wiki was right ~4:1 overall, but the hardest cases were rescheduled games where
 the press date beat both sources' assumptions.
+
+The missing IFK Göteborg friendly of 4.3.1958 (Trello #534, 2026-09-22): ifkdb.se had
+only the score and IFK's scorer. The Hadashot HaSport issue of the next day had
+everything else: the front-page report, then on page 4 both lineups with substitutes,
+venue, crowd, referee, linesmen, goal minutes and two saved penalties. The Yedioth text-layer search
+missed it completely, because that week's scanned single pages were other pages. For a
+game against a foreign touring team, go straight to Hadashot HaSport the day after,
+front page first.
