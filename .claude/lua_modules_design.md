@@ -1,11 +1,11 @@
-# Football Query Layer — Design
+# Wiki Lua modules — Design
 
 **Date:** 2026-09-13
 **Status:** awaiting review
 **Scope of this spec:** the query layer, plus one display block carried
 end-to-end to prove its interface.
 
-The living reference for the delivered code is `.claude/football_queries.md`.
+The living reference for the delivered code is `.claude/lua_modules.md`.
 This document is the design and the decisions behind it; where the two
 disagree, the reference describes what exists and this describes what was
 agreed.

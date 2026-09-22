@@ -1,6 +1,6 @@
-# Football Queries — the Lua query layer
+# Wiki Lua modules — the query layer and the modules built on it
 
-Design and the decisions behind it: `.claude/football_queries_design.md`.
+Design and the decisions behind it: `.claude/lua_modules_design.md`.
 
 `infra/football_queries/` holds the Lua that turns a filter set into one Cargo
 query. **The repo is the source of truth**: the wiki copy is deployed from
@@ -33,7 +33,7 @@ layer was first built against, **0**.
 So the delivered renderer is a proof of the merge, not a live win. The live
 value is in the query templates, and the first display family worth merging is
 `ימים` (366 calendar pages). Full table in
-`.claude/football_queries_design.md` §2b.
+`.claude/lua_modules_design.md` §2b.
 
 ## Why it exists
 

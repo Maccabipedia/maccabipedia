@@ -6,7 +6,7 @@ In `תבנית:אצטדיון כדורגל` the four `record-section-container` 
 `סטטיסטיקה/תצוגה/שחקנים/שיאני …/עיצוב חדש` template, 8 Cargo queries - become
 one `{{#invoke:FootballStatsBlock|leaderboards|בלוק=stadium|…}}` that renders
 the same four boxes, as tabbers, from one query. See
-.claude/football_queries.md, "Leaderboards".
+.claude/lua_modules.md, "Leaderboards".
 
 Reads production's template (read-only) and prints the candidate. Writing it
 is a separate, approved step.

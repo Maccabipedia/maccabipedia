@@ -7,7 +7,7 @@ a query, a harness or a rewrite, check it against this list.
 
 The deep reference for names and quoting is
 `maccabipedia_structure_knowledge.md` §15; the query layer's own findings are
-in `football_queries.md`. This file is the checklist; those are the proofs.
+in `lua_modules.md`. This file is the checklist; those are the proofs.
 
 ## 1. Quotes: `'`, `"`, and their escapings
 
@@ -77,7 +77,7 @@ Totals: **3,506** football games (2026-09-22).
 | `HomeAway` | 4 values (`בית`, `חוץ`, `נייטרלי`, `רדיוס`) + 13 blank | a home/away split that assumes two values |
 | seasons with no games | 5 (1921, 1923, 1924, 1937/38, 1943) | a season page or block must render empty, not error (`IN ()`) |
 
-Counts of games and events are dated 2026-09-13 in `football_queries.md`
+Counts of games and events are dated 2026-09-13 in `lua_modules.md`
 except the totals and blanks above.
 
 ## 3. Players and shirt numbers
