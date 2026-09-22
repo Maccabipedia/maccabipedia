@@ -25,7 +25,7 @@ def iterate_games_pages():
     """
     iterate_only_over_these_games = set()
     # Uncomment the next line in order to iterate only on this page
-    # iterate_only_over_these_games.add("משחק: 16-09-2020 מכבי תל אביב נגד דינמו ברסט - מוקדמות ליגת האלופות")
+    # iterate_only_over_these_games.add("משחק:16-09-2020 מכבי תל אביב נגד דינמו ברסט - מוקדמות ליגת האלופות")
 
     games_template_page = pw.Page(site, games_template_name, ns="תבנית")
     for index, game_page in enumerate(pagegenerators.ReferringPageGenerator(games_template_page)):

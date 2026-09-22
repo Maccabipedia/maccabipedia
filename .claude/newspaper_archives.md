@@ -56,12 +56,21 @@ and some issues had none at all — so check every page, not just the front.
   missing from its round's roundup is strong evidence it was not played that day.
 - Scores are printed opponent-first as often as Maccabi-first, and the halftime
   score usually sits in parentheses next to the final: `(30:54) 81:129`.
-- A 1950s lineup line such as `מכבי ת"א: בנדורי; פרופר, ריגל (מתניה); ...` lists the
-  players by position, goalkeeper first, with `;` between the lines of the formation.
-  In the one game read so far (IFK Göteborg, 4.3.1958), a name in parentheses was
-  **whoever played that position by the end**: a substitute or a teammate who moved
-  over. Work out the actual substitutions from the names that appear only in
-  parentheses, and confirm the reading on another game before relying on it.
+- Football lineup boxes (Davar, 1970s) end the match report: `מכבי ת"א: GK;
+  defenders; midfielders; forwards`, semicolons between lines, surnames only, and
+  a substitute in parentheses right after the player he replaced —
+  `ג. מכנס (סלימן)` = מכנס off, סלימן on. No substitution minutes are printed. Match
+  each surname against the season's Cargo squad before writing it, and never add
+  a first name the squad does not confirm. Guest players (e.g. Beitar loanees in a
+  friendly) will not be in the squad — search `Games_Events` wiki-wide for them.
+  Hadashot HaSport in the 1950s prints the same format. In the one game read there
+  (IFK Göteborg, 4.3.1958), a parenthesized name was **whoever played that position
+  by the end**, which can be a teammate who moved over rather than a substitute.
+  So the parentheses alone do not give the substitutions: work them out from the
+  names that appear only in parentheses.
+- Scans come out small and blurry on the wiki. Crop the lineup box and upscale it
+  4–6x (PIL, LANCZOS) before reading. Foreign names still come out garbled, so
+  record them as printed and flag the unclear ones.
 
 ## Known data problems
 
@@ -71,6 +80,12 @@ and some issues had none at all — so check every page, not just the front.
   other — Hadashot HaSport had the 12.4.1962 issue Yedioth lacked.
 - The Yedioth text layer merges adjacent columns, so a hit's context lines may
   belong to a different article. Confirm on the image before trusting a snippet.
+- The 2004 Yedioth single pages are really two-page spreads, and the two page
+  numbers of a spread are often byte-identical files (`2004-05-02_p68.pdf` =
+  `_p69.pdf`). Hash the files before uploading, or the same spread goes up twice.
+  When uploading several spreads from one day to one game, give each file a unique
+  ending (e.g. `... (01.05.2004) עמוד 68.jpg`); a shared name overwrites silently
+  when the upload sends `ignorewarnings`.
 
 ## Where this was used
 

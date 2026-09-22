@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
+from maccabipediabot.common.page_names import build_football_game_page_name
 from maccabipediabot.common.wiki_login import get_site
 
 import math
@@ -72,12 +73,12 @@ class DuplicateMaccabipediaPageException(Exception):
 
 
 def _generate_page_name_from_game(game: GameData):
-    page_name = "{prefix}: {date} {home_team} נגד {away_team} - {competition}".format(prefix="משחק",
-                                                                                      date=game.date.strftime(
-                                                                                          '%d-%m-%Y'),
-                                                                                      home_team=game.home_team.name,
-                                                                                      away_team=game.away_team.name,
-                                                                                      competition=game.competition)
+    page_name = build_football_game_page_name(
+        game_date=game.date,
+        home_team=game.home_team.name,
+        away_team=game.away_team.name,
+        competition=game.competition,
+    )
 
     return page_name
 
