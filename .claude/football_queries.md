@@ -508,9 +508,25 @@ many `#time` calls) on production - a separate, untouched bug.
 **LIVE 2026-09-22**, switched with `switch_template_prod.py` (previous revision
 166428): 59-page sandbox sample (38 quoted names, friendlies, several names,
 no games, the 3 truncated) and 7 whole pages all passed; 299 callers purged;
-הפועל תל אביב 7.2 → 2.6 s, בית"ר ירושלים 6.3 → 2.6 s, 0 script errors. Next:
-the same module for the referee tables (their rows link the competition
-through `Football_Competitions_Map`).
+הפועל תל אביב 7.2 → 2.6 s, בית"ר ירושלים 6.3 → 2.6 s, 0 script errors.
+
+**Referee tables, LIVE 2026-09-22** (`…/שופט ראשי` rev after 167772, `…/עוזר שופט`
+after 167765): `rows|שופט=…` or `rows|עוזר שופט=…` (exactly one filter) with
+`קישור מפעל=מרכז`. Their rows linked the competition through
+`Football_Competitions_Map` (`Names HOLDS "C"`, limit 1, no order): nine names
+sit in two map rows, and which one that returns follows MySQL's HOLDS join -
+ליגת העל gets `הליגה הראשונה בכדורגל`, גביע המדינה itself. Grouping-first and
+storage order (`_ID`) each broke some links (caught by the OLD-vs-NEW cell
+check), so the module runs the same lookup once per DISTINCT competition:
+2 + K queries per table instead of 1 + 4N. Cell rule: `{{#קיים: X |[[X|C]] |X}}`
+- a missing grouping page shows X, a competition the map lacks (גביע מלצ'ט)
+shows nothing, as before. `compare_referee_season_table.py` (61 main + 20 of
+347 assistant pages, all ok). אלון יפת 1.97 → 0.73 s, משה אשכנזי 3.3 → 1.2 s.
+
+**Production's firewall refuses Lua containing `or … ==`** in any request body
+(urlencoded or multipart) as SQL injection - a TemplateSandbox render or a
+module publish carrying it gets a 302 to abuse.spd.co.il. Write such
+conditions as separate `if` branches; diagnose with `allow_redirects=False`.
 
 ## `switch_template_prod.py`
 

@@ -154,5 +154,81 @@ check('rows are separated by a newline', function(module)
 	contains(render(module, 'הפועל תל אביב'), '</div>\n<div class="table-row">', 'one row per line')
 end)
 
+-- ------------------------------------------------------------ referee tables
+
+-- Referee queries: the pairs, then one map lookup per distinct competition
+-- (in sorted order), then the catalogue.
+local function lookup(concentrated)
+	return concentrated and { { concentrated = concentrated } } or {}
+end
+
+local function referee(module, args)
+	return module.rows(stub.newFrame({}, args))
+end
+
+check('the main referee: the Refs filter, one map lookup per distinct competition', function(module)
+	stub.willReturn({ pair('2025/26', 'ליגת העל', '2', '0', '1'), pair('2024/25', 'ליגת העל', '1', '0', '0') })
+	stub.willReturn(lookup('הליגה הראשונה בכדורגל'))
+	stub.willReturn(CATALOGUE)
+	referee(module, { ['שופט'] = 'אלון יפת', ['קישור מפעל'] = 'מרכז' })
+	equals(#stub.calls, 3, 'the pairs, ONE lookup for two ליגת העל rows, the catalogue')
+	contains(stub.calls[1].options.where, 'Football_Games.Refs = "אלון יפת"', 'the referee')
+	equals(stub.calls[2].tables, 'Football_Competitions_Map', 'the map')
+	equals(stub.calls[2].options.where, 'Names HOLDS "ליגת העל"', 'the templates\' own lookup')
+	equals(stub.calls[2].options.limit, 1, 'limit 1, as the templates')
+end)
+
+check('the assistant referee: a HOLDS on the assistants', function(module)
+	stub.willReturn({})
+	stub.willReturn(CATALOGUE)
+	referee(module, { ['עוזר שופט'] = 'יוסי לוי', ['קישור מפעל'] = 'מרכז' })
+	contains(stub.calls[1].options.where, 'AssistantReferees HOLDS "יוסי לוי"', 'the assistant')
+end)
+
+check('through the map: each competition links where its own lookup says', function(module)
+	stub.willReturn({ pair('2025/26', 'ליגת העל', '1', '0', '0'), pair('2025/26', 'גביע המדינה', '1', '0', '0'),
+		pair('1946/47', 'גביע המלחמה', '1', '0', '0') })
+	stub.willReturn(lookup('גביע המדינה'))           -- גביע המדינה
+	stub.willReturn(lookup('גביע המדינה (מרכז)'))    -- גביע המלחמה
+	stub.willReturn(lookup('הליגה הראשונה בכדורגל')) -- ליגת העל
+	stub.willReturn(CATALOGUE)
+	local html = referee(module, { ['שופט'] = 'אלון יפת', ['קישור מפעל'] = 'מרכז' })
+	contains(html, '<span>[[הליגה הראשונה בכדורגל|ליגת העל]]</span>', 'the grouping page, the competition text')
+	contains(html, '<span>[[גביע המדינה|גביע המדינה]]</span>', 'its own page')
+	contains(html, '<span>[[גביע המדינה (מרכז)|גביע המלחמה]]</span>', 'a grouping page')
+end)
+
+check('through the map: a missing page shows the grouping name, no map row shows nothing', function(module)
+	stub.missingPages = { ['גביע הטוטו'] = true }
+	stub.willReturn({ pair('2025/26', 'גביע הטוטו', '1', '0', '0'), pair('1936', "גביע מלצ'ט", '0', '1', '0') })
+	stub.willReturn(lookup("גביע הטוטו"))   -- sorted: גביע הטוטו before גביע מלצ'ט
+	stub.willReturn(lookup(nil))
+	stub.willReturn(CATALOGUE)
+	local html = referee(module, { ['שופט'] = 'אלון יפת', ['קישור מפעל'] = 'מרכז' })
+	contains(html, '<span>גביע הטוטו</span><span>1', '#קיים false: the grouping name, unlinked')
+	contains(html, '<span></span><span>0</span><span>1', 'the map lacks it: an empty cell, as today')
+end)
+
+check('a competition name with a double quote is refused, not looked up', function(module)
+	stub.willReturn({ pair('2025/26', 'גביע "חדש"', '1', '0', '0') })
+	local ok, message = pcall(referee, module, { ['שופט'] = 'אלון יפת', ['קישור מפעל'] = 'מרכז' })
+	equals(ok, false, 'refused')
+	contains(message, 'cannot look up', 'says why')
+end)
+
+check('one filter per table', function(module)
+	local ok, message = pcall(referee, module, { ['שופט'] = 'אלון יפת', ['יריבות'] = 'הפועל תל אביב' })
+	equals(ok, false, 'two filters refused')
+	contains(message, 'rows takes one of', 'says why')
+	equals(#stub.calls, 0, 'nothing queried')
+end)
+
+check('without קישור מפעל the competition links to itself, and no map is read', function(module)
+	stub.willReturn({ pair('2025/26', 'ליגת העל', '1', '0', '0') })
+	stub.willReturn(CATALOGUE)
+	contains(referee(module, { ['שופט'] = 'אלון יפת' }), '[[ליגת העל|ליגת העל]]', 'the opponent style')
+	equals(#stub.calls, 2, 'no map query')
+end)
+
 print(string.format('\n%d passed, %d failed', passed, failed))
 os.exit(failed > 0 and 1 or 0)
