@@ -72,3 +72,17 @@ The basketball doc-vs-wiki audit (2026-09): 115 score/date discrepancies between
 typed historical results list and the wiki were each settled against these scans.
 The wiki was right ~4:1 overall, but the hardest cases were rescheduled games where
 the press date beat both sources' assumptions.
+
+The missing IFK Göteborg friendly of 4.3.1958 (Trello #534, 2026-09-22): ifkdb.se had
+only the score and IFK's scorer. The Hadashot HaSport issue of the next day had
+everything else: the front-page report, then on page 4 both lineups with substitutes,
+venue, crowd, referee, linesmen, goal minutes and two saved penalties. The Yedioth text-layer search
+missed it completely, because that week's scanned single pages were other pages. For a
+game against a foreign touring team, go straight to Hadashot HaSport the day after,
+front page first.
+
+Reading a 1950s lineup line: `מכבי ת"א: בנדורי; פרופר, ריגל (מתניה); ...` lists the
+players by position, goalkeeper first, with `;` between the lines of the formation. A
+name in parentheses is **whoever played that position by the end**. It can be a
+substitute or a teammate who moved over, so work out the actual substitutions from the
+names that appear only in parentheses.

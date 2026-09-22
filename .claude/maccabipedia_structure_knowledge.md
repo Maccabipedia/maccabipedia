@@ -44,6 +44,14 @@ After uploading/updating a game, purge all related pages using a **batch purge**
 Filter maccabistats sentinel values before purging: skip `"Cant found coach"`, `"Cant found referee"`, etc.
 Only purge related pages if the game page was actually saved (not skipped).
 
+**A brand-new game page must be purged before you check it.** Its save-time render
+queries `Games_Events` by its own `_pageID` while that parse is still storing the rows,
+so the cached HTML has the header, venue and `כתבה` links but **no lineups or events**.
+`action=parse&page=` serves that cache. Purge the page, then parse. Seen on 2026-09-22
+on the 1958 IFK Göteborg friendly. Before the first save, a parse of the *unsaved*
+text shows `Error 1064 ... _PageID= AND Team=` — the page has no id yet. That error is
+expected there and is not a template bug.
+
 ## 4. Date & Naming Conventions
 - Date format: `DD-MM-YYYY` (dashes) in page titles.
 - `בית חוץ` parameter: strictly `"בית"`, `"חוץ"`, or `"נייטרלי"`.
@@ -119,6 +127,15 @@ Hebrew redirect syntax: `#הפניה [[Target_Page_Name]]`
 **Newspapers** (`File:` pages, template `{{תיוג עיתונים}}`):
 - File naming: `{שם_עיתון}_{תאריך_המשחק}_{שם_היריבה}_{מספר}_{(תאריך_פרסום)}`
 - Football files in practice: `<עיתון> <DD-MM-YYYY publication> <סיווג> משחק <מפעל> <יריבה> (ב/ח/נ) (<DD.MM.YYYY match>).jpg`, e.g. `חרות 04-07-1954 סיקור משחק גביע מכבי נתניה (נ) (03.07.1954).jpg`. Description is just `{{תיוג עיתונים |שם עיתון= |תאריך פרסום= |סיווג= |שיוך משחק=<game page>}}`; `סיווג` is one of `טבלת ליגה`, `טבלת גביע`, `לקראת משחק`, `סיקור משחק`, `רגע ממשחק`, `סיקור מחזור`, `אחר`. Upload via `requests` (not pywikibot), then purge the game page — the clipping renders there automatically.
+
+**Check the thumbnail after every upload.** The game page embeds each clipping as a
+338px thumbnail (`/images/thumb/.../338px-<name>`). Prod does not always generate it:
+on 2026-09-22 the second of two clippings uploaded a minute apart had every size but
+338px. The missing thumb answers **301 to `/Images/thumb/...`** (a wiki 404 page), so the
+game page shows a broken image while the file page itself looks fine. Check each `src`
+under `/images/thumb/` on the game page with `curl -w "%{http_code}"`. To fix a
+missing size, request it: `api.php?action=query&prop=imageinfo&iiprop=url&iiurlwidth=338&titles=קובץ:<name>`
+generates the file and the URL returns 200 right away.
 
 **Category sort keys (every `File:` upload):**
 - A file sorts within its category by its **page title** unless given a sort key — `[[קטגוריה:X|sortkey]]`. Before deciding, **always check how existing similar uploads in the same category sort and match them** — staying consistent with the collection matters more than any general rule.
