@@ -112,9 +112,14 @@ def compare_page(title: str, candidate: str) -> list[str]:
     problems = []
     if new.count(TIME_ERROR):
         problems.append(f'NEW still has {new.count(TIME_ERROR)} #time errors')
-    old_rows, new_rows = old.split('<div class="table-row'), new.split('<div class="table-row')
+    # Each row up to its own </div>: the last piece would otherwise run on into the
+    # page's leaderboards, whose tie order changes from one render to the next.
+    old_rows = [piece.split('</div>', 1)[0] for piece in old.split('<div class="table-row')]
+    new_rows = [piece.split('</div>', 1)[0] for piece in new.split('<div class="table-row')]
     if len(old_rows) != len(new_rows):
         return problems + [f'{len(old_rows)} rows vs {len(new_rows)}']
+    if old.split('<div class="table-row', 1)[0] != new.split('<div class="table-row', 1)[0]:
+        problems.append('the page before the first row differs')
     fixed = 0
     for old_row, new_row in zip(old_rows, new_rows):
         if old_row == new_row:
