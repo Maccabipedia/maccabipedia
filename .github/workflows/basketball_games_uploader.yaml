@@ -45,7 +45,7 @@ jobs:
             --input /tmp/basket.json --skip-existing 2>&1 | tee -a /tmp/uploader.log
 
       - name: Connect to Tailscale
-        uses: tailscale/github-action@v3
+        uses: tailscale/github-action@v4
         with:
           oauth-client-id: ${{ secrets.TAILSCALE_OAUTH_CLIENT_ID }}
           oauth-secret: ${{ secrets.TAILSCALE_OAUTH_CLIENT_SECRET }}
@@ -117,7 +117,7 @@ jobs:
       # same ones again. The report is the only record of what was not written and why.
       - name: Keep the video match report
         if: always() && steps.attach_videos.outcome != 'skipped'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: basketball-video-matches
           path: /tmp/basketball_videos_report.html

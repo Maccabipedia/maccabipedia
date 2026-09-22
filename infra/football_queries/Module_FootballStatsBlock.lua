@@ -601,25 +601,29 @@ local function leaderboards(frame)
 		if key ~= 'בלוק' and key ~= declaration.entity then
 			error(string.format(
 				'FootballStatsBlock: leaderboards takes only בלוק and %s, got "%s"',
-				declaration.entity, tostring(key)), 0)
+				declaration.entity or 'nothing else', tostring(key)), 0)
 		end
-	end
-
-	-- An empty name is refused, never passed on: the query layer reads an
-	-- empty filter as "no filter", so the page would rank every player in
-	-- every game under this referee's name.
-	local entity = mw.text.trim(frame.args[declaration.entity] or '')
-	if entity == '' then
-		error(string.format(
-			'FootballStatsBlock: leaderboards needs a non-empty %s',
-			declaration.entity), 0)
 	end
 
 	local shared = {}
 	for name, value in pairs(declaration.shared or {}) do
 		shared[name] = value
 	end
-	shared[declaration.entityFilter] = entity
+
+	-- A block may be about everything (the players portal's all-time boxes):
+	-- it declares no entity, and only בלוק is accepted. Otherwise an empty
+	-- name is refused, never passed on: the query layer reads an empty filter
+	-- as "no filter", so the page would rank every player in every game
+	-- under this referee's name.
+	if declaration.entity then
+		local entity = mw.text.trim(frame.args[declaration.entity] or '')
+		if entity == '' then
+			error(string.format(
+				'FootballStatsBlock: leaderboards needs a non-empty %s',
+				declaration.entity), 0)
+		end
+		shared[declaration.entityFilter] = entity
+	end
 
 	local columns = {}
 	for _, box in ipairs(declaration.boxes) do
