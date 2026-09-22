@@ -6,10 +6,16 @@ Design and the decisions behind it: `.claude/football_queries_design.md`.
 query. **The repo is the source of truth**: the wiki copy is deployed from
 here, never edited on the wiki and copied back.
 
-| file | wiki page |
-|---|---|
-| `Module_FootballQueries.lua` | `Module:FootballQueries` |
-| `Module_FootballQueries_Fields.lua` | `Module:FootballQueries/Fields` |
+The directory now holds every wiki Lua module and its harnesses, football or not
+(`Module:SeasonTrophies` serves three sports) - the name is historical. Rename it
+in the PR that adds the first `Module:Basketball*` module, not before: ~40 scripts,
+two workflows and five `.claude` docs reference the path.
+
+The live list is `MODULES` in `deploy_modules_prod.py`; as of 2026-09-22:
+`FootballQueries`, `FootballQueries/Fields`, `FootballStatsBlocks`,
+`FootballStatsBlock`, `FootballSeasonSquad`, `FootballSeasonTable`,
+`FootballPlayerStats`, `FootballDate`, `SeasonTrophies`. Each file
+`Module_X.lua` is the wiki page `Module:X` (`_` for `/`).
 
 `Module` is the canonical name of namespace 828; the wiki displays it localised
 as `יחידה`, and the API normalises `Module:X` to `יחידה:X`. Either spelling
@@ -588,6 +594,46 @@ with two months swapped caught 745; `pages` compares rows only (the page's
 leaderboards differ from themselves between two unchanged renders).
 **LIVE 2026-09-22** (row template previous revision 202192), 301 pages purged,
 Hapoel 0 errors.
+
+## Season trophy lists for three sports: `Module:SeasonTrophies`
+
+**The first module serving more than one sport.** `כדורגל:עונות`, `כדורסל:עונות`,
+`כדורעף:עונות` and `עמוד ראשי` asked `<ענף>/שליפות/רשימת זכיות לעונה |עונה=X`
+once per season - ONE #cargo_query each: 102 + 75 + 55 = 232 queries on `עונות`,
+0.8 of its 1.4 s. Now `{{#invoke:SeasonTrophies|list|ענף=כדורגל|עונה={{{עונה|}}}}}`:
+the first call for a sport queries all of its winning seasons and stores each
+season's list in a page variable, so a page runs one query per sport.
+
+Conventions this sets for the next multi-sport module (design review 2026-09-22):
+- **The file stays in `infra/football_queries/`** - a second directory means a second
+  deployer, a second git-clean check and new CI globs that fail silently when missed.
+- **One entry point, the sport as a Hebrew argument**, validated against an in-module
+  `SPORTS` table: an unknown `ענף` raises from a line a mutation can flip. One function
+  per sport would put the sport in two places and leave the guard to Scribunto.
+- **Sport keys are `כדורגל` / `כדורסל` / `כדורעף`**, the wiki's own spellings - the
+  contract every later multi-sport invoke should use.
+- **`SPORTS` lives in the module**, not a `/Sports` loadData page: three rows rebuild in
+  microseconds, and a data page costs a second wiki page, deploy ordering and the
+  loadData proxy shape. Aliases are fixed `a`/`c` for every sport (they never reach the
+  output); `excluded` is a list so quoting stays in one place.
+- **Page variables are prefixed with the module name**, as `FootballPlayerStats` does.
+
+Two Cargo facts the parity depended on (measured on production):
+`#cargo_query|no html` joins rows with a comma and **two** spaces (`A,  B`); with no
+`order by` Cargo orders by the first field, so the old lists were alphabetical by
+competition and the module orders by it explicitly - storage order would pass the gate
+by luck and flip on a recreateData. Basketball has ~125 winning rows, so Cargo's silent
+100-row default would have cut it: the module asks for 500 and raises if it reaches it.
+
+Gate `compare_season_trophies.py`: `seasons` renders every season the sport's page
+actually lists (read out of the LIVE page - basketball and volleyball build their lists
+from categories, not a query), old vs new, batched, byte for byte; the selftest compares
+the lists against the wrong seasons and must disagree; NEW must name the module in
+`prop=templates` or an ignored sandbox override would pass silently. `pages` compares
+the season rows of the five caller pages. **232/232 seasons identical.**
+**LIVE 2026-09-22** (previous revisions 163471 / 175759 / 143324): `עונות` 1.44 → 0.79 s,
+`כדורגל:עונות` 0.60 → 0.37, `כדורסל:עונות` 0.53 → 0.32, `כדורעף:עונות` 0.32 → 0.16,
+0 script errors.
 
 ## `switch_template_prod.py`
 

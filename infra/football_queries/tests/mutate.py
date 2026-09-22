@@ -26,6 +26,7 @@ SUITES = [
     'infra/football_queries/tests/test_season_table.lua',
     'infra/football_queries/tests/test_player_stats.lua',
     'infra/football_queries/tests/test_date.lua',
+    'infra/football_queries/tests/test_season_trophies.lua',
 ]
 RENDERER = Path('infra/football_queries/Module_FootballStatsBlock.lua')
 BLOCKS = Path('infra/football_queries/Module_FootballStatsBlocks.lua')
@@ -33,6 +34,7 @@ SQUAD = Path('infra/football_queries/Module_FootballSeasonSquad.lua')
 SEASON_TABLE = Path('infra/football_queries/Module_FootballSeasonTable.lua')
 PLAYER_STATS = Path('infra/football_queries/Module_FootballPlayerStats.lua')
 DATE = Path('infra/football_queries/Module_FootballDate.lua')
+TROPHIES = Path('infra/football_queries/Module_SeasonTrophies.lua')
 
 # The end of the season block's tab strip up to its first box - the only
 # place where a בינלאומי tab is followed by the appearances box, so a
@@ -47,6 +49,38 @@ SEASON_TAB_TAIL = (
 # says so instead of silently mutating the wrong place - which is how a broken
 # mutation once reported a false survivor.
 MUTATIONS = [
+    # Module:SeasonTrophies - each sport's tables, the order, the guards, the cache.
+    ('trophies: football reads the basketball tables', TROPHIES,
+     "['כדורגל'] = { achievements = 'Achievements', competitions = 'Competitions' }",
+     "['כדורגל'] = { achievements = 'Basketball_Achievements', competitions = 'Basketball_Competitions' }"),
+    ('trophies: volleyball reads the basketball tables', TROPHIES,
+     "['כדורעף'] = { achievements = 'Volleyball_Achievements', competitions = 'Volleyball_Competitions',",
+     "['כדורעף'] = { achievements = 'Basketball_Achievements', competitions = 'Basketball_Competitions',"),
+    ('trophies: the volleyball exclusion dropped', TROPHIES,
+     "\t\texcluded = { 'הליגה הארצית' } },", '\t\t},'),
+    ('trophies: runners-up counted as wins', TROPHIES,
+     'a.Achievement="זכיה"', 'a.Achievement!="זכיה"'),
+    ('trophies: unofficial competitions counted', TROPHIES,
+     "local where = 'c.Official AND ", "local where = '"),
+    ('trophies: the join dropped', TROPHIES,
+     "join = 'a.Competition=c.OriginalName'", "join = ''"),
+    ('trophies: storage order instead of by competition', TROPHIES,
+     "orderBy = 'a.Competition'", "orderBy = 'a.Season'"),
+    ('trophies: one space between competitions', TROPHIES,
+     "local SEPARATOR = ',  '", "local SEPARATOR = ', '"),
+    ('trophies: only the last win of a season kept', TROPHIES,
+     'lists[season] = lists[season] .. SEPARATOR .. row.competition',
+     'lists[season] = row.competition'),
+    ('trophies: a truncated result passes as a short answer', TROPHIES,
+     'if #rows >= ROW_LIMIT then', 'if false then'),
+    ("trophies: Cargo's silent default limit", TROPHIES,
+     'local ROW_LIMIT = 500', 'local ROW_LIMIT = 100'),
+    ('trophies: an unknown sport returns nothing', TROPHIES,
+     'if SPORTS[sport] == nil then', 'if false then'),
+    ('trophies: every season queries again', TROPHIES,
+     "if stored(frame, marker) == '' then", 'if true then'),
+    ('trophies: the sports share one list', TROPHIES,
+     "'SeasonTrophies|' .. sport .. '|' .. season", "'SeasonTrophies|' .. season"),
     # Module:FootballPlayerStats - each number's semantics, the cache, the name.
     ('player stats: games cells count event rows', PLAYER_STATS, "if cell.grain == 'games' then", 'if false then'),
     ('player stats: games not distinct', PLAYER_STATS, "'COUNT(DISTINCT CASE WHEN '", "'COUNT(CASE WHEN '"),

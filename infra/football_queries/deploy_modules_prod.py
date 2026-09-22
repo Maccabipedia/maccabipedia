@@ -60,6 +60,7 @@ MODULES = {
     'Module_FootballSeasonTable.lua': 'Module:FootballSeasonTable',
     'Module_FootballPlayerStats.lua': 'Module:FootballPlayerStats',
     'Module_FootballDate.lua': 'Module:FootballDate',
+    'Module_SeasonTrophies.lua': 'Module:SeasonTrophies',
 }
 
 # The documentation that goes with them. Wikitext, inert, and the standard
@@ -79,7 +80,7 @@ DOCS = {
     'Module_FootballSeasonSquad_tiud.wiki': 'Module:FootballSeasonSquad/תיעוד',
 }
 
-SUMMARY = ('עדכון יחידות סטטיסטיקת הכדורגל '
+SUMMARY = ('עדכון יחידות לואה '
            '(deployed from infra/football_queries)')
 
 
@@ -258,6 +259,12 @@ def probe(connection) -> int:
          '|שופט=דודו ביטון}}'),
         ('season leaderboards: four boxes',
          '{{#invoke:FootballStatsBlock|leaderboards|בלוק=season|עונה=2023/24}}'),
+        # The multi-sport module: a sport whose tables are not football's, and a
+        # sport that does not exist.
+        ('a basketball season\'s trophies',
+         '{{#invoke:SeasonTrophies|list|ענף=כדורסל|עונה=2023/24}}'),
+        ('an unknown sport must raise, not return an empty list',
+         '{{#invoke:SeasonTrophies|list|ענף=טניס|עונה=2023/24}}'),
     ]
 
     failures = 0
