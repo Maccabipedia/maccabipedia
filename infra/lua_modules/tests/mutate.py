@@ -29,6 +29,7 @@ SUITES = [
     'infra/lua_modules/tests/test_date.lua',
     'infra/lua_modules/tests/test_season_trophies.lua',
     'infra/lua_modules/tests/test_perplayer_schema.lua',
+    'infra/lua_modules/tests/test_basketball.lua',
 ]
 RENDERER = Path('infra/lua_modules/Module_StatsBlock.lua')
 BLOCK_SHIM = Path('infra/lua_modules/Module_FootballStatsBlock.lua')
@@ -38,6 +39,8 @@ SEASON_TABLE = Path('infra/lua_modules/Module_FootballSeasonTable.lua')
 PLAYER_STATS = Path('infra/lua_modules/Module_FootballPlayerStats.lua')
 DATE = Path('infra/lua_modules/Module_FootballDate.lua')
 TROPHIES = Path('infra/lua_modules/Module_SeasonTrophies.lua')
+FIELDS_BB = Path('infra/lua_modules/Module_BasketballQueries_Fields.lua')
+BLOCKS_BB = Path('infra/lua_modules/Module_BasketballStatsBlocks.lua')
 
 # The end of the season block's tab strip up to its first box - the only
 # place where a בינלאומי tab is followed by the appearances box, so a
@@ -52,6 +55,43 @@ SEASON_TAB_TAIL = (
 # says so instead of silently mutating the wrong place - which is how a broken
 # mutation once reported a false survivor.
 MUTATIONS = [
+    # leaderboardTab (test_basketball.lua): the priming, the key, what a tab prints.
+    ('tab: a NULL sum is a present player', LOGIC,
+     'if entry.count ~= nil and (entry.count > 0 or keepZero) then', 'if entry.count == nil or entry.count > 0 or keepZero then'),
+    ('tab: every tab primes again', RENDERER,
+     "if frame:callParserFunction('#var', { key .. '/primed' }) == '' then", 'if true then'),
+    ('tab: the key ignores the filters', RENDERER,
+     "table.concat(keyed, '&'), top)", "'', top)"),
+    ('tab: the key ignores the limit', RENDERER,
+     "table.concat(keyed, '&'), top)", "table.concat(keyed, '&'), 0)"),
+    ('tab: no more link ever', RENDERER,
+     'local moreUrl = declaration.moreText and #result.rows >= top', 'local moreUrl = false and #result.rows >= top'),
+    ('tab: the more link ranks a count, not the sum', RENDERER,
+     "local record = box.sum and ('SUM(' .. FootballQueries.sumColumn(box.sum) .. ')') or 'COUNT(*)'",
+     "local record = 'COUNT(*)'"),
+    ('tab: emptyText never printed', RENDERER,
+     '\t\tif #entries == 0 and declaration.emptyText then', '\t\tif false then'),
+    ('tab: named row args passed positionally', RENDERER,
+     '\t\t\tif declaration.rowArgs then', '\t\t\tif false then'),
+    ('tab: an unknown category primes anyway', RENDERER,
+     '\t\tif not known then', '\t\tif false then'),
+    ('tab: an empty filter is a filter', RENDERER,
+     "\t\t\t\tif given ~= '' then", '\t\t\t\tif true then'),
+    ('tab: a box word not found', RENDERER,
+     'if candidate.word == boxWord then', 'if candidate.key == boxWord then'),
+    ('basketball schema: players lose no prefix', FIELDS_BB,
+     "kind = 'list', stripPrefix = 'כדורסל:' },", "kind = 'list' },"),
+    ('basketball schema: רשמי filters to official', FIELDS_BB,
+     "\t\t\t\t['רשמי'] = '',", "\t\t\t\t['רשמי'] = 'Basketball_Competitions.Official = 1',"),
+    ('basketball schema: the default is no filter', FIELDS_BB,
+     "\t\t\t\t['ברירת מחדל'] = 'Basketball_Competitions.Official = 1',", "\t\t\t\t['ברירת מחדל'] = '',"),
+    ('basketball schema: the summaries declared game-grain', FIELDS_BB,
+     "\t\t\tjoin = 'Basketball_Games._pageName = Basketball_Player_Game_Events_Summary._pageName',\n\t\t\tgrain = 'perPlayer',",
+     "\t\t\tjoin = 'Basketball_Games._pageName = Basketball_Player_Game_Events_Summary._pageName',\n\t\t\tgrain = 'game',"),
+    ('basketball blocks: zeroes dropped', BLOCKS_BB, '\t\tkeepZero = true,\n', ''),
+    ('basketball blocks: points summed as appearances', BLOCKS_BB,
+     "{ key = 'points', word = 'נקודות', sum = 'נקודות', filters = {} },",
+     "{ key = 'points', word = 'נקודות', sum = 'הופעות', filters = {} },"),
     # The generalisations basketball needs (test_perplayer_schema.lua and the
     # hoops block in test_leaderboard.lua), and the football schema keys behind them.
     ('grain: a table without one is accepted', LOGIC,
@@ -78,10 +118,17 @@ MUTATIONS = [
      'narrowed[sideFilter] = Fields.sides.maccabiValue', 'narrowed[sideFilter] = Fields.sides.opponentValue'),
     ('side: no side filter, no narrowing', LOGIC,
      'if sideFilter and narrowed[sideFilter] == nil then', 'if false then'),
-    ('rank: keepZero ignored', LOGIC, 'if entry.count > 0 or keepZero then', 'if entry.count > 0 then'),
-    ('rank: zeroes always kept', LOGIC, 'if entry.count > 0 or keepZero then', 'if true then'),
+    ('rank: keepZero ignored', LOGIC,
+     'if entry.count ~= nil and (entry.count > 0 or keepZero) then', 'if entry.count ~= nil and entry.count > 0 then'),
+    ('rank: zeroes always kept', LOGIC,
+     'if entry.count ~= nil and (entry.count > 0 or keepZero) then', 'if entry.count ~= nil then'),
     ('renderer: a summing box counts', RENDERER, '\t\t\t\t\tsum = box.sum,\n', ''),
-    ('renderer: keepZero not passed on', RENDERER, 'keepZero = declaration.keepZero', 'keepZero = nil'),
+    ('renderer: keepZero not passed on', RENDERER,
+     "  -- Football's templates hid zero counts; basketball's show them.\n\t\t\t  keepZero = declaration.keepZero })",
+     "  -- Football's templates hid zero counts; basketball's show them.\n\t\t\t  keepZero = nil })"),
+    ('tab: keepZero not passed on', RENDERER,
+     '{ groupBy = declaration.groupBy, top = top, keepZero = declaration.keepZero })',
+     '{ groupBy = declaration.groupBy, top = top, keepZero = nil })'),
     ('renderer: emptyText never printed', RENDERER,
      'if #result.rows == 0 and declaration.emptyText then', 'if false then'),
     ('renderer: a more link on a summing box', RENDERER,
@@ -540,7 +587,7 @@ MUTATIONS = [
     ('ties keep the order the database returned', LOGIC,
      'return left.name < right.name', 'return false'),
     ('players with a zero count are ranked and counted', LOGIC,
-     'if entry.count > 0 or keepZero then', 'if true then'),
+     'if entry.count ~= nil and (entry.count > 0 or keepZero) then', 'if true then'),
     ('"עוד" at exactly ten, like Cargo', LOGIC,
      'more = #ranked > top,', 'more = #ranked >= top,'),
     ('the event-type union is never added to the WHERE', LOGIC,

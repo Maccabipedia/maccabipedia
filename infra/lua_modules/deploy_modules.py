@@ -39,6 +39,11 @@ MODULES = {
     'Module_FootballPlayerStats.lua': 'Module:FootballPlayerStats',
     'Module_FootballDate.lua': 'Module:FootballDate',
     'Module_SeasonTrophies.lua': 'Module:SeasonTrophies',
+    # Basketball: schema, then its query shim, then block data, then its renderer shim.
+    'Module_BasketballQueries_Fields.lua': 'Module:BasketballQueries/Fields',
+    'Module_BasketballQueries.lua': 'Module:BasketballQueries',
+    'Module_BasketballStatsBlocks.lua': 'Module:BasketballStatsBlocks',
+    'Module_BasketballStatsBlock.lua': 'Module:BasketballStatsBlock',
 }
 SOURCE_DIR = Path('infra/lua_modules')
 

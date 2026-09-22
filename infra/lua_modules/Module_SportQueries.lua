@@ -793,9 +793,13 @@ function SportQueries.new(Fields)
 	local function rank(entries, top, keepZero)
 		local ranked = {}
 		for _, entry in ipairs(entries) do
-			-- Football's templates had HAVING > 0; basketball's show a zero
-			-- (COALESCE), so a block may ask to keep them.
-			if entry.count > 0 or keepZero then
+			-- A nil count is a group with NO row matching the column at all (a
+			-- sum's ELSE NULL): the templates put the column's condition in
+			-- their WHERE, so such a player was never in that tab. A zero is a
+			-- player who was there and scored nothing: football's templates had
+			-- HAVING > 0 and dropped them, basketball's show them (COALESCE), so
+			-- a block asks with keepZero.
+			if entry.count ~= nil and (entry.count > 0 or keepZero) then
 				ranked[#ranked + 1] = entry
 			end
 		end
@@ -817,6 +821,17 @@ function SportQueries.new(Fields)
 			-- limit and so sends a tab of exactly ten players to an empty page.
 			more = #ranked > top,
 		}
+	end
+
+	--- The column behind a summable value (נקודות → …TotalPoints), for callers
+	--- that build a link to the same ranking. Raises for an unknown value.
+	function Queries.sumColumn(name)
+		local column = Fields.sumColumns[name]
+		if not column then
+			error(string.format(
+				NAME .. ': "%s" is not a known summable value', tostring(name)), 0)
+		end
+		return column
 	end
 
 	--- The column a leaderboard's group key names, for callers that build a link
@@ -891,7 +906,9 @@ function SportQueries.new(Fields)
 					-- A blank name is kept as a blank row, as the template shows
 					-- one (none exist on production: 0 events, measured).
 					name = row.g or '',
-					count = tonumber(row[entry.alias]) or 0,
+					-- A counting column is never NULL; a summing one is NULL for
+					-- a group with no matching row, and rank() reads that as absent.
+					count = tonumber(row[entry.alias]) or (not entry.sums and 0 or nil),
 				}
 			end
 			result[entry.name] = rank(entries, top, options.keepZero)

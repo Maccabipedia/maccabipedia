@@ -29,6 +29,14 @@ local PAGES = {
 		'infra/lua_modules/Module_SportQueries.lua',
 	['Module:StatsBlock'] =
 		'infra/lua_modules/Module_StatsBlock.lua',
+	['Module:BasketballQueries/Fields'] =
+		'infra/lua_modules/Module_BasketballQueries_Fields.lua',
+	['Module:BasketballQueries'] =
+		'infra/lua_modules/Module_BasketballQueries.lua',
+	['Module:BasketballStatsBlocks'] =
+		'infra/lua_modules/Module_BasketballStatsBlocks.lua',
+	['Module:BasketballStatsBlock'] =
+		'infra/lua_modules/Module_BasketballStatsBlock.lua',
 	['Module:FootballQueries'] =
 		'infra/lua_modules/Module_FootballQueries.lua',
 	['Module:FootballStatsBlock'] =
