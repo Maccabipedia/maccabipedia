@@ -57,6 +57,7 @@ MODULES = {
     'Module_FootballStatsBlocks.lua': 'Module:FootballStatsBlocks',
     'Module_FootballStatsBlock.lua': 'Module:FootballStatsBlock',
     'Module_FootballSeasonSquad.lua': 'Module:FootballSeasonSquad',
+    'Module_FootballSeasonTable.lua': 'Module:FootballSeasonTable',
 }
 
 # The documentation that goes with them. Wikitext, inert, and the standard
