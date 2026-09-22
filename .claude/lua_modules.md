@@ -22,10 +22,42 @@ is the wiki page `Module:X` (`_` for `/`). As of 2026-09-23 the shape is:
 | `FootballSeasonSquad`, `FootballSeasonTable`, `FootballPlayerStats`, `FootballDate` | standalone football modules built on the query module. |
 | `Module:SeasonTrophies` | the three-sport season trophy lists; its own small module by design. |
 
-**A new sport is a schema page and two shims**; the shared pages change only when
-the logic itself must (the grain rules and the `choice` handler that basketball
-needs - `.claude/tmp/sports_layer_plan.md` while it is in flight). Error messages
-carry the schema's `name`, which is why football's still read `FootballQueries: …`.
+**A new sport is a schema page and two shims.** Error messages carry the schema's
+`name`, which is why football's still read `FootballQueries: …`. What a schema
+declares beyond football's original shape (added 2026-09-23 for basketball, football
+byte-identical throughout):
+
+- **`tables[T].grain`** - `'game'` (at most one row per game: the game, its
+  competition, its referees) or `'perPlayer'` (several rows per game: football's
+  events, basketball's per-player summaries). A query may join at most one
+  `perPlayer` table. A summed column's grain is its table's: a game-column sum
+  (goals for) refuses a `perPlayer` join, a per-player sum (basketball points) is
+  event grain and its table is joined even when no filter reaches it, with the side
+  constraint inside its CASE. An event-grain count with no `perPlayer` table joined
+  is refused - it would be a game count wearing the wrong label.
+- **`roles.sideFilter` + `sides.maccabiValue`** - the filter a template uses to ask
+  for a side (football `מכבי`, basketball `האם עבור יריבה`) and the value that means
+  Maccabi's. A leaderboard with no side asked for narrows to Maccabi's through it. The
+  logic used to inject the football name and value itself, which on basketball would
+  have ranked the OPPONENT's players.
+- **`roles.narrowFilter`** - the filter a leaderboard narrows its rows by (football
+  `מספר אירוע`); absent means nothing is narrowed.
+- **`kind = 'competitionCategory' | 'resultWord'`** are both the `choice` handler:
+  `choices` maps a word to a ready SQL condition, `tables` are joined for every
+  choice, and `''` means "no condition" (basketball's `רשמי` tab). The last
+  hardwired table name in the logic went with this.
+- **`filters[…].stripPrefix`** - a list built from category members carries the
+  namespace (`כדורסל:Name`); without stripping it, IN matches nothing and every box
+  renders empty with no error.
+- **Blocks** may declare `sum` on a box (sum a column instead of counting rows; no
+  more link then), `keepZero` (basketball shows zero rows) and `emptyText` (printed
+  on an empty tab). Football's blocks declare none.
+
+`tests/test_perplayer_schema.lua` hands `new()` a basketball-shaped schema and
+proves these without a basketball data page. **Deploying a schema and the logic
+that reads it:** production publishes one page at a time, so the schema went out
+first carrying the keys the OLD logic read as well (a transitional copy, removed
+the moment the new logic was live); no page ever saw a mismatched pair.
 Publish order: the shared pages, then a sport's schema, then its shims -
 `deploy_modules_prod.py --only` exists for that staged rollout, and each shim was
 gated on production first with `compare_module_swap.py` (live module vs the repo
