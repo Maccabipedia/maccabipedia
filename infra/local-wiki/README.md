@@ -147,7 +147,7 @@ Measured end to end — `down -v`, rebuild, restore, deploy the Lua modules and
 run the football-query harnesses: **1m45s** locally with the image cached, and
 **3m27s** in CI including a cold image build.
 `.github/workflows/football_lua_wiki.yaml` does exactly this on every pull
-request that touches `infra/football_queries/` or `infra/local-wiki/`.
+request that touches `infra/lua_modules/` or `infra/local-wiki/`.
 
 One harness is deliberately left out of CI: `verify_edge_cases.py` queries
 **production** (read-only), because the cases it checks live in old data this

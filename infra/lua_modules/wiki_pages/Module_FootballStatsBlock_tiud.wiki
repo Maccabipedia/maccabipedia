@@ -1,0 +1,46 @@
+מרנדר בלוק סטטיסטיקה בשאילתה אחת. הבלוק עצמו מוגדר כנתונים ב־
+[[Module:FootballStatsBlocks]], והפרמטר <code>בלוק</code> בוחר איזה מהם.
+
+הפלט חייב להיות זהה בית־בית לתבנית שהוא מחליף, כולל הרווחים שלה.
+
+הבלוקים הקיימים:
+* <code>player-events</code> — אירועי שחקן: ארבע לשוניות, שמונה מספרים בכל
+  אחת. התבנית שהוא מחליף מריצה 32 שאילתות.
+* <code>day-results</code> — סיכום תוצאות ליום בשנה: ניצחונות, תיקו, הפסדים,
+  כיבושים וספיגות, בארבע לשוניות. 366 עמודי לוח שנה קוראים לו.
+
+== דוגמאות ==
+
+בלוק אחד, בגוף תבנית התצוגה (בלי <code>בלוק</code> מרונדר
+<code>player-events</code>):
+
+<pre><includeonly>{{#invoke:FootballStatsBlock|block|בלוק=day-results}}</includeonly></pre>
+
+ארבע לשוניות מאותה שאילתה. <code>prime</code> מחשב את כולן ושומר כל אחת
+במשתנה עמוד, וכל לשונית קוראת את המשתנה שלה:
+
+<pre><includeonly>{{#invoke:FootballStatsBlock|prime}}
+<div class="slim-tabs"><shtml ...>...</shtml><div class="content">
+<div id="tab1-content">
+{{#invoke:FootballStatsBlock|tab|קטגוריית מפעל=רשמי|שחקן={{{שחקן}}}}}</div>
+<div id="tab2-content">
+{{#invoke:FootballStatsBlock|tab|קטגוריית מפעל=ליגה|שחקן={{{שחקן}}}}}</div>
+</div></div></includeonly></pre>
+
+רצועת הלשוניות חתומה ב־<code>shtml</code> שאי אפשר לחתום מחדש (החתימה היא HMAC
+עם סוד של הוויקי), ולכן היא לעולם לא נבנית מחדש אלא רק מוקפת.
+
+<code>prime</code> חייב לרוץ לפני הלשוניות. לשונית בלי <code>prime</code>
+זורקת שגיאה ואינה מרנדרת בלוק ריק, כי בלוק ריק נראה כמו שחקן בלי היסטוריה.
+
+== מסננים קבועים של בלוק ==
+
+בלוק יכול לקבוע לעצמו מסננים שחלים על כל התאים שלו.
+<code>day-results</code> קובע כך <code>פורמט תאריך="%d-%m"</code> — זה מה
+שהופך אותו ל"היום הזה בכל שנה" ולא "התאריך הזה בלבד". תבנית שמעבירה מסנן
+שהבלוק קובע מקבלת שגיאה, כדי שלא יישאר עמוד שמציג חלון משחקים אחר בלי שום
+סימן לכך בוויקיטקסט.
+
+הקוד: <code>infra/lua_modules/Module_FootballStatsBlock.lua</code>.
+
+<includeonly>[[קטגוריה:יחידות לואה/סטטיסטיקת כדורגל]]</includeonly><noinclude>[[קטגוריה:דפי תיעוד של יחידות]]</noinclude>

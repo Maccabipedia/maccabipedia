@@ -150,7 +150,7 @@ Source of truth is the repo; the wiki copy is deployed from it and never edited
 on the wiki and copied back.
 
 ```
-infra/football_queries/
+infra/lua_modules/
   Module_CargoQuery.lua              → Module:CargoQuery
   Module_FootballSchema.lua          → Module:FootballSchema
   Module_FootballQueries.lua         → Module:FootballQueries
