@@ -1,0 +1,1518 @@
+{
+ "1968/69": {
+  "title": "גביע אסיה לאלופות - בית ב'",
+  "win_points": 2,
+  "notes": [
+   "ניצחון היה שווה 2 נקודות.",
+   "שתי הראשונות העפילו לחצי הגמר."
+  ],
+  "source": "[[קובץ:טבלת גביע אסיה לאחר מחזור 4 עונת 1968-69.jpg|טבלת העיתונות בתום שלב הבתים]] (מתוך עמוד המשחק מול משטרת טהרן, 26.1.1969)",
+  "rows": [
+   {
+    "team": "מכבי תל אביב",
+    "played": 4,
+    "wins": 2,
+    "draws": 2,
+    "losses": 0,
+    "goals_for": 9,
+    "goals_against": 3,
+    "points": 6
+   },
+   {
+    "team": "טוקיו קוגיו",
+    "played": 4,
+    "wins": 3,
+    "draws": 0,
+    "losses": 1,
+    "goals_for": 6,
+    "goals_against": 3,
+    "points": 6
+   },
+   {
+    "team": "משטרת טהרן",
+    "played": 4,
+    "wins": 2,
+    "draws": 1,
+    "losses": 1,
+    "goals_for": 8,
+    "goals_against": 3,
+    "points": 5
+   },
+   {
+    "team": "פראק",
+    "played": 4,
+    "wins": 1,
+    "draws": 1,
+    "losses": 2,
+    "goals_for": 9,
+    "goals_against": 9,
+    "points": 3
+   },
+   {
+    "team": "קאולון הונג קונג",
+    "played": 4,
+    "wins": 0,
+    "draws": 0,
+    "losses": 4,
+    "goals_for": 2,
+    "goals_against": 16,
+    "points": 0
+   }
+  ]
+ },
+ "1970/71": {
+  "title": "גביע אסיה לאלופות - בית ב'",
+  "win_points": 2,
+  "notes": [
+   "ניצחון היה שווה 2 נקודות.",
+   "שתי הראשונות העפילו לחצי הגמר."
+  ],
+  "source": "en.wikipedia: 1971 Asian Champion Club Tournament",
+  "rows": [
+   {
+    "team": "מכבי תל אביב",
+    "played": 3,
+    "wins": 3,
+    "draws": 0,
+    "losses": 0,
+    "goals_for": 11,
+    "goals_against": 2,
+    "points": 6
+   },
+   {
+    "team": "אל שורטה",
+    "played": 3,
+    "wins": 2,
+    "draws": 0,
+    "losses": 1,
+    "goals_for": 8,
+    "goals_against": 4,
+    "points": 4
+   },
+   {
+    "team": "בנגקוק בנק",
+    "played": 3,
+    "wins": 1,
+    "draws": 0,
+    "losses": 2,
+    "goals_for": 3,
+    "goals_against": 6,
+    "points": 2
+   },
+   {
+    "team": "משטרת פנגאב",
+    "played": 3,
+    "wins": 0,
+    "draws": 0,
+    "losses": 3,
+    "goals_for": 2,
+    "goals_against": 12,
+    "points": 0
+   }
+  ]
+ },
+ "1977/78": {
+  "title": "גביע האינטרטוטו - בית 2",
+  "win_points": 2,
+  "notes": [
+   "ניצחון היה שווה 2 נקודות.",
+   "שלב הבתים היה השלב היחיד במפעל."
+  ],
+  "source": "en.wikipedia: 1977 Intertoto Cup",
+  "rows": [
+   {
+    "team": "דואיסבורג",
+    "played": 6,
+    "wins": 3,
+    "draws": 2,
+    "losses": 1,
+    "goals_for": 13,
+    "goals_against": 7,
+    "points": 8
+   },
+   {
+    "team": "סטנדרד ליאז",
+    "played": 6,
+    "wins": 3,
+    "draws": 1,
+    "losses": 2,
+    "goals_for": 8,
+    "goals_against": 9,
+    "points": 7
+   },
+   {
+    "team": "טוונטה",
+    "played": 6,
+    "wins": 3,
+    "draws": 0,
+    "losses": 3,
+    "goals_for": 13,
+    "goals_against": 13,
+    "points": 6
+   },
+   {
+    "team": "מכבי תל אביב",
+    "played": 6,
+    "wins": 1,
+    "draws": 1,
+    "losses": 4,
+    "goals_for": 10,
+    "goals_against": 15,
+    "points": 3
+   }
+  ]
+ },
+ "1978/79": {
+  "title": "גביע האינטרטוטו - בית 5",
+  "win_points": 2,
+  "notes": [
+   "ניצחון היה שווה 2 נקודות.",
+   "שלב הבתים היה השלב היחיד במפעל."
+  ],
+  "source": "en.wikipedia: 1978 Intertoto Cup",
+  "rows": [
+   {
+    "team": "מאלמה",
+    "played": 6,
+    "wins": 5,
+    "draws": 1,
+    "losses": 0,
+    "goals_for": 11,
+    "goals_against": 3,
+    "points": 11
+   },
+   {
+    "team": "פ.צ. ציריך",
+    "played": 6,
+    "wins": 3,
+    "draws": 0,
+    "losses": 3,
+    "goals_for": 6,
+    "goals_against": 7,
+    "points": 6
+   },
+   {
+    "team": "מכבי תל אביב",
+    "played": 6,
+    "wins": 2,
+    "draws": 0,
+    "losses": 4,
+    "goals_for": 10,
+    "goals_against": 10,
+    "points": 4
+   },
+   {
+    "team": "פירסט וינה",
+    "played": 6,
+    "wins": 1,
+    "draws": 1,
+    "losses": 4,
+    "goals_for": 6,
+    "goals_against": 13,
+    "points": 3
+   }
+  ]
+ },
+ "1980/81": {
+  "title": "גביע האינטרטוטו - בית 3",
+  "win_points": 2,
+  "notes": [
+   "ניצחון היה שווה 2 נקודות.",
+   "שלב הבתים היה השלב היחיד במפעל."
+  ],
+  "source": "[[קובץ:טבלת גביע האינטרטוטו לאחר מחזור 6 עונת 1980-81.jpg|טבלת העיתונות בתום שלב הבתים]] (מתוך עמוד המשחק מול קיי. בי. קופנהאגן, 26.7.1980)",
+  "rows": [
+   {
+    "team": "מכבי נתניה",
+    "played": 6,
+    "wins": 3,
+    "draws": 2,
+    "losses": 1,
+    "goals_for": 12,
+    "goals_against": 7,
+    "points": 8
+   },
+   {
+    "team": "קיי. בי. קופנהאגן",
+    "played": 6,
+    "wins": 3,
+    "draws": 2,
+    "losses": 1,
+    "goals_for": 11,
+    "goals_against": 10,
+    "points": 8
+   },
+   {
+    "team": "אנטוורפן",
+    "played": 6,
+    "wins": 1,
+    "draws": 3,
+    "losses": 2,
+    "goals_for": 10,
+    "goals_against": 10,
+    "points": 5
+   },
+   {
+    "team": "מכבי תל אביב",
+    "played": 6,
+    "wins": 1,
+    "draws": 1,
+    "losses": 4,
+    "goals_for": 9,
+    "goals_against": 15,
+    "points": 3
+   }
+  ]
+ },
+ "1993/94": {
+  "title": "גביע האינטרטוטו - בית 5",
+  "win_points": 2,
+  "notes": [
+   "ניצחון היה שווה 2 נקודות.",
+   "שלב הבתים היה השלב היחיד במפעל."
+  ],
+  "source": "en.wikipedia: 1993 Intertoto Cup",
+  "rows": [
+   {
+    "team": "סלביה פראג",
+    "played": 4,
+    "wins": 4,
+    "draws": 0,
+    "losses": 0,
+    "goals_for": 11,
+    "goals_against": 2,
+    "points": 8
+   },
+   {
+    "team": "לוקומוטיב לייפציג",
+    "played": 4,
+    "wins": 2,
+    "draws": 1,
+    "losses": 1,
+    "goals_for": 5,
+    "goals_against": 3,
+    "points": 5
+   },
+   {
+    "team": "אולבורג בולדספילקלאב",
+    "played": 4,
+    "wins": 2,
+    "draws": 0,
+    "losses": 2,
+    "goals_for": 6,
+    "goals_against": 7,
+    "points": 4
+   },
+   {
+    "team": "האקן",
+    "played": 4,
+    "wins": 1,
+    "draws": 0,
+    "losses": 3,
+    "goals_for": 5,
+    "goals_against": 8,
+    "points": 2
+   },
+   {
+    "team": "מכבי תל אביב",
+    "played": 4,
+    "wins": 0,
+    "draws": 1,
+    "losses": 3,
+    "goals_for": 2,
+    "goals_against": 9,
+    "points": 1
+   }
+  ]
+ },
+ "2004/05": {
+  "title": "ליגת האלופות - בית ג'",
+  "win_points": 3,
+  "notes": [
+   "שתי הראשונות העפילו לשמינית הגמר, השלישית עברה לגביע אופא."
+  ],
+  "source": "en.wikipedia: 2004–05 UEFA Champions League group stage",
+  "rows": [
+   {
+    "team": "יובנטוס",
+    "played": 6,
+    "wins": 5,
+    "draws": 1,
+    "losses": 0,
+    "goals_for": 6,
+    "goals_against": 1,
+    "points": 16
+   },
+   {
+    "team": "באיירן מינכן",
+    "played": 6,
+    "wins": 3,
+    "draws": 1,
+    "losses": 2,
+    "goals_for": 12,
+    "goals_against": 5,
+    "points": 10
+   },
+   {
+    "team": "אייאקס",
+    "played": 6,
+    "wins": 1,
+    "draws": 1,
+    "losses": 4,
+    "goals_for": 6,
+    "goals_against": 10,
+    "points": 4
+   },
+   {
+    "team": "מכבי תל אביב",
+    "played": 6,
+    "wins": 1,
+    "draws": 1,
+    "losses": 4,
+    "goals_for": 4,
+    "goals_against": 12,
+    "points": 4
+   }
+  ]
+ },
+ "2011/12": {
+  "title": "הליגה האירופית - בית ה'",
+  "win_points": 3,
+  "notes": [
+   "שתי הראשונות העפילו לשלב הנוקאאוט."
+  ],
+  "source": "en.wikipedia: 2011–12 UEFA Europa League group stage",
+  "rows": [
+   {
+    "team": "בשיקטש",
+    "played": 6,
+    "wins": 4,
+    "draws": 0,
+    "losses": 2,
+    "goals_for": 13,
+    "goals_against": 7,
+    "points": 12
+   },
+   {
+    "team": "סטוק סיטי",
+    "played": 6,
+    "wins": 3,
+    "draws": 2,
+    "losses": 1,
+    "goals_for": 10,
+    "goals_against": 7,
+    "points": 11
+   },
+   {
+    "team": "דינמו קייב",
+    "played": 6,
+    "wins": 1,
+    "draws": 4,
+    "losses": 1,
+    "goals_for": 7,
+    "goals_against": 7,
+    "points": 7
+   },
+   {
+    "team": "מכבי תל אביב",
+    "played": 6,
+    "wins": 0,
+    "draws": 2,
+    "losses": 4,
+    "goals_for": 8,
+    "goals_against": 17,
+    "points": 2
+   }
+  ]
+ },
+ "2013/14": {
+  "title": "הליגה האירופית - בית ו'",
+  "win_points": 3,
+  "notes": [
+   "שתי הראשונות העפילו לשלב הנוקאאוט."
+  ],
+  "source": "en.wikipedia: 2013–14 UEFA Europa League group stage",
+  "rows": [
+   {
+    "team": "איינטרכט פרנקפורט",
+    "played": 6,
+    "wins": 5,
+    "draws": 0,
+    "losses": 1,
+    "goals_for": 13,
+    "goals_against": 4,
+    "points": 15
+   },
+   {
+    "team": "מכבי תל אביב",
+    "played": 6,
+    "wins": 3,
+    "draws": 2,
+    "losses": 1,
+    "goals_for": 7,
+    "goals_against": 5,
+    "points": 11
+   },
+   {
+    "team": "אפואל ניקוסיה",
+    "played": 6,
+    "wins": 1,
+    "draws": 2,
+    "losses": 3,
+    "goals_for": 3,
+    "goals_against": 8,
+    "points": 5
+   },
+   {
+    "team": "בורדו",
+    "played": 6,
+    "wins": 1,
+    "draws": 0,
+    "losses": 5,
+    "goals_for": 4,
+    "goals_against": 10,
+    "points": 3
+   }
+  ]
+ },
+ "2015/16": {
+  "title": "ליגת האלופות - בית ז'",
+  "win_points": 3,
+  "notes": [
+   "שתי הראשונות העפילו לשמינית הגמר, השלישית עברה לליגה האירופית."
+  ],
+  "source": "en.wikipedia: 2015–16 UEFA Champions League group stage",
+  "rows": [
+   {
+    "team": "צלסי",
+    "played": 6,
+    "wins": 4,
+    "draws": 1,
+    "losses": 1,
+    "goals_for": 13,
+    "goals_against": 3,
+    "points": 13
+   },
+   {
+    "team": "דינמו קייב",
+    "played": 6,
+    "wins": 3,
+    "draws": 2,
+    "losses": 1,
+    "goals_for": 8,
+    "goals_against": 4,
+    "points": 11
+   },
+   {
+    "team": "פורטו",
+    "played": 6,
+    "wins": 3,
+    "draws": 1,
+    "losses": 2,
+    "goals_for": 9,
+    "goals_against": 8,
+    "points": 10
+   },
+   {
+    "team": "מכבי תל אביב",
+    "played": 6,
+    "wins": 0,
+    "draws": 0,
+    "losses": 6,
+    "goals_for": 1,
+    "goals_against": 16,
+    "points": 0
+   }
+  ]
+ },
+ "2016/17": {
+  "title": "הליגה האירופית - בית ד'",
+  "win_points": 3,
+  "notes": [
+   "שתי הראשונות העפילו לשלב הנוקאאוט."
+  ],
+  "source": "en.wikipedia: 2016–17 UEFA Europa League group stage",
+  "rows": [
+   {
+    "team": "זניט סנקט פטרבורג",
+    "played": 6,
+    "wins": 5,
+    "draws": 0,
+    "losses": 1,
+    "goals_for": 17,
+    "goals_against": 8,
+    "points": 15
+   },
+   {
+    "team": "אלקמאר",
+    "played": 6,
+    "wins": 2,
+    "draws": 2,
+    "losses": 2,
+    "goals_for": 6,
+    "goals_against": 10,
+    "points": 8
+   },
+   {
+    "team": "מכבי תל אביב",
+    "played": 6,
+    "wins": 2,
+    "draws": 1,
+    "losses": 3,
+    "goals_for": 7,
+    "goals_against": 9,
+    "points": 7
+   },
+   {
+    "team": "דאנדלק",
+    "played": 6,
+    "wins": 1,
+    "draws": 1,
+    "losses": 4,
+    "goals_for": 5,
+    "goals_against": 8,
+    "points": 4
+   }
+  ]
+ },
+ "2017/18": {
+  "title": "הליגה האירופית - בית א'",
+  "win_points": 3,
+  "notes": [
+   "שתי הראשונות העפילו לשלב הנוקאאוט."
+  ],
+  "source": "en.wikipedia: 2017–18 UEFA Europa League group stage",
+  "rows": [
+   {
+    "team": "ויאריאל",
+    "played": 6,
+    "wins": 3,
+    "draws": 2,
+    "losses": 1,
+    "goals_for": 10,
+    "goals_against": 6,
+    "points": 11
+   },
+   {
+    "team": "אסטנה",
+    "played": 6,
+    "wins": 3,
+    "draws": 1,
+    "losses": 2,
+    "goals_for": 10,
+    "goals_against": 7,
+    "points": 10
+   },
+   {
+    "team": "סלביה פראג",
+    "played": 6,
+    "wins": 2,
+    "draws": 2,
+    "losses": 2,
+    "goals_for": 6,
+    "goals_against": 6,
+    "points": 8
+   },
+   {
+    "team": "מכבי תל אביב",
+    "played": 6,
+    "wins": 1,
+    "draws": 1,
+    "losses": 4,
+    "goals_for": 1,
+    "goals_against": 8,
+    "points": 4
+   }
+  ]
+ },
+ "2020/21": {
+  "title": "הליגה האירופית - בית ט'",
+  "win_points": 3,
+  "notes": [
+   "שתי הראשונות העפילו לשלב הנוקאאוט."
+  ],
+  "source": "en.wikipedia: 2020–21 UEFA Europa League group stage",
+  "rows": [
+   {
+    "team": "ויאריאל",
+    "played": 6,
+    "wins": 5,
+    "draws": 1,
+    "losses": 0,
+    "goals_for": 17,
+    "goals_against": 5,
+    "points": 16
+   },
+   {
+    "team": "מכבי תל אביב",
+    "played": 6,
+    "wins": 3,
+    "draws": 2,
+    "losses": 1,
+    "goals_for": 6,
+    "goals_against": 7,
+    "points": 11
+   },
+   {
+    "team": "סיבאספור",
+    "played": 6,
+    "wins": 2,
+    "draws": 0,
+    "losses": 4,
+    "goals_for": 9,
+    "goals_against": 11,
+    "points": 6
+   },
+   {
+    "team": "קרבאח",
+    "played": 6,
+    "wins": 0,
+    "draws": 1,
+    "losses": 5,
+    "goals_for": 4,
+    "goals_against": 13,
+    "points": 1
+   }
+  ]
+ },
+ "2021/22": {
+  "title": "הליגה האזורית - בית א'",
+  "win_points": 3,
+  "notes": [
+   "המנצחת העפילה לשמינית הגמר, השנייה לפלייאוף הנוקאאוט."
+  ],
+  "source": "en.wikipedia: 2021–22 UEFA Europa Conference League group stage",
+  "rows": [
+   {
+    "team": "לאסק",
+    "played": 6,
+    "wins": 5,
+    "draws": 1,
+    "losses": 0,
+    "goals_for": 12,
+    "goals_against": 1,
+    "points": 16
+   },
+   {
+    "team": "מכבי תל אביב",
+    "played": 6,
+    "wins": 3,
+    "draws": 2,
+    "losses": 1,
+    "goals_for": 14,
+    "goals_against": 4,
+    "points": 11
+   },
+   {
+    "team": "ה.י.ק. הלסינקי",
+    "played": 6,
+    "wins": 2,
+    "draws": 0,
+    "losses": 4,
+    "goals_for": 5,
+    "goals_against": 15,
+    "points": 6
+   },
+   {
+    "team": "אלשקרט",
+    "played": 6,
+    "wins": 0,
+    "draws": 1,
+    "losses": 5,
+    "goals_for": 4,
+    "goals_against": 15,
+    "points": 1
+   }
+  ]
+ },
+ "2023/24": {
+  "title": "הליגה האזורית - בית ב'",
+  "win_points": 3,
+  "notes": [
+   "המנצחת העפילה לשמינית הגמר, השנייה לפלייאוף הנוקאאוט."
+  ],
+  "source": "en.wikipedia: 2023–24 UEFA Europa Conference League group stage",
+  "rows": [
+   {
+    "team": "מכבי תל אביב",
+    "played": 6,
+    "wins": 5,
+    "draws": 0,
+    "losses": 1,
+    "goals_for": 14,
+    "goals_against": 9,
+    "points": 15
+   },
+   {
+    "team": "גנט",
+    "played": 6,
+    "wins": 4,
+    "draws": 1,
+    "losses": 1,
+    "goals_for": 16,
+    "goals_against": 7,
+    "points": 13
+   },
+   {
+    "team": "זוריה",
+    "played": 6,
+    "wins": 2,
+    "draws": 1,
+    "losses": 3,
+    "goals_for": 10,
+    "goals_against": 11,
+    "points": 7
+   },
+   {
+    "team": "בריידבליק",
+    "played": 6,
+    "wins": 0,
+    "draws": 0,
+    "losses": 6,
+    "goals_for": 5,
+    "goals_against": 18,
+    "points": 0
+   }
+  ]
+ },
+ "2024/25": {
+  "title": "הליגה האירופית - שלב הליגה",
+  "win_points": 3,
+  "notes": [
+   "מקומות 1-8 העפילו לשמינית הגמר, מקומות 9-24 לפלייאוף הנוקאאוט."
+  ],
+  "source": "en.wikipedia: 2024–25 UEFA Europa League league phase",
+  "rows": [
+   {
+    "team": "לאציו",
+    "played": 8,
+    "wins": 6,
+    "draws": 1,
+    "losses": 1,
+    "goals_for": 17,
+    "goals_against": 5,
+    "points": 19
+   },
+   {
+    "team": "אתלטיק בילבאו",
+    "played": 8,
+    "wins": 6,
+    "draws": 1,
+    "losses": 1,
+    "goals_for": 15,
+    "goals_against": 7,
+    "points": 19
+   },
+   {
+    "team": "מנצ'סטר יונייטד",
+    "played": 8,
+    "wins": 5,
+    "draws": 3,
+    "losses": 0,
+    "goals_for": 16,
+    "goals_against": 9,
+    "points": 18
+   },
+   {
+    "team": "טוטנהאם",
+    "played": 8,
+    "wins": 5,
+    "draws": 2,
+    "losses": 1,
+    "goals_for": 17,
+    "goals_against": 9,
+    "points": 17
+   },
+   {
+    "team": "איינטרכט פרנקפורט",
+    "played": 8,
+    "wins": 5,
+    "draws": 1,
+    "losses": 2,
+    "goals_for": 14,
+    "goals_against": 10,
+    "points": 16
+   },
+   {
+    "team": "אולימפיק ליון",
+    "played": 8,
+    "wins": 4,
+    "draws": 3,
+    "losses": 1,
+    "goals_for": 16,
+    "goals_against": 8,
+    "points": 15
+   },
+   {
+    "team": "אולימפיאקוס",
+    "played": 8,
+    "wins": 4,
+    "draws": 3,
+    "losses": 1,
+    "goals_for": 9,
+    "goals_against": 3,
+    "points": 15
+   },
+   {
+    "team": "ריינג'רס",
+    "played": 8,
+    "wins": 4,
+    "draws": 2,
+    "losses": 2,
+    "goals_for": 16,
+    "goals_against": 10,
+    "points": 14
+   },
+   {
+    "team": "בודה גלימט",
+    "played": 8,
+    "wins": 4,
+    "draws": 2,
+    "losses": 2,
+    "goals_for": 14,
+    "goals_against": 11,
+    "points": 14
+   },
+   {
+    "team": "אנדרלכט",
+    "played": 8,
+    "wins": 4,
+    "draws": 2,
+    "losses": 2,
+    "goals_for": 14,
+    "goals_against": 12,
+    "points": 14
+   },
+   {
+    "team": "סטיאווה בוקרשט",
+    "played": 8,
+    "wins": 4,
+    "draws": 2,
+    "losses": 2,
+    "goals_for": 10,
+    "goals_against": 9,
+    "points": 14
+   },
+   {
+    "team": "אייאקס",
+    "played": 8,
+    "wins": 4,
+    "draws": 1,
+    "losses": 3,
+    "goals_for": 16,
+    "goals_against": 8,
+    "points": 13
+   },
+   {
+    "team": "ריאל סוסיאדד",
+    "played": 8,
+    "wins": 4,
+    "draws": 1,
+    "losses": 3,
+    "goals_for": 13,
+    "goals_against": 9,
+    "points": 13
+   },
+   {
+    "team": "גלאטסראיי",
+    "played": 8,
+    "wins": 3,
+    "draws": 4,
+    "losses": 1,
+    "goals_for": 19,
+    "goals_against": 16,
+    "points": 13
+   },
+   {
+    "team": "רומא",
+    "played": 8,
+    "wins": 3,
+    "draws": 3,
+    "losses": 2,
+    "goals_for": 10,
+    "goals_against": 6,
+    "points": 12
+   },
+   {
+    "team": "ויקטוריה פלזן",
+    "played": 8,
+    "wins": 3,
+    "draws": 3,
+    "losses": 2,
+    "goals_for": 13,
+    "goals_against": 12,
+    "points": 12
+   },
+   {
+    "team": "פרנצווארוש",
+    "played": 8,
+    "wins": 4,
+    "draws": 0,
+    "losses": 4,
+    "goals_for": 15,
+    "goals_against": 15,
+    "points": 12
+   },
+   {
+    "team": "פורטו",
+    "played": 8,
+    "wins": 3,
+    "draws": 2,
+    "losses": 3,
+    "goals_for": 13,
+    "goals_against": 11,
+    "points": 11
+   },
+   {
+    "team": "אלקמאר",
+    "played": 8,
+    "wins": 3,
+    "draws": 2,
+    "losses": 3,
+    "goals_for": 13,
+    "goals_against": 13,
+    "points": 11
+   },
+   {
+    "team": "מיטיולן",
+    "played": 8,
+    "wins": 3,
+    "draws": 2,
+    "losses": 3,
+    "goals_for": 9,
+    "goals_against": 9,
+    "points": 11
+   },
+   {
+    "team": "יוניון סן ז'ילואז",
+    "played": 8,
+    "wins": 3,
+    "draws": 2,
+    "losses": 3,
+    "goals_for": 8,
+    "goals_against": 8,
+    "points": 11
+   },
+   {
+    "team": "פאוק סלוניקי",
+    "played": 8,
+    "wins": 3,
+    "draws": 1,
+    "losses": 4,
+    "goals_for": 12,
+    "goals_against": 10,
+    "points": 10
+   },
+   {
+    "team": "טוונטה",
+    "played": 8,
+    "wins": 2,
+    "draws": 4,
+    "losses": 2,
+    "goals_for": 8,
+    "goals_against": 9,
+    "points": 10
+   },
+   {
+    "team": "פנרבחצה",
+    "played": 8,
+    "wins": 2,
+    "draws": 4,
+    "losses": 2,
+    "goals_for": 9,
+    "goals_against": 11,
+    "points": 10
+   },
+   {
+    "team": "בראגה",
+    "played": 8,
+    "wins": 3,
+    "draws": 1,
+    "losses": 4,
+    "goals_for": 9,
+    "goals_against": 12,
+    "points": 10
+   },
+   {
+    "team": "אלפסבורג",
+    "played": 8,
+    "wins": 3,
+    "draws": 1,
+    "losses": 4,
+    "goals_for": 9,
+    "goals_against": 14,
+    "points": 10
+   },
+   {
+    "team": "הופנהיים",
+    "played": 8,
+    "wins": 2,
+    "draws": 3,
+    "losses": 3,
+    "goals_for": 11,
+    "goals_against": 14,
+    "points": 9
+   },
+   {
+    "team": "בשיקטש",
+    "played": 8,
+    "wins": 3,
+    "draws": 0,
+    "losses": 5,
+    "goals_for": 10,
+    "goals_against": 15,
+    "points": 9
+   },
+   {
+    "team": "מכבי תל אביב",
+    "played": 8,
+    "wins": 2,
+    "draws": 0,
+    "losses": 6,
+    "goals_for": 8,
+    "goals_against": 17,
+    "points": 6
+   },
+   {
+    "team": "סלביה פראג",
+    "played": 8,
+    "wins": 1,
+    "draws": 2,
+    "losses": 5,
+    "goals_for": 7,
+    "goals_against": 11,
+    "points": 5
+   },
+   {
+    "team": "מאלמה",
+    "played": 8,
+    "wins": 1,
+    "draws": 2,
+    "losses": 5,
+    "goals_for": 10,
+    "goals_against": 17,
+    "points": 5
+   },
+   {
+    "team": "ר.פ.ס ריגה",
+    "played": 8,
+    "wins": 1,
+    "draws": 2,
+    "losses": 5,
+    "goals_for": 6,
+    "goals_against": 13,
+    "points": 5
+   },
+   {
+    "team": "לודוגורץ",
+    "played": 8,
+    "wins": 0,
+    "draws": 4,
+    "losses": 4,
+    "goals_for": 4,
+    "goals_against": 11,
+    "points": 4
+   },
+   {
+    "team": "דינמו קייב",
+    "played": 8,
+    "wins": 1,
+    "draws": 1,
+    "losses": 6,
+    "goals_for": 5,
+    "goals_against": 18,
+    "points": 4
+   },
+   {
+    "team": "ניס",
+    "played": 8,
+    "wins": 0,
+    "draws": 3,
+    "losses": 5,
+    "goals_for": 7,
+    "goals_against": 16,
+    "points": 3
+   },
+   {
+    "team": "קרבאח",
+    "played": 8,
+    "wins": 1,
+    "draws": 0,
+    "losses": 7,
+    "goals_for": 6,
+    "goals_against": 20,
+    "points": 3
+   }
+  ]
+ },
+ "2025/26": {
+  "title": "הליגה האירופית - שלב הליגה",
+  "win_points": 3,
+  "notes": [
+   "מקומות 1-8 העפילו לשמינית הגמר, מקומות 9-24 לפלייאוף הנוקאאוט."
+  ],
+  "source": "en.wikipedia: 2025–26 UEFA Europa League league phase",
+  "rows": [
+   {
+    "team": "אולימפיק ליון",
+    "played": 8,
+    "wins": 7,
+    "draws": 0,
+    "losses": 1,
+    "goals_for": 18,
+    "goals_against": 5,
+    "points": 21
+   },
+   {
+    "team": "אסטון וילה",
+    "played": 8,
+    "wins": 7,
+    "draws": 0,
+    "losses": 1,
+    "goals_for": 14,
+    "goals_against": 6,
+    "points": 21
+   },
+   {
+    "team": "מיטיולן",
+    "played": 8,
+    "wins": 6,
+    "draws": 1,
+    "losses": 1,
+    "goals_for": 18,
+    "goals_against": 8,
+    "points": 19
+   },
+   {
+    "team": "ריאל בטיס",
+    "played": 8,
+    "wins": 5,
+    "draws": 2,
+    "losses": 1,
+    "goals_for": 13,
+    "goals_against": 7,
+    "points": 17
+   },
+   {
+    "team": "פורטו",
+    "played": 8,
+    "wins": 5,
+    "draws": 2,
+    "losses": 1,
+    "goals_for": 13,
+    "goals_against": 7,
+    "points": 17
+   },
+   {
+    "team": "בראגה",
+    "played": 8,
+    "wins": 5,
+    "draws": 2,
+    "losses": 1,
+    "goals_for": 11,
+    "goals_against": 5,
+    "points": 17
+   },
+   {
+    "team": "פרייבורג",
+    "played": 8,
+    "wins": 5,
+    "draws": 2,
+    "losses": 1,
+    "goals_for": 10,
+    "goals_against": 4,
+    "points": 17
+   },
+   {
+    "team": "רומא",
+    "played": 8,
+    "wins": 5,
+    "draws": 1,
+    "losses": 2,
+    "goals_for": 13,
+    "goals_against": 6,
+    "points": 16
+   },
+   {
+    "team": "גנק",
+    "played": 8,
+    "wins": 5,
+    "draws": 1,
+    "losses": 2,
+    "goals_for": 11,
+    "goals_against": 7,
+    "points": 16
+   },
+   {
+    "team": "בולוניה",
+    "played": 8,
+    "wins": 4,
+    "draws": 3,
+    "losses": 1,
+    "goals_for": 14,
+    "goals_against": 7,
+    "points": 15
+   },
+   {
+    "team": "שטוטגרט",
+    "played": 8,
+    "wins": 5,
+    "draws": 0,
+    "losses": 3,
+    "goals_for": 15,
+    "goals_against": 9,
+    "points": 15
+   },
+   {
+    "team": "פרנצווארוש",
+    "played": 8,
+    "wins": 4,
+    "draws": 3,
+    "losses": 1,
+    "goals_for": 12,
+    "goals_against": 11,
+    "points": 15
+   },
+   {
+    "team": "נוטינגהאם פורסט",
+    "played": 8,
+    "wins": 4,
+    "draws": 2,
+    "losses": 2,
+    "goals_for": 15,
+    "goals_against": 7,
+    "points": 14
+   },
+   {
+    "team": "ויקטוריה פלזן",
+    "played": 8,
+    "wins": 3,
+    "draws": 5,
+    "losses": 0,
+    "goals_for": 8,
+    "goals_against": 3,
+    "points": 14
+   },
+   {
+    "team": "הכוכב האדום בלגרד",
+    "played": 8,
+    "wins": 4,
+    "draws": 2,
+    "losses": 2,
+    "goals_for": 7,
+    "goals_against": 6,
+    "points": 14
+   },
+   {
+    "team": "סלטה ויגו",
+    "played": 8,
+    "wins": 4,
+    "draws": 1,
+    "losses": 3,
+    "goals_for": 15,
+    "goals_against": 11,
+    "points": 13
+   },
+   {
+    "team": "פאוק סלוניקי",
+    "played": 8,
+    "wins": 3,
+    "draws": 3,
+    "losses": 2,
+    "goals_for": 17,
+    "goals_against": 14,
+    "points": 12
+   },
+   {
+    "team": "ליל",
+    "played": 8,
+    "wins": 4,
+    "draws": 0,
+    "losses": 4,
+    "goals_for": 12,
+    "goals_against": 9,
+    "points": 12
+   },
+   {
+    "team": "פנרבחצה",
+    "played": 8,
+    "wins": 3,
+    "draws": 3,
+    "losses": 2,
+    "goals_for": 10,
+    "goals_against": 7,
+    "points": 12
+   },
+   {
+    "team": "פנאתינייקוס",
+    "played": 8,
+    "wins": 3,
+    "draws": 3,
+    "losses": 2,
+    "goals_for": 11,
+    "goals_against": 9,
+    "points": 12
+   },
+   {
+    "team": "סלטיק",
+    "played": 8,
+    "wins": 3,
+    "draws": 2,
+    "losses": 3,
+    "goals_for": 13,
+    "goals_against": 15,
+    "points": 11
+   },
+   {
+    "team": "לודוגורץ",
+    "played": 8,
+    "wins": 3,
+    "draws": 1,
+    "losses": 4,
+    "goals_for": 12,
+    "goals_against": 15,
+    "points": 10
+   },
+   {
+    "team": "דינמו זאגרב",
+    "played": 8,
+    "wins": 3,
+    "draws": 1,
+    "losses": 4,
+    "goals_for": 12,
+    "goals_against": 16,
+    "points": 10
+   },
+   {
+    "team": "בראן",
+    "played": 8,
+    "wins": 2,
+    "draws": 3,
+    "losses": 3,
+    "goals_for": 9,
+    "goals_against": 11,
+    "points": 9
+   },
+   {
+    "team": "יאנג בויז",
+    "played": 8,
+    "wins": 3,
+    "draws": 0,
+    "losses": 5,
+    "goals_for": 10,
+    "goals_against": 16,
+    "points": 9
+   },
+   {
+    "team": "שטורם גראץ",
+    "played": 8,
+    "wins": 2,
+    "draws": 1,
+    "losses": 5,
+    "goals_for": 5,
+    "goals_against": 11,
+    "points": 7
+   },
+   {
+    "team": "סטיאווה בוקרשט",
+    "played": 8,
+    "wins": 2,
+    "draws": 1,
+    "losses": 5,
+    "goals_for": 9,
+    "goals_against": 16,
+    "points": 7
+   },
+   {
+    "team": "גו אהד איגלס",
+    "played": 8,
+    "wins": 2,
+    "draws": 1,
+    "losses": 5,
+    "goals_for": 6,
+    "goals_against": 14,
+    "points": 7
+   },
+   {
+    "team": "פיינורד",
+    "played": 8,
+    "wins": 2,
+    "draws": 0,
+    "losses": 6,
+    "goals_for": 11,
+    "goals_against": 15,
+    "points": 6
+   },
+   {
+    "team": "פ.צ. באזל",
+    "played": 8,
+    "wins": 2,
+    "draws": 0,
+    "losses": 6,
+    "goals_for": 9,
+    "goals_against": 13,
+    "points": 6
+   },
+   {
+    "team": "רד בול זלצבורג",
+    "played": 8,
+    "wins": 2,
+    "draws": 0,
+    "losses": 6,
+    "goals_for": 10,
+    "goals_against": 15,
+    "points": 6
+   },
+   {
+    "team": "ריינג'רס",
+    "played": 8,
+    "wins": 1,
+    "draws": 1,
+    "losses": 6,
+    "goals_for": 5,
+    "goals_against": 14,
+    "points": 4
+   },
+   {
+    "team": "ניס",
+    "played": 8,
+    "wins": 1,
+    "draws": 0,
+    "losses": 7,
+    "goals_for": 7,
+    "goals_against": 15,
+    "points": 3
+   },
+   {
+    "team": "אוטרכט",
+    "played": 8,
+    "wins": 0,
+    "draws": 1,
+    "losses": 7,
+    "goals_for": 5,
+    "goals_against": 15,
+    "points": 1
+   },
+   {
+    "team": "מאלמה",
+    "played": 8,
+    "wins": 0,
+    "draws": 1,
+    "losses": 7,
+    "goals_for": 4,
+    "goals_against": 15,
+    "points": 1
+   },
+   {
+    "team": "מכבי תל אביב",
+    "played": 8,
+    "wins": 0,
+    "draws": 1,
+    "losses": 7,
+    "goals_for": 2,
+    "goals_against": 22,
+    "points": 1
+   }
+  ]
+ }
+}
