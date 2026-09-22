@@ -4,11 +4,11 @@
 
 | Sport | Game Format | Player/Coach Pages | Opponent Pages | Season Pages |
 |-------|-------------|-------------------|----------------|--------------|
-| **Football** | `משחק: DD-MM-YYYY [Home] נגד [Away] - [Competition]` | `Name` (main namespace) | `Name` (main namespace) | `עונת YYYY/YY` (main namespace) |
+| **Football** | `משחק:DD-MM-YYYY [Home] נגד [Away] - [Competition]` | `Name` (main namespace) | `Name` (main namespace) | `עונת YYYY/YY` (main namespace) |
 | **Basketball** | `כדורסל:DD-MM-YYYY [Home] נגד [Away] - [Competition]` | `כדורסל:Name` | `כדורסל:Name` | `כדורסל:עונת YYYY/YY` |
 | **Volleyball** | `כדורעף:DD-MM-YYYY [Home] נגד [Away] - [Competition]` | `כדורעף:Name` | `כדורעף:Name` | `כדורעף:עונת YYYY/YY` |
 
-> **Note:** Football game pages use `משחק: ` with a space after the colon (confirmed via Cargo API). Football player pages, coaches, referees, and stadiums all live in the **main namespace** with no prefix — e.g. `שגיב יחזקאל`, not `שחקן:שגיב יחזקאל`.
+> **Note:** Football game pages use `משחק:` with **no** space after the colon — as of 2026-09 only 2 `Football_Games` titles in Cargo have a space (`משחק: 11-11-1939 …`, `משחק: 07-02-1970 …`). The 1954 Lazio friendly was created with the space on 2026-09-22 and moved; see `.claude/adding_a_game.md`. Football player pages, coaches, referees, and stadiums all live in the **main namespace** with no prefix — e.g. `שגיב יחזקאל`, not `שחקן:שגיב יחזקאל`.
 
 > **Warning:** Some team names (e.g. `הפועל ירושלים`, `מכבי רחובות`) exist in **both** main namespace (as football pages) and `כדורעף:`/`כדורסל:` namespace. Always use the sport-specific prefix for volleyball/basketball operations.
 
@@ -143,7 +143,7 @@ Renaming a game page (wrong home/away orientation, a title typo, or an opponent-
    **Finding the files:** posters & tickets are named by the **match date**, so an ns=6 search for the game's `DD-MM-YYYY` finds them (and `<Sport>_Game_Posters WHERE gamePage='<old title>'` for posters). **Newspaper files are named by the PUBLICATION date, which routinely differs from the match date — a match-date search MISSES them**, and newspapers are the most numerous media type. Find newspaper coverage by searching ns=6 for the **opponent / game-title string**, or via the per-game category `עיתונות למשחק <sport> מה-<match-date>`. For each hit, edit its game-page param to the new title.
 4. **Series navigation** — sibling game pages point here via `משחק קודם בסדרה` / `משחק הבא בסדרה`. Update those to the new title.
 5. **Purge** (`forcelinkupdate`): the renamed page, every updated `File:` page, and all aggregators that list it via Cargo — season, opponent, stadium, competition, referee pages (§3) — plus `עמוד ראשי` and `פורטל שחקנים`. The season/opponent/stadium/referee/adjacent-date backlinks are Cargo/template-generated; they follow the move **only after a purge** and are NOT hardcoded breakage.
-6. **Verify** — `<Sport>_Games` Cargo shows exactly one row at the new title with the correct `HomeAway`; attached files now name the new title; and the media **tracking categories show no new members** (`כרזות משחק <sport> ללא תיוג משחק`, `כרטיסי משחק ללא תיוג משחק`, `עיתוני <sport> עם שיוך לא תקין למשחק`) — these collect files whose game-page param is missing or points at a non-existent title.
+6. **Verify** — `<Sport>_Games` Cargo shows exactly one row at the new title with the correct `HomeAway`; attached files now name the new title; and the media **tracking categories show no new members** (`כרזות משחק <sport> ללא תיוג משחק`, `כרטיסי משחק ללא תיוג משחק`, basketball/volleyball `עיתוני <sport> עם שיוך לא תקין למשחק`, football `קטעי עיתונות עם שיוך לא תקין למשחק`) — these collect files whose game-page param is missing or points at a non-existent title.
 
 **Finding rename-worthy games:** duplicates → `<Sport>_Games GROUP BY Date,Opponent,Competition HAVING COUNT(*)>1`; orientation/typo → reconstruct the expected title from (`Date`,`Opponent`,`Competition`,`HomeAway`) and diff against `_pageName`.
 

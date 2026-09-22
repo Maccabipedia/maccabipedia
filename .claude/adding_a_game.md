@@ -24,8 +24,9 @@ foreground, with `time.sleep(3)` between saves.
 | Newspaper template | `{{תיוג עיתונים}}` | `{{תיוג עיתוני כדורסל}}` | `{{תיוג עיתוני כדורעף}}` |
 | Reference code for the page text | an existing page of the same era | `basketball/gamesbot_basketball.py` | `volleyball/gamesbot_volleyball.py` |
 
-The newspaper param is `שיוך משחק` in every sport. Purge lists per sport are in
-`.claude/maccabipedia_structure_knowledge.md` §3.
+The newspaper param is `שיוך משחק` in every sport. Purge lists for football and
+volleyball are in `.claude/maccabipedia_structure_knowledge.md` §3; basketball has
+none there (see step 7).
 
 ## 1. Prove it is missing
 
@@ -56,7 +57,7 @@ The newspaper param is `שיוך משחק` in every sport. Purge lists per sport
   Lineup-box conventions are in `.claude/newspaper_archives.md`.
 - Pull out: score, goals + minutes + how (penalty / header), lineups, substitutions,
   referee, crowd, stadium. When papers disagree (e.g. crowd 14,000 vs "about
-  13,000"), take the match report and tell Roee about the other figure.
+  13,000"), take the match report and tell the maintainer about the other figure.
 
 ## 4. Resolve every name — never invent
 
@@ -66,7 +67,7 @@ The newspaper param is `שיוך משחק` in every sport. Purge lists per sport
 - Guests / loanees: the same events table wiki-wide, `PlayerName LIKE '%<surname>%'`.
 - Referee: the games table's referee column (see the table) `LIKE '%<surname>%'`.
   Maccabi coach: a nearby game's `CoachMaccabi` (same column in all three sports).
-- Opponent players: surname exactly as printed. Flag unclear ones for Roee instead
+- Opponent players: surname exactly as printed. Flag unclear ones for the maintainer instead
   of "correcting" them from memory.
 - Anything no source gives stays **blank**: kickoff time, the opponent's coach,
   kit, substitution minutes.
@@ -74,6 +75,14 @@ The newspaper param is `שיוך משחק` in every sport. Purge lists per sport
 ## 5. Write the game page (the canary)
 
 - Title as in the table, home team first, `בית חוץ=בית/חוץ/נייטרלי`.
+- **No space after the colon:** `משחק:29-08-1954 …`, never `משחק: 29-08-1954 …`.
+  On 2026-09-22 the 1954 Lazio friendly was created as `משחק: 29-08-1954 …` and
+  had to be moved 40 minutes later, which left a redirect behind. Two old
+  pages still carry the space (1939, 1970). Other code builds the spaced form too:
+  the older docs, the papers bot's `_generate_page_name_from_game`, and old
+  wikilinks such as the season-page prose. So assert the exact title in the save
+  script (`assert not title.startswith("משחק: ")`) instead of copying it from
+  those sources.
 - Copy the layout from an existing page of the same sport and era (basketball and
   volleyball: also check what their game bot writes). Football example:
   `משחק:05-12-1989 מכבי תל אביב נגד דינמו טביליסי - ידידות`, with friendlies as
@@ -84,7 +93,7 @@ The newspaper param is `שיוך משחק` in every sport. Purge lists per sport
   minute `0` when unknown. A goal from a rebound off the crossbar has no assist.
 - Save it with one pywikibot script that refuses to overwrite an existing page,
   then check the games-table row and the player-event rows in Cargo.
-- Show Roee the live page before touching anything else.
+- Show the maintainer the live page before touching anything else.
 
 ## 6. Newspapers: upload new scans, link existing ones
 
@@ -103,13 +112,23 @@ Basketball and volleyball use their own template from the table, with the same
 
 - **How many:** up to **2** newspapers for a regular game, and up to **5** for a
   special one: the game that clinched a championship, a cup final, and other
-  milestone games of that weight. Ask Roee when it's unclear whether a game counts
-  as special. Count the scans already linked to the game before adding more, and
-  pick the most informative ones (full match report and lineups first).
+  milestone games of that weight. Ask the maintainer when it's unclear whether a
+  game counts as special. The cap counts **every** newspaper file linked to the
+  game, whatever its `סיווג`, and whether it was already on the wiki or newly
+  uploaded. Count them before adding more: football files appear in the per-game
+  category `עיתונות למשחק מה-<day> ב<month> <year>`, and in any sport an ns=6
+  search for the game title finds the files whose `שיוך משחק` names it. Pick the
+  most informative ones (full match report and lineups first).
 - **Existing scan:** add `סיווג` and `שיוך משחק` inside the template, and keep the
   rest of the page unchanged.
-- **New scan:** name it `<paper> DD-MM-YYYY <opponent> (<publish date>).jpg`,
-  using the *game* date in the name and the publication date in brackets. Check
+- **`סיווג`:** the template accepts `טבלת ליגה`, `טבלת גביע`, `לקראת משחק`,
+  `סיקור משחק`, `רגע ממשחק`, `סיקור מחזור`, `הגרלת גביע`, `אחר`. A match report is
+  `סיקור משחק`; a preview is `לקראת משחק`.
+- **New scan:** name it `<paper> DD-MM-YYYY <opponent> (<DD-MM-YYYY publish date>).jpg`,
+  using the *game* date in the name and the publication date in brackets (older
+  files also use `DD.MM.YYYY` in the brackets). For a second page of the same paper
+  and day, add a number before the brackets: `<paper> DD-MM-YYYY <opponent> 2
+  (<publish date>).jpg`. The `תאריך פרסום` param takes `DD-MM-YYYY`. Check
   the name is not taken, then upload with MCP `upload_file(filename, file_path, text,
   comment)` (a requests multipart post). Do **not** use
   `football/papers/upload_games_papers_bot.py` for this: it calls
@@ -119,14 +138,19 @@ Basketball and volleyball use their own template from the table, with the same
 - `שיוך משחק` must be the exact title of the game page. Verify that the file's
   categories include the per-game one (football:
   `עיתונות למשחק מה-<day> ב<month> <year>`) and that its name appears in the game
-  page's parsed HTML. A wrong title lands the file in the tracking category
+  page's parsed HTML. A wrong title lands the file in a tracking category:
+  football `קטעי עיתונות עם שיוך לא תקין למשחק` (and an empty param
+  `קטעי עיתונות ללא שיוך למשחק`); basketball/volleyball
   `עיתוני <sport> עם שיוך לא תקין למשחק`.
 
 ## 7. Purge and report
 
-- Purge the pages listed for the sport in the structure-knowledge file §3. For
-  football that is the game, the season, the stadium, the competition, the Maccabi
-  coach, the referee and every Maccabi player with a profile. Use `site.purgepages(...,
+- Purge the game page, the newspaper files you touched, and the pages listed in
+  the structure-knowledge file §3. For football that is the opponent, the season,
+  the competition, the stadium, every Maccabi player with a profile, both coaches
+  and the referee. §3 has no basketball list and the basketball bot has no purge
+  logic (only the videos bot purges, and only season pages), so for basketball purge the same kinds of pages under the `כדורסל:`
+  prefix. Use `site.purgepages(...,
   forcelinkupdate=True)` in batches of 10 and skip pages that don't exist.
 - Trello: comment the page link, the sources, the names left unclear and the fields
-  left blank. Move the card only once Roee says so.
+  left blank. Move the card only once the maintainer says so.
