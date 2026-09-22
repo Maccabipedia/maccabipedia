@@ -90,6 +90,7 @@ Wiki page with full list: `https://www.maccabipedia.co.il/מקורות_שימו�
   - National League champions: https://www.safsal.co.il/h2580
   - National League historic records: https://www.safsal.co.il/h2576
 - EuroLeague Official: https://www.euroleaguebasketball.net/en/euroleague/teams/maccabi-rapyd-tel-aviv/tel/ — stats, rosters, results, records
+- EuroLeague data API (plain JSON, no Vercel challenge, works for old seasons back to at least `E2003`): `https://api-live.euroleague.net/v2/competitions/E/seasons/E<start-year>/games/<gameCode>` gives `localDate` (tip-off in local time), `audience`, `referee1..3` (1 = main) and quarter partials; `.../v3/competitions/E/seasons/E<start-year>/games/<gameCode>/stats` gives the full box score per player. The `gameCode` is the number at the end of the game-center URL (e.g. the 2004 final is `E2003/220`). The old `live.euroleague.net/api/Boxscore` returns an empty body for old seasons.
 - basket.co.il (Israeli Basketball Association): https://basket.co.il/team.asp?TeamId=1096&lang=en — official league stats per season (~2000-01+)
 
 **Rosters & players:**
