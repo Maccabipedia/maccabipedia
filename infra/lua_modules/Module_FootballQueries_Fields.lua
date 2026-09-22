@@ -39,10 +39,6 @@ return {
 		-- and nothing is narrowed. (Worded carefully: the wiki's firewall
 		-- refuses a body that mentions a SQL clause next to a set operation.)
 		narrowFilter = 'מספר אירוע',
-		-- TRANSITIONAL (see the note above competitionCategories below): the
-		-- logic live before this schema reads it; the new logic derives it from
-		-- the tables' grain.
-		events = 'Games_Events',
 	},
 
 	-- What a leaderboard may rank. A query option, so English, like groupBy.
@@ -159,8 +155,7 @@ return {
 		-- תוצאה in words to Football_Games.ResultOpt, read from the Games_Results
 		-- table on production. תבנית:המרות/תוצאת משחק למספר spends a Cargo query
 		-- to look these three rows up; they are constant, so this layer does not.
-		-- (`column` is TRANSITIONAL: the logic live before this schema reads it.)
-		['תוצאה'] = { kind = 'resultWord', column = 'Football_Games.ResultOpt', choices = {
+		['תוצאה'] = { kind = 'resultWord', choices = {
 			['ניצחון'] = 'Football_Games.ResultOpt = 1',
 			['תיקו'] = 'Football_Games.ResultOpt = 2',
 			['הפסד'] = 'Football_Games.ResultOpt = 3',
@@ -178,24 +173,6 @@ return {
 		['פורמט תאריך'] = { kind = 'modifier' },
 	},
 
-	-- TRANSITIONAL, remove once Module:SportQueries reads `choices` above and
-	-- `grain` on the tables (the PR after the one that added this note). The
-	-- logic live on the wiki while this schema is published still reads these
-	-- (and roles.events above); keeping them lets the schema go out first and the logic second
-	-- with no window in which football pages error.
-	competitionCategories = {
-		['ליגה'] = 'Competitions.League = 1',
-		['גביע'] = 'Competitions.Trophy = 1',
-		['בינלאומי'] = 'Competitions.International = 1',
-		['רשמי'] = 'Competitions.Official = 1',
-		['יתר-רשמיים'] = '(Competitions.Official = 1 AND Competitions.League = 0'
-			.. ' AND Competitions.Trophy = 0 AND Competitions.International = 0)',
-	},
-	resultWords = {
-		['ניצחון'] = 1,
-		['תיקו'] = 2,
-		['הפסד'] = 3,
-	},
 	-- Alias expansion. One stadium or club is stored under several names, so a
 	-- filter on either has to become an IN over every related name. Both are
 	-- self-joins, and they are not symmetrical - the stadium table relates rows
