@@ -3,7 +3,7 @@
 The 104 `עונת …` pages render through `תבנית:עונת כדורגל`. A cold parse on
 production took ~4 s for 2024/25 and ~6 s for 1966/68 (September 2026). The
 leaderboards were converted first (`Module:FootballStatsBlock`, block `season`
-— see `.claude/football_queries.md`, "Leaderboards"). This file covers the rest,
+— see `.claude/lua_modules.md`, "Leaderboards"). This file covers the rest,
 and the tools in `infra/season_pages/`.
 
 ## Where the time goes (production, per block, 2024/25 / 2005/06 / 1985/86 ms)
@@ -100,7 +100,7 @@ read its eight numbers with `value`; every bit of formatting (percentages,
 templates, so the output must be **byte-identical**. `--sandbox` writes the pair
 under `/ארגז חול`; `compare_season_numbers.py` renders old beside sandbox.
 
-**Rollout, in order:** publish the modules (Gate A, as in football_queries.md)
+**Rollout, in order:** publish the modules (Gate A, as in lua_modules.md)
 → write the two sandbox pages on production → `compare_season_numbers.py --wiki
 prod` over every season → edit the **container first** (priming alone is
 harmless), **then** the tab, back to back → check. Revert in the reverse order:

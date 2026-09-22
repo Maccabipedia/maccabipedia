@@ -203,7 +203,7 @@ Each event is one pipe-separated entry in the `|אירועי שחקנים=` para
 | Cards | `כרטיס צהוב`, `כרטיס צהוב-ראשון`, `כרטיס צהוב-שני`, `כרטיס אדום` | 7 / 71, 74, 72, 73 |
 | Other | `קפטן` | 9 |
 
-Names come from the wiki's `Games_Events_Mapping` / `Games_Sub_Events_Mapping` tables. Watch out: the mapping names 71 "כרטיס צהוב ראשון", but 71 is the plain `כרטיס צהוב`, and `כרטיס צהוב-ראשון` is 74. maccabistats' `parse/maccabipedia/maccabipedia_parser.py` maps them to `YELLOW_CARD` / `FIRST_YELLOW_CARD` / `SECOND_YELLOW_CARD` / `RED_CARD`. The full subtype matrix is in `.claude/football_queries.md`.
+Names come from the wiki's `Games_Events_Mapping` / `Games_Sub_Events_Mapping` tables. Watch out: the mapping names 71 "כרטיס צהוב ראשון", but 71 is the plain `כרטיס צהוב`, and `כרטיס צהוב-ראשון` is 74. maccabistats' `parse/maccabipedia/maccabipedia_parser.py` maps them to `YELLOW_CARD` / `FIRST_YELLOW_CARD` / `SECOND_YELLOW_CARD` / `RED_CARD`. The full subtype matrix is in `.claude/lua_modules.md`.
 
 **Two-yellows sending-off:** written as `כרטיס צהוב-ראשון` + `כרטיס צהוב-שני`, with **no** separate `כרטיס אדום`. The club site shows it as one `yellow-red.png` icon on the squad page plus a `secondyellow` event on the events page (which lists events **newest first**); its parser maps both to `FIRST/SECOND_YELLOW_CARD`.
 
@@ -660,4 +660,4 @@ Unmatched rows survive with NULL columns (82 games have no `Competitions` row:
 So dropping an unused join changes nothing for the first three, and joining
 `Games_Events` when you only wanted games multiplies every count.
 
-See `.claude/football_queries.md` for the Lua layer built on these facts.
+See `.claude/lua_modules.md` for the Lua layer built on these facts.

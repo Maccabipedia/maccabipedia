@@ -14,7 +14,7 @@ REAL wrapper templates and the real invoke, for every season in the local
 data, and compares each box and tab: title, heading (with its distinct-player
 count), the ranked rows, and whether there is an "עוד" link. Shares its
 comparison rules with compare_referee_leaderboards.py (same allowed
-differences, §4.5 of the referee spec; see .claude/football_queries.md,
+differences, §4.5 of the referee spec; see .claude/lua_modules.md,
 "Leaderboards"):
 
   1. tied players may be ordered differently, and at the top-10 boundary a
