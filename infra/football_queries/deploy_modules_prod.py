@@ -60,6 +60,7 @@ MODULES = {
     'Module_FootballSeasonTable.lua': 'Module:FootballSeasonTable',
     'Module_FootballPlayerStats.lua': 'Module:FootballPlayerStats',
     'Module_FootballDate.lua': 'Module:FootballDate',
+    'Module_SeasonTrophies.lua': 'Module:SeasonTrophies',
 }
 
 # The documentation that goes with them. Wikitext, inert, and the standard
@@ -79,7 +80,7 @@ DOCS = {
     'Module_FootballSeasonSquad_tiud.wiki': 'Module:FootballSeasonSquad/תיעוד',
 }
 
-SUMMARY = ('עדכון יחידות סטטיסטיקת הכדורגל '
+SUMMARY = ('עדכון יחידות לואה '
            '(deployed from infra/football_queries)')
 
 
