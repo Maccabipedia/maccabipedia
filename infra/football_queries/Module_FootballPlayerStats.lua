@@ -34,8 +34,11 @@ local CATEGORIES = {
 	['ליגה'] = 'Competitions.League = 1',
 	['גביע'] = 'Competitions.Trophy = 1',
 	['בינלאומי'] = 'Competitions.International = 1',
-	['יתר-רשמיים'] = '(Competitions.Official = 1 AND Competitions.League = 0'
-		.. ' AND Competitions.Trophy = 0 AND Competitions.International = 0)',
+	-- No parentheses: Cargo's field parser reads `WHEN (` as a call to a
+	-- function WHEN() and refuses the query. Every condition here is a chain
+	-- of ANDs, so none are needed.
+	['יתר-רשמיים'] = 'Competitions.Official = 1 AND Competitions.League = 0'
+		.. ' AND Competitions.Trophy = 0 AND Competitions.International = 0',
 }
 local CATEGORY_ORDER = { 'רשמי', 'ליגה', 'גביע', 'בינלאומי', 'יתר-רשמיים' }
 
