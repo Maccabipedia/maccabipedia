@@ -80,6 +80,13 @@ template is also on **`עמוד ראשי`** (97 transcluders: 96 seasons + the m
 page); the main page is not deterministic enough to byte-diff, so look at it
 after the edit.
 
+**The title-win check** (`{{#dpl: |category=משחקי זכייה בתואר (כדורגל)
+|titlematch=…}}`) passed the Cargo-encoded `PageName` straight to `titlematch`,
+so no בית"ר title win showed its trophy. Fixed on production 2026-09-22
+(revision after 206134) by decoding `&quot;` as the icons above do; verified
+with TemplateSandbox on the six seasons holding such a game (1946/47, 1976/77,
+1979/80, 1995/96, 1998/99, 2024/25): 6 icons restored, none added elsewhere.
+
 ## Change 2 — מספרים עונתיים from 2 queries instead of 32
 
 Blocks `season-results` (wins, draws, losses, goals for/against, clean sheets)
