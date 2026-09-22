@@ -153,6 +153,8 @@ Renaming a game page (wrong home/away orientation, a title typo, or an opponent-
 **Fan Songs** (`שיר:` namespace, template `{{שיר}}`):
 - Parameters: `קטגוריה`, `שם השיר`, `עונת בכורה`, `על השיר`, `ביצוע לשיר`, `מילים`
 
+**SEO / OpenGraph metadata** (WikiSEO): the only `{{#seo:}}` call is in `תבנית:מטה נתונים על העמוד` (title in `title_mode=replace`, description, keywords, image). Per-entity wrappers call it: `שיר/מטה נתונים על העמוד` (from `{{שיר}}`; title `שיר: <name> – מכביפדיה`, image always the default logo), `פרופיל/מטה נתונים על העמוד` (from `{{פרופיל}}`), `קטלוג משחקים/מטה נתונים על העמוד`. **`פרופיל כדורגל` (football player pages) never calls it** — those pages get only WikiSEO defaults (page title, logo, no description). Pages with no `#seo` call still get og tags from the defaults. To check what a page sets, `action=parse&prop=properties` lists the `title`/`description`/`keywords` page props; `prop=headhtml` does NOT include WikiSEO's tags — fetch the rendered page for those.
+
 ## 9. Football Player Events (`|אירועי שחקנים=`)
 
 Each event is one pipe-separated entry in the `|אירועי שחקנים=` parameter of `קטלוג משחקים`.
