@@ -21,7 +21,7 @@ game count by the number of events on the page, up to 43x, and the result looks
 like a plausible number.
 ]]
 
-return {
+local blocks = {
 	-- תבנית:סטטיסטיקה/תצוגה/שחקנים/סיכום אירועים לפי מפעל
 	['player-events'] = {
 		-- The parameter that identifies WHAT the block is about, and therefore
@@ -263,3 +263,27 @@ return {
 		},
 	},
 }
+
+local function copied(value)
+	if type(value) ~= 'table' then
+		return value
+	end
+	local copy = {}
+	for key, item in pairs(value) do
+		copy[key] = copied(item)
+	end
+	return copy
+end
+
+-- The four leaderboard boxes on a stadium page (תבנית:אצטדיון כדורגל). Its
+-- boxes are the season page's: both call the same four
+-- `סטטיסטיקה/תצוגה/שחקנים/שיאני …/עיצוב חדש` templates (read 2026-09-22), so
+-- only the filter differs - the stadium's names, as the IN list the templates
+-- build from אצטדיונים לשליפה. Derived rather than copied, so the two cannot
+-- drift apart. A copy, not a shared reference: loadData hands the renderer a
+-- proxy it materialises table by table.
+blocks['stadium'] = copied(blocks['season'])
+blocks['stadium'].entity = 'אצטדיונים'
+blocks['stadium'].entityFilter = 'אצטדיונים'
+
+return blocks

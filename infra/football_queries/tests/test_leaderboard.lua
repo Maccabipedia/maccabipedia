@@ -516,5 +516,100 @@ check('the season box wrappers carry no attribute beyond the class', function()
 	end
 end)
 
+-- ------------------------------------------------------ stadium leaderboard
+
+-- The season block with the stadium's names as its filter: a stadium page
+-- calls the same four box templates, filtered by
+-- Football_Games.Stadium IN (every name the stadium was known by).
+local function stadiumFrame(names, extra)
+	local direct = { ['בלוק'] = 'stadium', ['אצטדיונים'] = names }
+	for key, value in pairs(extra or {}) do
+		direct[key] = value
+	end
+	return stub.newFrame({}, direct)
+end
+
+check('the stadium widget: one query over every name, four boxes', function()
+	local html = widget().leaderboards(stadiumFrame('אצטדיון בלומפילד, בלומפילד'))
+	equals(#stub.calls, 1, 'one query for all 16 leaderboards - no alias lookup')
+	equals(#stub.extensionTags, 4, 'a tabber per box')
+	contains(stub.calls[1].options.where,
+		'Football_Games.Stadium IN ("אצטדיון בלומפילד", "בלומפילד")',
+		'the names become one IN list, each name trimmed')
+	contains(stub.calls[1].options.where, 'Competitions.Official = 1',
+		'every tab under Official = 1, as the templates had it')
+	local tags = wrappersOf(html)
+	equals(#tags, 4, 'one wrapper per box')
+	for _, tag in ipairs(tags) do
+		equals(tag, '<div class="records-list-tabs-container">',
+			'no id: the stadium page keeps id="שיאנים" on its parent grid')
+	end
+end)
+
+check('the stadium widget: a quoted name, HTML-encoded by PAGENAME, is stripped', function()
+	widget().leaderboards(stadiumFrame('אצטדיון ימק&quot;א, סטמפורד ברידג&#39;'))
+	contains(stub.calls[1].options.where,
+		'Football_Games.Stadium IN ("אצטדיון ימקא", "סטמפורד ברידג")',
+		'Football_Games.Stadium stores names without quote characters')
+end)
+
+check('the stadium widget: a numeric-entity quote is stripped too', function()
+	widget().leaderboards(stadiumFrame('מגרש &#34;הפועל&#34; בפתח תקווה'))
+	contains(stub.calls[1].options.where,
+		'Football_Games.Stadium IN ("מגרש הפועל בפתח תקווה")',
+		'&#34; is how the old strip template expected PAGENAME to encode it')
+end)
+
+check('the stadium widget refuses a list of nothing but commas', function()
+	expectError('no values to match', function()
+		widget().leaderboards(stadiumFrame(', ,'))
+	end)
+end)
+
+check('the stadium widget refuses an empty list', function()
+	expectError('needs a non-empty אצטדיונים', function()
+		widget().leaderboards(stadiumFrame('  '))
+	end)
+	equals(#stub.calls, 0, 'nothing queried on a refusal')
+end)
+
+check('the stadium widget: only בלוק and אצטדיונים are accepted', function()
+	expectError('takes only בלוק and אצטדיונים', function()
+		widget().leaderboards(stadiumFrame('בלומפילד', { ['עונה'] = '2021/22' }))
+	end)
+end)
+
+check('the stadium boxes are the season boxes: same titles, tabs, nouns, events', function()
+	local function rows()
+		local row = { g = 'ערן זהבי' }
+		for box = 1, 4 do
+			for tab = 1, 4 do
+				row[column(box, tab)] = tostring(box * 10 + tab)
+			end
+		end
+		return { row }
+	end
+	stub.willReturn(rows())
+	local seasonHtml = widget().leaderboards(seasonFrame('2021/22'))
+	local seasonFields = stub.calls[1].fields
+	stub.willReturn(rows())
+	local stadiumHtml = widget().leaderboards(stadiumFrame('בלומפילד'))
+	equals(stadiumHtml, seasonHtml, 'identical markup for identical rows')
+	equals(stub.calls[1].fields, seasonFields, 'identical columns: same events per box and tab')
+end)
+
+check('the stadium "עוד" link keeps the stadium names', function()
+	local rows = {}
+	for index = 1, 11 do
+		rows[index] = { g = 'שחקן ' .. index, [column(1, 1)] = tostring(50 - index) }
+	end
+	stub.willReturn(rows)
+	widget().leaderboards(stadiumFrame('אצטדיון בלומפילד, בלומפילד'))
+	local officialTab = stub.extensionTags[1].content:match('^(.-)|%-|ליגה=')
+	contains(officialTab, ' עוד]', 'link text')
+	contains(officialTab, 'Football_Games.Stadium IN ("אצטדיון בלומפילד", "בלומפילד")',
+		'the link counts the same games as the box')
+end)
+
 print(string.format('\n%d passed, %d failed', passed, failed))
 os.exit(failed > 0 and 1 or 0)

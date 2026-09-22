@@ -394,6 +394,58 @@ as its heading promises, or the tab fails. **The fixture must ship
 Measured locally, section only: p50 737 → 388 ms. On production the section
 costs 714 ms of a 4.2 s cold page parse.
 
+### Stadium pages: block `stadium`
+
+The 199 stadium pages (`תבנית:אצטדיון כדורגל`) call the **same four
+`סטטיסטיקה/תצוגה/שחקנים/שיאני …/עיצוב חדש` box templates** as the season pages,
+filtered by `אצטדיונים` - the stadium's historical names plus its own
+(`אצטדיונים לשליפה`). So block `stadium` is **derived** from `season` when the
+data module loads (a deep copy with `entity`/`entityFilter = 'אצטדיונים'`),
+not copied: the two cannot drift, and a stub test asserts identical markup for
+identical rows. `אצטדיונים` is a `list` filter on the strip-rule column
+`Football_Games.Stadium`: `normalise` decodes `&quot;`/`&#34;`/`&#39;` from
+PAGENAME, the rule strips `'`/`"` - what `המרות/שם ללא גרש וגרשיים` did. The
+Hebrew ׳/״ are kept by both (one stored name has ׳: `אצטדיון זדז׳לה`).
+
+The boxes switch from `record-section-container`/`.content` to the module's
+`records-list-tabs-container`/`.list`, which carries the same title decorator
+and the converted-tabber row styling; the page's grid
+(`details-records-lists-container`, which keeps `id="שיאנים"`) lays out any
+four children. Local screenshots at 1400/800/390 px, every tab: same size,
+same rows, only the accepted departures.
+
+Measured on production: the boxes (32 queries) were **2.40 s of `אצטדיון
+בלומפילד`'s 2.76 s cold parse**. The section alone, old → new, over all 199
+pages (`--sandbox`, 2026-09-22): median **0.59 → 0.10 s**; Bloomfield 1.91 →
+0.48, רמת גן 1.38 → 0.40. **199/199 match, 8,122 rows**, 20 stadiums with no
+games, 11 quote-bearing names with games.
+
+Tools: `convert_stadium_section.py --print` (the candidate, from production's
+template; refuses unless the four boxes appear once, in order, inside the
+grid) and `compare_stadium_leaderboards.py`:
+
+- `--sandbox` - before anything is published: per page, the section alone,
+  OLD through the live templates vs NEW with `Module:FootballStatsBlocks`
+  overridden by the repo file (TemplateSandbox, one page per request - which is
+  why this mode renders only the section). Both sides first run the template's
+  own preamble with the page's parameters, so they read the same list.
+- `--full` - after the block data is published: the whole page with the
+  stadium template overridden by the candidate; outside the section
+  byte-identical.
+- Both: per box and tab, the referee rules; plus the official appearances
+  heading on BOTH sides must equal a **direct Cargo count** written apart from
+  both paths - so a filter both get wrong (a name stripped to nothing) cannot
+  pass as agreement. `--selftest` (Bloomfield OLD vs Ramat Gan NEW) must FAIL.
+  It checks that production's other three modules equal the repo's first.
+
+**Rollout, in order:** `--sandbox` over every page → publish
+`Module:FootballStatsBlocks` (**not inert**: every day, season and referee
+page loadData's it and is queued for re-parse; off-peak, read back, then
+`deploy_modules_prod.py --probe`) → `--full` over every page → edit
+`תבנית:אצטדיון כדורגל` (keep the old text) → purge the stadium pages in
+batches of 10 → spot-check a few, and check for script errors. Revert: the old
+template text. The block data can stay.
+
 **Production rollout, in order - stop at the first failure:**
 
 1. **Gate A - publish the modules.** Not inert: every day and referee page
