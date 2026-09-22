@@ -16,6 +16,10 @@ not translated; everything else in this layer is English.
 ]]
 
 return {
+	-- Prefixes every error message the shared logic (Module:SportQueries)
+	-- raises for this sport, so they read as they always did.
+	name = 'FootballQueries',
+
 	-- The sport's own facts, named by ROLE so the logic module contains no
 	-- table, column or value belonging to football. This is what makes a second
 	-- sport a new data page instead of an edit to shared code - the tables

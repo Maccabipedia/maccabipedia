@@ -25,6 +25,10 @@ local PAGES = {
 		'infra/lua_modules/Module_FootballQueries_Fields.lua',
 	['Module:FootballStatsBlocks'] =
 		'infra/lua_modules/Module_FootballStatsBlocks.lua',
+	['Module:SportQueries'] =
+		'infra/lua_modules/Module_SportQueries.lua',
+	['Module:StatsBlock'] =
+		'infra/lua_modules/Module_StatsBlock.lua',
 	['Module:FootballQueries'] =
 		'infra/lua_modules/Module_FootballQueries.lua',
 	['Module:FootballStatsBlock'] =

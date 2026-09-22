@@ -13,7 +13,8 @@ import subprocess
 import sys
 from pathlib import Path
 
-LOGIC = Path('infra/lua_modules/Module_FootballQueries.lua')
+LOGIC = Path('infra/lua_modules/Module_SportQueries.lua')
+QUERIES_SHIM = Path('infra/lua_modules/Module_FootballQueries.lua')
 FIELDS = Path('infra/lua_modules/Module_FootballQueries_Fields.lua')
 SUITES = [
     'infra/lua_modules/tests/test_football_queries.lua',
@@ -28,7 +29,8 @@ SUITES = [
     'infra/lua_modules/tests/test_date.lua',
     'infra/lua_modules/tests/test_season_trophies.lua',
 ]
-RENDERER = Path('infra/lua_modules/Module_FootballStatsBlock.lua')
+RENDERER = Path('infra/lua_modules/Module_StatsBlock.lua')
+BLOCK_SHIM = Path('infra/lua_modules/Module_FootballStatsBlock.lua')
 BLOCKS = Path('infra/lua_modules/Module_FootballStatsBlocks.lua')
 SQUAD = Path('infra/lua_modules/Module_FootballSeasonSquad.lua')
 SEASON_TABLE = Path('infra/lua_modules/Module_FootballSeasonTable.lua')
@@ -49,6 +51,15 @@ SEASON_TAB_TAIL = (
 # says so instead of silently mutating the wrong place - which is how a broken
 # mutation once reported a false survivor.
 MUTATIONS = [
+    # The football shims - the one line each that decides which sport answers.
+    ('queries shim: bound to the wrong schema page', QUERIES_SHIM,
+     "mw.loadData('Module:FootballQueries/Fields')", "mw.loadData('Module:FootballStatsBlocks')"),
+    ('block shim: bound to the wrong block data', BLOCK_SHIM,
+     "mw.loadData('Module:FootballStatsBlocks')", "mw.loadData('Module:FootballQueries/Fields')"),
+    ('block shim: a different variable and error prefix', BLOCK_SHIM,
+     "'FootballStatsBlock')", "'StatsBlock')"),
+    ('shared logic: the error prefix ignores the schema name', LOGIC,
+     '\tlocal NAME = Fields.name', "\tlocal NAME = 'SportQueries'"),
     # Module:SeasonTrophies - each sport's tables, the order, the guards, the cache.
     ('trophies: football reads the basketball tables', TROPHIES,
      "['כדורגל'] = { achievements = 'Achievements', competitions = 'Competitions' }",
@@ -857,6 +868,14 @@ def suites_pass() -> bool:
     return True
 
 
+def deeper(pattern: str) -> str:
+    """The pattern one tab deeper: every indented line gets one more tab, blank
+    lines stay blank (the factory bodies were indented that way), and a line
+    that starts mid-way (no leading tab) is left alone."""
+    lines = pattern.split('\n')
+    return '\n'.join(('\t' + line) if line.startswith('\t') else line for line in lines)
+
+
 def main() -> None:
     if not suites_pass():
         sys.exit('the suites fail before any mutation - fix that first')
@@ -866,6 +885,13 @@ def main() -> None:
     for label, path, find, replace in MUTATIONS:
         original = path.read_text(encoding='utf-8')
         occurrences = original.count(find)
+        # The shared modules (SportQueries, StatsBlock) hold the football bodies
+        # indented one tab inside a factory. A multi-line pattern written at
+        # the original indentation is retried one tab deeper - the same text,
+        # so the "exactly once" rule below still guards it.
+        if occurrences == 0 and '\n' in find and path in (LOGIC, RENDERER):
+            find, replace = deeper(find), deeper(replace)
+            occurrences = original.count(find)
         if occurrences != 1:
             broken.append(f'{label} (pattern found {occurrences} times)')
             print(f'  BROKEN MUTATION  {label}: pattern appears {occurrences}x')

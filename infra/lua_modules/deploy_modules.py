@@ -25,8 +25,13 @@ SUMMARY = 'Deployed from infra/lua_modules (repo is source of truth)'
 # repo file -> wiki page. `Module` is the canonical name of namespace 828; the
 # wiki displays it localised as יחידה.
 MODULES = {
-    'Module_FootballQueries.lua': 'Module:FootballQueries',
+    # Shared first: the football pages below are shims that require these, so
+    # a fresh wiki (and a rollback) needs them in place before the shims land.
+    'Module_SportQueries.lua': 'Module:SportQueries',
+    'Module_StatsBlock.lua': 'Module:StatsBlock',
+    # Data before the shim that reads it (the shim's error prefix is Fields.name).
     'Module_FootballQueries_Fields.lua': 'Module:FootballQueries/Fields',
+    'Module_FootballQueries.lua': 'Module:FootballQueries',
     'Module_FootballStatsBlocks.lua': 'Module:FootballStatsBlocks',
     'Module_FootballStatsBlock.lua': 'Module:FootballStatsBlock',
     'Module_FootballSeasonSquad.lua': 'Module:FootballSeasonSquad',
