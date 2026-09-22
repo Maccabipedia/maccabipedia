@@ -169,8 +169,11 @@ def unify_link_quotes(href: str) -> str:
 
 
 def parse(title: str, text: str, override: dict | None = None) -> tuple[str, float]:
+    # disablelimitreport drops the timing comment from the HTML (it differs on
+    # every render); the walltime still comes back in limitreportdata.
     params = dict({'action': 'parse', 'title': title, 'text': text,
-                   'contentmodel': 'wikitext', 'prop': 'text|limitreportdata'}, **(override or {}))
+                   'contentmodel': 'wikitext', 'prop': 'text|limitreportdata',
+                   'disablelimitreport': '1'}, **(override or {}))
     data = call('prod', params, post=True)['parse']
     report = {row['name']: row.get('0') for row in data['limitreportdata']}
     return data['text'], float(report['limitreport-walltime'])

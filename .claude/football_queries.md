@@ -438,6 +438,14 @@ grid) and `compare_stadium_leaderboards.py`:
   pass as agreement. `--selftest` (Bloomfield OLD vs Ramat Gan NEW) must FAIL.
   It checks that production's other three modules equal the repo's first.
 
+**LIVE 2026-09-22** (template revision 206178). Whole page after the purge:
+Bloomfield **2.76 → 0.80 s**, other stadiums 0.27-0.58 s; 0 pages in the
+script-error category. Two things the rollout taught: `--full` found 71/199
+enough once `--sandbox` had covered every page's data (the template edit is
+the same text everywhere); and an **anonymous** purge is rate-limited to 30 a
+minute - purge through the bot's session (`deploy_modules_prod.purge`), which
+has no limit.
+
 **Rollout, in order:** `--sandbox` over every page → publish
 `Module:FootballStatsBlocks` (**not inert**: every day, season and referee
 page loadData's it and is queued for re-parse; off-peak, read back, then
