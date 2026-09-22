@@ -31,6 +31,8 @@ local PAGES = {
 		'infra/football_queries/Module_FootballStatsBlock.lua',
 	['Module:FootballSeasonSquad'] =
 		'infra/football_queries/Module_FootballSeasonSquad.lua',
+	['Module:FootballSeasonTable'] =
+		'infra/football_queries/Module_FootballSeasonTable.lua',
 }
 
 local function loadDataFor(name)

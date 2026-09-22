@@ -23,10 +23,12 @@ SUITES = [
     'infra/football_queries/tests/test_stats_block.lua',
     'infra/football_queries/tests/test_leaderboard.lua',
     'infra/football_queries/tests/test_season_squad.lua',
+    'infra/football_queries/tests/test_season_table.lua',
 ]
 RENDERER = Path('infra/football_queries/Module_FootballStatsBlock.lua')
 BLOCKS = Path('infra/football_queries/Module_FootballStatsBlocks.lua')
 SQUAD = Path('infra/football_queries/Module_FootballSeasonSquad.lua')
+SEASON_TABLE = Path('infra/football_queries/Module_FootballSeasonTable.lua')
 
 # The end of the season block's tab strip up to its first box - the only
 # place where a בינלאומי tab is followed by the appearances box, so a
@@ -41,6 +43,35 @@ SEASON_TAB_TAIL = (
 # says so instead of silently mutating the wrong place - which is how a broken
 # mutation once reported a false survivor.
 MUTATIONS = [
+    # Module:FootballSeasonTable - every line that decides a row or its place.
+    ('season table: wins counts draws', SEASON_TABLE,
+     "wins(1) .. '=wins, '", "wins(2) .. '=wins, '"),
+    ('season table: losses counts wins', SEASON_TABLE,
+     "wins(3) .. '=losses'", "wins(1) .. '=losses'"),
+    ('season table: one row per season, competitions merged', SEASON_TABLE,
+     "groupBy = 'Football_Games.Season, Football_Games.Competition',",
+     "groupBy = 'Football_Games.Season',"),
+    ('season table: seasons unordered', SEASON_TABLE,
+     "orderBy = 'Football_Games.Season DESC',", ''),
+    ('season table: cup before league', SEASON_TABLE,
+     'local LEAGUE, CUP, OTHER = 1, 2, 3', 'local LEAGUE, CUP, OTHER = 2, 1, 3'),
+    ('season table: the cup flag ignored', SEASON_TABLE,
+     'elseif tonumber(row.trophy) == 1 then', 'elseif false then'),
+    ('season table: rows sorted across seasons', SEASON_TABLE,
+     'if index > 1 and row.season ~= rows[index - 1].season then', 'if false then'),
+    ('season table: names in reverse', SEASON_TABLE,
+     'return first.competition < second.competition',
+     'return first.competition > second.competition'),
+    ('season table: an empty list queries everything', SEASON_TABLE,
+     "if opponents == '' then", 'if false then'),
+    ('season table: links without the exists check', SEASON_TABLE,
+     'if title and title.exists then', 'if title then'),
+    ('season table: decimals printed raw', SEASON_TABLE,
+     'return tostring(tonumber(value) or 0)', 'return tostring(value)'),
+    ('season table: rows run together', SEASON_TABLE,
+     "return table.concat(html, '\\n')", "return table.concat(html, '')"),
+    ('season table: the class quote left open', SEASON_TABLE,
+     """return '<div class="table-row">'""", """return '<div class="table-row>'"""),
     ('quote rule falls back to strip', LOGIC,
      'local rule = Fields.columns[column]',
      'local rule = Fields.columns[column] or "strip"'),

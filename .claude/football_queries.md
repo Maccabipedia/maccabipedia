@@ -480,6 +480,47 @@ official games), `--full` over 14; section ~0.6 → ~0.1 s. One `--full` FAIL
 were identical on rerun. The comparison's link normaliser had to learn that
 an apostrophe inside a name (`ג'ורג' אשקר`) is not a SQL string delimiter.
 
+## The season-by-season table: `Module:FootballSeasonTable`
+
+`תבנית:יריבת כדורגל/הצגת סטטיסטיקה עונתית` listed (season, competition) pairs
+with one `#cargo_query` and ran `כמות נתוני משחק` three times per row: ~300
+queries, 4.35 of `הפועל תל אביב`'s 7.2 s. The template keeps its section
+wrapper; only the `#cargo_query` became
+`{{#invoke:FootballSeasonTable|rows|יריבות={{{יריבות לשליפה|}}}}}`, which runs
+two queries (the pairs with `SUM(CASE WHEN ResultOpt = N …)`, through
+`FootballQueries.query` for the opponent list's strip/escape rules, and the
+Competitions catalogue for the order). An empty list renders no rows - the
+layer reads an empty filter as "no filter", which would list every game.
+
+Three changes, decided by Roee 2026-09-22: **every row** (no limit meant
+Cargo's 100: הפועל ת"א showed 100 of 126, מכבי פ"ת 100 of 114, מכבי חיפה 100 of
+108); **league, cup, the rest, then name** inside a season (seasons keep the
+database's `Season DESC`); **real results for ידידות and גביע מלצ'ט**, which
+have no Competitions row and so counted 0/0/0 through the catalogue join.
+
+`compare_opponent_season_table.py`: NEW against a direct Cargo query written
+apart, the order against a separately written sort, OLD against NEW allowing
+only the three changes (truncation decided from the direct count, not the OLD
+row count). `--selftest` must FAIL. Errors are looked for in the table only:
+the largest clubs' all-games list already shows "יותר מדי קריאות ל#זמן" (too
+many `#time` calls) on production - a separate, untouched bug.
+
+**LIVE 2026-09-22**, switched with `switch_template_prod.py` (previous revision
+166428): 59-page sandbox sample (38 quoted names, friendlies, several names,
+no games, the 3 truncated) and 7 whole pages all passed; 299 callers purged;
+הפועל תל אביב 7.2 → 2.6 s, בית"ר ירושלים 6.3 → 2.6 s, 0 script errors. Next:
+the same module for the referee tables (their rows link the competition
+through `Football_Competitions_Map`).
+
+## `switch_template_prod.py`
+
+The last step of a rollout, runnable without a paste: `apply` refuses unless
+the live template's sha1 is the one the comparison ran against, saves the
+previous text under `.claude/tmp/template_switches/`, writes multipart and
+reads back; `revert` refuses if the template was edited since; `purge`
+purges the callers through the bot session (no anonymous 30-a-minute limit).
+Roee allowed exactly this command in the session permissions (2026-09-22).
+
 **Production rollout, in order - stop at the first failure:**
 
 1. **Gate A - publish the modules.** Not inert: every day and referee page
