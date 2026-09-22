@@ -617,6 +617,18 @@ local function leaderboards(frame)
 	-- under this referee's name.
 	if declaration.entity then
 		local entity = mw.text.trim(frame.args[declaration.entity] or '')
+		if declaration.entityQuoted then
+			-- A list the page built already quoted - `"A", "B", ""`, from the
+			-- category-members helper the templates pasted into IN (...). The
+			-- query layer quotes by itself, so each item loses its outer quotes;
+			-- the empty one then drops out (the layer skips empty list items,
+			-- and a list of nothing but "" is empty and refused below).
+			local names = {}
+			for item in (entity .. ','):gmatch('([^,]*),') do
+				names[#names + 1] = (mw.text.trim(item):gsub('^"(.*)"$', '%1'))
+			end
+			entity = table.concat(names, ', ')
+		end
 		if entity == '' then
 			error(string.format(
 				'FootballStatsBlock: leaderboards needs a non-empty %s',
@@ -657,7 +669,9 @@ local function leaderboards(frame)
 					args = { row.name, tostring(row.count) },
 				}
 			end
-			if result.more then
+			-- An empty moreText is a block that shows no link at all, as a
+			-- template called with `עוד תוצאות=` did.
+			if result.more and declaration.moreText ~= '' then
 				lines[#lines + 1] = moreLink(declaration, shared, columns,
 					box.key .. '/' .. tab.category)
 			end

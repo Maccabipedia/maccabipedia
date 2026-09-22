@@ -323,6 +323,17 @@ local function portalBlock(keys, titles)
 	return block
 end
 
+-- The player-category pages (תבנית:קטגוריית שחקני כדורגל, קטגוריה:שחקנים
+-- ימניים and 14 more): the four season boxes over the category's players.
+-- The template passed them the category-members helper's output as it is -
+-- already quoted, `"A", "B", ""` - and `עוד תוצאות=` empty: no link.
+blocks['player-category'] = copied(blocks['season'])
+blocks['player-category'].entity = 'שחקנים'
+blocks['player-category'].entityFilter = 'שחקנים'
+blocks['player-category'].entityQuoted = true
+blocks['player-category'].moreText = ''
+blocks['player-category'].boxOpen = '<div class="records-section-container records-list-tabs-container">'
+
 blocks['players-goals-assists'] = portalBlock(
 	{ 'goals', 'assists' }, { 'שיאני כיבושים', 'שיאני בישולים ' })
 blocks['players-appearances-cards'] = portalBlock(

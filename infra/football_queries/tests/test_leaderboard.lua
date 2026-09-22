@@ -729,5 +729,60 @@ check('deriving the portal blocks leaves the season block whole', function()
 	lacks(html, 'records-container records-list', 'nor the portal wrapper')
 end)
 
+-- -------------------------------------------------- player-category pages
+
+local function categoryFrame(list, extra)
+	local direct = { ['בלוק'] = 'player-category', ['שחקנים'] = list }
+	for key, value in pairs(extra or {}) do
+		direct[key] = value
+	end
+	return stub.newFrame({}, direct)
+end
+
+check('a player category: the helper\'s quoted list, unquoted and without the empty item', function()
+	widget().leaderboards(categoryFrame('"ערן זהבי", "ג\'ורדי קרויף", ""'))
+	equals(#stub.calls, 1, 'one query')
+	contains(stub.calls[1].options.where,
+		'Games_Events.PlayerName IN ("ערן זהבי", "ג\'ורדי קרויף")',
+		'each name once, quoted by the query layer, the trailing "" gone')
+	contains(stub.calls[1].options.where, 'Competitions.Official = 1', 'official games')
+end)
+
+check('a player category shows no "עוד" link, as the template called with עוד תוצאות=', function()
+	local rows = {}
+	for index = 1, 11 do
+		rows[index] = { g = 'שחקן ' .. index, [column(1, 1)] = tostring(50 - index) }
+	end
+	stub.willReturn(rows)
+	widget().leaderboards(categoryFrame('"שחקן 1", ""'))
+	lacks(stub.extensionTags[1].content, 'ViewData', 'no link past the tenth')
+	local _, shown = stub.extensionTags[1].content:match('^(.-)|%-|'):gsub('ROW%(', '')
+	equals(shown, 10, 'still ten rows')
+end)
+
+check('a player category: the page\'s wrapper on each box, the season titles', function()
+	local html = widget().leaderboards(categoryFrame('"ערן זהבי", ""'))
+	local _, wrappers = html:gsub('<div class="records%-section%-container records%-list%-tabs%-container">', '')
+	equals(wrappers, 4, 'four boxes in the page\'s own class')
+	contains(html, '<div class="title">שיאני מוצהבים</div>', 'the cards box as the template titled it')
+end)
+
+check('a player category with nobody in it is refused, never ranks everyone', function()
+	expectError('needs a non-empty שחקנים', function()
+		widget().leaderboards(categoryFrame('""'))
+	end)
+	equals(#stub.calls, 0, 'nothing queried')
+end)
+
+check('the season block keeps its "עוד" link', function()
+	local rows = {}
+	for index = 1, 11 do
+		rows[index] = { g = 'שחקן ' .. index, [column(1, 1)] = tostring(50 - index) }
+	end
+	stub.willReturn(rows)
+	widget().leaderboards(seasonFrame('2021/22'))
+	contains(stub.extensionTags[1].content, ' עוד]', 'deriving player-category left it alone')
+end)
+
 print(string.format('\n%d passed, %d failed', passed, failed))
 os.exit(failed > 0 and 1 or 0)
