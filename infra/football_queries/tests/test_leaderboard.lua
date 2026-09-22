@@ -670,5 +670,64 @@ check('the main-referee widget refuses an empty name and other arguments', funct
 	end)
 end)
 
+-- ---------------------------------------------------- players portal (all-time)
+
+local function portalFrame(name, extra)
+	local direct = { ['בלוק'] = name }
+	for key, value in pairs(extra or {}) do
+		direct[key] = value
+	end
+	return stub.newFrame({}, direct)
+end
+
+check('the portal: goals and assists over every official game, one query', function()
+	local html = widget().leaderboards(portalFrame('players-goals-assists'))
+	equals(#stub.calls, 1, 'one query')
+	equals(#stub.extensionTags, 2, 'two boxes')
+	contains(stub.calls[1].options.where, 'Competitions.Official = 1', 'official games')
+	lacks(stub.calls[1].options.where, 'Football_Games.Season', 'no season')
+	lacks(stub.calls[1].options.where, 'Refs', 'no referee')
+	lacks(stub.calls[1].options.where, 'Stadium', 'no stadium')
+	local titles = {}
+	for title in html:gmatch('<div class="title">([^<]*)</div>') do
+		titles[#titles + 1] = title
+	end
+	equals(table.concat(titles, '|'), 'שיאני כיבושים|שיאני בישולים ',
+		'the page\'s titles, the assists one with its trailing space')
+	contains(stub.extensionTags[1].content, 'כובשים שונים', 'the goals box first')
+end)
+
+check('the portal: appearances and cards, the page\'s wrapper on each', function()
+	local html = widget().leaderboards(portalFrame('players-appearances-cards'))
+	local titles, wrappers = {}, {}
+	for title in html:gmatch('<div class="title">([^<]*)</div>') do
+		titles[#titles + 1] = title
+	end
+	for tag in html:gmatch('<div class="records%-container[^"]*"[^>]*>') do
+		wrappers[#wrappers + 1] = tag
+	end
+	equals(table.concat(titles, '|'), 'שיאני הופעות|שיאני מוצהבים', 'appearances, then cards')
+	equals(#wrappers, 2, 'one wrapper per box')
+	equals(wrappers[1], '<div class="records-container records-list-tabs-container">',
+		'the page\'s class and the tabber row styling\'s')
+	local _, columns = stub.calls[1].fields:gsub('SUM%(', '')
+	equals(columns, 8, 'two boxes of four tabs - the season block\'s other boxes are gone')
+end)
+
+check('the portal takes nothing but בלוק', function()
+	expectError('takes only בלוק and nothing else', function()
+		widget().leaderboards(portalFrame('players-goals-assists', { ['עונה'] = '2021/22' }))
+	end)
+	equals(#stub.calls, 0, 'nothing queried on a refusal')
+end)
+
+check('deriving the portal blocks leaves the season block whole', function()
+	widget().leaderboards(seasonFrame('2021/22'))
+	equals(#stub.extensionTags, 4, 'four season boxes')
+	local html = widget().leaderboards(seasonFrame('2021/22'))
+	contains(html, '<div class="title">שיאני בישולים</div>', 'no trailing space borrowed')
+	lacks(html, 'records-container records-list', 'nor the portal wrapper')
+end)
+
 print(string.format('\n%d passed, %d failed', passed, failed))
 os.exit(failed > 0 and 1 or 0)
