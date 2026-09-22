@@ -157,11 +157,11 @@ jobs:
           uv run --with playwright python infra/tabs/compare_tab_states.py
           uv run --with playwright pytest -m integration -rs -p no:cacheprovider infra/local-wiki/tests/test_tabber_conversion.py
 
-      - name: Converted strips keep their panels
-        # Reports ok / HOLLOW (panels are error messages) / UNSTABLE (the
-        # template renders differently each time) / REFUSED (a shape the
-        # converter will not guess at). It fails only on FAIL.
-        run: uv run python infra/tabs/batch_verify.py
+      # infra/tabs/batch_verify.py (convert and verify all ~97 remaining radio
+      # strips) is not run here: it took 13.5 of this job's 20 minutes, it
+      # tests the converter rather than the Lua modules, and strips are
+      # converted one at a time when an editor needs one
+      # (.claude/shtml_free_tabs_design.md §4) - verify that one then.
 
       - name: Wiki logs on failure
         if: failure()
