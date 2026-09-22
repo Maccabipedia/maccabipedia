@@ -45,6 +45,13 @@ So a Lua rewrite of a template must re-encode where the template compared an
 encoded value: the squad card matched the captain on FullHebName **as
 `&quot;`**; the players filter fixed `&#39;` in its output.
 
+A `format=template` value used **as a page name** must be decoded first
+(`{{#replace:{{{PageName|}}}|&quot;|"}}`): `PAGESINCATEGORY` and DPL
+`titlematch=` take it literally and match nothing. DPL `category=` decodes it,
+so the old gallery icons worked while the title-win `titlematch` check hid the
+trophy on all 6 בית"ר title wins until 2026-09-22 (card 583). Apostrophes
+arrive raw (PHP 7.4 `htmlspecialchars` default), so `'` names were never hit.
+
 **Writing a WHERE by hand:**
 - A literal quote works when escaped or single-quoted (`"בית\"ר"`,
   `'בית"ר'`). An **entity** (`"בית&quot;ר"`) raises MWException - Cargo decodes
