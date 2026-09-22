@@ -25,12 +25,14 @@ SUITES = [
     'infra/football_queries/tests/test_season_squad.lua',
     'infra/football_queries/tests/test_season_table.lua',
     'infra/football_queries/tests/test_player_stats.lua',
+    'infra/football_queries/tests/test_date.lua',
 ]
 RENDERER = Path('infra/football_queries/Module_FootballStatsBlock.lua')
 BLOCKS = Path('infra/football_queries/Module_FootballStatsBlocks.lua')
 SQUAD = Path('infra/football_queries/Module_FootballSeasonSquad.lua')
 SEASON_TABLE = Path('infra/football_queries/Module_FootballSeasonTable.lua')
 PLAYER_STATS = Path('infra/football_queries/Module_FootballPlayerStats.lua')
+DATE = Path('infra/football_queries/Module_FootballDate.lua')
 
 # The end of the season block's tab strip up to its first box - the only
 # place where a בינלאומי tab is followed by the appearances box, so a
@@ -76,6 +78,21 @@ MUTATIONS = [
      """:gsub('"', '\\\\"') .. '"'""", """ .. '"'"""),
     ('player stats: keeper numbers from the outfield query', PLAYER_STATS,
      "\t\tif keeper then\n\t\t\tprimeKeeper(frame, player)", "\t\tif false then\n\t\t\tprimeKeeper(frame, player)"),
+    # Module:FootballDate - every piece of the text and every way out to the template.
+    ('date: months shifted by one', DATE,
+     "'ינואר', 'פברואר', 'מרץ',", "'פברואר', 'ינואר', 'מרץ',"),
+    ('date: the link keeps no zero', DATE,
+     "'[[%s ב%s|%d ב%s]] [[%s]]', day,", "'[[%s ב%s|%d ב%s]] [[%s]]', tonumber(day),"),
+    ('date: the text keeps the zero', DATE,
+     "|%d ב%s]] [[%s]]', day, monthName, tonumber(day)",
+     "|%s ב%s]] [[%s]]', day, monthName, day"),
+    ('date: year unlinked', DATE, "[[%s]]', day", "%s', day"),
+    ('date: a time accepted', DATE, "(%d%d)$')", "(%d%d)')"),
+    ('date: untrimmed', DATE, "mw.text.trim(frame.args[1] or '')", "(frame.args[1] or '')"),
+    ('date: day 0 accepted', DATE, 'tonumber(day) < 1', 'tonumber(day) < 0'),
+    ('date: day 32 accepted', DATE, 'tonumber(day) > 31', 'tonumber(day) > 32'),
+    ('date: fallback loses the date', DATE,
+     "args = { ['תאריך'] = date }", "args = {}"),
     # Module:FootballSeasonTable - every line that decides a row or its place.
     ('season table: wins counts draws', SEASON_TABLE,
      "wins(1) .. '=wins, '", "wins(2) .. '=wins, '"),
