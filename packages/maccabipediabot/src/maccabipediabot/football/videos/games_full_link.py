@@ -2,6 +2,7 @@ import json
 import logging
 import sys
 from maccabipediabot.common.paths import videos_dir
+from maccabipediabot.common.page_names import build_football_game_page_name
 from maccabipediabot.common.wiki_login import get_site
 
 import pywikibot as pw
@@ -20,7 +21,6 @@ SHOULD_SAVE = True
 SHOULD_SHOW_DIFF = True
 SHOULD_CHECK_FOR_UPDATE_IN_EXISTING_PAGES = False
 
-football_games_prefix = "משחק"
 
 
 def get_games_to_add():
@@ -34,11 +34,12 @@ def generate_page_name_from_game(game):
     :rtype: str
     """
 
-    page_name = "{prefix}: {date} {home_team} נגד {away_team} - {competition}".format(prefix=football_games_prefix,
-                                                                                      date=game.date.strftime('%d-%m-%Y'),
-                                                                                      home_team=game.home_team.name,
-                                                                                      away_team=game.away_team.name,
-                                                                                      competition=game.competition)
+    page_name = build_football_game_page_name(
+        game_date=game.date,
+        home_team=game.home_team.name,
+        away_team=game.away_team.name,
+        competition=game.competition,
+    )
 
     return page_name
 
