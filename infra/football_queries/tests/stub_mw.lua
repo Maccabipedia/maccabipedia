@@ -29,6 +29,8 @@ local PAGES = {
 		'infra/football_queries/Module_FootballQueries.lua',
 	['Module:FootballStatsBlock'] =
 		'infra/football_queries/Module_FootballStatsBlock.lua',
+	['Module:FootballSeasonSquad'] =
+		'infra/football_queries/Module_FootballSeasonSquad.lua',
 }
 
 local function loadDataFor(name)
@@ -94,6 +96,7 @@ function stub.install()
 	stub.dataPatch = nil
 	stub.proxyLoadData = nil
 	stub.proxies = {}
+	stub.missingPages = {}
 
 	-- Scribunto's pairs honours __pairs; Lua 5.1's does not. The proxy shape
 	-- above is only faithful with it, so patch pairs the same way.
@@ -141,6 +144,12 @@ function stub.install()
 				end
 				local text = '//wiki/' .. page .. '?' .. table.concat(parts, '&')
 				return setmetatable({}, { __tostring = function() return text end })
+			end,
+		},
+		-- Every page exists unless a test lists it in stub.missingPages.
+		title = {
+			new = function(name)
+				return { exists = not stub.missingPages[name] }
 			end,
 		},
 		loadData = loadDataFor,
