@@ -68,7 +68,7 @@ OFFICIAL_HEADING = re.compile(r'^משחקים רשמיים \((\d+) מופיעי�
 
 OLD_BOX = re.compile(r'<div class="record-section-container">(.*?)'
                      r'(?=<div class="record-section-container"|\Z)', re.S)
-NEW_BOX = re.compile(r'<div class="records-list-tabs-container">(.*?)'
+NEW_BOX = re.compile(r'<div class="records-list-tabs-container"[^>]*>(.*?)'
                      r'(?=<div class="records-list-tabs-container"|\Z)', re.S)
 OLD_PANEL = re.compile(r'<div id="tab\d-content">(.*?)(?=<div id="tab\d-content">|\Z)', re.S)
 NEW_PANEL = re.compile(r'<article[^>]*class="tabber__panel"[^>]*>(.*?)</article>', re.S)
@@ -158,13 +158,28 @@ def direct_appearances(names: list[str]) -> int:
     return int(data['cargoquery'][0]['title']['n'])
 
 
+# Columns the templates filter with IN (one name) where the module writes
+# `= name` - the same rows. Set by a caller whose filter is a single value
+# (the referee harness); stadium lists stay IN on both sides.
+SINGLE_IN_COLUMNS: tuple[str, ...] = ()
+
+
 def unify_link_quotes(href: str) -> str:
     """The templates quote the stadium names in the link's WHERE with ', the
     module with ": the same SQL. Only those string literals are rewritten."""
     parts = urllib.parse.urlsplit(html_module.unescape(href))
     params = urllib.parse.parse_qsl(parts.query, keep_blank_values=True)
-    params = [(key, re.sub(r"'([^'\"]*)'", r'"\1"', value) if key == 'where' else value)
-              for key, value in params]
+
+    def where(value: str) -> str:
+        # Only a whole single-quoted list item - `('a', 'b')` - never an
+        # apostrophe inside a name (`"ג'ורג' אשקר"`).
+        value = re.sub(r"(?<=[(,])(\s*)'([^'\"]*)'(?=\s*[,)])", r'\1"\2"', value)
+        for column in SINGLE_IN_COLUMNS:
+            value = re.sub(re.escape(column) + r'\s+IN\s*\(\s*("(?:[^"\\]|\\.)*")\s*\)',
+                           column + r' = \1', value)
+        return value
+
+    params = [(key, where(value) if key == 'where' else value) for key, value in params]
     return parts._replace(query=urllib.parse.urlencode(params)).geturl()
 
 
@@ -196,7 +211,8 @@ def boxes_of(page: str, box: re.Pattern, panel: re.Pattern) -> list[dict]:
     return boxes
 
 
-def compare_sections(old_page: str, new_page: str, expected: int) -> tuple[str, str, int]:
+def compare_sections(old_page: str, new_page: str, expected: int,
+                     old_box: re.Pattern | None = None) -> tuple[str, str, int]:
     """`expected`: the official appearances count Cargo gives directly; both
     sides' official appearances heading must state it."""
     for label, page in (('old', old_page), ('new', new_page)):
@@ -208,7 +224,7 @@ def compare_sections(old_page: str, new_page: str, expected: int) -> tuple[str, 
     if re.search(r'</article>\s*<p class="mw-empty-elt">', new_page) or \
             re.search(r'עוד</a></p>', new_page):
         return 'FAIL', 'the parser wrapped the "עוד" link in a paragraph', 0
-    old_boxes = boxes_of(old_page, OLD_BOX, OLD_PANEL)
+    old_boxes = boxes_of(old_page, old_box or OLD_BOX, OLD_PANEL)
     new_boxes = boxes_of(new_page, NEW_BOX, NEW_PANEL)
     if len(old_boxes) != 4 or len(new_boxes) != 4:
         return 'FAIL', f'{len(old_boxes)} old boxes, {len(new_boxes)} new', 0
@@ -231,7 +247,7 @@ def compare_sections(old_page: str, new_page: str, expected: int) -> tuple[str, 
     return 'ok', f'{rows} rows', rows
 
 
-def check_prod_modules(sandbox: bool) -> None:
+def check_prod_modules(sandbox: bool, new_block: str = 'stadium') -> None:
     """The renderer on production must be the repo's; in --sandbox the block
     data must be the repo's minus the stadium block (so the override adds
     only that), in --full it must already be the repo's."""
@@ -243,8 +259,8 @@ def check_prod_modules(sandbox: bool) -> None:
     local = BLOCKS_FILE.read_text(encoding='utf-8').strip()
     if not sandbox and live != local:
         raise SystemExit(f'{BLOCKS_PAGE} is not published yet - run --sandbox, or publish')
-    if sandbox and "['stadium']" in live:
-        raise SystemExit(f'{BLOCKS_PAGE} already holds the stadium block - use --full')
+    if sandbox and f"['{new_block}']" in live:
+        raise SystemExit(f'{BLOCKS_PAGE} already holds the {new_block} block - use --full')
 
 
 def sandbox_side(title: str, template_body: str, new: bool) -> tuple[str, str, float]:
