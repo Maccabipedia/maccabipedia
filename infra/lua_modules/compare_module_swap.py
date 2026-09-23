@@ -13,18 +13,41 @@ difference that survives counts. The gate refuses to pass when nothing on the li
 invoked the module (prop=templates), so an empty or wrong list cannot pass vacuously.
 """
 import sys
+import time
 from pathlib import Path
+
+import requests
 
 sys.path.insert(0, 'infra/lua_modules')
 sys.path.insert(0, 'infra/season_pages')
-from season_api import call  # noqa: E402
+from season_api import PROD_PAUSE_SECONDS, UA, WIKIS, call  # noqa: E402
 from compare_stadium_leaderboards import page_text  # noqa: E402
+
+
+def call_multipart(params: dict) -> dict:
+    """The same API call as season_api.call, as multipart/form-data.
+
+    The wiki's firewall refuses a large Lua module as an urlencoded body (the
+    1,100-line query logic, for one) and accepts the same bytes as multipart -
+    the fact deploy_modules_prod.py was built on. A sandbox render carrying a
+    module therefore has to go this way.
+    """
+    fields = dict(params, format='json', formatversion='2')
+    response = requests.post(WIKIS['prod'], headers=UA, timeout=300, allow_redirects=False,
+                             files={key: (None, str(value)) for key, value in fields.items()})
+    if response.status_code == 302:
+        raise SystemExit('the firewall refused the sandbox body (302) - check the module with the WAF probe')
+    time.sleep(PROD_PAUSE_SECONDS)
+    data = response.json()
+    if 'error' in data:
+        raise SystemExit(f'prod API error: {data["error"]}')
+    return data
 
 
 def render(title: str, text: str, override: dict | None) -> tuple[str, float, set[str]]:
     params = dict({'action': 'parse', 'title': title, 'text': text, 'contentmodel': 'wikitext',
                    'prop': 'text|limitreportdata|templates', 'disablelimitreport': '1'}, **(override or {}))
-    data = call('prod', params, post=True)['parse']
+    data = (call_multipart(params) if override else call('prod', params, post=True))['parse']
     report = {row['name']: row.get('0') for row in data['limitreportdata']}
     return data['text'], float(report['limitreport-walltime']), {entry['title'] for entry in data['templates']}
 

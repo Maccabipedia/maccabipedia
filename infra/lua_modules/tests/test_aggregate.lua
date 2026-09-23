@@ -320,7 +320,7 @@ check('the base table comes from the schema', function()
 	stub.install()
 	stub.dataPatch = function(data)
 		data.baseTable = 'Basketball_Games'
-		data.tables['Basketball_Games'] = { base = true }
+		data.tables['Basketball_Games'] = { base = true, grain = 'game' }
 		data.filters['עונה'].column = 'Basketball_Games.Season'
 		data.columns['Basketball_Games.Season'] = 'strip'
 	end

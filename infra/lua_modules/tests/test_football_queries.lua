@@ -157,7 +157,7 @@ check('תוצאה maps to ResultOpt, and a wrong word is an error',
 		local query = FootballQueries.build({ ['תוצאה'] = 'ניצחון' })
 		equals(query.where, 'Football_Games.ResultOpt = 1', 'win')
 
-		expectError('must be ניצחון', function()
+		expectError('unknown תוצאה "נצחון"', function()
 			FootballQueries.build({ ['תוצאה'] = 'נצחון' })
 		end)
 	end)
