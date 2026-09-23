@@ -69,6 +69,21 @@ SPORTS = {
         'namespace': 0,
         'skip': set(),
         'quote_rule': 'strip',
+        'map_table': 'Football_Competitions_Map',
+        'grouping_page': '%s',
+        'wrapper': 'שופט כדורגל',
+        'referee_templates': {'main': 'תבנית:שופט כדורגל/הצגת סטטיסטיקה עונתית/שופט ראשי',
+                              'assistant': 'תבנית:שופט כדורגל/הצגת סטטיסטיקה עונתית/עוזר שופט'},
+        'referee_filters': {'main': 'שופט', 'assistant': 'עוזר שופט'},
+        # The assistants are a joined table in football, a column here in basketball.
+        'referee_where': {
+            'main': lambda literal: {'tables': 'Football_Games',
+                                     'where': f'Football_Games.Refs = {literal}'},
+            'assistant': lambda literal: {
+                'tables': 'Football_Games, Games_Referees',
+                'join_on': 'Football_Games._pageID=Games_Referees._pageID',
+                'where': f'Games_Referees.AssistantReferees HOLDS {literal}'},
+        },
         'layer': [('Module:SeasonTable', 'Module_SeasonTable.lua'),
                   ('Module:FootballQueries', 'Module_FootballQueries.lua'),
                   ('Module:FootballQueries/Fields', 'Module_FootballQueries_Fields.lua')],
@@ -90,6 +105,22 @@ SPORTS = {
         # A scratch page in the main namespace, not an opponent.
         'skip': {'נסיון'},
         'quote_rule': 'keep',
+        'map_table': 'Basketball_Competitions_Map',
+        # The NORMALISED title MediaWiki resolves the module's `כדורסל: X` to. The
+        # gate asks the API about this title and compares it with rendered link
+        # titles, and both are normalised; the module keeps the template's spacing.
+        'grouping_page': 'כדורסל:%s',
+        'wrapper': 'שופט כדורסל',
+        'referee_templates': {'main': 'תבנית:שופט כדורסל/הצגת סטטיסטיקה עונתית/שופט ראשי',
+                              'assistant': 'תבנית:שופט כדורסל/הצגת סטטיסטיקה עונתית/עוזר שופט'},
+        'referee_filters': {'main': 'שופט ראשי', 'assistant': 'עוזר שופט'},
+        'referee_where': {
+            'main': lambda literal: {'tables': 'Basketball_Games',
+                                     'where': f'Basketball_Games.MainReferee = {literal}'},
+            'assistant': lambda literal: {
+                'tables': 'Basketball_Games',
+                'where': f'Basketball_Games.AssistantReferees HOLDS {literal}'},
+        },
         'layer': [('Module:SeasonTable', 'Module_SeasonTable.lua'),
                   ('Module:BasketballQueries', 'Module_BasketballQueries.lua'),
                   ('Module:BasketballQueries/Fields', 'Module_BasketballQueries_Fields.lua')],
