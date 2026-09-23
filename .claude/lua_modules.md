@@ -109,6 +109,18 @@ COALESCE did. Season page's numbers 0.32 → 0.17 s, opponent page's 0.51 → 0.
 Gate: the tab gate with `--template … --candidate …`, 12/12 pages identical - and
 here identity proves the invoke ran, since a missing number breaks every `#expr`.
 
+**The counts (`games` block), live 2026-09-23.** `כדורסל/סטטיסטיקה/כמות משחקים` - a
+COUNT(DISTINCT game) per call, 885 pages including every basketball player page
+(`פרופיל כדורסל`'s "was head coach" and "was captain" checks) - is now
+`{{#invoke:BasketballStatsBlock|cell|בלוק=games|תא=…}}` (previous revision 202600).
+The wrapper turns the template's `תוצאה` into the cell: הפסד → `הפסדים`, any other
+word → `ניצחונות` (its `#בחר` did the same), none → `משחקים`. Its own block, not a
+part of `numbers`: the captain filters reach the per-player table, which is fine
+for a count and refused for a team-points sum. The captain filters are `text`
+filters with `extra` constants (`Team = N AND IsCaptain = 1`) and `constrainsSide`,
+or the side default would contradict the opponent's captain. Gate: 10 pages of
+every family incl. a player page, identical.
+
 **Known, not ours:** `תבנית:כדורסל/סטטיסטיקה/שיאני אסיסטים` has its radios 2-4 in
 group `tab-control-bb-appearances` (tab 1 in `…-assists`), inside the signed
 `<shtml>` strip: tab 1's list stays under whichever tab is pressed, and pressing an
