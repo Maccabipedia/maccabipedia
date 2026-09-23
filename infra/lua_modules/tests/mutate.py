@@ -80,7 +80,7 @@ MUTATIONS = [
     ('tab: a box word not found', RENDERER,
      'if candidate.word == boxWord then', 'if candidate.key == boxWord then'),
     ('basketball schema: players lose no prefix', FIELDS_BB,
-     "kind = 'list', stripPrefix = 'כדורסל:' },", "kind = 'list' },"),
+     "kind = 'list', quoted = true, stripPrefix = 'כדורסל:' },", "kind = 'list', quoted = true },"),
     ('basketball schema: רשמי filters to official', FIELDS_BB,
      "\t\t\t\t['רשמי'] = '',", "\t\t\t\t['רשמי'] = 'Basketball_Competitions.Official = 1',"),
     ('basketball schema: the default is no filter', FIELDS_BB,
@@ -532,8 +532,8 @@ MUTATIONS = [
     ('a row may name a cell the block does not produce', RENDERER,
      'if row.cell and not declared[row.cell] then', 'if false then'),
     ('the sum ignores its own cell filter', LOGIC,
-     "'SUM(CASE WHEN %s THEN %s ELSE NULL END)=%s',\n\t\t\t\tcondition, column, alias",
-     "'SUM(CASE WHEN 1=1 THEN %s ELSE NULL END)=%s',\n\t\t\t\tcolumn, alias"),
+     "'SUM(CASE WHEN %s THEN %s ELSE NULL END)=%s',\n\t\t\t\tcondition, summed, alias",
+     "'SUM(CASE WHEN 1=1 THEN %s ELSE NULL END)=%s',\n\t\t\t\tsummed, alias"),
     # The block's own constant filters. Dropping this one silently narrows the
     # day block from "this day in any year" to one single date.
     ('the day block gets the default date format', BLOCKS,
