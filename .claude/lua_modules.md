@@ -2,7 +2,7 @@
 
 Design and the decisions behind it: `.claude/lua_modules_design.md`.
 
-`infra/football_queries/` holds the Lua that turns a filter set into one Cargo
+`infra/lua_modules/` holds the Lua that turns a filter set into one Cargo
 query. **The repo is the source of truth**: the wiki copy is deployed from
 here, never edited on the wiki and copied back.
 
@@ -90,8 +90,8 @@ parameters of the template it replaces, and the two lists have to be checked
 against the template, not against each other:
 
 ```bash
-uv run python infra/football_queries/verify_entry_points.py
-uv run python infra/football_queries/verify_entry_points.py --selftest
+uv run python infra/lua_modules/verify_entry_points.py
+uv run python infra/lua_modules/verify_entry_points.py --selftest
 ```
 
 It reads each template's wikitext from the local wiki, extracts the `{{{…}}}`
@@ -232,8 +232,8 @@ stub of the `mw` environment — `mw.text.trim`, `mw.loadData`, and an
 `mw.ext.cargo.query` that returns queued rows and records what it was asked:
 
 ```bash
-lua5.1 infra/football_queries/tests/test_football_queries.lua   # needs: apt install lua5.1
-luac5.1 -p infra/football_queries/*.lua                          # syntax only
+lua5.1 infra/lua_modules/tests/test_football_queries.lua   # needs: apt install lua5.1
+luac5.1 -p infra/lua_modules/*.lua                          # syntax only
 ```
 
 The suite asserts generated SQL, so it is fast and needs no wiki. **Confirm it
@@ -241,7 +241,7 @@ fails before trusting a pass** — and not by picking two mutations, which is ho
 10 of 18 escaped once:
 
 ```bash
-uv run python infra/football_queries/tests/mutate.py   # 83 mutations, 0 may survive
+uv run python infra/lua_modules/tests/mutate.py   # 83 mutations, 0 may survive
 ```
 
 This gate runs in CI (`.github/workflows/tests.yaml`, job `lua`): it needs no
@@ -268,9 +268,9 @@ Then run it for real, because the stub cannot tell you anything about Cargo or
 Scribunto:
 
 ```bash
-uv run python infra/football_queries/deploy_modules.py --dry-run   # repo -> local wiki
-uv run python infra/football_queries/deploy_modules.py
-uv run python infra/football_queries/smoke_test_local.py           # module vs Cargo
+uv run python infra/lua_modules/deploy_modules.py --dry-run   # repo -> local wiki
+uv run python infra/lua_modules/deploy_modules.py
+uv run python infra/lua_modules/smoke_test_local.py           # module vs Cargo
 ```
 
 `deploy_modules.py` writes through `maintenance/edit.php` inside the local wiki
@@ -605,7 +605,7 @@ the first call for a sport queries all of its winning seasons and stores each
 season's list in a page variable, so a page runs one query per sport.
 
 Conventions this sets for the next multi-sport module (design review 2026-09-22):
-- **The file stays in `infra/football_queries/`** - a second directory means a second
+- **The file stays in `infra/lua_modules/`** - a second directory means a second
   deployer, a second git-clean check and new CI globs that fail silently when missed.
 - **One entry point, the sport as a Hebrew argument**, validated against an in-module
   `SPORTS` table: an unknown `ענף` raises from a line a mutation can flip. One function

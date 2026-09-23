@@ -34,8 +34,8 @@ jobs:
       - name: Install Lua 5.1
         run: sudo apt-get update && sudo apt-get install -y lua5.1
       - name: Check the modules compile
-        run: luac5.1 -p infra/football_queries/*.lua
+        run: luac5.1 -p infra/lua_modules/*.lua
       - name: Mutation gate
         # Runs every Lua suite first, then checks each mutation turns them red.
         # Exit code is the number of survivors.
-        run: uv run python infra/football_queries/tests/mutate.py
+        run: uv run python infra/lua_modules/tests/mutate.py

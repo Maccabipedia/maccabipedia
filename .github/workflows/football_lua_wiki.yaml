@@ -14,7 +14,7 @@ name: Football Lua (real wiki)
 on:
   pull_request:
     paths:
-      - 'infra/football_queries/**'
+      - 'infra/lua_modules/**'
       - 'infra/local-wiki/**'
       - 'infra/tabs/**'
       - 'skins/Maccabipedia/customize/styles/**'
@@ -22,7 +22,7 @@ on:
   push:
     branches: [master]
     paths:
-      - 'infra/football_queries/**'
+      - 'infra/lua_modules/**'
       - 'infra/local-wiki/**'
       - 'infra/tabs/**'
       - 'skins/Maccabipedia/customize/styles/**'
@@ -61,32 +61,32 @@ jobs:
         run: bash infra/local-wiki/scripts/restore-db.sh
 
       - name: Deploy the modules to it
-        run: uv run python infra/football_queries/deploy_modules.py
+        run: uv run python infra/lua_modules/deploy_modules.py
 
       # Each of these fails the job on a single differing byte or a single
       # disagreeing number.
       - name: Entry points match the templates they replace
         run: |
-          uv run python infra/football_queries/verify_entry_points.py
-          uv run python infra/football_queries/verify_entry_points.py --selftest
+          uv run python infra/lua_modules/verify_entry_points.py
+          uv run python infra/lua_modules/verify_entry_points.py --selftest
 
       - name: The comparison harness can both pass and fail
-        run: uv run python infra/football_queries/compare_rendered_blocks.py --selftest
+        run: uv run python infra/lua_modules/compare_rendered_blocks.py --selftest
 
       - name: Query shim, byte for byte
-        run: uv run python infra/football_queries/compare_rendered_blocks.py
+        run: uv run python infra/lua_modules/compare_rendered_blocks.py
 
       - name: Renderer, byte for byte
-        run: uv run python infra/football_queries/compare_rendered_blocks.py --renderer
+        run: uv run python infra/lua_modules/compare_rendered_blocks.py --renderer
 
       - name: Four-tab block, 32 queries against 1
-        run: uv run python infra/football_queries/compare_rendered_blocks.py --tabs
+        run: uv run python infra/lua_modules/compare_rendered_blocks.py --tabs
 
       - name: Day block, the one with 366 callers
-        run: uv run python infra/football_queries/compare_rendered_blocks.py --day
+        run: uv run python infra/lua_modules/compare_rendered_blocks.py --day
 
       - name: Whole day page, headers included, 28 queries against 1
-        run: uv run python infra/football_queries/compare_rendered_blocks.py --day-tabs
+        run: uv run python infra/lua_modules/compare_rendered_blocks.py --day-tabs
 
       # verify_edge_cases.py is deliberately NOT here. It runs against
       # production, read-only, because the cases it checks - a club whose name
@@ -98,7 +98,7 @@ jobs:
       # into the fixture, which is the only way to make it blocking.
 
       - name: Module against Cargo directly
-        run: uv run python infra/football_queries/smoke_test_local.py
+        run: uv run python infra/lua_modules/smoke_test_local.py
 
       # The tab conversion. These write only sandbox pages on the CI wiki.
       #
@@ -115,9 +115,9 @@ jobs:
         # One date per month plus 29-02; the full 366 is a local run
         # (compare_day_widget.py --all), too slow for every pull request.
         run: |
-          uv run python infra/football_queries/convert_day_to_tabber.py --local
-          uv run python infra/football_queries/compare_day_widget.py --selftest
-          uv run python infra/football_queries/compare_day_widget.py --dates 2020-01-03,2020-02-29,2020-03-15,2020-04-10,2020-05-20,2020-06-05,2020-07-25,2020-08-29,2020-09-18,2020-10-03,2020-11-07,2020-12-26
+          uv run python infra/lua_modules/convert_day_to_tabber.py --local
+          uv run python infra/lua_modules/compare_day_widget.py --selftest
+          uv run python infra/lua_modules/compare_day_widget.py --dates 2020-01-03,2020-02-29,2020-03-15,2020-04-10,2020-05-20,2020-06-05,2020-07-25,2020-08-29,2020-09-18,2020-10-03,2020-11-07,2020-12-26
 
       # The leaderboard() primitive, shared by both blocks below. Each
       # selftest crosses two entities and must FAIL, or a comparison that
@@ -125,9 +125,9 @@ jobs:
       # confirmed by reading the workflow, not assumed - so both are new.
       - name: "Referee leaderboards: 32 queries against 1"
         run: |
-          uv run python infra/football_queries/convert_referee_section.py --local
-          uv run python infra/football_queries/compare_referee_leaderboards.py --selftest
-          uv run python infra/football_queries/compare_referee_leaderboards.py
+          uv run python infra/lua_modules/convert_referee_section.py --local
+          uv run python infra/lua_modules/compare_referee_leaderboards.py --selftest
+          uv run python infra/lua_modules/compare_referee_leaderboards.py
 
       - name: "Season leaderboards: 32 queries against 1"
         # Renders only the שיאנים section (not the whole page through
@@ -135,9 +135,9 @@ jobs:
         # this section that would break the box/tab extraction if the whole
         # page were rendered - see compare_season_leaderboards.py's docstring).
         run: |
-          uv run python infra/football_queries/convert_season_section.py --local
-          uv run python infra/football_queries/compare_season_leaderboards.py --selftest
-          uv run python infra/football_queries/compare_season_leaderboards.py
+          uv run python infra/lua_modules/convert_season_section.py --local
+          uv run python infra/lua_modules/compare_season_leaderboards.py --selftest
+          uv run python infra/lua_modules/compare_season_leaderboards.py
 
       # The checks above prove the widget SAYS the same thing. These prove it
       # BEHAVES the same: the panel fade, hover colours, no hover underline, no

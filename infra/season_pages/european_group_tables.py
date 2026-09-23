@@ -348,7 +348,7 @@ def main() -> None:
             print(screenshot(season, html, groups[season]['title'], options.out))
         return
 
-    sys.path.insert(0, str(HERE.parent / 'football_queries'))
+    sys.path.insert(0, str(HERE.parent / 'lua_modules'))
     import deploy_modules_prod as deploy
 
     connection = deploy.site()

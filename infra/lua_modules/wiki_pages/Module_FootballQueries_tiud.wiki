@@ -1,0 +1,46 @@
+שכבת השליפות: מקבלת קבוצת מסננים ומחזירה שאילתת קארגו אחת.
+
+מסנן שאינו נתמך זורק שגיאה ואינו נשמט בשקט, ותוצאה שהגיעה לתקרת השורות זורקת
+שגיאה ואינה מוחזרת חתוכה. שתי ההתנהגויות האלה הן ההבדל מהתבניות שהיחידה מחליפה.
+
+שמות המסננים בעברית — הם החוזה של התבניות והערכים הם נתוני קארגו בעברית. שאר
+הקוד, ההערות ואפשרויות השאילתה באנגלית.
+
+== דוגמאות ==
+
+מספר בודד, ישירות מוויקיטקסט:
+
+<pre>{{#invoke:FootballQueries|count|שחקן=ערן זהבי|מספר אירוע=3|קטגוריית מפעל=ליגה}}</pre>
+
+גוף של תבנית שליפה — קורא את הפרמטרים של התבנית הקוראת, ולכן אינו יכול להשמיט
+אף אחד מהם:
+
+<pre><includeonly>{{#invoke:FootballQueries|gameDataCount}}</includeonly></pre>
+
+לכל תבנית שליפה יש נקודת כניסה משלה, שמקבלת בדיוק את הפרמטרים של אותה תבנית:
+<code>gameDataCount</code> לתבנית "כמות נתוני משחק" ו־<code>playerEventCount</code>
+לתבנית "כמות אירועי שחקן". נקודת כניסה של תבנית אחת בגוף תבנית אחרת תדחה את
+המסננים שלה ותציג שגיאה במקום מספר.
+
+<pre><includeonly>{{#invoke:FootballQueries|playerEventCount}}</includeonly></pre>
+
+מלואה, כשצריך כמה מספרים מאותה שאילתה:
+
+<pre>local Queries = require('Module:FootballQueries')
+
+-- מספר אחד
+local goals = Queries.countFilters({ ['שחקן'] = 'ערן זהבי', ['מספר אירוע'] = '3' })
+
+-- כל תאי הבלוק בשאילתה אחת
+local cells = Queries.aggregate(
+    { ['שחקן'] = 'ערן זהבי', ['קטגוריית מפעל'] = 'ליגה' },
+    {
+        { name = 'goals',   grain = 'event', filters = { ['מספר אירוע'] = '3' } },
+        { name = 'assists', grain = 'event', filters = { ['מספר אירוע'] = '4' } },
+    })
+-- cells.goals, cells.assists</pre>
+
+הקוד: <code>infra/lua_modules/Module_FootballQueries.lua</code> במאגר,
+שהוא מקור האמת.
+
+<includeonly>[[קטגוריה:יחידות לואה/סטטיסטיקת כדורגל]]</includeonly><noinclude>[[קטגוריה:דפי תיעוד של יחידות]]</noinclude>
