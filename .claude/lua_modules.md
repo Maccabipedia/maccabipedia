@@ -165,9 +165,13 @@ page). Two traps it was built around: "does the page invoke the module" is vacuo
 here, because the live templates already did through `leaderboardTab`, so the
 candidate is detected by the `tabber-converted` it alone emits; and a page shows 4,
 6 or 8 of the boxes, so replacing one it does not transclude must be reported, not
-counted as a pass. `--selftest` points every candidate at the appearances box: 27 of
-32 must then differ, and the five that do not are the appearances boxes themselves.
-Real run: 0 of 32 differ across five pages. Render time is barely touched (~0.02 s
+counted as a pass. `--selftest` points every candidate at the appearances box, so the
+run must fail. And once the switch has shipped, the live template IS the candidate and
+the plain mode compares a thing with itself: `--against` renders the text each box
+replaced (from `switch_template_prod.py`'s record) as the sandbox side instead, which is
+the only comparison that still means anything. Its self-test has to patch both namings
+(`תיבה=` on the candidate, `אירוע=` on the old template) or it changes nothing and
+"passes". Result: 0 of 32 differ across five pages, `--selftest` reports all 32. Render time is barely touched (~0.02 s
 per box; the query count was already one per page) - this one bought correctness.
 
 **`#vardefine` trims its value** (Variables registers it without SFH_OBJECT_ARGS, so
