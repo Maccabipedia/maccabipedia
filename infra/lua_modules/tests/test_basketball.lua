@@ -133,7 +133,8 @@ end)
 
 check('a player list from category members loses its prefix', function(module)
 	stub.willReturn({})
-	module.leaderboardTab(tabFrame({ ['שחקנים'] = 'כדורסל:שרן ייני, כדורסל:ג\'ייק כהן' }))
+	-- As the category-members helper hands it over: quoted, prefixed, with a trailing "".
+	module.leaderboardTab(tabFrame({ ['שחקנים'] = '"כדורסל:שרן ייני", "כדורסל:ג\'ייק כהן", ""' }))
 	contains(stub.calls[1].options.where,
 		PLAYERS .. '.PlayerName IN ("שרן ייני", "ג\'ייק כהן")', 'stripped')
 end)

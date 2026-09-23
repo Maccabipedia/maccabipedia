@@ -314,10 +314,24 @@ function SportQueries.new(Fields)
 
 	handlers.list = function(builder, spec, value)
 		local items = splitList(value)
+		if spec.quoted then
+			-- A list the page built from category members arrives already
+			-- quoted - `"A", "B", ""` - because the templates pasted it straight
+			-- into IN (...). This layer quotes by itself, so each item loses its
+			-- outer quotes and the empty one drops out.
+			local unquoted = {}
+			for _, item in ipairs(items) do
+				item = item:gsub('^"(.*)"$', '%1')
+				if item ~= '' then
+					unquoted[#unquoted + 1] = item
+				end
+			end
+			items = unquoted
+		end
 		if spec.stripPrefix then
-			-- A list the page built from category members carries the namespace
-			-- (basketball's "כדורסל:Name"), which the stored name lacks. Left on, IN
-			-- matches nothing and every box renders empty with no error.
+			-- Such a list also carries the namespace (basketball's "כדורסל:Name"),
+			-- which the stored name lacks. Left on, IN matches nothing and every
+			-- box renders empty with no error.
 			for index, item in ipairs(items) do
 				if item:sub(1, #spec.stripPrefix) == spec.stripPrefix then
 					items[index] = item:sub(#spec.stripPrefix + 1)

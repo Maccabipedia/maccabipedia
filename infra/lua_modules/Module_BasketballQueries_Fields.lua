@@ -93,7 +93,7 @@ return {
 		-- The page builds this list from category members, so each name arrives
 		-- as כדורסל:Name; the template stripped the prefix with #replace.
 		['שחקנים'] = { column = 'Basketball_Player_Game_Events_Summary.PlayerName',
-			kind = 'list', stripPrefix = 'כדורסל:' },
+			kind = 'list', quoted = true, stripPrefix = 'כדורסל:' },
 		['שופט ראשי'] = { column = 'Basketball_Games.MainReferee', kind = 'text' },
 		['עוזר שופט'] = { column = 'Basketball_Games.AssistantReferees', kind = 'holds' },
 		['האם עבור יריבה'] = { column = 'Basketball_Player_Game_Events_Summary.Team',
