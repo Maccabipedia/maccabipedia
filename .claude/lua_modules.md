@@ -63,8 +63,10 @@ competitions, 22 courts, 9 categories, the portal) went through ONE query templa
 `כדורסל/סטטיסטיקה/שיאנים לפי אירוע`, once per tab: 16 queries on the portal, 32 on a
 season or opponent page. Its `#cargo_query` is now
 `{{#invoke:BasketballStatsBlock|leaderboardTab|בלוק=leaderboards|תיבה={{{אירוע}}}|…}}`
-(previous revision 202599); the box templates keep their signed `<shtml>` tab strips
-untouched. The first call on a page primes every box in the four tab categories from
+(previous revision 202599). The box templates kept their signed `<shtml>` tab strips
+through this step and lost them later the same day - see **The whole box
+(`leaderboardBox`)** below, which is what the eight of them run now.
+The first call on a page primes every box in the four tab categories from
 one grouped query and stores each tab's ranking as data in a page variable keyed by
 the filters and the limit; a tab's rows are expanded only when read. Any other
 category (`ברירת מחדל`, `יתר-רשמיים`) is primed on its own when asked.
