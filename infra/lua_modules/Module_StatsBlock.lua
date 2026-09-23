@@ -719,6 +719,27 @@ function StatsBlock.new(Queries, blocksData, name)
 
 	-- ------------------------------------------------- one tab of a leaderboard
 
+	--- The shared filters of an invoke and the cache key they make, sorted so
+	--- the same filter set always keys the same variables.
+	local function sharedOf(frame, skip)
+		local shared, names = {}, {}
+		for name, value in pairs(frame.args) do
+			if not skip[name] then
+				local given = mw.text.trim(tostring(value))
+				if given ~= '' then
+					shared[name] = given
+					names[#names + 1] = name
+				end
+			end
+		end
+		table.sort(names)
+		local keyed = {}
+		for index, name in ipairs(names) do
+			keyed[index] = name .. '=' .. shared[name]
+		end
+		return shared, table.concat(keyed, '&')
+	end
+
 	--- The arguments of leaderboardTab that are not filters.
 	local TAB_ARGUMENTS = { ['בלוק'] = true, ['תיבה'] = true, ['קטגוריית מפעל'] = true, ['כמות'] = true }
 
@@ -815,23 +836,8 @@ function StatsBlock.new(Queries, blocksData, name)
 				tostring(frame.args['כמות'])), 0)
 		end
 
-		local shared, names = {}, {}
-		for name, value in pairs(frame.args) do
-			if not TAB_ARGUMENTS[name] then
-				local given = mw.text.trim(tostring(value))
-				if given ~= '' then
-					shared[name] = given
-					names[#names + 1] = name
-				end
-			end
-		end
-		table.sort(names)
-		local keyed = {}
-		for index, name in ipairs(names) do
-			keyed[index] = name .. '=' .. shared[name]
-		end
-		local key = string.format('%s/leaderboardTab/%s/%s/%d', VAR_PREFIX, blockName,
-			table.concat(keyed, '&'), top)
+		local shared, keyed = sharedOf(frame, TAB_ARGUMENTS)
+		local key = string.format('%s/leaderboardTab/%s/%s/%d', VAR_PREFIX, blockName, keyed, top)
 
 		-- Which categories one query covers. The first query on a page always
 		-- takes the ones the tab strips show (primeCategories), plus the one
@@ -921,7 +927,123 @@ function StatsBlock.new(Queries, blocksData, name)
 		return tabRows(frame, declaration, entries, moreUrl)
 	end
 
+	-- ------------------------------------------------- one number of a block
+
+	--- The arguments of `cell` that are not filters.
+	local CELL_ARGUMENTS = { ['בלוק'] = true, ['תא'] = true, ['קטגוריית מפעל'] = true }
+
+	--- One number of a block whose numbers a template prints one by one:
+	---   {{#invoke:BasketballStatsBlock|cell|בלוק=numbers|תא=אסיסטים|קטגוריית מפעל=ליגה|עונה=…}}
+	--- A drop-in for a query template that answered one number per call. The
+	--- first call on a page computes every cell of the block in every category
+	--- the block primes, from one query per grain (game-level sums cannot share
+	--- a query with per-player sums: the join would multiply them), and stores
+	--- the numbers in page variables keyed by the filters; later calls read.
+	--- A cell with `sides` names a column per side (a team's points for and
+	--- against); the side filter picks the column and is not passed to the
+	--- game-level query, which has no side.
+	local function cell(frame)
+		local blockName = mw.text.trim(frame.args['בלוק'] or '')
+		local declaration = Blocks[blockName]
+		if not declaration or not declaration.cells or not declaration.categories then
+			error(string.format(
+				NAME .. ': no numbers block declared as "%s"', blockName), 0)
+		end
+		local word = mw.text.trim(frame.args['תא'] or '')
+		local wanted
+		for _, candidate in ipairs(declaration.cells) do
+			if candidate.word == word then
+				wanted = candidate
+			end
+		end
+		if not wanted then
+			error(string.format(NAME .. ': block "%s" has no cell "%s"', blockName, word), 0)
+		end
+		local category = mw.text.trim(frame.args['קטגוריית מפעל'] or '')
+		local known = false
+		for _, candidate in ipairs(declaration.categories) do
+			if candidate == category then
+				known = true
+			end
+		end
+		if not known then
+			error(string.format(
+				NAME .. ': block "%s" declares no category "%s"', blockName, category), 0)
+		end
+
+		local shared, keyed = sharedOf(frame, CELL_ARGUMENTS)
+		local key = string.format('%s/cell/%s/%s', VAR_PREFIX, blockName, keyed)
+		local sideFilter = declaration.sideFilter
+		local opponent = sideFilter and shared[sideFilter] ~= nil
+
+		if frame:callParserFunction('#var', { key .. '/primed/' .. category }) == '' then
+			local categories = {}
+			if frame:callParserFunction('#var', { key .. '/primed' }) == '' then
+				for _, cat in ipairs(declaration.primeCategories or declaration.categories) do
+					categories[#categories + 1] = cat
+				end
+			end
+			local listed = false
+			for _, cat in ipairs(categories) do
+				if cat == category then
+					listed = true
+				end
+			end
+			if not listed then
+				categories[#categories + 1] = category
+			end
+			-- One query per grain. A cell with sides sums a different column for
+			-- the opponent, and the side filter stays out of that query.
+			local byGrain = {}
+			for _, each in ipairs(declaration.cells) do
+				local sum = each.sum
+				if each.sides then
+					sum = opponent and each.sides.opponent or each.sides.maccabi
+				end
+				local grain = each.grain
+				byGrain[grain] = byGrain[grain] or {}
+				for _, cat in ipairs(categories) do
+					local filters = {}
+					for name, value in pairs(each.filters or {}) do
+						filters[name] = value
+					end
+					filters['קטגוריית מפעל'] = cat
+					byGrain[grain][#byGrain[grain] + 1] = {
+						name = each.key .. '/' .. cat, grain = grain, sum = sum, filters = filters,
+						sided = each.sides ~= nil,
+					}
+				end
+			end
+			-- Game-level first, then per-player: a fixed order, so the queries a
+			-- page runs are the same every time and a test can answer them in turn.
+			for _, grain in ipairs({ 'game', 'event' }) do
+				local cells = byGrain[grain] or {}
+				if #cells > 0 then
+					local filters = {}
+					for name, value in pairs(shared) do
+						if not (cells[1].sided and name == sideFilter) then
+							filters[name] = value
+						end
+					end
+					local values = FootballQueries.aggregate(filters, cells)
+					for _, each in ipairs(cells) do
+						local value = values[each.name]
+						local text = value == nil and (declaration.nullValue or '')
+							or string.format('%d', math.floor(value + 0.5))
+						frame:callParserFunction('#vardefine', { key .. '/' .. each.name, text })
+					end
+				end
+			end
+			for _, cat in ipairs(categories) do
+				frame:callParserFunction('#vardefine', { key .. '/primed/' .. cat, '1' })
+			end
+			frame:callParserFunction('#vardefine', { key .. '/primed', '1' })
+		end
+		return frame:callParserFunction('#var', { key .. '/' .. wanted.key .. '/' .. category })
+	end
+
 	return {
+		cell = cell,
 		leaderboardTab = leaderboardTab,
 		leaderboards = leaderboards,
 		block = block,

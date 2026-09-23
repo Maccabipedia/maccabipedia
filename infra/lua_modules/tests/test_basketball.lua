@@ -188,6 +188,79 @@ check('errors carry the basketball name', function(module)
 	contains(message, 'BasketballQueries: unsupported filter', 'prefix from the schema')
 end)
 
+-- ------------------------------------------------------------ the numbers
+
+local function cellFrame(args, keep)
+	local direct = { ['בלוק'] = 'numbers', ['תא'] = 'אסיסטים', ['קטגוריית מפעל'] = 'ליגה', ['עונה'] = '2023/24' }
+	for key, value in pairs(args or {}) do
+		direct[key] = value
+	end
+	return keep and stub.newFrameKeepingVariables({}, direct) or stub.newFrame({}, direct)
+end
+
+--- The two priming queries answer in the order the grains are iterated; each
+--- returns one row of cN aliases. Cells per grain: points x 4 categories (game),
+--- 6 stats x 4 categories (event).
+local function primeAnswers(gameRow, eventRow)
+	stub.willReturn({ gameRow })
+	stub.willReturn({ eventRow })
+end
+
+check('numbers: two queries prime 28 cells - the game-level points apart from the per-player sums',
+	function(module)
+		primeAnswers({ c1 = '3000', c2 = '1800', c3 = '400', c4 = '800' }, { c2 = '512' })
+		local text = module.cell(cellFrame())
+		equals(#stub.calls, 2, 'two queries')
+		local game, event = stub.calls[1], stub.calls[2]
+		if game.tables:find(PLAYERS, 1, true) then
+			game, event = event, game
+		end
+		equals(game.tables, 'Basketball_Games,Basketball_Competitions', 'the game query joins no players')
+		contains(game.fields, 'THEN COALESCE(Basketball_Games.TotalPointsMaccabi, 0) ELSE NULL END)=c1',
+			"Maccabi's points, from the game")
+		equals(game.options.where, 'Basketball_Games.Season = "2023/24"', 'and carries no side')
+		equals(event.tables, 'Basketball_Games,Basketball_Competitions,' .. PLAYERS, 'the per-player query')
+		-- aggregate() keeps the side out of the WHERE (a LEFT JOIN would turn inner) and
+		-- puts it in every per-player CASE instead.
+		contains(event.fields, PLAYERS .. '.Team = 1 THEN COALESCE(', "Maccabi's rows, in the CASE")
+		local _, columns = event.fields:gsub('=c%d+', '')
+		equals(columns, 24, '6 stats x 4 categories')
+		equals(text, '512', 'assists in the league, as an integer')
+	end)
+
+check('numbers: later cells read what the first primed; an unmatched sum prints 0', function(module)
+	primeAnswers({ c1 = '3000' }, { c2 = '512' })
+	module.cell(cellFrame())
+	equals(module.cell(cellFrame({ ['תא'] = 'נקודות', ['קטגוריית מפעל'] = 'רשמי' }, true)), '3000', 'points')
+	equals(module.cell(cellFrame({ ['תא'] = 'חסימות' }, true)), '0', 'nothing summed prints 0, as COALESCE did')
+	equals(#stub.calls, 2, 'no more queries')
+end)
+
+check("numbers: עבור יריבה=כן sums the opponent's column and the opponent's rows, under its own key",
+	function(module)
+		primeAnswers({ c1 = '2900' }, { c2 = '480' })
+		module.cell(cellFrame())
+		primeAnswers({ c1 = '2700' }, { c2 = '450' })
+		local text = module.cell(cellFrame({ ['תא'] = 'נקודות', ['קטגוריית מפעל'] = 'רשמי', ['עבור יריבה'] = 'כן' }, true))
+		equals(#stub.calls, 4, 'primed again for the other side')
+		local game = stub.calls[3].tables:find(PLAYERS, 1, true) and stub.calls[4] or stub.calls[3]
+		local event = game == stub.calls[3] and stub.calls[4] or stub.calls[3]
+		contains(game.fields, 'COALESCE(Basketball_Games.TotalPointsOpponent, 0)', "the opponent's points column")
+		equals(game.options.where, 'Basketball_Games.Season = "2023/24"', 'no side on the game query')
+		contains(event.options.where, PLAYERS .. '.Team = 0', "the opponent's rows: asked for, so in the WHERE")
+		equals(text, '2700', 'value')
+	end)
+
+check('numbers: an unknown cell or category is an error, and nothing is queried', function(module)
+	local ok, message = pcall(module.cell, cellFrame({ ['תא'] = 'שערים' }))
+	equals(ok, false)
+	contains(message, 'has no cell "שערים"')
+	ok, message = pcall(module.cell, cellFrame({ ['קטגוריית מפעל'] = 'טניס' }))
+	equals(ok, false)
+	contains(message, 'declares no category "טניס"')
+	equals(#stub.calls, 0, 'nothing queried')
+end)
+
 print(string.format('%d passed, %d failed', passed, failed))
 if failed > 0 then
 	os.exit(1)
