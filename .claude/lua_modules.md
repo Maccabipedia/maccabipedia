@@ -121,13 +121,44 @@ filters with `extra` constants (`Team = N AND IsCaptain = 1`) and `constrainsSid
 or the side default would contradict the opponent's captain. Gate: 10 pages of
 every family incl. a player page, identical.
 
-**Known, not ours:** `תבנית:כדורסל/סטטיסטיקה/שיאני אסיסטים` has its radios 2-4 in
-group `tab-control-bb-appearances` (tab 1 in `…-assists`), inside the signed
-`<shtml>` strip: tab 1's list stays under whichever tab is pressed, and pressing an
-assists tab deselects the appearances box's tab. Rendered identically before the
-module (checked by swapping the old render in a browser). The bot's save does not
-re-sign `<shtml>` ("גיבוב לא חוקי" on a sandbox), so the one-attribute fix needs
-someone with the SecureHTML right.
+**The whole box (`leaderboardBox`), live 2026-09-23.** The eight box templates
+(`כדורסל/סטטיסטיקה/שיאני …`, 132 pages: 75 seasons, the player categories, the
+portal, opponents and competitions) carried their tab strip as signed `<shtml>` -
+hidden radio inputs whose `name` groups the tabs - and handed only each tab's
+inside to `leaderboardTab`. Each is now ONE invoke
+(`{{#invoke:BasketballStatsBlock|leaderboardBox|בלוק=leaderboards|תיבה=…|כמות=…}}`,
+2.2 kB of markup down to 0.2), and the module emits the title, the strip as a
+`<tabber>` and all four panels. Both entry points share `primeRanking`/`readRanking`
+and key their variables alike, so a page part-way through the conversion still
+primes once - which is what let the boxes be switched one at a time.
+
+Why it was worth doing beyond the markup: `שיאני אסיסטים` had its radios 2-4 in
+group `tab-control-bb-appearances` (only tab 1 in `…-assists`), so pressing any of
+its tabs left the officials panel on screen as well - two panels, two "עוד..."
+links, two tabs lit - and deselected the appearances box's tab. The bot cannot save
+inside `<shtml>` ("גיבוב לא חוקי" on a sandbox), so that one attribute could not be
+fixed from the repo at all. A `<tabber>` has no groups to get wrong, so the defect
+is gone by construction rather than by a careful edit.
+
+Two rules the conversion had to respect: the tab LABEL is plain text (TabberNeue
+builds the panel id, and so the address bar, from it) and the icon comes from the
+skin keyed on that label, `atoms/tabber-converted.less`; and `איבודים` and `עבירות`
+hardcode `כמות=5`, ignoring the page's `כמות שחקנים`, which the generated templates
+keep. **One visible change:** the international tab's glyph is now the globe the
+skin maps `בינלאומי` to, where the old strip drew a euro sign. Everything else is
+pixel-identical (checked with Playwright, tab by tab).
+
+Gate: `compare_basketball_boxes.py`. The markup changes by design, so it compares
+what the box SHOWS - the four panels in order, their players, records and link -
+across the whole page, one box template swapped at a time (TemplateSandbox takes one
+page). Two traps it was built around: "does the page invoke the module" is vacuous
+here, because the live templates already did through `leaderboardTab`, so the
+candidate is detected by the `tabber-converted` it alone emits; and a page shows 4,
+6 or 8 of the boxes, so replacing one it does not transclude must be reported, not
+counted as a pass. `--selftest` points every candidate at the appearances box: 27 of
+32 must then differ, and the five that do not are the appearances boxes themselves.
+Real run: 0 of 32 differ across five pages. Render time is barely touched (~0.02 s
+per box; the query count was already one per page) - this one bought correctness.
 
 **`#vardefine` trims its value** (Variables registers it without SFH_OBJECT_ARGS, so
 the parser PHP-trims every argument). A stored value that begins or ends with
