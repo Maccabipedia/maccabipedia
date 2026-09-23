@@ -121,6 +121,16 @@ filters with `extra` constants (`Team = N AND IsCaptain = 1`) and `constrainsSid
 or the side default would contradict the opponent's captain. Gate: 10 pages of
 every family incl. a player page, identical.
 
+**What the review of the two blocks changed** (all four fixed before the merge, each
+with a mutation): the opponent side is decided by the layer's own rule
+(`Queries.asksForOpponent`), not by comparing the argument to a literal `כן`;
+`narrowShared` injects no Maccabi side when a shared filter already carries
+`constrainsSide`, so the captain filters are not contradicted; `cell` refuses a grain
+whose cells do not agree on having sides ("mixes … cells with and without sides")
+instead of trusting the first cell; and `compare_basketball_tabs.py --template` now
+requires `--candidate`/`--against`, since a candidate derived from the leaderboard
+template would otherwise be rendered under another template's title and compare nothing.
+
 **The whole box (`leaderboardBox`), live 2026-09-23.** The eight box templates
 (`כדורסל/סטטיסטיקה/שיאני …`, 132 pages: 75 seasons, the player categories, the
 portal, opponents and competitions) carried their tab strip as signed `<shtml>` -
