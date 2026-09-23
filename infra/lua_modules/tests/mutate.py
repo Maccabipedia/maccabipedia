@@ -65,7 +65,11 @@ MUTATIONS = [
     ('tab: the key ignores the limit', RENDERER,
      "table.concat(keyed, '&'), top)", "table.concat(keyed, '&'), 0)"),
     ('tab: no more link ever', RENDERER,
-     'local lines = { declaration.moreText and #result.rows >= top', 'local lines = { false and #result.rows >= top'),
+     "local more = (declaration.moreText or '') ~= '' and #result.rows >= top", "local more = false and #result.rows >= top"),
+    # The live defect of 2026-09-23: an empty first line was trimmed away by #vardefine
+    # and the top player of every small tab was read back as the link.
+    ('tab: the link line has no prefix', RENDERER,
+     "local lines = { 'more=' .. more }", 'local lines = { more }'),
     ('tab: the more link ranks a count, not the sum', RENDERER,
      "local record = box.sum and ('SUM(' .. FootballQueries.sumColumn(box.sum) .. ')') or 'COUNT(*)'",
      "local record = 'COUNT(*)'"),

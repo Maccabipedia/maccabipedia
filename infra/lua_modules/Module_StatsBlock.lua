@@ -879,8 +879,15 @@ function StatsBlock.new(Queries, blocksData, name)
 			for _, each in ipairs(declaration.boxes) do
 				for _, cat in ipairs(wanted) do
 					local result = results[each.key .. '/' .. cat]
-					local lines = { declaration.moreText and #result.rows >= top
-						and tabMoreUrl(declaration, shared, columns, each, cat, top) or '' }
+					-- The first line is the more link, or nothing. It is prefixed
+					-- because #vardefine trims its arguments (the Variables
+					-- extension takes them as plain strings): an EMPTY first line
+					-- was eaten with its newline, and the first player row came
+					-- back as the link. Seen live on a court page with two cup
+					-- players. The stub trims the same way now.
+					local more = (declaration.moreText or '') ~= '' and #result.rows >= top
+						and tabMoreUrl(declaration, shared, columns, each, cat, top) or ''
+					local lines = { 'more=' .. more }
 					for _, row in ipairs(result.rows) do
 						lines[#lines + 1] = row.name .. '\t' .. tostring(row.count)
 					end
@@ -898,7 +905,13 @@ function StatsBlock.new(Queries, blocksData, name)
 		local moreUrl, entries = nil, {}
 		for index, line in ipairs(mw.text.split(stored, '\n', true)) do
 			if index == 1 then
-				moreUrl = line ~= '' and line or nil
+				local url = line:match('^more=(.*)$')
+				if not url then
+					error(string.format(
+						NAME .. ': the stored ranking for %s/%s does not start with its '
+						.. 'link line - a page variable was overwritten', box.key, category), 0)
+				end
+				moreUrl = url ~= '' and url or nil
 			elseif line ~= '' then
 				local name, count = line:match('^(.*)\t([^\t]*)$')
 				entries[#entries + 1] = { name = name, count = tonumber(count) }

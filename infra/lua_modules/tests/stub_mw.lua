@@ -225,7 +225,12 @@ function stub.newFrameKeepingVariables(parentArgs, directArgs)
 		end,
 		callParserFunction = function(_, name, arguments)
 			if name == '#vardefine' then
-				stub.variables[arguments[1]] = arguments[2]
+				-- As the parser does: Variables registers #vardefine without
+				-- SFH_OBJECT_ARGS, so every argument is PHP-trimmed before the
+				-- extension sees it. A value beginning or ending in whitespace
+				-- (a newline included) loses it - which once cost every small
+				-- basketball tab its top player.
+				stub.variables[arguments[1]] = (tostring(arguments[2]):gsub('^%s+', ''):gsub('%s+$', ''))
 				return ''
 			end
 			if name == '#var' then
