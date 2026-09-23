@@ -251,6 +251,9 @@ check('the box refuses what it cannot render', function(module)
 	raises('has no box "שערים"', { ['תיבה'] = 'שערים' })
 	raises('כמות must be a positive whole number', { ['כמות'] = '0' })
 	raises('unsupported filter "שחקן"', { ['שחקן'] = 'שרן ייני' })
+	-- A real filter in the schema, and the one leaderboardTab takes: narrowing
+	-- all four tabs by it would leave the cup tab asking for cup AND league.
+	raises('takes no קטגוריית מפעל', { ['קטגוריית מפעל'] = 'ליגה' })
 	-- The block that has no strip is the numbers block: it is cells, not boxes.
 	raises('no tabbed leaderboard block declared as "numbers"', { ['בלוק'] = 'numbers' })
 	equals(#stub.calls, 0, 'nothing queried')

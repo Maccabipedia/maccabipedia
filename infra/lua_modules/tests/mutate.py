@@ -59,6 +59,8 @@ MUTATIONS = [
     ('box: a block with no tab strip is rendered anyway', RENDERER,
      "if not declaration.tabStrip then\n\t\t\terror(string.format(\n\t\t\t\tNAME .. ': block \"%s\" declares no tabStrip, so there is nothing '",
      "if false then\n\t\t\terror(string.format(\n\t\t\t\tNAME .. ': block \"%s\" declares no tabStrip, so there is nothing '"),
+    ('box: a category is swept up as a filter and narrows every tab', RENDERER,
+     "if frame.args['קטגוריית מפעל'] ~= nil then", 'if false then'),
     ('box: a box with no title heads itself with nothing', RENDERER,
      'if not box.title then', 'if false then'),
     ('box: the panel heads with the tab label, not its heading', RENDERER,

@@ -1,0 +1,1 @@
+<includeonly>{{#invoke:BasketballStatsBlock|leaderboardBox|בלוק=leaderboards|תיבה=איבודים|כמות=5|עונה={{{עונה|}}}|שחקנים={{{שחקנים|}}}|יריבות={{{יריבות|}}}|מגרשים={{{מגרשים|}}}}}</includeonly>

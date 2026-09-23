@@ -961,6 +961,15 @@ function StatsBlock.new(Queries, blocksData, name)
 	--- here at all. A `<tabber>` has no groups to get wrong, and the whole box
 	--- comes back under the repo's control.
 	local function leaderboardBox(frame)
+		-- The strip names every category this box shows, so a caller passing one
+		-- would be narrowing all four tabs by it: the cup tab would come back as
+		-- "cup AND league" and render empty. It is a real filter in the schema and
+		-- the argument `leaderboardTab` takes, so it is refused by name rather
+		-- than swept up as a shared filter.
+		if frame.args['קטגוריית מפעל'] ~= nil then
+			error(NAME .. ': leaderboardBox renders every tab of the strip, so it '
+				.. 'takes no קטגוריית מפעל', 0)
+		end
 		local declaration, blockName, box, top, shared, key = boxOf(frame, BOX_ARGUMENTS)
 		if not declaration.tabStrip then
 			error(string.format(
