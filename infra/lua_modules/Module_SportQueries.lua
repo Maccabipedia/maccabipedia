@@ -706,9 +706,18 @@ function SportQueries.new(Fields)
 				-- as the query matches ANY row, so a cup tab on a date with only
 				-- league games printed "0" where the template prints nothing.
 				-- Measured: over 222 rows, ELSE 0 gives 0 and ELSE NULL gives NULL.
+				--
+				-- A matched row whose value is NULL (basketball's older seasons
+				-- have no blocks or steals recorded) is another matter: the
+				-- basketball templates wrapped the sum in COALESCE(…, 0), so a
+				-- player who played and has no value shows 0, present. A schema
+				-- says so with sumMissingAsZero; the NULL for "no row matched"
+				-- stays, and rank() still reads it as absent.
+				local summed = Fields.sumMissingAsZero
+					and ('COALESCE(' .. column .. ', 0)') or column
 				fields[index] = string.format(
 					'SUM(CASE WHEN %s THEN %s ELSE NULL END)=%s',
-					condition, column, alias)
+					condition, summed, alias)
 			elseif grain == 'game' then
 				fields[index] = string.format(
 					'COUNT(DISTINCT CASE WHEN %s THEN %s._pageID END)=%s',

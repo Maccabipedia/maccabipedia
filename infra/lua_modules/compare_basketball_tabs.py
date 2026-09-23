@@ -5,6 +5,10 @@ byte for byte - with two things normalised, both documented in .claude/lua_modul
   * the "עוד..." link's href: Cargo built it from the template's raw SQL text (newlines and
     all), the module builds the same ranking from its own query. The link text and its place
     are compared; the query string is not.
+  * tied players: the old template shows a tie in whatever order MySQL returns it (it differs
+    between two renders of the same page), the module by name. A run of tied rows is sorted
+    by name on both sides before comparing; a missing or extra player, or another number,
+    still differs. This is the departure football's conversion also made.
   * a mismatch is rendered a second time both ways: the old template orders tied players
     however MySQL returns them, so two renders of the SAME page can differ.
 
@@ -32,6 +36,52 @@ INVOKE = ('{{#invoke:BasketballStatsBlock|leaderboardTab|בלוק=leaderboards|�
           '|יריבות={{{יריבות|}}}|מגרשים={{{מגרשים|}}}|תוצאה={{{תוצאה|}}}|שופט ראשי={{{שופט ראשי|}}}'
           '|עוזר שופט={{{עוזר שופט|}}}|האם עבור יריבה={{{האם עבור יריבה|}}}}}')
 VIEWDATA_HREF = re.compile(r'href="[^"]*ViewData[^"]*"')
+# One leaderboard row as the row template prints it: the player (a link, or plain text for
+# a player with no page) and the record.
+PLAYER_ROW = re.compile(r'<div class="atom-records-list-player-row"><span class="player-name">\n(.*?)</span>'
+                        r'<div class="atom-recors-list-player-info"><span class="record">([^<]*)</span>'
+                        r'.*?</div>\n</div>\n', re.S)
+
+
+def tie_sorted(html: str) -> str:
+    """The page with every run of tied rows (same record, adjacent) sorted by name.
+
+    MySQL returns tied players in whatever order it likes - it differs between two renders
+    of the same page - and the module orders a tie by name. A tie sorted both ways reads
+    the same, so the comparison is on that; a player missing, extra, or with another
+    number still differs.
+    """
+    out, position, run = [], 0, []
+
+    def flush(boundary=False, cut=False):
+        # A tie that runs into the END of a tab is cut by the limit: MySQL fills the last
+        # places with arbitrary members of it, the module with the first by name. Same
+        # record, same count, different names - so the names are masked there and only
+        # there. A cut tab (an "עוד" link follows) may show ONE member of such a tie, so
+        # its last row counts as a tie too.
+        for _, chunk in sorted(run, key=lambda entry: entry[0]):
+            if boundary and (len(run) > 1 or cut):
+                chunk = re.sub(r'<span class="player-name">\n.*?</span>', '<span class="player-name">TIE</span>',
+                               chunk, count=1, flags=re.S)
+            out.append(chunk)
+        run.clear()
+
+    last_record = None
+    for match in PLAYER_ROW.finditer(html):
+        between = html[position:match.start()]
+        if between:
+            flush(boundary=True, cut=between.lstrip().startswith('<p><a') or between.startswith('<a '))
+            out.append(between)
+            last_record = None
+        name, record = match.group(1), match.group(2)
+        if run and record != last_record:
+            flush()
+        run.append((name, match.group(0)))
+        last_record = record
+        position = match.end()
+    flush(boundary=True, cut=html[position:].lstrip().startswith("<p><a") or html[position:].startswith("<a "))
+    out.append(html[position:])
+    return ''.join(out)
 
 
 def candidate_of(body: str) -> str:
@@ -54,7 +104,7 @@ def candidate_of(body: str) -> str:
 
 
 def normalised(html: str) -> str:
-    return VIEWDATA_HREF.sub('href="VIEWDATA"', html)
+    return tie_sorted(VIEWDATA_HREF.sub('href="VIEWDATA"', html))
 
 
 def main() -> int:

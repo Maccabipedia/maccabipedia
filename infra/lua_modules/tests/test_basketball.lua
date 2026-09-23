@@ -73,12 +73,12 @@ check('the portal: one query for all 8 boxes x 6 categories, summed per player',
 	equals(columns, 48, '8 boxes x 6 categories, one aggregate each')
 	-- The side constraint is in the WHERE (as the template had it), so the CASEs carry
 	-- only the category; רשמי is no condition at all, an absent category is Official = 1.
-	contains(call.fields, 'SUM(CASE WHEN Basketball_Competitions.League = 1 THEN ' .. PLAYERS
-		.. '.TotalPoints ELSE NULL END)=c8', 'points in the league')
-	contains(call.fields, 'SUM(CASE WHEN 1=1 THEN ' .. PLAYERS .. '.IsPlayed ELSE NULL END)=c1',
+	contains(call.fields, 'SUM(CASE WHEN Basketball_Competitions.League = 1 THEN COALESCE(' .. PLAYERS
+		.. '.TotalPoints, 0) ELSE NULL END)=c8', 'points in the league; a NULL stat is 0, as the template had it')
+	contains(call.fields, 'SUM(CASE WHEN 1=1 THEN COALESCE(' .. PLAYERS .. '.IsPlayed, 0) ELSE NULL END)=c1',
 		'appearances in רשמי')
-	contains(call.fields, 'SUM(CASE WHEN Basketball_Competitions.Official = 1 THEN ' .. PLAYERS
-		.. '.IsPlayed ELSE NULL END)=c6', 'the absent-category default')
+	contains(call.fields, 'SUM(CASE WHEN Basketball_Competitions.Official = 1 THEN COALESCE(' .. PLAYERS
+		.. '.IsPlayed, 0) ELSE NULL END)=c6', 'the absent-category default')
 end)
 
 check('a tab renders the row template with named args, and the more link at the limit',

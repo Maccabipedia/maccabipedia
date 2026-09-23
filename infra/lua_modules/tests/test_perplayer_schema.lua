@@ -220,6 +220,24 @@ check('a NULL sum is a player who was not in that tab; a zero is one who was', f
 	equals(result.points.players, 2, 'and not counted')
 end)
 
+
+check('without sumMissingAsZero the column is summed as it is', function(Queries)
+	stub.willReturn({ { c1 = '1' } })
+	Queries.aggregate({ ['עונה'] = '2023/24' }, { { name = 'points', grain = 'event', sum = 'נקודות' } })
+	equals(stub.calls[1].fields,
+		'SUM(CASE WHEN ' .. PLAYERS .. '.Team = 1 THEN ' .. PLAYERS .. '.TotalPoints ELSE NULL END)=c1', 'plain')
+end)
+
+check('with sumMissingAsZero the value is coalesced inside the CASE, the ELSE stays NULL', function(Queries)
+	stub.willReturn({ { c1 = '1' } })
+	Queries.aggregate({ ['עונה'] = '2023/24' }, { { name = 'points', grain = 'event', sum = 'נקודות' } })
+	equals(stub.calls[1].fields,
+		'SUM(CASE WHEN ' .. PLAYERS .. '.Team = 1 THEN COALESCE(' .. PLAYERS .. '.TotalPoints, 0) ELSE NULL END)=c1',
+		'coalesced')
+end, function(fields)
+	fields.sumMissingAsZero = true
+end)
+
 check('errors carry the schema name', function(Queries)
 	expectError('HoopQueries: unsupported filter "שחקן"', function()
 		Queries.build({ ['שחקן'] = 'שרן ייני' })

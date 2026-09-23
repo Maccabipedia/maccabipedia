@@ -127,6 +127,11 @@ return {
 			} },
 	},
 
+	-- The template summed with COALESCE(ROUND(SUM(col), 0), 0): a player who
+	-- played (has rows) but whose stat is NULL - older seasons record no
+	-- blocks, steals or turnovers - shows 0, and is in the tab.
+	sumMissingAsZero = true,
+
 	-- The אירוע words of the template, each the column it summed.
 	sumColumns = {
 		['הופעות'] = 'Basketball_Player_Game_Events_Summary.IsPlayed',
