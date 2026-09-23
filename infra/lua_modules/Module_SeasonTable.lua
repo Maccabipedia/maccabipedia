@@ -58,8 +58,16 @@ function SeasonTable.new(Queries, declaration, name)
 	--- The condition comes from the schema's own `תוצאה` choices, so the column
 	--- and a filter by the same word cannot disagree.
 	local function resultSum(word)
-		return string.format('SUM(CASE WHEN %s THEN 1 ELSE 0 END)',
-			Queries.choiceCondition('תוצאה', word))
+		local condition = Queries.choiceCondition('תוצאה', word)
+		-- A choice may legitimately mean "no condition" (basketball's רשמי tab),
+		-- which is fine for a filter and nonsense for a column: it would compile
+		-- to `SUM(CASE WHEN  THEN 1 ELSE 0 END)`.
+		if condition == '' then
+			error(string.format(
+				NAME .. ': the result "%s" carries no condition, so it cannot be '
+				.. 'a column', tostring(word)), 0)
+		end
+		return string.format('SUM(CASE WHEN %s THEN 1 ELSE 0 END)', condition)
 	end
 
 	--- The (season, competition) pairs with their results, in `Season DESC`.
@@ -184,10 +192,18 @@ function SeasonTable.new(Queries, declaration, name)
 			return linked(string.format(declaration.competitionLink, competition),
 				competition)
 		end
+		-- The grouping name is a competition like any other, so it is linked
+		-- through the same shape: football's is bare, basketball's lives in the
+		-- `כדורסל:` namespace. Without this the basketball referee rows would
+		-- link `גביע המדינה` to FOOTBALL's article, which exists in ns 0.
+		-- The fallback text stays the BARE grouping name, as the row template's
+		-- `{{#var: שם מפעל מרכז}}` printed it.
 		local grouping = concentrated[competition] or ''
-		local title = grouping ~= '' and mw.title.new(grouping) or nil
+		local target = grouping ~= ''
+			and string.format(declaration.competitionLink, grouping) or ''
+		local title = target ~= '' and mw.title.new(target) or nil
 		if title and title.exists then
-			return '[[' .. grouping .. '|' .. competition .. ']]'
+			return '[[' .. target .. '|' .. competition .. ']]'
 		end
 		return grouping
 	end

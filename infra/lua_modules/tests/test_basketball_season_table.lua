@@ -152,7 +152,23 @@ check('the head referee table: one filter, and the grouping link', function(modu
 	local lookup = stub.calls[2]
 	equals(lookup.tables, 'Basketball_Competitions_Map', 'basketball\'s own map')
 	contains(lookup.options.where, 'Names HOLDS "ליגת העל בכדורסל"', 'the rows\' own lookup')
-	contains(html, '<div class="table-row">', 'a row came back')
+	-- The grouping name must be linked in the כדורסל: namespace like any other
+	-- competition. The map stores bare names, and `גביע המדינה` / `ליגת העל`
+	-- exist in ns 0 as FOOTBALL's articles - so a bare link sends every such row
+	-- on 467 referee pages to the wrong sport.
+	contains(html, '[[כדורסל: ליגת העל בכדורסל|ליגת העל בכדורסל]]', 'linked in this sport')
+	lacks(html, '[[ליגת העל בכדורסל|', 'never the bare name')
+end)
+
+check('a grouping name whose page is missing prints bare, as the row template did', function(module)
+	stub.missingPages = { ['כדורסל: ליגת העל'] = true }
+	stub.willReturn({ pair('2023/24', 'ליגת העל בכדורסל', '2', '1') })
+	stub.willReturn({ { concentrated = 'ליגת העל' } })
+	stub.willReturn(CATALOGUE)
+	local html = module.rows(stub.newFrame({},
+		{ ['שופט ראשי'] = 'אור זרור', ['קישור מפעל'] = 'מרכז' }))
+	contains(html, '<span>ליגת העל</span>', 'the bare grouping name, not the link target')
+	lacks(html, 'כדורסל: ליגת העל', 'and not the namespaced one')
 end)
 
 check('the assistant referee is a filter of its own', function(module)
@@ -168,6 +184,23 @@ check('two entities at once are refused', function(module)
 	equals(ok, false, 'raised')
 	contains(message, 'rows takes one of', 'said why')
 	equals(#stub.calls, 0, 'nothing queried')
+end)
+
+check('a result word that carries no condition cannot be a column', function(module)
+	-- A `choice` may mean "no condition" - basketball's רשמי tab does - which is
+	-- right for a filter and nonsense for a column: it would compile to
+	-- `SUM(CASE WHEN  THEN 1 ELSE 0 END)`. No declaration does this today; the
+	-- guard is what keeps the next one from shipping invalid SQL.
+	stub.dataPatch = function(data)
+		if data.filters and data.filters['תוצאה'] then
+			data.filters['תוצאה'].choices['ניצחון'] = ''
+		end
+	end
+	module = stub.loadModule('Module:BasketballSeasonTable')
+	local ok, message = pcall(module.rows, stub.newFrame({}, { ['יריבות'] = 'הפועל תל אביב' }))
+	equals(ok, false, 'raised')
+	contains(message, 'carries no condition', 'said why')
+	equals(#stub.calls, 0, 'and nothing queried')
 end)
 
 check('errors carry the basketball name', function(module)

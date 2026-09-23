@@ -9,8 +9,12 @@ READ-ONLY, paced (season_api). Per opponent page:
 --sandbox (before publishing): the table alone. Both sides first run the
 opponent template's own preamble with the page's parameters (so both read the
 same יריבות לשליפה); OLD then calls the live table template, NEW the
-candidate table body with Module:FootballSeasonTable overridden by the repo
-file - the only new page, so one override per request is enough.
+candidate table body with the sport's season-table page overridden by the repo
+file. That page is a DECLARATION; the logic it binds lives in Module:SeasonTable,
+which cannot be overridden in the same request - so it is in `layer` instead and
+checked byte-for-byte against the repo before anything runs. Without that, a
+stale Module:SeasonTable on production would give a clean run about code the
+repo no longer has.
 --full (after publishing): the whole page with the table template overridden
 by the candidate; everything outside the table byte-identical.
 
@@ -63,7 +67,9 @@ SPORTS = {
         'selftest_pair': ('הפועל תל אביב', 'מכבי חיפה'),
         'namespace': 0,
         'skip': set(),
-        'layer': [('Module:FootballQueries', 'Module_FootballQueries.lua'),
+        'quote_rule': 'strip',
+        'layer': [('Module:SeasonTable', 'Module_SeasonTable.lua'),
+                  ('Module:FootballQueries', 'Module_FootballQueries.lua'),
                   ('Module:FootballQueries/Fields', 'Module_FootballQueries_Fields.lua')],
     },
     'basketball': {
@@ -82,7 +88,9 @@ SPORTS = {
         'namespace': 3003,
         # A scratch page in the main namespace, not an opponent.
         'skip': {'נסיון'},
-        'layer': [('Module:BasketballQueries', 'Module_BasketballQueries.lua'),
+        'quote_rule': 'keep',
+        'layer': [('Module:SeasonTable', 'Module_SeasonTable.lua'),
+                  ('Module:BasketballQueries', 'Module_BasketballQueries.lua'),
                   ('Module:BasketballQueries/Fields', 'Module_BasketballQueries_Fields.lua')],
     },
 }
@@ -167,7 +175,16 @@ def opponent_names(title: str, preamble: str) -> list[str]:
 def direct_rows(names: list[str]) -> list[tuple]:
     """(season, competition, *results) straight from Cargo, in the database's
     Season DESC order - written apart from the module."""
-    literals = ', '.join('"' + name.replace("'", '').replace('"', '') + '"' for name in names)
+    # Each sport's Opponent column has its own quote rule, and the oracle has to use
+    # the same one or it asks about a name that is not stored: football STRIPS the
+    # quotes (its schema says so), basketball KEEPS them - and production holds
+    # ז'לגיריס קובנה, צסק"א מוסקבה, בית"ר תל אביב among others. Stripping there would
+    # query a name matching nothing and fail a module that is right.
+    if SPORT['quote_rule'] == 'strip':
+        literals = ', '.join('"' + name.replace("'", '').replace('"', '') + '"' for name in names)
+    else:
+        literals = ', '.join('"' + name.replace('\\', '\\\\').replace('"', '\\"') + '"'
+                             for name in names)
     results = ', '.join(f'{sql}={key}' for key, sql in SPORT['results'])
     data = call('prod', {'action': 'cargoquery', 'tables': SPORT['games'],
                          # A comparison sums as 0/1; no game has a NULL ResultOpt
