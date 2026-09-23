@@ -842,7 +842,16 @@ shown "seasons" number and the category `שחקני כדורגל ששיחקו N 
 from whichever template last wrote the array - today the last staff trophy list,
 whose `<em>ללא תוצאות</em>` counts as 1 (אורי עזו shows 1; he played 2). Skipping
 the staff lists for player-only pages changed that number, which is why they still
-run. Open, for Roee to rule.
+run. Open - it needs a decision on what counts as a season (played only, or bench too,
+and from how many bench games).
+
+**Coach column errors, fixed LIVE 2026-09-23.** `…/איש צוות/הצגה` divided each
+per-game ratio by משחקים unguarded, so a tab with 0 games printed 9
+`number_format` errors. The ratios now sit in `#ifexpr משחקים > 0`, as in the player
+column. A fix that is meant to change output is gated with `--removed-errors`: OLD
+minus its erroring ratio spans must equal NEW, and NEW holds no error. The error
+markup is `<span class="error">`, not `<strong>` - match the real HTML, the first
+gate failed on its own regex.
 ## Game dates without `#time`: `Module:FootballDate`
 
 ParserFunctions gives a page ~6000 bytes of `#time` format strings. The shared
