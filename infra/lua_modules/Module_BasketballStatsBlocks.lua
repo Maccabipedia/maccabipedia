@@ -72,16 +72,42 @@ return {
 		-- box in each of these from one query (32 sums, ~0.55 s over 57k rows,
 		-- measured); the other two are primed on their own when a page asks.
 		primeCategories = { 'רשמי', 'ליגה', 'גביע', 'בינלאומי' },
-		-- `word` is the template's אירוע value; `sum` the schema's summable value.
+
+		-- The four tabs `leaderboardBox` renders, in the box templates' order.
+		-- `label` is what TabberNeue shows and what the panel's id (and so the
+		-- address bar) is built from, so it stays PLAIN TEXT and the icon comes
+		-- from the skin, keyed on the label (`atoms/tabber-converted.less`);
+		-- `heading` is the panel's own header, which the templates wrote out
+		-- and which differs from the label on the cup tab.
+		tabStrip = {
+			{ category = 'רשמי', label = 'משחקים רשמיים', heading = 'משחקים רשמיים' },
+			{ category = 'ליגה', label = 'ליגה', heading = 'ליגה' },
+			{ category = 'גביע', label = 'גביע', heading = 'גביע המדינה' },
+			{ category = 'בינלאומי', label = 'בינלאומי', heading = 'בינלאומי' },
+		},
+		tabHeading = '<div class="tab-header">%s</div>',
+		boxOpen = '<div class="records-list-tabs-container">',
+
+		-- `word` is the template's אירוע value; `sum` the schema's summable
+		-- value; `title` heads the box, as the template's own `<div class=
+		-- "title">` did.
 		boxes = {
-			{ key = 'appearances', word = 'הופעות', sum = 'הופעות', filters = {} },
-			{ key = 'points', word = 'נקודות', sum = 'נקודות', filters = {} },
-			{ key = 'assists', word = 'אסיסטים', sum = 'אסיסטים', filters = {} },
-			{ key = 'rebounds', word = 'ריבאונדים', sum = 'ריבאונדים', filters = {} },
-			{ key = 'blocks', word = 'חסימות', sum = 'חסימות', filters = {} },
-			{ key = 'steals', word = 'חטיפות', sum = 'חטיפות', filters = {} },
-			{ key = 'turnovers', word = 'איבודים', sum = 'איבודים', filters = {} },
-			{ key = 'fouls', word = 'עבירות', sum = 'עבירות', filters = {} },
+			{ key = 'appearances', word = 'הופעות', sum = 'הופעות', filters = {},
+			  title = 'שיאני הופעות' },
+			{ key = 'points', word = 'נקודות', sum = 'נקודות', filters = {},
+			  title = 'שיאני נקודות' },
+			{ key = 'assists', word = 'אסיסטים', sum = 'אסיסטים', filters = {},
+			  title = 'שיאני אסיסטים' },
+			{ key = 'rebounds', word = 'ריבאונדים', sum = 'ריבאונדים', filters = {},
+			  title = 'שיאני ריבאונדים' },
+			{ key = 'blocks', word = 'חסימות', sum = 'חסימות', filters = {},
+			  title = 'שיאני חסימות' },
+			{ key = 'steals', word = 'חטיפות', sum = 'חטיפות', filters = {},
+			  title = 'שיאני חטיפות' },
+			{ key = 'turnovers', word = 'איבודים', sum = 'איבודים', filters = {},
+			  title = 'שיאני איבודים' },
+			{ key = 'fouls', word = 'עבירות', sum = 'עבירות', filters = {},
+			  title = 'שיאני עבירות' },
 		},
 	},
 }
