@@ -874,6 +874,25 @@ function SportQueries.new(Fields)
 		return column
 	end
 
+	--- The SQL one word of a `choice` filter stands for (`ניצחון` →
+	--- `…ResultOpt = 1`), for a caller that must COUNT by that word rather than
+	--- filter by it - a season table's wins and losses columns. Read from the
+	--- schema so the table and the filter cannot drift apart. Raises for a filter
+	--- that is not a choice, and for a word it does not list.
+	function Queries.choiceCondition(filterName, word)
+		local spec = Fields.filters[filterName]
+		if not spec or not spec.choices then
+			error(string.format(
+				NAME .. ': "%s" is not a filter with choices', tostring(filterName)), 0)
+		end
+		local condition = spec.choices[normalise(word)]
+		if condition == nil then
+			error(string.format(
+				NAME .. ': unknown %s "%s"', filterName, tostring(word)), 0)
+		end
+		return condition
+	end
+
 	--- The column a leaderboard's group key names, for callers that build a link
 	--- to the same ranking (the "עוד" page). Raises for an unknown key.
 	function Queries.groupKeyColumn(groupBy)

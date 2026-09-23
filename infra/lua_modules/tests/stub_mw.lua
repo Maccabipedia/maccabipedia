@@ -43,8 +43,12 @@ local PAGES = {
 		'infra/lua_modules/Module_FootballStatsBlock.lua',
 	['Module:FootballSeasonSquad'] =
 		'infra/lua_modules/Module_FootballSeasonSquad.lua',
+	['Module:SeasonTable'] =
+		'infra/lua_modules/Module_SeasonTable.lua',
 	['Module:FootballSeasonTable'] =
 		'infra/lua_modules/Module_FootballSeasonTable.lua',
+	['Module:BasketballSeasonTable'] =
+		'infra/lua_modules/Module_BasketballSeasonTable.lua',
 	['Module:FootballPlayerStats'] =
 		'infra/lua_modules/Module_FootballPlayerStats.lua',
 	['Module:SeasonTrophies'] =
