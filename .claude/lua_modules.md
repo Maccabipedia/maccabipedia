@@ -93,7 +93,22 @@ template's raw SQL text). 16/16 sample pages across every family passed that.
 Cost, measured: the grouped query is ~0.2 s plus ~12 ms per conditional sum over
 57k rows, so priming 32 sums costs ~0.55 s and 48 would cost 0.8; expanding the row
 template (an existence check per player) for tabs the page never shows cost more
-than the query, hence data in the variables and rendering on read. **Deploying a schema and the logic
+than the query, hence data in the variables and rendering on read.
+
+**`#vardefine` trims its value** (Variables registers it without SFH_OBJECT_ARGS, so
+the parser PHP-trims every argument). A stored value that begins or ends with
+whitespace - a newline included - loses it. The first version of `leaderboardTab`
+stored `<link or nothing>\n<rows>`, so a tab with no link (fewer players than the
+limit) lost its first newline and its TOP PLAYER came back as the link: live on
+small pages (a court with two cup players) until review caught it; the 16 gate
+pages all had five or more players per tab. Now the line is `more=…`, the stub
+trims like the parser, a mutation restores the bare line and is killed, and the
+gate sample includes pages with fewer players than the limit
+(`.claude/tmp/bb_small_pages.txt`). The other side filter word: basketball's
+`האם עבור יריבה` selects the opponent only for `כן`; the template it replaced flipped
+on ANY value. No caller passes a value today; another word would silently mean
+Maccabi - the layer's one known "guess" - so a caller adding one must add it to
+`sides.opponentValue` first. **Deploying a schema and the logic
 that reads it:** production publishes one page at a time, so the schema went out
 first carrying the keys the OLD logic read as well (a transitional copy, removed
 the moment the new logic was live); no page ever saw a mismatched pair.

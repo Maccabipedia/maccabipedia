@@ -833,12 +833,13 @@ function StatsBlock.new(Queries, blocksData, name)
 		local key = string.format('%s/leaderboardTab/%s/%s/%d', VAR_PREFIX, blockName,
 			table.concat(keyed, '&'), top)
 
-		-- Which categories one query covers. The block names the ones its tab
-		-- strips show (primeCategories); a category outside them (the untabbed
-		-- family's default, יתר-רשמיים) is primed on its own when asked, since
-		-- every conditional sum costs the query ~12 ms over 57k rows (measured)
-		-- and the tab strips never ask for those. Each primed category marks
-		-- itself, so a second set on the same page adds only what is missing.
+		-- Which categories one query covers. The first query on a page always
+		-- takes the ones the tab strips show (primeCategories), plus the one
+		-- asked for if it is not among them; a later request for a category
+		-- outside them (the untabbed family's default, יתר-רשמיים) is primed on
+		-- its own. Every conditional sum costs the query ~12 ms over 57k rows
+		-- (measured), and the tab strips never ask for those two. Each primed
+		-- category marks itself, so nothing is primed twice.
 		local function primed(cat)
 			return frame:callParserFunction('#var', { key .. '/primed/' .. cat }) ~= ''
 		end

@@ -38,9 +38,12 @@ INVOKE = ('{{#invoke:BasketballStatsBlock|leaderboardTab|בלוק=leaderboards|�
 VIEWDATA_HREF = re.compile(r'href="[^"]*ViewData[^"]*"')
 # One leaderboard row as the row template prints it: the player (a link, or plain text for
 # a player with no page) and the record.
+# The row's tail is `</div>\n</div>` and a newline follows every row but the last of an
+# uncut tab (the parser trims it), so the newline is NOT part of the match: a pattern that
+# required it ran past that last row into the next tab and displaced it.
 PLAYER_ROW = re.compile(r'<div class="atom-records-list-player-row"><span class="player-name">\n(.*?)</span>'
                         r'<div class="atom-recors-list-player-info"><span class="record">([^<]*)</span>'
-                        r'.*?</div>\n</div>\n', re.S)
+                        r'.*?</div>\n</div>', re.S)
 
 
 def tie_sorted(html: str) -> str:
@@ -59,18 +62,30 @@ def tie_sorted(html: str) -> str:
         # record, same count, different names - so the names are masked there and only
         # there. A cut tab (an "עוד" link follows) may show ONE member of such a tie, so
         # its last row counts as a tie too.
+        # Every chunk but possibly the last carries the newline that followed it; the
+        # rows are sorted without their newlines and the layout re-applied, so which
+        # row came last in the original does not leak into the comparison.
+        trailing = sum(1 for _, chunk in run if chunk.endswith('\n'))
+        sorted_rows = []
         for _, chunk in sorted(run, key=lambda entry: entry[0]):
+            chunk = chunk.rstrip('\n')
             if boundary and (len(run) > 1 or cut):
                 chunk = re.sub(r'<span class="player-name">\n.*?</span>', '<span class="player-name">TIE</span>',
                                chunk, count=1, flags=re.S)
-            out.append(chunk)
+            sorted_rows.append(chunk)
+        if sorted_rows:
+            out.append('\n'.join(sorted_rows) + ('\n' if trailing == len(run) else ''))
         run.clear()
 
     last_record = None
     for match in PLAYER_ROW.finditer(html):
         between = html[position:match.start()]
-        if between:
-            flush(boundary=True, cut=between.lstrip().startswith('<p><a') or between.startswith('<a '))
+        if between == '\n' and run:
+            # The newline between two rows of one tab: part of the run, so the rows
+            # can still be sorted as one tie. Sorting keeps every chunk's own newline.
+            run[-1] = (run[-1][0], run[-1][1] + between)
+        elif between:
+            flush(boundary=True, cut=between.lstrip().startswith(('<p><a', '<a ')))
             out.append(between)
             last_record = None
         name, record = match.group(1), match.group(2)
@@ -79,7 +94,7 @@ def tie_sorted(html: str) -> str:
         run.append((name, match.group(0)))
         last_record = record
         position = match.end()
-    flush(boundary=True, cut=html[position:].lstrip().startswith("<p><a") or html[position:].startswith("<a "))
+    flush(boundary=True, cut=html[position:].lstrip().startswith(('<p><a', '<a ')))
     out.append(html[position:])
     return ''.join(out)
 
@@ -108,16 +123,23 @@ def normalised(html: str) -> str:
 
 
 def main() -> int:
-    body = page_text(TEMPLATE)
-    candidate = candidate_of(body)
-    if '--candidate-only' in sys.argv:
-        print(candidate)
-        return 0
-    Path('.claude/tmp/bb_inner_candidate.wiki').write_text(candidate, encoding='utf-8')
+    arguments = [argument for argument in sys.argv[1:] if not argument.startswith('--')]
+    if '--against' in sys.argv:
+        # After the switch: the LIVE template is the module's, and the saved previous
+        # text (switch_template_prod.py's record) is rendered as the sandbox side. Same
+        # comparison, mirrored - OLD below is then the module, NEW the old template.
+        candidate = Path(sys.argv[sys.argv.index('--against') + 1]).read_text(encoding='utf-8')
+        arguments = [argument for argument in arguments if not argument.endswith('.wiki')]
+    else:
+        candidate = candidate_of(page_text(TEMPLATE))
+        if '--candidate-only' in sys.argv:
+            print(candidate)
+            return 0
+        Path('.claude/tmp/bb_inner_candidate.wiki').write_text(candidate, encoding='utf-8')
     override = {'templatesandboxtitle': TEMPLATE, 'templatesandboxtext': candidate,
                 'templatesandboxcontentmodel': 'wikitext'}
-    failed, used = 0, 0
-    for title in Path(sys.argv[1]).read_text(encoding='utf-8').split('\n'):
+    failed, used, unstable = 0, 0, 0
+    for title in Path(arguments[0]).read_text(encoding='utf-8').split('\n'):
         title = title.strip()
         if not title or title.startswith('#'):
             continue
@@ -126,9 +148,10 @@ def main() -> int:
         except (KeyError, IndexError):
             print(f'  skip {title}: no such page')
             continue
-        old, old_wall, _ = render(title, text, None)
+        old, old_wall, live_templates = render(title, text, None)
         new, new_wall, templates = render(title, text, override)
-        invokes = MODULE in templates or MODULE.replace('Module:', 'יחידה:') in templates
+        invokes = any(MODULE in group or MODULE.replace('Module:', 'יחידה:') in group
+                      for group in (templates, live_templates))
         used += invokes
         verdict = 'identical' if normalised(old) == normalised(new) else 'DIFFERS'
         if verdict == 'DIFFERS':
@@ -138,6 +161,7 @@ def main() -> int:
                 verdict = 'identical on rerun (tie order)'
             elif normalised(old2) != normalised(old):
                 verdict = 'differs, and so do two unchanged renders'
+                unstable += 1
         if verdict == 'DIFFERS':
             failed += 1
             a, b = normalised(old), normalised(new)
@@ -145,7 +169,10 @@ def main() -> int:
             print(f'    at {index}: OLD {a[index - 80:index + 120]!r}\n              NEW {b[index - 80:index + 120]!r}')
         print(f'  {title}: {verdict}{"" if invokes else " (NEW did NOT invoke the module)"}  '
               f'({old_wall:.2f}s -> {new_wall:.2f}s)', flush=True)
-    print(f'{failed} page(s) differ, {used} page(s) invoked the module')
+    # An unstable page is NOT evidence either way - it is named here so the summary
+    # line cannot read as a clean pass over pages that were never really compared.
+    print(f'{failed} page(s) differ, {unstable} page(s) could not be compared (unstable between '
+          f'two unchanged renders), {used} page(s) invoked the module')
     return 1 if failed or not used else 0
 
 
