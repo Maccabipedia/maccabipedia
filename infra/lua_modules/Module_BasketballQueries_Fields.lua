@@ -98,6 +98,16 @@ return {
 		-- as כדורסל:Name; the template stripped the prefix with #replace.
 		['שחקנים'] = { column = 'Basketball_Player_Game_Events_Summary.PlayerName',
 			kind = 'list', quoted = true, stripPrefix = 'כדורסל:' },
+		-- כמות משחקים: a game the player captained, on the given side. The
+		-- template: AND bpges.PlayerName="X" AND bpges.Team=1 AND bpges.IsCaptain=True.
+		['קפטן מכבי'] = { column = 'Basketball_Player_Game_Events_Summary.PlayerName', kind = 'text',
+			extra = 'Basketball_Player_Game_Events_Summary.Team = 1'
+				.. ' AND Basketball_Player_Game_Events_Summary.IsCaptain = 1',
+			constrainsSide = true },
+		['קפטן יריבה'] = { column = 'Basketball_Player_Game_Events_Summary.PlayerName', kind = 'text',
+			extra = 'Basketball_Player_Game_Events_Summary.Team = 0'
+				.. ' AND Basketball_Player_Game_Events_Summary.IsCaptain = 1',
+			constrainsSide = true },
 		['מאמן מכבי'] = { column = 'Basketball_Games.CoachMaccabi', kind = 'text' },
 		['מאמן יריבה'] = { column = 'Basketball_Games.CoachOpponent', kind = 'text' },
 		['שופט ראשי'] = { column = 'Basketball_Games.MainReferee', kind = 'text' },

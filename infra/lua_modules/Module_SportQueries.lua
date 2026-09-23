@@ -304,6 +304,16 @@ function SportQueries.new(Fields)
 
 	handlers.text = function(builder, spec, value)
 		builder:addComparison(spec.column, '=', value)
+		-- A filter that means more than its own column: basketball's "captain"
+		-- is a player name on the per-player table AND that row's captain flag
+		-- AND its side. The constants ride along; a spec whose constants fix the
+		-- side says so, or the side default would contradict them.
+		if spec.extra then
+			builder:add(spec.extra)
+			if spec.constrainsSide then
+				builder.teamConstrained = true
+			end
+		end
 	end
 
 	handlers.number = handlers.text

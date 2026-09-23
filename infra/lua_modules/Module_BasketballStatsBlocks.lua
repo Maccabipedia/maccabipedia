@@ -40,6 +40,24 @@ return {
 			{ key = 'fouls', word = 'עבירות', grain = 'event', sum = 'עבירות', filters = {} },
 		},
 	},
+	-- The counts behind כדורסל/סטטיסטיקה/כמות משחקים: games, wins, losses per category -
+	-- its body is now
+	--   {{#invoke:BasketballStatsBlock|cell|בלוק=games|תא=<משחקים|ניצחונות|הפסדים>|…}}
+	-- with the wrapper turning the template's תוצאה into the cell (any word but הפסד
+	-- meant a win there, as in the template's #בחר). A block of its own, apart from
+	-- `numbers`: its callers include the player pages' captain check, whose filter
+	-- reaches the per-player table - fine for a count, refused for a team-points sum.
+	-- Game grain: COUNT(DISTINCT game), as the template's COUNT(DISTINCT bg._pageName).
+	['games'] = {
+		categories = { 'רשמי', 'ליגה', 'גביע', 'בינלאומי', 'יתר-רשמיים', 'ברירת מחדל' },
+		primeCategories = { 'רשמי', 'ליגה', 'גביע', 'בינלאומי' },
+		nullValue = '0',
+		cells = {
+			{ key = 'games', word = 'משחקים', grain = 'game', filters = {} },
+			{ key = 'wins', word = 'ניצחונות', grain = 'game', filters = { ['תוצאה'] = 'ניצחון' } },
+			{ key = 'losses', word = 'הפסדים', grain = 'game', filters = { ['תוצאה'] = 'הפסד' } },
+		},
+	},
 	['leaderboards'] = {
 		groupBy = 'player',
 		rowTemplate = 'כדורסל/סטטיסטיקה/כמות משחקים/הצגת שחקן',

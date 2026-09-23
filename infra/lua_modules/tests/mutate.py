@@ -55,6 +55,16 @@ SEASON_TAB_TAIL = (
 # says so instead of silently mutating the wrong place - which is how a broken
 # mutation once reported a false survivor.
 MUTATIONS = [
+    # A text filter's constant conditions (basketball's captain).
+    ('text: the extra conditions dropped', LOGIC, '\t\tif spec.extra then', '\t\tif false then'),
+    ('text: the extra conditions leave the side default on', LOGIC,
+     '\t\t\tif spec.constrainsSide then', '\t\t\tif false then'),
+    ('basketball schema: the captain of either side', FIELDS_BB,
+     "\t\t\textra = 'Basketball_Player_Game_Events_Summary.Team = 1'\n\t\t\t\t.. ' AND Basketball_Player_Game_Events_Summary.IsCaptain = 1',",
+     "\t\t\textra = 'Basketball_Player_Game_Events_Summary.IsCaptain = 1',"),
+    ('basketball blocks: wins counted as losses', BLOCKS_BB,
+     "{ key = 'wins', word = 'ניצחונות', grain = 'game', filters = { ['תוצאה'] = 'ניצחון' } },",
+     "{ key = 'wins', word = 'ניצחונות', grain = 'game', filters = { ['תוצאה'] = 'הפסד' } },"),
     # cell (test_basketball.lua): the two grains, the side, the key, the null value.
     ('cell: the per-player sums share the game query', RENDERER,
      "for _, grain in ipairs({ 'game', 'event' }) do", "for _, grain in ipairs({ 'event' }) do"),

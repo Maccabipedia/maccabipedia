@@ -251,6 +251,41 @@ check("numbers: עבור יריבה=כן sums the opponent's column and the oppo
 		equals(text, '2700', 'value')
 	end)
 
+check('games: one query counts games, wins and losses in the four categories', function(module)
+	stub.willReturn({ { c1 = '40', c5 = '31', c9 = '9' } })
+	local frame = stub.newFrame({}, { ['בלוק'] = 'games', ['תא'] = 'ניצחונות', ['קטגוריית מפעל'] = 'רשמי',
+		['עונה'] = '2023/24' })
+	equals(module.cell(frame), '31', 'wins')
+	equals(#stub.calls, 1, 'one query')
+	equals(stub.calls[1].tables, 'Basketball_Games,Basketball_Competitions', 'games only')
+	contains(stub.calls[1].fields,
+		'COUNT(DISTINCT CASE WHEN Basketball_Games.ResultOpt = 1 THEN Basketball_Games._pageID END)=c5',
+		'a win in רשמי: the result, no category condition')
+	local _, columns = stub.calls[1].fields:gsub('=c%d+', '')
+	equals(columns, 12, '3 cells x 4 categories')
+end)
+
+check("games: the player pages' captain filter reaches the per-player table with its constants",
+	function(module)
+		-- ברירת מחדל is not a tab category: the first prime takes the four plus it, fifth.
+		stub.willReturn({ { c5 = '12' } })
+		local frame = stub.newFrame({}, { ['בלוק'] = 'games', ['תא'] = 'משחקים', ['קטגוריית מפעל'] = 'ברירת מחדל',
+			['קפטן מכבי'] = 'שרן ייני' })
+		equals(module.cell(frame), '12', 'games as captain')
+		equals(stub.calls[1].tables, 'Basketball_Games,Basketball_Competitions,' .. PLAYERS, 'joined')
+		equals(stub.calls[1].options.where,
+			PLAYERS .. '.PlayerName = "שרן ייני" AND ' .. PLAYERS .. '.Team = 1 AND ' .. PLAYERS .. '.IsCaptain = 1',
+			'the name, the side and the flag - and no second side default')
+	end)
+
+check("games: the opponent's captain fixes the side, so the Maccabi default stays out", function()
+	local Queries = stub.loadModule('Module:BasketballQueries')
+	local query = Queries.build({ ['קפטן יריבה'] = 'ג\'ון שאייר' })
+	equals(query.where,
+		PLAYERS .. '.PlayerName = "ג\'ון שאייר" AND ' .. PLAYERS .. '.Team = 0 AND ' .. PLAYERS .. '.IsCaptain = 1',
+		'Team = 0 from the filter, and no Team = 1 after it')
+end)
+
 check('numbers: an unknown cell or category is an error, and nothing is queried', function(module)
 	local ok, message = pcall(module.cell, cellFrame({ ['תא'] = 'שערים' }))
 	equals(ok, false)
