@@ -700,13 +700,31 @@ What basketball's declaration has to say that football's does not:
   so nothing is cut today - and the query layer now raises rather than truncate
   when a result reaches the limit, so it cannot start losing rows quietly.
 
-**Not yet switched: the referee families** (191 head-referee, 276
-assistant-referee pages) carry the same table, and the declaration already names
-their entities and `Basketball_Competitions_Map`. They need their own gate
-first, for the reason football's did: when a competition's page is missing the
-referee row shows the GROUPING name instead of the competition, so the cell text
-stops matching the database and the comparison has to compute the expected cell
-itself (`compare_referee_season_table.py`).
+**The referee families, live 2026-09-23**: 191 head-referee and 276
+assistant-referee pages, both templates now one invoke.
+`כדורסל:ירון זריף (שופט)` 0.65 → 0.47 s measured at the same moment (the saved
+previous template put back through TemplateSandbox), same 31 rows; the table
+leaves the profile entirely. Gate `compare_referee_season_table.py --sport
+basketball`: 191/191 and 276/276.
+
+Those pages need their own gate for the reason football's did: a row is
+identified by its whole competition CELL, because when the grouping page is
+missing the row shows the GROUPING name instead of the competition, so the cell
+text stops matching the database. Two traps found while building it:
+
+- **The grouping name is a competition like any other and must be linked through
+  the sport's own shape.** A review caught this before the switch: bare, every
+  such row would have linked `גביע המדינה` and `ליגת העל` to FOOTBALL's ns-0
+  articles, since basketball's are `כדורסל:…`. The missing-page fallback still
+  prints the bare grouping name, as the row template did.
+- **MediaWiki normalises `כדורסל: X` to `כדורסל:X`.** The module emits the
+  template's spacing; the gate compares against rendered link titles and asks the
+  API about them, both normalised. Written with the space, the gate's oracle
+  matched nothing and accused a module that was right.
+
+Basketball is simpler than football in one respect: both referee filters sit on
+`Basketball_Games` (`MainReferee` text, `AssistantReferees` HOLDS), so there is
+no join to make.
 
 The gate takes a sport. `SPORTS` at the top of
 `compare_opponent_season_table.py` holds each one's templates, module, games and
