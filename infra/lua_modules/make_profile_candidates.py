@@ -24,6 +24,10 @@ Fixes (each touches one template):
                   passes it to the 6 player trophy lists (needs trophies-param live first).
                   The staff lists are kept: see trophies_once for why skipping them is not
                   output-neutral.
+  coach-ratios    …/הצגת עמודת סטטיסטיקה/איש צוות/הצגה  a BUG FIX, not output-neutral: the
+                  9 per-game ratios divided by משחקים unguarded, so a tab where the coach has
+                  0 games printed 9 number_format errors. Each ratio span now sits inside
+                  #ifexpr משחקים > 0, as in the player column. Gate with --removed-errors.
   keeper-cells    …/הצגת עמודת סטטיסטיקה/שחקן/הצגה  the four goalkeeper cells were
                   #vardefine'd for every player, so Module:FootballPlayerStats ran its keeper
                   query (~80 ms) on outfield pages too. They are read only inside the
@@ -31,6 +35,7 @@ Fixes (each touches one template):
 """
 from __future__ import annotations
 
+import re
 import sys
 from pathlib import Path
 
@@ -101,6 +106,17 @@ def trophies_once(text: str) -> str:
     return text
 
 
+COACH_RATIO = re.compile(r'(<span class="small">\{\{#number_format: .*?</span>)(</span>)')
+
+
+def coach_ratios(text: str) -> str:
+    """Show the coach column's per-game ratios only when the tab has games, as the player column does."""
+    guarded, count = COACH_RATIO.subn(r'{{#ifexpr: {{#var: משחקים}} > 0 |\1}}\2', text)
+    if count != 9:
+        raise SystemExit(f'coach-ratios: expected 9 ratio spans, found {count} - refusing')
+    return guarded
+
+
 def live(title: str) -> tuple[str, str]:
     data = call('prod', {'action': 'query', 'titles': title, 'prop': 'revisions',
                          'rvprop': 'content|sha1', 'rvslots': 'main'})
@@ -114,6 +130,10 @@ def main() -> None:
         title = 'תבנית:פרופיל כדורגל'
         text, sha1 = live(title)
         candidate = trophies_once(text)
+    elif fix == 'coach-ratios':
+        title = 'תבנית:פרופיל כדורגל/הצגת עמודת סטטיסטיקה/איש צוות/הצגה'
+        text, sha1 = live(title)
+        candidate = coach_ratios(text)
     else:
         title, old, new = FIXES[fix]
         text, sha1 = live(title)

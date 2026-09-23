@@ -15,6 +15,10 @@ The sample covers the edges, not just the average: every player+coach page, keep
 staff-only pages, pages with and without a photo gallery, pages without a profile
 photo, plus a seeded random draw and any --extra titles.
 
+--removed-errors is for a bug fix that is meant to change output: OLD with every
+erroring ratio span (<span class="small"> holding a class="error") cut out must equal
+NEW, and NEW must hold no error at all. Pages without such errors stay byte-identical.
+
 --selftest swaps in the candidate with a visible marker right after its <includeonly>,
 on three player+coach pages (they use every profile template): it must FAIL, which
 proves the NEW side really renders the candidate.
@@ -23,6 +27,7 @@ from __future__ import annotations
 
 import argparse
 import random
+import re
 import sys
 from pathlib import Path
 
@@ -30,6 +35,8 @@ sys.path.insert(0, str(Path('infra/season_pages')))
 from season_api import call  # noqa: E402
 
 CANDIDATES = Path('infra/lua_modules/wiki_templates/football_profile')
+# A ratio span whose number_format failed: <span class="small"><span class="error">…</span> למשחק…</span>
+ERROR_RATIO = re.compile(r'<span class="small"><span class="error">[^<]*</span>[^<]*</span>')
 PROFILES = 'קטגוריה:פרופילי כדורגל'
 
 
@@ -91,6 +98,8 @@ def main() -> None:
     parser.add_argument('--extra', nargs='*', default=[])
     parser.add_argument('--seed', type=int, default=7)
     parser.add_argument('--selftest', action='store_true')
+    parser.add_argument('--removed-errors', action='store_true',
+                        help='a bug-fix gate: NEW must equal OLD minus its erroring ratio spans, with no errors left')
     options = parser.parse_args()
     template, sha1 = (CANDIDATES / f'{options.fix}.sha1').read_text(encoding='utf-8').splitlines()[:2]
     candidate = (CANDIDATES / f'{options.fix}.wiki').read_text(encoding='utf-8')
@@ -109,7 +118,10 @@ def main() -> None:
         wikitext = call('prod', {'action': 'parse', 'page': title, 'prop': 'wikitext'})['parse']['wikitext']
         old_html, old_categories, old_wall = render(title, wikitext, None)
         new_html, new_categories, new_wall = render(title, wikitext, (template, candidate))
-        same = old_html == new_html and old_categories == new_categories
+        expected_html = ERROR_RATIO.sub('', old_html) if options.removed_errors else old_html
+        same = expected_html == new_html and old_categories == new_categories
+        if options.removed_errors and 'class="error' in new_html:
+            same = False
         old_total, new_total = old_total + old_wall, new_total + new_wall
         if not same:
             failures.append(title)
