@@ -56,12 +56,12 @@ local function tabFrame(args, keep)
 end
 
 --- A grouped-query row: the player and a value for the points/league column,
---- which is column index (box 2, category 2) = c8 with 6 categories per box.
+--- which is column index (box 2, category 2) = c6 with the 4 tab categories primed per box.
 local function pointsLeague(name, value)
-	return { g = name, c8 = value }
+	return { g = name, c6 = value }
 end
 
-check('the portal: one query for all 8 boxes x 6 categories, summed per player', function(module)
+check('the portal: one query for all 8 boxes x the 4 tab categories, summed per player', function(module)
 	stub.willReturn({ pointsLeague('דורון ג\'מצ\'י', '7490') })
 	module.leaderboardTab(tabFrame())
 	equals(#stub.calls, 1, 'one query')
@@ -70,15 +70,28 @@ check('the portal: one query for all 8 boxes x 6 categories, summed per player',
 	equals(call.options.groupBy, PLAYERS .. '.PlayerName', 'grouped by player')
 	equals(call.options.where, PLAYERS .. '.Team = 1', 'Maccabi only, nothing else on the portal')
 	local _, columns = call.fields:gsub('=c%d+', '')
-	equals(columns, 48, '8 boxes x 6 categories, one aggregate each')
+	equals(columns, 32, '8 boxes x 4 tab categories, one aggregate each')
 	-- The side constraint is in the WHERE (as the template had it), so the CASEs carry
 	-- only the category; רשמי is no condition at all, an absent category is Official = 1.
 	contains(call.fields, 'SUM(CASE WHEN Basketball_Competitions.League = 1 THEN COALESCE(' .. PLAYERS
-		.. '.TotalPoints, 0) ELSE NULL END)=c8', 'points in the league; a NULL stat is 0, as the template had it')
+		.. '.TotalPoints, 0) ELSE NULL END)=c6', 'points in the league; a NULL stat is 0, as the template had it')
 	contains(call.fields, 'SUM(CASE WHEN 1=1 THEN COALESCE(' .. PLAYERS .. '.IsPlayed, 0) ELSE NULL END)=c1',
 		'appearances in רשמי')
-	contains(call.fields, 'SUM(CASE WHEN Basketball_Competitions.Official = 1 THEN COALESCE(' .. PLAYERS
-		.. '.IsPlayed, 0) ELSE NULL END)=c6', 'the absent-category default')
+	lacks(call.fields, 'Basketball_Competitions.Official = 1 THEN', 'the default category is not in the first prime')
+end)
+
+check('a category outside the tab strips is primed on its own, once', function(module)
+	stub.willReturn({ pointsLeague('דורון ג\'מצ\'י', '7490') })
+	module.leaderboardTab(tabFrame())
+	stub.willReturn({ { g = 'שרן ייני', c1 = '500' } })
+	local html = module.leaderboardTab(tabFrame({ ['קטגוריית מפעל'] = 'ברירת מחדל' }, true))
+	equals(#stub.calls, 2, 'a second query')
+	local _, columns = stub.calls[2].fields:gsub('=c%d+', '')
+	equals(columns, 8, 'the 8 boxes for that one category')
+	contains(stub.calls[2].fields, 'SUM(CASE WHEN Basketball_Competitions.Official = 1 THEN COALESCE(' .. PLAYERS
+		.. '.IsPlayed, 0) ELSE NULL END)=c1', 'the default category is Official = 1')
+	module.leaderboardTab(tabFrame({ ['קטגוריית מפעל'] = 'ברירת מחדל', ['תיבה'] = 'נקודות' }, true))
+	equals(#stub.calls, 2, 'and not again')
 end)
 
 check('a tab renders the row template with named args, and the more link at the limit',

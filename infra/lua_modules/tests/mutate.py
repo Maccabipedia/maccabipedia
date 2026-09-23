@@ -65,7 +65,7 @@ MUTATIONS = [
     ('tab: the key ignores the limit', RENDERER,
      "table.concat(keyed, '&'), top)", "table.concat(keyed, '&'), 0)"),
     ('tab: no more link ever', RENDERER,
-     'local moreUrl = declaration.moreText and #result.rows >= top', 'local moreUrl = false and #result.rows >= top'),
+     'local lines = { declaration.moreText and #result.rows >= top', 'local lines = { false and #result.rows >= top'),
     ('tab: the more link ranks a count, not the sum', RENDERER,
      "local record = box.sum and ('SUM(' .. FootballQueries.sumColumn(box.sum) .. ')') or 'COUNT(*)'",
      "local record = 'COUNT(*)'"),

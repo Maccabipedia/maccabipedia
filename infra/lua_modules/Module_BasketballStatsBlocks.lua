@@ -26,8 +26,11 @@ return {
 		moreText = 'עוד...',
 		keepZero = true,
 		-- Every value of קטגוריית מפעל a caller may pass (the schema's choices).
-		-- The first call primes each box in each of these from one query.
 		categories = { 'רשמי', 'ליגה', 'גביע', 'בינלאומי', 'יתר-רשמיים', 'ברירת מחדל' },
+		-- The four the box templates' tab strips show: the first call primes each
+		-- box in each of these from one query (32 sums, ~0.55 s over 57k rows,
+		-- measured); the other two are primed on their own when a page asks.
+		primeCategories = { 'רשמי', 'ליגה', 'גביע', 'בינלאומי' },
 		-- `word` is the template's אירוע value; `sum` the schema's summable value.
 		boxes = {
 			{ key = 'appearances', word = 'הופעות', sum = 'הופעות', filters = {} },

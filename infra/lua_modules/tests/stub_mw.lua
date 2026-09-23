@@ -147,6 +147,19 @@ function stub.install()
 			trim = function(value)
 				return (tostring(value):gsub('^%s+', ''):gsub('%s+$', ''))
 			end,
+			-- Plain-text split only, which is all the modules use.
+			split = function(value, separator)
+				local parts, position = {}, 1
+				while true do
+					local start, stop = tostring(value):find(separator, position, true)
+					if not start then
+						parts[#parts + 1] = tostring(value):sub(position)
+						return parts
+					end
+					parts[#parts + 1] = tostring(value):sub(position, start - 1)
+					position = stop + 1
+				end
+			end,
 		},
 		-- A readable stand-in for mw.uri.fullUrl: the page and its query in a
 		-- stable order, so a test can assert what the link asks for without

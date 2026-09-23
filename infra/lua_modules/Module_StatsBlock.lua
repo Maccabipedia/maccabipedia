@@ -833,10 +833,34 @@ function StatsBlock.new(Queries, blocksData, name)
 		local key = string.format('%s/leaderboardTab/%s/%s/%d', VAR_PREFIX, blockName,
 			table.concat(keyed, '&'), top)
 
-		if frame:callParserFunction('#var', { key .. '/primed' }) == '' then
+		-- Which categories one query covers. The block names the ones its tab
+		-- strips show (primeCategories); a category outside them (the untabbed
+		-- family's default, יתר-רשמיים) is primed on its own when asked, since
+		-- every conditional sum costs the query ~12 ms over 57k rows (measured)
+		-- and the tab strips never ask for those. Each primed category marks
+		-- itself, so a second set on the same page adds only what is missing.
+		local function primed(cat)
+			return frame:callParserFunction('#var', { key .. '/primed/' .. cat }) ~= ''
+		end
+		if not primed(category) then
+			local wanted = {}
+			if frame:callParserFunction('#var', { key .. '/primed' }) == '' then
+				for _, cat in ipairs(declaration.primeCategories or declaration.categories) do
+					wanted[#wanted + 1] = cat
+				end
+			end
+			local listed = false
+			for _, cat in ipairs(wanted) do
+				if cat == category then
+					listed = true
+				end
+			end
+			if not listed then
+				wanted[#wanted + 1] = category
+			end
 			local columns = {}
 			for _, each in ipairs(declaration.boxes) do
-				for _, cat in ipairs(declaration.categories) do
+				for _, cat in ipairs(wanted) do
 					local filters = {}
 					for name, value in pairs(each.filters or {}) do
 						filters[name] = value
@@ -849,20 +873,38 @@ function StatsBlock.new(Queries, blocksData, name)
 			end
 			local results = FootballQueries.leaderboard(shared, columns,
 				{ groupBy = declaration.groupBy, top = top, keepZero = declaration.keepZero })
+			-- Stored as data, not as rendered rows: the page shows a few of the
+			-- tabs primed here, and expanding the row template (an existence
+			-- check per player) for every tab cost more than the query.
 			for _, each in ipairs(declaration.boxes) do
-				for _, cat in ipairs(declaration.categories) do
+				for _, cat in ipairs(wanted) do
 					local result = results[each.key .. '/' .. cat]
-					local moreUrl = declaration.moreText and #result.rows >= top
-						and tabMoreUrl(declaration, shared, columns, each, cat, top) or nil
-					frame:callParserFunction('#vardefine', {
-						key .. '/' .. each.key .. '/' .. cat,
-						tabRows(frame, declaration, result.rows, moreUrl),
-					})
+					local lines = { declaration.moreText and #result.rows >= top
+						and tabMoreUrl(declaration, shared, columns, each, cat, top) or '' }
+					for _, row in ipairs(result.rows) do
+						lines[#lines + 1] = row.name .. '\t' .. tostring(row.count)
+					end
+					frame:callParserFunction('#vardefine',
+						{ key .. '/' .. each.key .. '/' .. cat, table.concat(lines, '\n') })
 				end
+			end
+			for _, cat in ipairs(wanted) do
+				frame:callParserFunction('#vardefine', { key .. '/primed/' .. cat, '1' })
 			end
 			frame:callParserFunction('#vardefine', { key .. '/primed', '1' })
 		end
-		return frame:callParserFunction('#var', { key .. '/' .. box.key .. '/' .. category })
+
+		local stored = frame:callParserFunction('#var', { key .. '/' .. box.key .. '/' .. category })
+		local moreUrl, entries = nil, {}
+		for index, line in ipairs(mw.text.split(stored, '\n', true)) do
+			if index == 1 then
+				moreUrl = line ~= '' and line or nil
+			elseif line ~= '' then
+				local name, count = line:match('^(.*)\t([^\t]*)$')
+				entries[#entries + 1] = { name = name, count = tonumber(count) }
+			end
+		end
+		return tabRows(frame, declaration, entries, moreUrl)
 	end
 
 	return {
