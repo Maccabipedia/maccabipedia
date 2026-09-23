@@ -26,23 +26,42 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path('infra/lua_modules')))
 sys.path.insert(0, str(Path('infra/season_pages')))
+import mwparserfromhell  # noqa: E402
+
 import compare_opponent_season_table as opponent  # noqa: E402
-import compare_referee_main_leaderboards as referee  # noqa: E402
 from season_api import call  # noqa: E402
 
-TEMPLATES = {'main': 'תבנית:שופט כדורגל/הצגת סטטיסטיקה עונתית/שופט ראשי',
-             'assistant': 'תבנית:שופט כדורגל/הצגת סטטיסטיקה עונתית/עוזר שופט'}
-FILTER = {'main': 'שופט', 'assistant': 'עוזר שופט'}
 CARGO_QUERY = re.compile(r'\{\{#cargo_query:.*?\n\}\}', re.S)
 # The table, up to the next section: the wins/losses boxes follow it with rows of their own.
 TABLE = re.compile(r'<div class="title">סטטיסטיקה עונתית</div>.*?<div class="table-content">(.*?)'
                    r'(?=<div class="section"|<div class="games-records-container"|\Z)', re.S)
 
 
+def referee_name(title: str) -> str:
+    """`שם להצגה` as the sport's referee template sets it: the page's own
+    parameter, else the page name without the sport's namespace and `(שופט)`.
+
+    Football's helper in compare_referee_main_leaderboards hardcodes
+    `שופט כדורגל` and `כדורגל:`; this is the same rule read from the sport.
+    """
+    wrapper = opponent.SPORT['wrapper']
+    calls = [node for node in mwparserfromhell.parse(opponent.common.page_text(title)).filter_templates()
+             if node.name.strip() in (wrapper, 'תבנית:' + wrapper)]
+    if len(calls) != 1:
+        raise ValueError(f'{len(calls)} calls of the referee template on the page')
+    if calls[0].has('שם להצגה') and str(calls[0].get('שם להצגה').value).strip():
+        return str(calls[0].get('שם להצגה').value).strip()
+    namespace = opponent.SPORT['page_template'].split(':', 1)[1].split(' ')[-1] + ':'
+    data = call('prod', {'action': 'expandtemplates', 'title': title, 'prop': 'wikitext',
+                         'text': '{{#replaceset: {{PAGENAME}} |' + namespace + '|(שופט)}}'}, post=True)
+    return data['expandtemplates']['wikitext'].strip()
+
+
 def candidate_of(body: str, role: str) -> str:
     if len(CARGO_QUERY.findall(body)) != 1:
         raise SystemExit('the table template does not hold exactly one #cargo_query - refusing')
-    invoke = ('{{#invoke:FootballSeasonTable|rows|' + FILTER[role]
+    module = opponent.SPORT['module_page'].removeprefix('Module:')
+    invoke = ('{{#invoke:' + module + '|rows|' + opponent.SPORT['referee_filters'][role]
               + '={{{שם להצגה|}}}|קישור מפעל=מרכז}}')
     return CARGO_QUERY.sub(lambda _: invoke, body)
 
@@ -60,7 +79,7 @@ class GroupingMap(dict):
     (`Names HOLDS "name"`, limit 1) through the API, once per competition."""
 
     def __missing__(self, competition: str) -> str:
-        data = call('prod', {'action': 'cargoquery', 'tables': 'Football_Competitions_Map',
+        data = call('prod', {'action': 'cargoquery', 'tables': opponent.SPORT['map_table'],
                              'fields': 'ConcentratedName=c', 'where': f'Names HOLDS "{competition}"',
                              'limit': '1'})
         rows = data['cargoquery']
@@ -81,28 +100,30 @@ def existing(titles: set[str]) -> set[str]:
 
 
 def direct_rows(name: str, role: str) -> list[tuple]:
+    """(season, competition, *results) from Cargo, written apart from the module."""
     literal = '"' + name.replace('\\', '\\\\').replace('"', '\\"') + '"'
+    games = opponent.SPORT['games']
     # Full table names: Cargo's field parser refuses SUM(alias.column=1).
-    params = {'action': 'cargoquery', 'group_by': 'Football_Games.Season, Football_Games.Competition',
-              'order_by': 'Football_Games.Season DESC', 'limit': '2000',
-              'fields': 'Football_Games.Season=s, Football_Games.Competition=c, '
-                        'SUM(Football_Games.ResultOpt=1)=w, SUM(Football_Games.ResultOpt=2)=d, '
-                        'SUM(Football_Games.ResultOpt=3)=l'}
-    if role == 'main':
-        params.update(tables='Football_Games', where=f'Football_Games.Refs = {literal}')
-    else:
-        params.update(tables='Football_Games, Games_Referees',
-                      join_on='Football_Games._pageID=Games_Referees._pageID',
-                      where=f'Games_Referees.AssistantReferees HOLDS {literal}')
+    results = ', '.join(f'{sql.replace("(", f"({games}.")}={key}'
+                        for key, sql in opponent.SPORT['results'])
+    params = {'action': 'cargoquery', 'group_by': f'{games}.Season, {games}.Competition',
+              'order_by': f'{games}.Season DESC', 'limit': '2000',
+              'fields': f'{games}.Season=s, {games}.Competition=c, {results}'}
+    params.update(**opponent.SPORT['referee_where'][role](literal))
     return [(html_module.unescape(r['title']['s']), html_module.unescape(r['title']['c']),
-             int(float(r['title']['w'])), int(float(r['title']['d'])), int(float(r['title']['l'])))
+             *(int(float(r['title'][key])) for key, _ in opponent.SPORT['results']))
             for r in call('prod', params)['cargoquery']]
 
 
 def expected_cell(competition: str, groups: dict, pages: set) -> tuple:
+    """The cell the row shows: the competition linked to its grouping page when
+    that page exists, else the bare grouping name. The grouping page lives in the
+    sport's own namespace - basketball's `ליגת העל` is `כדורסל: ליגת העל`, and the
+    bare name is FOOTBALL's article."""
     grouping = groups[competition]
-    if grouping and grouping in pages:
-        return competition, grouping
+    page = opponent.SPORT['grouping_page'] % grouping if grouping else ''
+    if grouping and page in pages:
+        return competition, page
     return grouping, None
 
 
@@ -110,9 +131,9 @@ def check(old: list[dict], new: list[dict], direct: list[tuple], groups: dict, p
           ranks: dict) -> tuple[str, str]:
     cell = lambda row: (row['season'], row['competition'], row['competition_link'])  # noqa: E731
     expected = Counter()
-    for season, competition, wins, draws, losses in direct:
+    for season, competition, *results in direct:
         text, link = expected_cell(competition, groups, pages)
-        expected[(season, text, link, (wins, draws, losses))] += 1
+        expected[(season, text, link, tuple(results))] += 1
     got = Counter((row['season'], row['competition'], row['competition_link'], row['results']) for row in new)
     if got != expected:
         return 'FAIL', f'NEW vs Cargo: only NEW {list(got - expected)[:3]}, only Cargo {list(expected - got)[:3]}'
@@ -133,7 +154,8 @@ def check(old: list[dict], new: list[dict], direct: list[tuple], groups: dict, p
         if row['season_link'] != other['season_link']:
             return 'FAIL', f'{cell(row)} season link {row["season_link"]!r} vs {other["season_link"]!r}'
         if row['results'] != other['results']:
-            if competition_of[cell(row)] in opponent.UNCATALOGUED and row['results'] == (0, 0, 0):
+            if (competition_of[cell(row)] in opponent.SPORT['uncatalogued']
+                    and set(row['results']) == {0}):
                 continue
             return 'FAIL', f'{cell(row)} results {row["results"]} vs {other["results"]}'
     return 'ok', f'{len(new)} rows'
@@ -157,15 +179,21 @@ def main() -> None:
     parser.add_argument('--sandbox', action='store_true', required=True)
     parser.add_argument('--selftest', action='store_true')
     parser.add_argument('--only', nargs='*')
+    parser.add_argument('--sport', choices=sorted(opponent.SPORTS), default='football')
     options = parser.parse_args()
 
-    template = TEMPLATES[options.role]
+    opponent.SPORT = opponent.SPORTS[options.sport]
+    if not opponent.SPORT['uncatalogued']:
+        opponent.SPORT['uncatalogued'] = opponent.uncatalogued_competitions()
+    template = opponent.SPORT['referee_templates'][options.role]
     body = opponent.common.page_text(template)
     inline = re.search(r'<includeonly>(.*)</includeonly>', candidate_of(body, options.role), re.S).group(1)
     groups, ranks = grouping_map(), opponent.catalogue_ranks()
-    every_grouping = call('prod', {'action': 'cargoquery', 'tables': 'Football_Competitions_Map',
+    every_grouping = call('prod', {'action': 'cargoquery', 'tables': opponent.SPORT['map_table'],
                                    'fields': 'ConcentratedName=c', 'limit': '500'})['cargoquery']
-    pages_with_titles = existing({html_module.unescape(r['title']['c']).strip() for r in every_grouping})
+    # The grouping page in this sport's namespace, which is what the row links to.
+    pages_with_titles = existing({opponent.SPORT['grouping_page'] % html_module.unescape(
+        r['title']['c']).strip() for r in every_grouping})
     pages = options.only or referee_pages(template)
     if len(pages) == 1 and pages[0].startswith('@'):
         pages = [line.strip() for line in Path(pages[0][1:]).read_text(encoding='utf-8').splitlines() if line.strip()]
@@ -180,7 +208,7 @@ def main() -> None:
         return page
 
     def compare(old_title: str, new_title: str):
-        old_name, new_name = referee.referee_name(old_title), referee.referee_name(new_title)
+        old_name, new_name = referee_name(old_title), referee_name(new_title)
         old_page, new_page = render(old_title, old_name, False), render(new_title, new_name, True)
         for label, page in (('old', old_page), ('new', new_page)):
             tables = TABLE.findall(page) or ['']
