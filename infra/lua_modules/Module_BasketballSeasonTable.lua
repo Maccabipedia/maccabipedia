@@ -32,7 +32,14 @@ return require('Module:SeasonTable').new(Queries, {
 	-- after the colon that MediaWiki normalises away. Kept as it wrote them.
 	seasonLink = 'כדורסל: עונת %s',
 	competitionLink = 'כדורסל: %s',
-	entities = { 'יריבות' },
+	-- The three families that show this table: the opponent pages, and the two
+	-- referee ones. Basketball names its head referee filter `שופט ראשי`, where
+	-- football's is plain `שופט`.
+	entities = { 'יריבות', 'שופט ראשי', 'עוזר שופט' },
+	-- The referee rows link a competition through its grouping name, as
+	-- `מפעל כדורסל/קבל שם מרכז` looked it up: `Names HOLDS <competition>`, one row.
+	concentrated = { table = 'Basketball_Competitions_Map',
+	                 name = 'ConcentratedName', names = 'Names' },
 	-- basketball's schema declares no defaultLimit, so the limit is named here;
 	-- the query layer raises rather than truncate when a result reaches it.
 	limit = 5000,

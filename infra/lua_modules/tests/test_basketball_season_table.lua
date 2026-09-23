@@ -132,26 +132,47 @@ check('no opponent lists nothing, and asks nothing', function(module)
 end)
 
 check('an argument that is not one of this sport\'s entities is ignored', function(module)
-	-- Basketball declares only יריבות. `שופט` is football's, and the module reads
-	-- only what the sport declares - as football's did before it was shared. So a
-	-- referee argument here does not become a filter and does not raise; asked for
-	-- alone it yields the empty table, which is what the templates' IN ("") gave.
+	-- Basketball's entities are יריבות and the two referee filters. Football's
+	-- head-referee filter is plain `שופט`, which basketball does not declare, so
+	-- it does not become a filter and does not raise; asked for alone it yields
+	-- the empty table, which is what the templates' IN ("") gave.
 	equals(module.rows(stub.newFrame({}, { ['שופט'] = 'דן' })), '', 'nothing listed')
 	equals(#stub.calls, 0, 'and nothing queried')
 end)
 
-check('the grouping-map option is refused: basketball declares no map', function(module)
+check('the head referee table: one filter, and the grouping link', function(module)
+	-- In call order: the pairs, then the grouping lookup (one per distinct
+	-- competition), then the catalogue that ranks them.
 	stub.willReturn({ pair('2023/24', 'ליגת העל בכדורסל', '2', '1') })
+	stub.willReturn({ { concentrated = 'ליגת העל בכדורסל' } })
+	stub.willReturn(CATALOGUE)
+	local html = module.rows(stub.newFrame({},
+		{ ['שופט ראשי'] = 'אור זרור', ['קישור מפעל'] = 'מרכז' }))
+	contains(stub.calls[1].options.where, 'אור זרור', 'the referee reached the query')
+	local lookup = stub.calls[2]
+	equals(lookup.tables, 'Basketball_Competitions_Map', 'basketball\'s own map')
+	contains(lookup.options.where, 'Names HOLDS "ליגת העל בכדורסל"', 'the rows\' own lookup')
+	contains(html, '<div class="table-row">', 'a row came back')
+end)
+
+check('the assistant referee is a filter of its own', function(module)
+	stub.willReturn({ pair('2023/24', 'ליגת העל בכדורסל', '2', '1') })
+	stub.willReturn(CATALOGUE)
+	module.rows(stub.newFrame({}, { ['עוזר שופט'] = 'יוסף עטיה' }))
+	contains(stub.calls[1].options.where, 'יוסף עטיה', 'the assistant reached the query')
+end)
+
+check('two entities at once are refused', function(module)
 	local ok, message = pcall(module.rows, stub.newFrame({},
-		{ ['יריבות'] = 'הפועל תל אביב', ['קישור מפעל'] = 'מרכז' }))
+		{ ['יריבות'] = 'הפועל תל אביב', ['שופט ראשי'] = 'אור זרור' }))
 	equals(ok, false, 'raised')
-	contains(message, 'declares no competition grouping map', 'said why')
+	contains(message, 'rows takes one of', 'said why')
+	equals(#stub.calls, 0, 'nothing queried')
 end)
 
 check('errors carry the basketball name', function(module)
-	stub.willReturn({ pair('2023/24', 'ליגת העל בכדורסל', '2', '1') })
 	local ok, message = pcall(module.rows, stub.newFrame({},
-		{ ['יריבות'] = 'הפועל תל אביב', ['קישור מפעל'] = 'מרכז' }))
+		{ ['יריבות'] = 'הפועל תל אביב', ['שופט ראשי'] = 'אור זרור' }))
 	equals(ok, false)
 	contains(message, 'BasketballSeasonTable:', 'the binding\'s own name')
 end)

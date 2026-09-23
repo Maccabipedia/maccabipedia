@@ -44,12 +44,50 @@ sys.path.insert(0, str(Path('infra/season_pages')))
 import compare_stadium_leaderboards as common  # noqa: E402
 from season_api import call  # noqa: E402
 
-PAGE_TEMPLATE = 'תבנית:יריבת כדורגל'
-TABLE_TEMPLATE = 'תבנית:יריבת כדורגל/הצגת סטטיסטיקה עונתית'
-MODULE_PAGE = 'Module:FootballSeasonTable'
-MODULE_FILE = Path('infra/lua_modules/Module_FootballSeasonTable.lua')
+# Both sports' opponent pages carry the same widget, so the gate is the same; only
+# these differ. Basketball has no draw, hence two result columns, and its season and
+# competition pages live in the כדורסל: namespace. Both wrappers finish their opponent
+# list before the same `#vardefine: כמות משחקים רשמיים`, so PREAMBLE is shared.
+SPORTS = {
+    'football': {
+        'page_template': 'תבנית:יריבת כדורגל',
+        'table_template': 'תבנית:יריבת כדורגל/הצגת סטטיסטיקה עונתית',
+        'module_page': 'Module:FootballSeasonTable',
+        'module_file': Path('infra/lua_modules/Module_FootballSeasonTable.lua'),
+        'invoke': '{{#invoke:FootballSeasonTable|rows|יריבות={{{יריבות לשליפה|}}}}}',
+        'games': 'Football_Games',
+        'catalogue': 'Competitions',
+        # (name, SQL) per result column, in the table's order.
+        'results': [('w', 'SUM(ResultOpt=1)'), ('d', 'SUM(ResultOpt=2)'), ('l', 'SUM(ResultOpt=3)')],
+        'uncatalogued': {'ידידות', "גביע מלצ'ט"},
+        'selftest_pair': ('הפועל תל אביב', 'מכבי חיפה'),
+        'namespace': 0,
+        'skip': set(),
+        'layer': [('Module:FootballQueries', 'Module_FootballQueries.lua'),
+                  ('Module:FootballQueries/Fields', 'Module_FootballQueries_Fields.lua')],
+    },
+    'basketball': {
+        'page_template': 'תבנית:יריבת כדורסל',
+        'table_template': 'תבנית:יריבת כדורסל/הצגת סטטיסטיקה עונתית',
+        'module_page': 'Module:BasketballSeasonTable',
+        'module_file': Path('infra/lua_modules/Module_BasketballSeasonTable.lua'),
+        'invoke': '{{#invoke:BasketballSeasonTable|rows|יריבות={{{יריבות לשליפה|}}}}}',
+        'games': 'Basketball_Games',
+        'catalogue': 'Basketball_Competitions',
+        'results': [('w', 'SUM(ResultOpt=1)'), ('l', 'SUM(ResultOpt=3)')],
+        # Filled from the catalogue at run time: whichever competitions the pages
+        # show that the catalogue does not list.
+        'uncatalogued': set(),
+        'selftest_pair': ('כדורסל:הפועל תל אביב', 'כדורסל:מכבי חיפה'),
+        'namespace': 3003,
+        # A scratch page in the main namespace, not an opponent.
+        'skip': {'נסיון'},
+        'layer': [('Module:BasketballQueries', 'Module_BasketballQueries.lua'),
+                  ('Module:BasketballQueries/Fields', 'Module_BasketballQueries_Fields.lua')],
+    },
+}
+SPORT = SPORTS['football']
 CARGO_QUERY = re.compile(r'\{\{#cargo_query:.*?\n\}\}', re.S)
-INVOKE = '{{#invoke:FootballSeasonTable|rows|יריבות={{{יריבות לשליפה|}}}}}'
 PREAMBLE = re.compile(r'<includeonly>(.*?)<!--\s*-->\{\{#vardefine: כמות משחקים רשמיים', re.S)
 LIST_SEPARATOR = '@@name@@'
 # From the table body to whatever follows the section; ROW then reads every
@@ -59,37 +97,48 @@ TABLE = re.compile(r'<div class="title">סטטיסטיקה עונתית</div>.*?
 ROW = re.compile(r'<div class="table-row">(.*?)</div>', re.S)
 SPAN = re.compile(r'<span>(.*?)</span>', re.S)
 LINK = re.compile(r'<a [^>]*title="([^"]*)"[^>]*>(.*?)</a>', re.S)
-UNCATALOGUED = {'ידידות', "גביע מלצ'ט"}
 LEAGUE, CUP, OTHER = 1, 2, 3
 
 
 def candidate_of(body: str) -> str:
     if len(CARGO_QUERY.findall(body)) != 1:
         raise SystemExit('the table template does not hold exactly one #cargo_query - refusing')
-    return CARGO_QUERY.sub(lambda _: INVOKE, body)
+    return CARGO_QUERY.sub(lambda _: SPORT['invoke'], body)
 
 
 def opponent_pages() -> list[str]:
+    """Every page that shows the table, in the sport's own namespace.
+
+    Football's opponents are articles (ns 0); basketball's live in `כדורסל:`
+    (ns 3003). A page anywhere else is refused rather than quietly gated, unless
+    the sport names it as a known scratch page - so a template that starts being
+    used somewhere new cannot slip past.
+    """
     titles, cont = [], {}
     while True:
-        data = call('prod', dict({'action': 'query', 'list': 'embeddedin', 'eititle': TABLE_TEMPLATE,
+        data = call('prod', dict({'action': 'query', 'list': 'embeddedin', 'eititle': SPORT['table_template'],
                                   'eilimit': 'max'}, **cont))
         titles += [(row['ns'], row['title']) for row in data['query']['embeddedin']]
         if 'continue' not in data:
             break
         cont = data['continue']
-    elsewhere = [title for ns, title in titles if ns != 0]
+    elsewhere = [title for ns, title in titles
+                 if ns != SPORT['namespace'] and title not in SPORT['skip']]
     if elsewhere:
-        raise SystemExit(f'the table template is also used outside articles: {elsewhere[:5]}')
-    return sorted(title for _, title in titles)
+        raise SystemExit(f'the table template is used outside {SPORT["namespace"]}: {elsewhere[:5]}')
+    skipped = [title for ns, title in titles if title in SPORT['skip']]
+    if skipped:
+        print(f'skipping {len(skipped)} known scratch page(s): {skipped}')
+    return sorted(title for ns, title in titles if ns == SPORT['namespace'])
 
 
 def preamble_for(page_body: str, page_wikitext: str) -> str:
     match = PREAMBLE.search(page_body)
     if not match:
         raise SystemExit('the opponent template\'s preamble moved - refusing')
+    wrapper = SPORT['page_template'].split(':', 1)[1]
     calls = [node for node in mwparserfromhell.parse(page_wikitext).filter_templates()
-             if node.name.strip() in ('יריבת כדורגל', 'תבנית:יריבת כדורגל')]
+             if node.name.strip() in (wrapper, SPORT['page_template'])]
     if len(calls) != 1:
         raise ValueError(f'{len(calls)} calls of the opponent template on the page')
     given = {str(param.name).strip(): str(param.value).strip() for param in calls[0].params}
@@ -116,28 +165,45 @@ def opponent_names(title: str, preamble: str) -> list[str]:
 
 
 def direct_rows(names: list[str]) -> list[tuple]:
-    """(season, competition, wins, draws, losses) straight from Cargo, in the
-    database's Season DESC order - written apart from the module."""
+    """(season, competition, *results) straight from Cargo, in the database's
+    Season DESC order - written apart from the module."""
     literals = ', '.join('"' + name.replace("'", '').replace('"', '') + '"' for name in names)
-    data = call('prod', {'action': 'cargoquery', 'tables': 'Football_Games',
+    results = ', '.join(f'{sql}={key}' for key, sql in SPORT['results'])
+    data = call('prod', {'action': 'cargoquery', 'tables': SPORT['games'],
                          # A comparison sums as 0/1; no game has a NULL ResultOpt
                          # (measured 2026-09-22), and it differs from the module's CASE.
-                         'fields': 'Season=s, Competition=c, COUNT(*)=n, '
-                                   'SUM(ResultOpt=1)=w, SUM(ResultOpt=2)=d, SUM(ResultOpt=3)=l',
+                         'fields': f'Season=s, Competition=c, COUNT(*)=n, {results}',
                          'where': f'Opponent IN ({literals})', 'group_by': 'Season, Competition',
                          'order_by': 'Season DESC', 'limit': '2000'})
     rows = [row['title'] for row in data['cargoquery']]
     if len(rows) >= 2000:
         raise ValueError('the direct query reached its limit')
     return [(html_module.unescape(r['s']), html_module.unescape(r['c']),
-             int(float(r['w'])), int(float(r['d'])), int(float(r['l']))) for r in rows]
+             *(int(float(r[key])) for key, _ in SPORT['results'])) for r in rows]
 
 
 def catalogue_ranks() -> dict:
-    data = call('prod', {'action': 'cargoquery', 'tables': 'Competitions',
+    data = call('prod', {'action': 'cargoquery', 'tables': SPORT['catalogue'],
                          'fields': 'OriginalName=n, League=l, Trophy=t', 'limit': '500'})
     return {html_module.unescape(r['title']['n']): LEAGUE if r['title']['l'] == '1' else
             CUP if r['title']['t'] == '1' else OTHER for r in data['cargoquery']}
+
+
+def uncatalogued_competitions() -> set:
+    """The competitions games are played in that the catalogue does not list.
+
+    The OLD template counted each row THROUGH the catalogue, so these showed as
+    zeroes; the module counts from the games and shows the real numbers. That is a
+    decided departure, and `check` allows it only for these competitions - so the
+    set has to be the data's, not a list written down once.
+    """
+    data = call('prod', {'action': 'cargoquery', 'tables': SPORT['games'],
+                         'fields': 'Competition=c', 'group_by': 'Competition',
+                         'limit': '500'})
+    played = {html_module.unescape(row['title']['c']) for row in data['cargoquery']}
+    if len(data['cargoquery']) >= 500:
+        raise SystemExit('the competition list reached its limit - refusing')
+    return played - set(catalogue_ranks())
 
 
 def table_rows(page: str) -> list[dict]:
@@ -147,7 +213,7 @@ def table_rows(page: str) -> list[dict]:
     rows = []
     for body in ROW.findall(tables[0]):
         spans = SPAN.findall(body)
-        if len(spans) != 5:
+        if len(spans) != 2 + len(SPORT['results']):
             raise ValueError(f'a row with {len(spans)} cells: {body[:120]}')
         cells = []
         for span in spans[:2]:
@@ -163,7 +229,7 @@ def table_rows(page: str) -> list[dict]:
 def check(old: list[dict], new: list[dict], direct: list[tuple], ranks: dict) -> tuple[str, str]:
     key = lambda row: (row['season'], row['competition'])  # noqa: E731
     # 1. NEW against the direct query.
-    direct_map = {(s, c): (w, d, l) for s, c, w, d, l in direct}
+    direct_map = {(row[0], row[1]): tuple(row[2:]) for row in direct}
     new_map = {key(row): row['results'] for row in new}
     if len(new_map) != len(new):
         return 'FAIL', 'NEW repeats a (season, competition) row'
@@ -196,33 +262,33 @@ def check(old: list[dict], new: list[dict], direct: list[tuple], ranks: dict) ->
             if row[field] != other[field]:
                 return 'FAIL', f'{key(row)} {field}: {row[field]!r} vs {other[field]!r}'
         if row['results'] != other['results']:
-            if row['competition'] in UNCATALOGUED and row['results'] == (0, 0, 0):
+            if (row['competition'] in SPORT['uncatalogued']
+                    and set(row['results']) == {0}):
                 continue
             return 'FAIL', f'{key(row)} results {row["results"]} vs {other["results"]}'
     return 'ok', f'{len(new)} rows' + (f' ({len(new) - len(old)} added)' if truncated else '')
 
 
 def module_override() -> dict:
-    return {'templatesandboxtitle': MODULE_PAGE,
-            'templatesandboxtext': MODULE_FILE.read_text(encoding='utf-8'),
+    return {'templatesandboxtitle': SPORT['module_page'],
+            'templatesandboxtext': SPORT['module_file'].read_text(encoding='utf-8'),
             'templatesandboxcontentmodel': 'Scribunto'}
 
 
 def check_prod_modules(sandbox: bool) -> None:
     """The layer the module calls must be the repo's; the module itself must
     not be on production yet (--sandbox) or must be the repo's (--full)."""
-    for page, name in (('Module:FootballQueries', 'Module_FootballQueries.lua'),
-                       ('Module:FootballQueries/Fields', 'Module_FootballQueries_Fields.lua')):
+    for page, name in SPORT['layer']:
         repo = (Path('infra/lua_modules') / name).read_text(encoding='utf-8').strip()
         if common.page_text(page).strip() != repo:
             raise SystemExit(f'{page} on production differs from the repo - refusing')
-    data = call('prod', {'action': 'query', 'titles': MODULE_PAGE, 'prop': 'revisions',
+    data = call('prod', {'action': 'query', 'titles': SPORT['module_page'], 'prop': 'revisions',
                          'rvprop': 'content', 'rvslots': 'main'})['query']['pages'][0]
     live = data['revisions'][0]['slots']['main']['content'].strip() if 'revisions' in data else None
     if sandbox and live is not None:
-        raise SystemExit(f'{MODULE_PAGE} is already published - use --full')
-    if not sandbox and live != MODULE_FILE.read_text(encoding='utf-8').strip():
-        raise SystemExit(f'{MODULE_PAGE} is not the repo\'s - publish first')
+        raise SystemExit(f'{SPORT["module_page"]} is already published - use --full')
+    if not sandbox and live != SPORT['module_file'].read_text(encoding='utf-8').strip():
+        raise SystemExit(f'{SPORT["module_page"]} is not the repo\'s - publish first')
 
 
 def main() -> None:
@@ -232,16 +298,25 @@ def main() -> None:
     mode.add_argument('--full', action='store_true')
     parser.add_argument('--selftest', action='store_true')
     parser.add_argument('--only', nargs='*')
+    parser.add_argument('--sport', choices=sorted(SPORTS), default='football')
     options = parser.parse_args()
 
+    global SPORT
+    SPORT = SPORTS[options.sport]
+    # Football's uncatalogued competitions are a known pair; basketball's are read
+    # from the data, so the list cannot rot as competitions are added.
+    if not SPORT['uncatalogued']:
+        SPORT['uncatalogued'] = uncatalogued_competitions()
+
     check_prod_modules(options.sandbox)
-    page_body = common.page_text(PAGE_TEMPLATE)
-    table_body = common.page_text(TABLE_TEMPLATE)
+    page_body = common.page_text(SPORT['page_template'])
+    table_body = common.page_text(SPORT['table_template'])
     candidate = candidate_of(table_body)
     # The candidate's body inline, its parameter taken from the page's array.
     inline_new = re.search(r'<includeonly>(.*)</includeonly>', candidate, re.S).group(1).replace(
         '{{{יריבות לשליפה|}}}', '{{#arrayprint: יריבות לשליפה}}')
-    old_call = '{{יריבת כדורגל/הצגת סטטיסטיקה עונתית |יריבות לשליפה={{#arrayprint: יריבות לשליפה}} }}'
+    old_call = ('{{' + SPORT['table_template'].split(':', 1)[1]
+                + ' |יריבות לשליפה={{#arrayprint: יריבות לשליפה}} }}')
     ranks = catalogue_ranks()
     pages = options.only or opponent_pages()
     if len(pages) == 1 and pages[0].startswith('@'):
@@ -254,7 +329,7 @@ def main() -> None:
             text = preamble_for(page_body, common.page_text(title)) + (inline_new if new else old_call)
             page, wall = common.parse(title, text, module_override() if new else None)
             return page, '', wall
-        override = ({'templatesandboxtitle': TABLE_TEMPLATE, 'templatesandboxtext': candidate,
+        override = ({'templatesandboxtitle': SPORT['table_template'], 'templatesandboxtext': candidate,
                      'templatesandboxcontentmodel': 'wikitext'} if new else None)
         page, wall = common.parse(title, common.page_text(title), override)
         tables = TABLE.findall(page)
@@ -279,7 +354,7 @@ def main() -> None:
         return verdict, detail, old_wall, new_wall
 
     if options.selftest:
-        first, second = 'הפועל תל אביב', 'מכבי חיפה'
+        first, second = SPORT['selftest_pair']
         verdict, detail, *_ = compare(first, second)
         print(f'selftest: {first} OLD vs {second} NEW -> {verdict}: {detail}')
         sys.exit(0 if verdict == 'FAIL' else 1)
