@@ -817,6 +817,41 @@ against a direct Cargo count, NEW must list the module among its templates.
 `player_pages.py` reads the players' column names 50 pages per request.
 **LIVE 2026-09-22** (previous revision 174539): ערן זהבי 3.9 → 1.5 s, אבי כהן
 3.5 → 1.6 s, 0 script errors.
+
+### Profile template trims, LIVE 2026-09-23
+
+Four output-identical edits: the photo gallery rendered once into the variable
+`גלריית תמונות` (both `/שחקן` and `/איש צוות`; the second template reuses it via
+`#varexists`), the four keeper cells defined only under `#תנאי האם שוער`, the
+shirt-number query once, the seasons-played query once for the 6 player trophy lists
+(`|עונות=` on `/הרכבת רשימת זכיות/שחקן`). `make_profile_candidates.py FIX` derives
+each candidate from the live text; `compare_profile_template.py FIX` renders a
+stratified sample (all player+coach pages, keepers, staff-only, with/without gallery,
+no photo, random) old vs new, byte for byte, `--selftest` must fail. Paired
+before/after timings (`OLD/NEW` alternated, median of 3) are the only trustworthy
+saving - one run per page on prod is noise at ±0.15 s.
+
+Measured: player+coach pages 0.3–1.0 s faster (the gallery was built 4×), others
+~0.1–0.25 s. **The second gallery render was cheap** (file lookups cached from the
+first), so timing a gallery alone overstated that fix ~3×.
+
+**Trap - page-wide arrays.** Every trophy-list template writes the global array
+`עונות`, and `/הצגת פרטי שחקן` counts it only redefining it when its own seasons
+list is non-empty. So for a player whose `קבלת רשימת עונות/שחקן` list is empty, the
+shown "seasons" number and the category `שחקני כדורגל ששיחקו N עונות במכבי` come
+from whichever template last wrote the array - today the last staff trophy list,
+whose `<em>ללא תוצאות</em>` counts as 1 (אורי עזו shows 1; he played 2). Skipping
+the staff lists for player-only pages changed that number, which is why they still
+run. Open - it needs a decision on what counts as a season (played only, or bench too,
+and from how many bench games).
+
+**Coach column errors, fixed LIVE 2026-09-23.** `…/איש צוות/הצגה` divided each
+per-game ratio by משחקים unguarded, so a tab with 0 games printed 9
+`number_format` errors. The ratios now sit in `#ifexpr משחקים > 0`, as in the player
+column. A fix that is meant to change output is gated with `--removed-errors`: OLD
+minus its erroring ratio spans must equal NEW, and NEW holds no error. The error
+markup is `<span class="error">`, not `<strong>` - match the real HTML, the first
+gate failed on its own regex.
 ## Game dates without `#time`: `Module:FootballDate`
 
 ParserFunctions gives a page ~6000 bytes of `#time` format strings. The shared
