@@ -52,8 +52,13 @@ WIKI_PAGES_DIR = SOURCE_DIR / 'wiki_pages'
 # The Lua itself. `Module` is the canonical name of namespace 828; the wiki
 # shows it localised as יחידה.
 MODULES = {
-    'Module_FootballQueries.lua': 'Module:FootballQueries',
+    # Shared first: the football pages below are shims that require these, so
+    # a fresh wiki (and a rollback) needs them in place before the shims land.
+    'Module_SportQueries.lua': 'Module:SportQueries',
+    'Module_StatsBlock.lua': 'Module:StatsBlock',
+    # Data before the shim that reads it (the shim's error prefix is Fields.name).
     'Module_FootballQueries_Fields.lua': 'Module:FootballQueries/Fields',
+    'Module_FootballQueries.lua': 'Module:FootballQueries',
     'Module_FootballStatsBlocks.lua': 'Module:FootballStatsBlocks',
     'Module_FootballStatsBlock.lua': 'Module:FootballStatsBlock',
     'Module_FootballSeasonSquad.lua': 'Module:FootballSeasonSquad',
@@ -314,6 +319,10 @@ def main() -> None:
     parser.add_argument('--with-docs', action='store_true',
                         help='also write the /תיעוד pages and their '
                              'categories')
+    parser.add_argument('--only', metavar='MODULE', action='append', default=[],
+                        help='publish only this wiki page (repeatable), e.g. '
+                             'Module:SportQueries - for a staged rollout where '
+                             'each shim is gated on production before it lands')
     parser.add_argument('--probe', action='store_true',
                         help='run the modules via a preview parse, saving '
                              'nothing')
@@ -329,7 +338,14 @@ def main() -> None:
     print(f'connected to {connection}\n')
 
     if options.publish:
-        for source, title in targets(with_docs=options.with_docs):
+        pages = targets(with_docs=options.with_docs)
+        if options.only:
+            known = {title for _, title in pages}
+            unknown = [title for title in options.only if title not in known]
+            if unknown:
+                raise SystemExit(f'--only names pages this script does not deploy: {unknown}')
+            pages = [(source, title) for source, title in pages if title in options.only]
+        for source, title in pages:
             wanted = source.read_text(encoding='utf-8')
             current = current_text(connection, title)
             if current is not None and current.strip() == wanted.strip():

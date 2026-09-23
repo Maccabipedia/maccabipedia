@@ -103,7 +103,19 @@ extracting an engine later costs exactly what extracting it now costs — while
 every extra **code** page is re-executed per `#invoke`, which is this design's
 own §6 fact working against the only goal it has. The sport boundary is funded
 by putting the sport's constants in the schema (decision 3), not by a second
-code page. `Module` is the
+code page.
+
+**Revisited 2026-09-23, when basketball arrived.** The engine/binding split was
+made after all: `Module:SportQueries` (logic, `new(Fields)`) and
+`Module:StatsBlock` (renderer, `new(Queries, blocksData, name)`), with
+`Module:FootballQueries` and `Module:FootballStatsBlock` reduced to five-line
+shims. The reason it now pays is the one the paragraph above lacked: a second
+sport with its own schema. The re-execution cost the paragraph feared was
+measured on production, same page rendered standalone then through the shim
+minutes apart: day page 0.15 → 0.13 s, season 1.39 → 1.32, stadium 1.11 →
+0.86, players portal 3.04 → 2.96, one referee page 0.90 → 1.34 - no direction,
+inside the pages' own noise. Two extra one-line chunks per invoke are not
+measurable. `Module` is the
 canonical name of namespace 828; the wiki displays it localised as `יחידה` and
 the API normalises `Module:X` → `יחידה:X`, so either spelling reaches the page.
 

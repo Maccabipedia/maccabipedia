@@ -377,5 +377,15 @@ check('a count over no rows is still zero', function(FootballQueries)
 	})), '0', 'zero stays zero')
 end)
 
+-- The logic is shared by every sport (Module:SportQueries) and the football
+-- shim binds it to football's schema; its errors must still read as they did
+-- on every page that shows one - the prefix comes from the schema's `name`.
+check('errors carry the football prefix, exactly as before the shared logic',
+	function(FootballQueries)
+		local ok, message = pcall(FootballQueries.build, { ['כרטיסים צהובים'] = '3' })
+		equals(ok, false, 'raised')
+		equals(tostring(message):sub(1, #'FootballQueries: '), 'FootballQueries: ', 'prefix')
+	end)
+
 print(string.format('\n%d passed, %d failed', passed, failed))
 os.exit(failed > 0 and 1 or 0)
