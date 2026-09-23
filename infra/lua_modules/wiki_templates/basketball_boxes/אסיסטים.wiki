@@ -1,0 +1,1 @@
+<includeonly>{{#invoke:BasketballStatsBlock|leaderboardBox|בלוק=leaderboards|תיבה=אסיסטים|כמות={{{כמות שחקנים|5}}}|עונה={{{עונה|}}}|שחקנים={{{שחקנים|}}}|יריבות={{{יריבות|}}}|מגרשים={{{מגרשים|}}}}}</includeonly>

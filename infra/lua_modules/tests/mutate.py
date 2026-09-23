@@ -55,6 +55,28 @@ SEASON_TAB_TAIL = (
 # says so instead of silently mutating the wrong place - which is how a broken
 # mutation once reported a false survivor.
 MUTATIONS = [
+    # The whole box as a tabber: what replaced the signed <shtml> strips.
+    ('box: a block with no tab strip is rendered anyway', RENDERER,
+     "if not declaration.tabStrip then\n\t\t\terror(string.format(\n\t\t\t\tNAME .. ': block \"%s\" declares no tabStrip, so there is nothing '",
+     "if false then\n\t\t\terror(string.format(\n\t\t\t\tNAME .. ': block \"%s\" declares no tabStrip, so there is nothing '"),
+    ('box: a category is swept up as a filter and narrows every tab', RENDERER,
+     "if frame.args['קטגוריית מפעל'] ~= nil then", 'if false then'),
+    ('box: a box with no title heads itself with nothing', RENDERER,
+     'if not box.title then', 'if false then'),
+    ('box: the panel heads with the tab label, not its heading', RENDERER,
+     'return string.format(declaration.tabHeading, tab.heading)',
+     'return string.format(declaration.tabHeading, tab.label)'),
+    # Both of these lines exist in `leaderboards` too, so each pattern carries the
+    # line above it - the one that differs between the two entry points.
+    ('box: the box title is dropped', RENDERER,
+     "\t\t\tdeclaration.boxOpen,\n\t\t\tstring.format('<div class=\"title\">%s</div>', box.title),",
+     "\t\t\tdeclaration.boxOpen,\n\t\t\tstring.format('<div class=\"title\">%s</div>', ''),"),
+    ('box: the skin hook is lost', RENDERER,
+     '\n\t\t\t\'<div class="list"><div class="tabber-converted">\'',
+     '\n\t\t\t\'<div class="list"><div>\''),
+    ('prime: a primed category is primed again', RENDERER,
+     "if frame:callParserFunction('#var', { key .. '/primed/' .. category }) ~= '' then",
+     'if false then'),
     # The review's three: the side by the layer's rule, the captain in a leaderboard, mixed sides.
     ('cell: any side word means the opponent', RENDERER,
      "and FootballQueries.asksForOpponent(shared[sideFilter])", "and true"),
@@ -92,8 +114,6 @@ MUTATIONS = [
     # leaderboardTab (test_basketball.lua): the priming, the key, what a tab prints.
     ('tab: a NULL sum is a present player', LOGIC,
      'if entry.count ~= nil and (entry.count > 0 or keepZero) then', 'if entry.count == nil or entry.count > 0 or keepZero then'),
-    ('tab: every tab primes again', RENDERER,
-     "\t\tif not primed(category) then\n\t\t\tlocal wanted = categoriesToPrime", "\t\tif true then\n\t\t\tlocal wanted = categoriesToPrime"),
     ('tab: the key ignores the filters', RENDERER,
      "VAR_PREFIX, blockName, keyed, top)", "VAR_PREFIX, blockName, '', top)"),
     ('tab: the key ignores the limit', RENDERER,
@@ -112,8 +132,8 @@ MUTATIONS = [
     ('tab: named row args passed positionally', RENDERER,
      '\t\t\tif declaration.rowArgs then', '\t\t\tif false then'),
     ('tab: an unknown category primes anyway', RENDERER,
-     "\t\tif not known then\n\t\t\terror(string.format(\n\t\t\t\tNAME .. ': block \"%s\" declares no category \"%s\"', blockName, category), 0)\n\t\tend\n\t\tlocal top",
-     "\t\tif false then\n\t\t\terror(string.format(\n\t\t\t\tNAME .. ': block \"%s\" declares no category \"%s\"', blockName, category), 0)\n\t\tend\n\t\tlocal top"),
+     "\t\tif not known then\n\t\t\terror(string.format(\n\t\t\t\tNAME .. ': block \"%s\" declares no category \"%s\"', blockName, category), 0)\n\t\tend\n\n\t\tprimeRanking",
+     "\t\tif false then\n\t\t\terror(string.format(\n\t\t\t\tNAME .. ': block \"%s\" declares no category \"%s\"', blockName, category), 0)\n\t\tend\n\n\t\tprimeRanking"),
     ('tab: an empty filter is a filter', RENDERER,
      "\t\t\t\tif given ~= '' then", "\t\t\t\tif true then"),
     ('tab: a box word not found', RENDERER,
@@ -129,8 +149,8 @@ MUTATIONS = [
      "\t\t\tjoin = 'Basketball_Games._pageName = Basketball_Player_Game_Events_Summary._pageName',\n\t\t\tgrain = 'game',"),
     ('basketball blocks: zeroes dropped', BLOCKS_BB, '\t\tkeepZero = true,\n', ''),
     ('basketball blocks: points summed as appearances', BLOCKS_BB,
-     "{ key = 'points', word = 'נקודות', sum = 'נקודות', filters = {} },",
-     "{ key = 'points', word = 'נקודות', sum = 'הופעות', filters = {} },"),
+     "{ key = 'points', word = 'נקודות', sum = 'נקודות', filters = {},",
+     "{ key = 'points', word = 'נקודות', sum = 'הופעות', filters = {},"),
     # The generalisations basketball needs (test_perplayer_schema.lua and the
     # hoops block in test_leaderboard.lua), and the football schema keys behind them.
     ('grain: a table without one is accepted', LOGIC,
@@ -609,7 +629,8 @@ MUTATIONS = [
     ('a tab strip without a heading gets no message', RENDERER,
      'if not heading then', 'if false then'),
     ('render accepts a block with no tab strip', RENDERER,
-     'if not declaration.tabStrip then', 'if false then'),
+     "if not declaration.tabStrip then\n\t\t\terror(string.format(\n\t\t\t\tNAME .. ': block \"%s\" declares no tabStrip, so there is '",
+     "if false then\n\t\t\terror(string.format(\n\t\t\t\tNAME .. ': block \"%s\" declares no tabStrip, so there is '"),
     ('the skin loses the wrapper it scopes the tabs to', RENDERER,
      '\'<div class="tabber-converted">\'', "'<div>'"),
     ('the first tab shows the officials category', BLOCKS,

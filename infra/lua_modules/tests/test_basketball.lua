@@ -188,6 +188,103 @@ check('errors carry the basketball name', function(module)
 	contains(message, 'BasketballQueries: unsupported filter', 'prefix from the schema')
 end)
 
+-- --------------------------------------------- the whole box, without <shtml>
+
+local function boxFrame(args, keep)
+	local direct = { ['בלוק'] = 'leaderboards', ['תיבה'] = 'נקודות', ['כמות'] = '10' }
+	for key, value in pairs(args or {}) do
+		direct[key] = value
+	end
+	return keep and stub.newFrameKeepingVariables({}, direct) or stub.newFrame({}, direct)
+end
+
+check('the whole box: one query, one tabber, four panels', function(module)
+	stub.willReturn({ pointsLeague('דורון ג\'מצ\'י', '7490') })
+	local html = module.leaderboardBox(boxFrame())
+	equals(#stub.calls, 1, 'one query for all four tabs')
+	equals(#stub.extensionTags, 1, 'one tabber')
+	contains(html, '<div class="records-list-tabs-container">', 'the box wrapper')
+	contains(html, '<div class="title">שיאני נקודות</div>', 'the box title')
+	contains(html, '<div class="list"><div class="tabber-converted">', 'the skin hook')
+	local body = stub.extensionTags[1].content
+	for _, heading in ipairs({ 'משחקים רשמיים', 'ליגה', 'גביע המדינה', 'בינלאומי' }) do
+		contains(body, '<div class="tab-header">' .. heading .. '</div>', heading)
+	end
+	equals(select(2, body:gsub('|%-|', '')), 3, 'four panels, three separators')
+end)
+
+check('the labels are the strip in order, and plain text', function(module)
+	stub.willReturn({ pointsLeague('דורון ג\'מצ\'י', '7490') })
+	module.leaderboardBox(boxFrame())
+	local body = stub.extensionTags[1].content
+	equals(body:match('^([^=]*)='), 'משחקים רשמיים', 'the first label')
+	-- The cup tab's LABEL is the short word; its heading is the long one. A
+	-- label carrying = or | would spill into the panel, so tabberOf refuses it.
+	contains(body, '|-|גביע=', 'the cup label, not its heading')
+end)
+
+check('no radio group survives the conversion', function(module)
+	stub.willReturn({ pointsLeague('דורון ג\'מצ\'י', '7490') })
+	local html = module.leaderboardBox(boxFrame({ ['תיבה'] = 'אסיסטים' }))
+	-- The whole point: `שיאני אסיסטים` had three of its four radios in the
+	-- APPEARANCES group, inside signed <shtml> the bot could not re-sign.
+	lacks(html, 'tab-control', 'no radio group')
+	lacks(html, '<input', 'no radios at all')
+	lacks(html, 'shtml', 'no signed block')
+end)
+
+check('a box read twice, and beside a tab invoke, primes once', function(module)
+	stub.willReturn({ pointsLeague('דורון ג\'מצ\'י', '7490') })
+	module.leaderboardBox(boxFrame())
+	module.leaderboardBox(boxFrame({ ['תיבה'] = 'ריבאונדים' }, true))
+	-- A page part-way through the conversion: both entry points key alike.
+	module.leaderboardTab(tabFrame({ ['תיבה'] = 'חסימות' }, true))
+	equals(#stub.calls, 1, 'still one query')
+end)
+
+check('the box refuses what it cannot render', function(module)
+	local function raises(pattern, args, entry)
+		local ok, message = pcall(entry or module.leaderboardBox, boxFrame(args))
+		equals(ok, false, 'raised for ' .. pattern)
+		contains(message, pattern, 'message')
+	end
+	raises('has no box "שערים"', { ['תיבה'] = 'שערים' })
+	raises('כמות must be a positive whole number', { ['כמות'] = '0' })
+	raises('unsupported filter "שחקן"', { ['שחקן'] = 'שרן ייני' })
+	-- A real filter in the schema, and the one leaderboardTab takes: narrowing
+	-- all four tabs by it would leave the cup tab asking for cup AND league.
+	raises('takes no קטגוריית מפעל', { ['קטגוריית מפעל'] = 'ליגה' })
+	-- The block that has no strip is the numbers block: it is cells, not boxes.
+	raises('no tabbed leaderboard block declared as "numbers"', { ['בלוק'] = 'numbers' })
+	equals(#stub.calls, 0, 'nothing queried')
+end)
+
+check('a block with boxes but no strip cannot be a box', function(module)
+	stub.dataPatch = function(data)
+		if data['leaderboards'] then
+			data['leaderboards'].tabStrip = nil
+		end
+	end
+	-- The module read its blocks when it loaded; load it again with the patch.
+	module = stub.loadModule('Module:BasketballStatsBlock')
+	local ok, message = pcall(module.leaderboardBox, boxFrame())
+	equals(ok, false, 'raised')
+	contains(message, 'declares no tabStrip', 'message')
+end)
+
+check('a box with no title cannot head itself', function(module)
+	stub.dataPatch = function(data)
+		if data['leaderboards'] then
+			data['leaderboards'].boxes[2].title = nil
+		end
+	end
+	module = stub.loadModule('Module:BasketballStatsBlock')
+	stub.willReturn({ pointsLeague('דורון ג\'מצ\'י', '7490') })
+	local ok, message = pcall(module.leaderboardBox, boxFrame())
+	equals(ok, false, 'raised')
+	contains(message, 'declares no title', 'message')
+end)
+
 -- ------------------------------------------------------------ the numbers
 
 local function cellFrame(args, keep)

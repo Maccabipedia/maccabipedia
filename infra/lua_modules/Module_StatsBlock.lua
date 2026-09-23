@@ -812,101 +812,59 @@ function StatsBlock.new(Queries, blocksData, name)
 		}))
 	end
 
-	--- One tab of one leaderboard box, for a template that keeps its own box
-	--- markup (a signed <shtml> tab strip that cannot be rebuilt) and only hands
-	--- the inside of each tab to the module:
-	---   {{#invoke:BasketballStatsBlock|leaderboardTab|בלוק=leaderboards|תיבה=נקודות
-	---     |קטגוריית מפעל=ליגה|כמות=10|עונה=…|שחקנים=…}}
-	--- Every other argument is a shared filter (empty means "not given"). The
-	--- first call on the page runs ONE query for every box and every category
-	--- the block declares and stores each tab's ranking in a page variable keyed
-	--- by the filters and the limit; later calls only read. A season page's 32
-	--- template queries become one.
-	local function leaderboardTab(frame)
-		local blockName = mw.text.trim(frame.args['בלוק'] or '')
-		local declaration = Blocks[blockName]
-		if not declaration or not declaration.boxes or not declaration.categories then
-			error(string.format(
-				NAME .. ': no tabbed leaderboard block declared as "%s"', blockName), 0)
+	--- Run ONE query for every box in every category worth priming with this one,
+	--- and store each tab's ranking in a page variable. Does nothing once the
+	--- category is primed, so every caller may ask before reading.
+	---
+	--- Stored as data, not as rendered rows: a page shows a few of the tabs
+	--- primed here, and expanding the row template (an existence check per
+	--- player) for every tab cost more than the query.
+	local function primeRanking(frame, declaration, key, shared, top, category)
+		if frame:callParserFunction('#var', { key .. '/primed/' .. category }) ~= '' then
+			return
 		end
-		local boxWord = mw.text.trim(frame.args['תיבה'] or '')
-		local box
-		for _, candidate in ipairs(declaration.boxes) do
-			if candidate.word == boxWord then
-				box = candidate
-			end
-		end
-		if not box then
-			error(string.format(NAME .. ': block "%s" has no box "%s"', blockName, boxWord), 0)
-		end
-		local category = mw.text.trim(frame.args['קטגוריית מפעל'] or '')
-		local known = false
-		for _, candidate in ipairs(declaration.categories) do
-			if candidate == category then
-				known = true
-			end
-		end
-		if not known then
-			error(string.format(
-				NAME .. ': block "%s" declares no category "%s"', blockName, category), 0)
-		end
-		local top = tonumber(mw.text.trim(frame.args['כמות'] or ''))
-		if not top or top < 1 or top ~= math.floor(top) then
-			error(string.format(
-				NAME .. ': כמות must be a positive whole number, got "%s"',
-				tostring(frame.args['כמות'])), 0)
-		end
-
-		local shared, keyed = sharedOf(frame, TAB_ARGUMENTS)
-		local key = string.format('%s/leaderboardTab/%s/%s/%d', VAR_PREFIX, blockName, keyed, top)
-
-		local function primed(cat)
-			return frame:callParserFunction('#var', { key .. '/primed/' .. cat }) ~= ''
-		end
-		if not primed(category) then
-			local wanted = categoriesToPrime(declaration, category)
-			local columns = {}
-			for _, each in ipairs(declaration.boxes) do
-				for _, cat in ipairs(wanted) do
-					local filters = {}
-					for name, value in pairs(each.filters or {}) do
-						filters[name] = value
-					end
-					filters['קטגוריית מפעל'] = cat
-					columns[#columns + 1] = {
-						name = each.key .. '/' .. cat, grain = 'event', sum = each.sum, filters = filters,
-					}
-				end
-			end
-			local results = FootballQueries.leaderboard(shared, columns,
-				{ groupBy = declaration.groupBy, top = top, keepZero = declaration.keepZero })
-			-- Stored as data, not as rendered rows: the page shows a few of the
-			-- tabs primed here, and expanding the row template (an existence
-			-- check per player) for every tab cost more than the query.
-			for _, each in ipairs(declaration.boxes) do
-				for _, cat in ipairs(wanted) do
-					local result = results[each.key .. '/' .. cat]
-					-- The first line is the more link, or nothing. It is prefixed
-					-- because #vardefine trims its arguments (the Variables
-					-- extension takes them as plain strings): an EMPTY first line
-					-- was eaten with its newline, and the first player row came
-					-- back as the link. Seen live on a court page with two cup
-					-- players. The stub trims the same way now.
-					local more = (declaration.moreText or '') ~= '' and #result.rows >= top
-						and tabMoreUrl(declaration, shared, columns, each, cat, top) or ''
-					local lines = { 'more=' .. more }
-					for _, row in ipairs(result.rows) do
-						lines[#lines + 1] = row.name .. '\t' .. tostring(row.count)
-					end
-					frame:callParserFunction('#vardefine',
-						{ key .. '/' .. each.key .. '/' .. cat, table.concat(lines, '\n') })
-				end
-			end
+		local wanted = categoriesToPrime(declaration, category)
+		local columns = {}
+		for _, each in ipairs(declaration.boxes) do
 			for _, cat in ipairs(wanted) do
-				frame:callParserFunction('#vardefine', { key .. '/primed/' .. cat, '1' })
+				local filters = {}
+				for name, value in pairs(each.filters or {}) do
+					filters[name] = value
+				end
+				filters['קטגוריית מפעל'] = cat
+				columns[#columns + 1] = {
+					name = each.key .. '/' .. cat, grain = 'event', sum = each.sum, filters = filters,
+				}
 			end
 		end
+		local results = FootballQueries.leaderboard(shared, columns,
+			{ groupBy = declaration.groupBy, top = top, keepZero = declaration.keepZero })
+		for _, each in ipairs(declaration.boxes) do
+			for _, cat in ipairs(wanted) do
+				local result = results[each.key .. '/' .. cat]
+				-- The first line is the more link, or nothing. It is prefixed
+				-- because #vardefine trims its arguments (the Variables
+				-- extension takes them as plain strings): an EMPTY first line
+				-- was eaten with its newline, and the first player row came
+				-- back as the link. Seen live on a court page with two cup
+				-- players. The stub trims the same way now.
+				local more = (declaration.moreText or '') ~= '' and #result.rows >= top
+					and tabMoreUrl(declaration, shared, columns, each, cat, top) or ''
+				local lines = { 'more=' .. more }
+				for _, row in ipairs(result.rows) do
+					lines[#lines + 1] = row.name .. '\t' .. tostring(row.count)
+				end
+				frame:callParserFunction('#vardefine',
+					{ key .. '/' .. each.key .. '/' .. cat, table.concat(lines, '\n') })
+			end
+		end
+		for _, cat in ipairs(wanted) do
+			frame:callParserFunction('#vardefine', { key .. '/primed/' .. cat, '1' })
+		end
+	end
 
+	--- One box's stored ranking in one category, back as rows and its link.
+	local function readRanking(frame, key, box, category)
 		local stored = frame:callParserFunction('#var', { key .. '/' .. box.key .. '/' .. category })
 		local moreUrl, entries = nil, {}
 		for index, line in ipairs(mw.text.split(stored, '\n', true)) do
@@ -923,7 +881,123 @@ function StatsBlock.new(Queries, blocksData, name)
 				entries[#entries + 1] = { name = name, count = tonumber(count) }
 			end
 		end
+		return entries, moreUrl
+	end
+
+	--- The block, box and limit a leaderboard invoke names, checked. Every other
+	--- argument is a shared filter, which `sharedOf` collects.
+	local function boxOf(frame, blockArguments)
+		local blockName = mw.text.trim(frame.args['בלוק'] or '')
+		local declaration = Blocks[blockName]
+		if not declaration or not declaration.boxes or not declaration.categories then
+			error(string.format(
+				NAME .. ': no tabbed leaderboard block declared as "%s"', blockName), 0)
+		end
+		local boxWord = mw.text.trim(frame.args['תיבה'] or '')
+		local box
+		for _, candidate in ipairs(declaration.boxes) do
+			if candidate.word == boxWord then
+				box = candidate
+			end
+		end
+		if not box then
+			error(string.format(NAME .. ': block "%s" has no box "%s"', blockName, boxWord), 0)
+		end
+		local top = tonumber(mw.text.trim(frame.args['כמות'] or ''))
+		if not top or top < 1 or top ~= math.floor(top) then
+			error(string.format(
+				NAME .. ': כמות must be a positive whole number, got "%s"',
+				tostring(frame.args['כמות'])), 0)
+		end
+		local shared, keyed = sharedOf(frame, blockArguments)
+		-- The key says `leaderboardTab` whichever entry point built it, so a page
+		-- part-way through the conversion primes once for both.
+		local key = string.format('%s/leaderboardTab/%s/%s/%d', VAR_PREFIX, blockName, keyed, top)
+		return declaration, blockName, box, top, shared, key
+	end
+
+	--- One tab of one leaderboard box, for a template that keeps its own box
+	--- markup (a signed <shtml> tab strip that cannot be rebuilt) and only hands
+	--- the inside of each tab to the module:
+	---   {{#invoke:BasketballStatsBlock|leaderboardTab|בלוק=leaderboards|תיבה=נקודות
+	---     |קטגוריית מפעל=ליגה|כמות=10|עונה=…|שחקנים=…}}
+	--- Every other argument is a shared filter (empty means "not given"). The
+	--- first call on the page runs ONE query for every box and every category
+	--- the block declares and stores each tab's ranking in a page variable keyed
+	--- by the filters and the limit; later calls only read. A season page's 32
+	--- template queries become one.
+	local function leaderboardTab(frame)
+		local declaration, blockName, box, top, shared, key = boxOf(frame, TAB_ARGUMENTS)
+		local category = mw.text.trim(frame.args['קטגוריית מפעל'] or '')
+		local known = false
+		for _, candidate in ipairs(declaration.categories) do
+			if candidate == category then
+				known = true
+			end
+		end
+		if not known then
+			error(string.format(
+				NAME .. ': block "%s" declares no category "%s"', blockName, category), 0)
+		end
+
+		primeRanking(frame, declaration, key, shared, top, category)
+		local entries, moreUrl = readRanking(frame, key, box, category)
 		return tabRows(frame, declaration, entries, moreUrl)
+	end
+
+	--- The arguments of leaderboardBox that are not filters.
+	local BOX_ARGUMENTS = { ['בלוק'] = true, ['תיבה'] = true, ['כמות'] = true }
+
+	--- A WHOLE leaderboard box - its title, its tab strip and all four panels -
+	--- from one invoke and no raw HTML:
+	---   {{#invoke:BasketballStatsBlock|leaderboardBox|בלוק=leaderboards
+	---     |תיבה=אסיסטים|כמות=5|עונה=…|שחקנים=…}}
+	---
+	--- What `leaderboardTab` leaves to the template, this replaces. Those
+	--- templates carried the strip as signed `<shtml>` - hidden radio inputs
+	--- whose `name` groups the tabs - which the bot cannot re-sign, so a typo in
+	--- one (three of `שיאני אסיסטים`'s four radios named the APPEARANCES group,
+	--- and its tabs 2-4 therefore drove the wrong box) could not be fixed from
+	--- here at all. A `<tabber>` has no groups to get wrong, and the whole box
+	--- comes back under the repo's control.
+	local function leaderboardBox(frame)
+		-- The strip names every category this box shows, so a caller passing one
+		-- would be narrowing all four tabs by it: the cup tab would come back as
+		-- "cup AND league" and render empty. It is a real filter in the schema and
+		-- the argument `leaderboardTab` takes, so it is refused by name rather
+		-- than swept up as a shared filter.
+		if frame.args['קטגוריית מפעל'] ~= nil then
+			error(NAME .. ': leaderboardBox renders every tab of the strip, so it '
+				.. 'takes no קטגוריית מפעל', 0)
+		end
+		local declaration, blockName, box, top, shared, key = boxOf(frame, BOX_ARGUMENTS)
+		if not declaration.tabStrip then
+			error(string.format(
+				NAME .. ': block "%s" declares no tabStrip, so there is nothing '
+				.. 'to render as tabs', blockName), 0)
+		end
+		if not box.title then
+			error(string.format(
+				NAME .. ': box "%s" declares no title to head its box with', box.key), 0)
+		end
+
+		local body = tabberOf(declaration.tabStrip, function(tab)
+			primeRanking(frame, declaration, key, shared, top, tab.category)
+			local entries, moreUrl = readRanking(frame, key, box, tab.category)
+			-- One `%s`, the tab's heading: this block's panels head with the
+			-- heading alone, as the templates' `<div class="tab-header">` did.
+			return string.format(declaration.tabHeading, tab.heading)
+				.. '\n' .. tabRows(frame, declaration, entries, moreUrl)
+		end)
+
+		return table.concat({
+			declaration.boxOpen,
+			string.format('<div class="title">%s</div>', box.title),
+			'<div class="list"><div class="tabber-converted">'
+				.. frame:extensionTag('tabber', body)
+				.. '</div></div>',
+			'</div>',
+		}, '\n')
 	end
 
 	-- ------------------------------------------------- one number of a block
@@ -1048,6 +1122,7 @@ function StatsBlock.new(Queries, blocksData, name)
 	return {
 		cell = cell,
 		leaderboardTab = leaderboardTab,
+		leaderboardBox = leaderboardBox,
 		leaderboards = leaderboards,
 		block = block,
 		prime = prime,

@@ -63,8 +63,10 @@ competitions, 22 courts, 9 categories, the portal) went through ONE query templa
 `כדורסל/סטטיסטיקה/שיאנים לפי אירוע`, once per tab: 16 queries on the portal, 32 on a
 season or opponent page. Its `#cargo_query` is now
 `{{#invoke:BasketballStatsBlock|leaderboardTab|בלוק=leaderboards|תיבה={{{אירוע}}}|…}}`
-(previous revision 202599); the box templates keep their signed `<shtml>` tab strips
-untouched. The first call on a page primes every box in the four tab categories from
+(previous revision 202599). The box templates kept their signed `<shtml>` tab strips
+through this step and lost them later the same day - see **The whole box
+(`leaderboardBox`)** below, which is what the eight of them run now.
+The first call on a page primes every box in the four tab categories from
 one grouped query and stores each tab's ranking as data in a page variable keyed by
 the filters and the limit; a tab's rows are expanded only when read. Any other
 category (`ברירת מחדל`, `יתר-רשמיים`) is primed on its own when asked.
@@ -131,13 +133,48 @@ instead of trusting the first cell; and `compare_basketball_tabs.py --template` 
 requires `--candidate`/`--against`, since a candidate derived from the leaderboard
 template would otherwise be rendered under another template's title and compare nothing.
 
-**Known, not ours:** `תבנית:כדורסל/סטטיסטיקה/שיאני אסיסטים` has its radios 2-4 in
-group `tab-control-bb-appearances` (tab 1 in `…-assists`), inside the signed
-`<shtml>` strip: tab 1's list stays under whichever tab is pressed, and pressing an
-assists tab deselects the appearances box's tab. Rendered identically before the
-module (checked by swapping the old render in a browser). The bot's save does not
-re-sign `<shtml>` ("גיבוב לא חוקי" on a sandbox), so the one-attribute fix needs
-someone with the SecureHTML right.
+**The whole box (`leaderboardBox`), live 2026-09-23.** The eight box templates
+(`כדורסל/סטטיסטיקה/שיאני …`, 132 pages: 75 seasons, the player categories, the
+portal, opponents and competitions) carried their tab strip as signed `<shtml>` -
+hidden radio inputs whose `name` groups the tabs - and handed only each tab's
+inside to `leaderboardTab`. Each is now ONE invoke
+(`{{#invoke:BasketballStatsBlock|leaderboardBox|בלוק=leaderboards|תיבה=…|כמות=…}}`,
+2.2 kB of markup down to 0.2), and the module emits the title, the strip as a
+`<tabber>` and all four panels. Both entry points share `primeRanking`/`readRanking`
+and key their variables alike, so a page part-way through the conversion still
+primes once - which is what let the boxes be switched one at a time.
+
+Why it was worth doing beyond the markup: `שיאני אסיסטים` had its radios 2-4 in
+group `tab-control-bb-appearances` (only tab 1 in `…-assists`), so pressing any of
+its tabs left the officials panel on screen as well - two panels, two "עוד..."
+links, two tabs lit - and deselected the appearances box's tab. The bot cannot save
+inside `<shtml>` ("גיבוב לא חוקי" on a sandbox), so that one attribute could not be
+fixed from the repo at all. A `<tabber>` has no groups to get wrong, so the defect
+is gone by construction rather than by a careful edit.
+
+Two rules the conversion had to respect: the tab LABEL is plain text (TabberNeue
+builds the panel id, and so the address bar, from it) and the icon comes from the
+skin keyed on that label, `atoms/tabber-converted.less`; and `איבודים` and `עבירות`
+hardcode `כמות=5`, ignoring the page's `כמות שחקנים`, which the generated templates
+keep. **One visible change:** the international tab's glyph is now the globe the
+skin maps `בינלאומי` to, where the old strip drew a euro sign. Everything else is
+pixel-identical (checked with Playwright, tab by tab).
+
+Gate: `compare_basketball_boxes.py`. The markup changes by design, so it compares
+what the box SHOWS - the four panels in order, their players, records and link -
+across the whole page, one box template swapped at a time (TemplateSandbox takes one
+page). Two traps it was built around: "does the page invoke the module" is vacuous
+here, because the live templates already did through `leaderboardTab`, so the
+candidate is detected by the `tabber-converted` it alone emits; and a page shows 4,
+6 or 8 of the boxes, so replacing one it does not transclude must be reported, not
+counted as a pass. `--selftest` points every candidate at the appearances box, so the
+run must fail. And once the switch has shipped, the live template IS the candidate and
+the plain mode compares a thing with itself: `--against` renders the text each box
+replaced (from `switch_template_prod.py`'s record) as the sandbox side instead, which is
+the only comparison that still means anything. Its self-test has to patch both namings
+(`תיבה=` on the candidate, `אירוע=` on the old template) or it changes nothing and
+"passes". Result: 0 of 32 differ across five pages, `--selftest` reports all 32. Render time is barely touched (~0.02 s
+per box; the query count was already one per page) - this one bought correctness.
 
 **`#vardefine` trims its value** (Variables registers it without SFH_OBJECT_ARGS, so
 the parser PHP-trims every argument). A stored value that begins or ends with
