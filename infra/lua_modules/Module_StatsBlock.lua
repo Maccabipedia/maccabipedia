@@ -717,7 +717,212 @@ function StatsBlock.new(Queries, blocksData, name)
 		return table.concat(out, '\n')
 	end
 
+	-- ------------------------------------------------- one tab of a leaderboard
+
+	--- The arguments of leaderboardTab that are not filters.
+	local TAB_ARGUMENTS = { ['בלוק'] = true, ['תיבה'] = true, ['קטגוריית מפעל'] = true, ['כמות'] = true }
+
+	--- The rows of one tab as the template printed them: the row template once
+	--- per player (named args when the block says so, positional otherwise),
+	--- then the block's emptyText when there is nobody, then the "עוד" link
+	--- when the rows reached the limit - which is when Cargo showed its own.
+	local function tabRows(frame, declaration, entries, moreUrl)
+		local lines = {}
+		for _, row in ipairs(entries) do
+			local args
+			if declaration.rowArgs then
+				args = { [declaration.rowArgs[1]] = row.name, [declaration.rowArgs[2]] = row.count }
+			else
+				args = { row.name, row.count }
+			end
+			lines[#lines + 1] = frame:expandTemplate{ title = declaration.rowTemplate, args = args }
+		end
+		if #entries == 0 and declaration.emptyText then
+			lines[#lines + 1] = declaration.emptyText
+		end
+		if moreUrl then
+			-- On its own line, so the parser wraps it in a paragraph as it did
+			-- the template's Cargo link.
+			lines[#lines + 1] = string.format('[%s %s]\n', moreUrl, declaration.moreText)
+		end
+		return table.concat(lines, '')
+	end
+
+	--- The ViewData link to the rest of one column's ranking, in the shape of
+	--- Cargo's own "more results" link: the same rows past the ones shown.
+	local function tabMoreUrl(declaration, shared, columns, box, category, top)
+		local query = FootballQueries.leaderboardColumnQuery(shared, columns, box.key .. '/' .. category)
+		local key = FootballQueries.groupKeyColumn(declaration.groupBy)
+		local record = box.sum and ('SUM(' .. FootballQueries.sumColumn(box.sum) .. ')') or 'COUNT(*)'
+		return tostring(mw.uri.fullUrl('מיוחד:ViewData', {
+			tables = query.tables,
+			join_on = query.join,
+			where = query.where,
+			fields = record .. '=' .. declaration.rowArgs[2] .. ', ' .. key .. '=' .. declaration.rowArgs[1],
+			group_by = key,
+			order_by = declaration.rowArgs[2] .. ' DESC',
+			format = 'template',
+			template = declaration.rowTemplate,
+			['named args'] = 'yes',
+			default = declaration.emptyText or '',
+			offset = tostring(top),
+			limit = '100',
+		}))
+	end
+
+	--- One tab of one leaderboard box, for a template that keeps its own box
+	--- markup (a signed <shtml> tab strip that cannot be rebuilt) and only hands
+	--- the inside of each tab to the module:
+	---   {{#invoke:BasketballStatsBlock|leaderboardTab|בלוק=leaderboards|תיבה=נקודות
+	---     |קטגוריית מפעל=ליגה|כמות=10|עונה=…|שחקנים=…}}
+	--- Every other argument is a shared filter (empty means "not given"). The
+	--- first call on the page runs ONE query for every box and every category
+	--- the block declares and stores each tab's ranking in a page variable keyed
+	--- by the filters and the limit; later calls only read. A season page's 32
+	--- template queries become one.
+	local function leaderboardTab(frame)
+		local blockName = mw.text.trim(frame.args['בלוק'] or '')
+		local declaration = Blocks[blockName]
+		if not declaration or not declaration.boxes or not declaration.categories then
+			error(string.format(
+				NAME .. ': no tabbed leaderboard block declared as "%s"', blockName), 0)
+		end
+		local boxWord = mw.text.trim(frame.args['תיבה'] or '')
+		local box
+		for _, candidate in ipairs(declaration.boxes) do
+			if candidate.word == boxWord then
+				box = candidate
+			end
+		end
+		if not box then
+			error(string.format(NAME .. ': block "%s" has no box "%s"', blockName, boxWord), 0)
+		end
+		local category = mw.text.trim(frame.args['קטגוריית מפעל'] or '')
+		local known = false
+		for _, candidate in ipairs(declaration.categories) do
+			if candidate == category then
+				known = true
+			end
+		end
+		if not known then
+			error(string.format(
+				NAME .. ': block "%s" declares no category "%s"', blockName, category), 0)
+		end
+		local top = tonumber(mw.text.trim(frame.args['כמות'] or ''))
+		if not top or top < 1 or top ~= math.floor(top) then
+			error(string.format(
+				NAME .. ': כמות must be a positive whole number, got "%s"',
+				tostring(frame.args['כמות'])), 0)
+		end
+
+		local shared, names = {}, {}
+		for name, value in pairs(frame.args) do
+			if not TAB_ARGUMENTS[name] then
+				local given = mw.text.trim(tostring(value))
+				if given ~= '' then
+					shared[name] = given
+					names[#names + 1] = name
+				end
+			end
+		end
+		table.sort(names)
+		local keyed = {}
+		for index, name in ipairs(names) do
+			keyed[index] = name .. '=' .. shared[name]
+		end
+		local key = string.format('%s/leaderboardTab/%s/%s/%d', VAR_PREFIX, blockName,
+			table.concat(keyed, '&'), top)
+
+		-- Which categories one query covers. The first query on a page always
+		-- takes the ones the tab strips show (primeCategories), plus the one
+		-- asked for if it is not among them; a later request for a category
+		-- outside them (the untabbed family's default, יתר-רשמיים) is primed on
+		-- its own. Every conditional sum costs the query ~12 ms over 57k rows
+		-- (measured), and the tab strips never ask for those two. Each primed
+		-- category marks itself, so nothing is primed twice.
+		local function primed(cat)
+			return frame:callParserFunction('#var', { key .. '/primed/' .. cat }) ~= ''
+		end
+		if not primed(category) then
+			local wanted = {}
+			if frame:callParserFunction('#var', { key .. '/primed' }) == '' then
+				for _, cat in ipairs(declaration.primeCategories or declaration.categories) do
+					wanted[#wanted + 1] = cat
+				end
+			end
+			local listed = false
+			for _, cat in ipairs(wanted) do
+				if cat == category then
+					listed = true
+				end
+			end
+			if not listed then
+				wanted[#wanted + 1] = category
+			end
+			local columns = {}
+			for _, each in ipairs(declaration.boxes) do
+				for _, cat in ipairs(wanted) do
+					local filters = {}
+					for name, value in pairs(each.filters or {}) do
+						filters[name] = value
+					end
+					filters['קטגוריית מפעל'] = cat
+					columns[#columns + 1] = {
+						name = each.key .. '/' .. cat, grain = 'event', sum = each.sum, filters = filters,
+					}
+				end
+			end
+			local results = FootballQueries.leaderboard(shared, columns,
+				{ groupBy = declaration.groupBy, top = top, keepZero = declaration.keepZero })
+			-- Stored as data, not as rendered rows: the page shows a few of the
+			-- tabs primed here, and expanding the row template (an existence
+			-- check per player) for every tab cost more than the query.
+			for _, each in ipairs(declaration.boxes) do
+				for _, cat in ipairs(wanted) do
+					local result = results[each.key .. '/' .. cat]
+					-- The first line is the more link, or nothing. It is prefixed
+					-- because #vardefine trims its arguments (the Variables
+					-- extension takes them as plain strings): an EMPTY first line
+					-- was eaten with its newline, and the first player row came
+					-- back as the link. Seen live on a court page with two cup
+					-- players. The stub trims the same way now.
+					local more = (declaration.moreText or '') ~= '' and #result.rows >= top
+						and tabMoreUrl(declaration, shared, columns, each, cat, top) or ''
+					local lines = { 'more=' .. more }
+					for _, row in ipairs(result.rows) do
+						lines[#lines + 1] = row.name .. '\t' .. tostring(row.count)
+					end
+					frame:callParserFunction('#vardefine',
+						{ key .. '/' .. each.key .. '/' .. cat, table.concat(lines, '\n') })
+				end
+			end
+			for _, cat in ipairs(wanted) do
+				frame:callParserFunction('#vardefine', { key .. '/primed/' .. cat, '1' })
+			end
+			frame:callParserFunction('#vardefine', { key .. '/primed', '1' })
+		end
+
+		local stored = frame:callParserFunction('#var', { key .. '/' .. box.key .. '/' .. category })
+		local moreUrl, entries = nil, {}
+		for index, line in ipairs(mw.text.split(stored, '\n', true)) do
+			if index == 1 then
+				local url = line:match('^more=(.*)$')
+				if not url then
+					error(string.format(
+						NAME .. ': the stored ranking for %s/%s does not start with its '
+						.. 'link line - a page variable was overwritten', box.key, category), 0)
+				end
+				moreUrl = url ~= '' and url or nil
+			elseif line ~= '' then
+				local name, count = line:match('^(.*)\t([^\t]*)$')
+				entries[#entries + 1] = { name = name, count = tonumber(count) }
+			end
+		end
+		return tabRows(frame, declaration, entries, moreUrl)
+	end
+
 	return {
+		leaderboardTab = leaderboardTab,
 		leaderboards = leaderboards,
 		block = block,
 		prime = prime,

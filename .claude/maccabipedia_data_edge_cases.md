@@ -157,6 +157,17 @@ constrain `Team` - a career total hides the leak, a per-side count shows it.
 - Scribunto keeps no state between `#invoke`s; one invoke must render a block.
 - An `#ifexist` / `#קיים` on a `קובץ:` title checks the local description page
   only - a local wiki with foreign images answers "no" for every file.
+- `#vardefine` trims its value: leading and trailing whitespace, newlines
+  included, never come back from `#var`. Data stored in a page variable needs a
+  non-blank first and last line (`leaderboardTab` lost the top player of every
+  small basketball tab this way, 2026-09-23).
+- Cargo's `CASE WHEN (` is read as a call to a function WHEN() and refused: a
+  condition that lands inside a CASE may not start with a parenthesis.
+- Cargo's `no html` list output joins rows with a comma and TWO spaces; with no
+  `order by` it orders by the first field.
+- MySQL's tie order is arbitrary and differs between two renders of the same
+  page, and a LIMIT inside a tie takes arbitrary members: a Lua ranking that
+  breaks ties by name can never be byte-identical to a template's.
 
 ## Adding to this file
 

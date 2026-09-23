@@ -30,6 +30,15 @@ season pages' מספרים עונתיים template reads the rowless season-resu
 season-cards blocks, a renderer older than them fails on those blocks - so
 revert those two templates first (.claude/season_pages.md), then the module.
 
+Since the shared layer (2026-09-23) the football pages Module:FootballQueries
+and Module:FootballStatsBlock are five-line shims over Module:SportQueries and
+Module:StatsBlock, and the same holds for basketball's. So: the shared pages
+and a sport's schema go out BEFORE its shims (MODULES is in that order), a
+schema that the LIVE logic must still read goes out with the keys that logic
+reads (a transitional copy, dropped once the logic is live), and a rollback of
+the shared logic is one page - every sport's shim binds to whatever is there.
+--only stages that; compare_module_swap.py gates each page before it lands.
+
 Two production facts this has to survive:
 
   * PHP notices on production can make a save's API response non-JSON even
@@ -66,6 +75,11 @@ MODULES = {
     'Module_FootballPlayerStats.lua': 'Module:FootballPlayerStats',
     'Module_FootballDate.lua': 'Module:FootballDate',
     'Module_SeasonTrophies.lua': 'Module:SeasonTrophies',
+    # Basketball: schema, then its query shim, then block data, then its renderer shim.
+    'Module_BasketballQueries_Fields.lua': 'Module:BasketballQueries/Fields',
+    'Module_BasketballQueries.lua': 'Module:BasketballQueries',
+    'Module_BasketballStatsBlocks.lua': 'Module:BasketballStatsBlocks',
+    'Module_BasketballStatsBlock.lua': 'Module:BasketballStatsBlock',
 }
 
 # The documentation that goes with them. Wikitext, inert, and the standard

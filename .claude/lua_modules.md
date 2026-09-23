@@ -54,7 +54,61 @@ byte-identical throughout):
   on an empty tab). Football's blocks declare none.
 
 `tests/test_perplayer_schema.lua` hands `new()` a basketball-shaped schema and
-proves these without a basketball data page. **Deploying a schema and the logic
+proves these without a basketball data page.
+
+### Basketball, live 2026-09-23: `Module:BasketballQueries` + `Module:BasketballStatsBlock`
+
+Every basketball leaderboard (485 pages: 325 referees, 75 seasons, 46 opponents and
+competitions, 22 courts, 9 categories, the portal) went through ONE query template,
+`כדורסל/סטטיסטיקה/שיאנים לפי אירוע`, once per tab: 16 queries on the portal, 32 on a
+season or opponent page. Its `#cargo_query` is now
+`{{#invoke:BasketballStatsBlock|leaderboardTab|בלוק=leaderboards|תיבה={{{אירוע}}}|…}}`
+(previous revision 202599); the box templates keep their signed `<shtml>` tab strips
+untouched. The first call on a page primes every box in the four tab categories from
+one grouped query and stores each tab's ranking as data in a page variable keyed by
+the filters and the limit; a tab's rows are expanded only when read. Any other
+category (`ברירת מחדל`, `יתר-רשמיים`) is primed on its own when asked.
+`קטגוריה:שחקני כדורסל` 1.3 → 0.8 s, `קטגוריה:כדורסל/סנטרים` 1.9 → 0.75 s,
+`פורטל שחקנים` 3.3 → 2.6 s.
+
+What the schema had to say that football's did not, each measured: every text
+column KEEPS quote characters (Opponent has 118 apostrophes and 123 quote marks);
+the player list arrives quoted, prefixed and with a trailing `""` from the
+category-members helper (`quoted = true, stripPrefix = 'כדורסל:'` - without it
+every category page rendered empty with no error); a NULL stat on a matched row
+is 0 (`sumMissingAsZero` - older seasons record no blocks or steals, and the
+template's COALESCE showed those players with 0); `רשמי` means no condition and an
+absent category means Official = 1 (the wrapper passes `ברירת מחדל`); a
+parenthesised choice inside `CASE WHEN` is refused by Cargo ("WHEN()"), so
+`יתר-רשמיים` is a plain AND chain.
+
+**What is NOT byte-identical, and never can be:** tied players. MySQL returns a tie
+in arbitrary order - it differed between two renders of the same page - and fills
+the last places of a cut tab with arbitrary members of the tie; the module orders
+ties by name. `compare_basketball_tabs.py` sorts tied runs by name on both sides and
+masks the names of a boundary tie (same record, same count), then compares byte for
+byte; the "עוד..." link's query string is normalised too (Cargo built it from the
+template's raw SQL text). 16/16 sample pages across every family passed that.
+
+Cost, measured: the grouped query is ~0.2 s plus ~12 ms per conditional sum over
+57k rows, so priming 32 sums costs ~0.55 s and 48 would cost 0.8; expanding the row
+template (an existence check per player) for tabs the page never shows cost more
+than the query, hence data in the variables and rendering on read.
+
+**`#vardefine` trims its value** (Variables registers it without SFH_OBJECT_ARGS, so
+the parser PHP-trims every argument). A stored value that begins or ends with
+whitespace - a newline included - loses it. The first version of `leaderboardTab`
+stored `<link or nothing>\n<rows>`, so a tab with no link (fewer players than the
+limit) lost its first newline and its TOP PLAYER came back as the link: live on
+small pages (a court with two cup players) until review caught it; the 16 gate
+pages all had five or more players per tab. Now the line is `more=…`, the stub
+trims like the parser, a mutation restores the bare line and is killed, and the
+gate sample includes pages with fewer players than the limit
+(`.claude/tmp/bb_small_pages.txt`). The other side filter word: basketball's
+`האם עבור יריבה` selects the opponent only for `כן`; the template it replaced flipped
+on ANY value. No caller passes a value today; another word would silently mean
+Maccabi - the layer's one known "guess" - so a caller adding one must add it to
+`sides.opponentValue` first. **Deploying a schema and the logic
 that reads it:** production publishes one page at a time, so the schema went out
 first carrying the keys the OLD logic read as well (a transitional copy, removed
 the moment the new logic was live); no page ever saw a mismatched pair.

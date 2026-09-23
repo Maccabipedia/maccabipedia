@@ -314,10 +314,24 @@ function SportQueries.new(Fields)
 
 	handlers.list = function(builder, spec, value)
 		local items = splitList(value)
+		if spec.quoted then
+			-- A list the page built from category members arrives already
+			-- quoted - `"A", "B", ""` - because the templates pasted it straight
+			-- into IN (...). This layer quotes by itself, so each item loses its
+			-- outer quotes and the empty one drops out.
+			local unquoted = {}
+			for _, item in ipairs(items) do
+				item = item:gsub('^"(.*)"$', '%1')
+				if item ~= '' then
+					unquoted[#unquoted + 1] = item
+				end
+			end
+			items = unquoted
+		end
 		if spec.stripPrefix then
-			-- A list the page built from category members carries the namespace
-			-- (basketball's "כדורסל:Name"), which the stored name lacks. Left on, IN
-			-- matches nothing and every box renders empty with no error.
+			-- Such a list also carries the namespace (basketball's "כדורסל:Name"),
+			-- which the stored name lacks. Left on, IN matches nothing and every
+			-- box renders empty with no error.
 			for index, item in ipairs(items) do
 				if item:sub(1, #spec.stripPrefix) == spec.stripPrefix then
 					items[index] = item:sub(#spec.stripPrefix + 1)
@@ -692,9 +706,18 @@ function SportQueries.new(Fields)
 				-- as the query matches ANY row, so a cup tab on a date with only
 				-- league games printed "0" where the template prints nothing.
 				-- Measured: over 222 rows, ELSE 0 gives 0 and ELSE NULL gives NULL.
+				--
+				-- A matched row whose value is NULL (basketball's older seasons
+				-- have no blocks or steals recorded) is another matter: the
+				-- basketball templates wrapped the sum in COALESCE(…, 0), so a
+				-- player who played and has no value shows 0, present. A schema
+				-- says so with sumMissingAsZero; the NULL for "no row matched"
+				-- stays, and rank() still reads it as absent.
+				local summed = Fields.sumMissingAsZero
+					and ('COALESCE(' .. column .. ', 0)') or column
 				fields[index] = string.format(
 					'SUM(CASE WHEN %s THEN %s ELSE NULL END)=%s',
-					condition, column, alias)
+					condition, summed, alias)
 			elseif grain == 'game' then
 				fields[index] = string.format(
 					'COUNT(DISTINCT CASE WHEN %s THEN %s._pageID END)=%s',
@@ -793,9 +816,13 @@ function SportQueries.new(Fields)
 	local function rank(entries, top, keepZero)
 		local ranked = {}
 		for _, entry in ipairs(entries) do
-			-- Football's templates had HAVING > 0; basketball's show a zero
-			-- (COALESCE), so a block may ask to keep them.
-			if entry.count > 0 or keepZero then
+			-- A nil count is a group with NO row matching the column at all (a
+			-- sum's ELSE NULL): the templates put the column's condition in
+			-- their WHERE, so such a player was never in that tab. A zero is a
+			-- player who was there and scored nothing: football's templates had
+			-- HAVING > 0 and dropped them, basketball's show them (COALESCE), so
+			-- a block asks with keepZero.
+			if entry.count ~= nil and (entry.count > 0 or keepZero) then
 				ranked[#ranked + 1] = entry
 			end
 		end
@@ -817,6 +844,17 @@ function SportQueries.new(Fields)
 			-- limit and so sends a tab of exactly ten players to an empty page.
 			more = #ranked > top,
 		}
+	end
+
+	--- The column behind a summable value (נקודות → …TotalPoints), for callers
+	--- that build a link to the same ranking. Raises for an unknown value.
+	function Queries.sumColumn(name)
+		local column = Fields.sumColumns[name]
+		if not column then
+			error(string.format(
+				NAME .. ': "%s" is not a known summable value', tostring(name)), 0)
+		end
+		return column
 	end
 
 	--- The column a leaderboard's group key names, for callers that build a link
@@ -891,7 +929,9 @@ function SportQueries.new(Fields)
 					-- A blank name is kept as a blank row, as the template shows
 					-- one (none exist on production: 0 events, measured).
 					name = row.g or '',
-					count = tonumber(row[entry.alias]) or 0,
+					-- A counting column is never NULL; a summing one is NULL for
+					-- a group with no matching row, and rank() reads that as absent.
+					count = tonumber(row[entry.alias]) or (not entry.sums and 0 or nil),
 				}
 			end
 			result[entry.name] = rank(entries, top, options.keepZero)

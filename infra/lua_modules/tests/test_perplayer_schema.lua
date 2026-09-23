@@ -208,6 +208,36 @@ check('keepZero keeps the players with nothing, ranked last', function(Queries)
 	equals(#dropped.points.rows, 1, 'dropped by default')
 end)
 
+check('a NULL sum is a player who was not in that tab; a zero is one who was', function(Queries)
+	-- The templates put the tab's category in the WHERE, so a player with no
+	-- cup game never appeared in the cup tab. A merged query answers NULL for
+	-- them and 0 for a player who played and scored nothing.
+	stub.willReturn({ { g = 'שרן ייני', c1 = '0' }, { g = 'טל בורשטיין' }, { g = 'ג\'ייק כהן', c1 = '9' } })
+	local result = Queries.leaderboard({}, { { name = 'points', grain = 'event', sum = 'נקודות' } },
+		{ groupBy = 'player', top = 5, keepZero = true })
+	equals(#result.points.rows, 2, 'the NULL player is absent, the zero one present')
+	equals(result.points.rows[2].name, 'שרן ייני', 'zero ranked last')
+	equals(result.points.players, 2, 'and not counted')
+end)
+
+
+check('without sumMissingAsZero the column is summed as it is', function(Queries)
+	stub.willReturn({ { c1 = '1' } })
+	Queries.aggregate({ ['עונה'] = '2023/24' }, { { name = 'points', grain = 'event', sum = 'נקודות' } })
+	equals(stub.calls[1].fields,
+		'SUM(CASE WHEN ' .. PLAYERS .. '.Team = 1 THEN ' .. PLAYERS .. '.TotalPoints ELSE NULL END)=c1', 'plain')
+end)
+
+check('with sumMissingAsZero the value is coalesced inside the CASE, the ELSE stays NULL', function(Queries)
+	stub.willReturn({ { c1 = '1' } })
+	Queries.aggregate({ ['עונה'] = '2023/24' }, { { name = 'points', grain = 'event', sum = 'נקודות' } })
+	equals(stub.calls[1].fields,
+		'SUM(CASE WHEN ' .. PLAYERS .. '.Team = 1 THEN COALESCE(' .. PLAYERS .. '.TotalPoints, 0) ELSE NULL END)=c1',
+		'coalesced')
+end, function(fields)
+	fields.sumMissingAsZero = true
+end)
+
 check('errors carry the schema name', function(Queries)
 	expectError('HoopQueries: unsupported filter "שחקן"', function()
 		Queries.build({ ['שחקן'] = 'שרן ייני' })

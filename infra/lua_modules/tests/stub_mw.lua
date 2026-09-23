@@ -29,6 +29,14 @@ local PAGES = {
 		'infra/lua_modules/Module_SportQueries.lua',
 	['Module:StatsBlock'] =
 		'infra/lua_modules/Module_StatsBlock.lua',
+	['Module:BasketballQueries/Fields'] =
+		'infra/lua_modules/Module_BasketballQueries_Fields.lua',
+	['Module:BasketballQueries'] =
+		'infra/lua_modules/Module_BasketballQueries.lua',
+	['Module:BasketballStatsBlocks'] =
+		'infra/lua_modules/Module_BasketballStatsBlocks.lua',
+	['Module:BasketballStatsBlock'] =
+		'infra/lua_modules/Module_BasketballStatsBlock.lua',
 	['Module:FootballQueries'] =
 		'infra/lua_modules/Module_FootballQueries.lua',
 	['Module:FootballStatsBlock'] =
@@ -139,6 +147,19 @@ function stub.install()
 			trim = function(value)
 				return (tostring(value):gsub('^%s+', ''):gsub('%s+$', ''))
 			end,
+			-- Plain-text split only, which is all the modules use.
+			split = function(value, separator)
+				local parts, position = {}, 1
+				while true do
+					local start, stop = tostring(value):find(separator, position, true)
+					if not start then
+						parts[#parts + 1] = tostring(value):sub(position)
+						return parts
+					end
+					parts[#parts + 1] = tostring(value):sub(position, start - 1)
+					position = stop + 1
+				end
+			end,
 		},
 		-- A readable stand-in for mw.uri.fullUrl: the page and its query in a
 		-- stable order, so a test can assert what the link asks for without
@@ -204,7 +225,12 @@ function stub.newFrameKeepingVariables(parentArgs, directArgs)
 		end,
 		callParserFunction = function(_, name, arguments)
 			if name == '#vardefine' then
-				stub.variables[arguments[1]] = arguments[2]
+				-- As the parser does: Variables registers #vardefine without
+				-- SFH_OBJECT_ARGS, so every argument is PHP-trimmed before the
+				-- extension sees it. A value beginning or ending in whitespace
+				-- (a newline included) loses it - which once cost every small
+				-- basketball tab its top player.
+				stub.variables[arguments[1]] = (tostring(arguments[2]):gsub('^%s+', ''):gsub('%s+$', ''))
 				return ''
 			end
 			if name == '#var' then
