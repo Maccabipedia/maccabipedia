@@ -188,6 +188,148 @@ check('errors carry the basketball name', function(module)
 	contains(message, 'BasketballQueries: unsupported filter', 'prefix from the schema')
 end)
 
+-- ------------------------------------------------------------ the numbers
+
+local function cellFrame(args, keep)
+	local direct = { ['בלוק'] = 'numbers', ['תא'] = 'אסיסטים', ['קטגוריית מפעל'] = 'ליגה', ['עונה'] = '2023/24' }
+	for key, value in pairs(args or {}) do
+		direct[key] = value
+	end
+	return keep and stub.newFrameKeepingVariables({}, direct) or stub.newFrame({}, direct)
+end
+
+--- The two priming queries answer in the order the grains are iterated; each
+--- returns one row of cN aliases. Cells per grain: points x 4 categories (game),
+--- 6 stats x 4 categories (event).
+local function primeAnswers(gameRow, eventRow)
+	stub.willReturn({ gameRow })
+	stub.willReturn({ eventRow })
+end
+
+check('numbers: two queries prime 28 cells - the game-level points apart from the per-player sums',
+	function(module)
+		primeAnswers({ c1 = '3000', c2 = '1800', c3 = '400', c4 = '800' }, { c2 = '512' })
+		local text = module.cell(cellFrame())
+		equals(#stub.calls, 2, 'two queries')
+		local game, event = stub.calls[1], stub.calls[2]
+		if game.tables:find(PLAYERS, 1, true) then
+			game, event = event, game
+		end
+		equals(game.tables, 'Basketball_Games,Basketball_Competitions', 'the game query joins no players')
+		contains(game.fields, 'THEN COALESCE(Basketball_Games.TotalPointsMaccabi, 0) ELSE NULL END)=c1',
+			"Maccabi's points, from the game")
+		equals(game.options.where, 'Basketball_Games.Season = "2023/24"', 'and carries no side')
+		equals(event.tables, 'Basketball_Games,Basketball_Competitions,' .. PLAYERS, 'the per-player query')
+		-- aggregate() keeps the side out of the WHERE (a LEFT JOIN would turn inner) and
+		-- puts it in every per-player CASE instead.
+		contains(event.fields, PLAYERS .. '.Team = 1 THEN COALESCE(', "Maccabi's rows, in the CASE")
+		local _, columns = event.fields:gsub('=c%d+', '')
+		equals(columns, 24, '6 stats x 4 categories')
+		equals(text, '512', 'assists in the league, as an integer')
+	end)
+
+check('numbers: later cells read what the first primed; an unmatched sum prints 0', function(module)
+	primeAnswers({ c1 = '3000' }, { c2 = '512' })
+	module.cell(cellFrame())
+	equals(module.cell(cellFrame({ ['תא'] = 'נקודות', ['קטגוריית מפעל'] = 'רשמי' }, true)), '3000', 'points')
+	equals(module.cell(cellFrame({ ['תא'] = 'חסימות' }, true)), '0', 'nothing summed prints 0, as COALESCE did')
+	equals(#stub.calls, 2, 'no more queries')
+end)
+
+check("numbers: עבור יריבה=כן sums the opponent's column and the opponent's rows, under its own key",
+	function(module)
+		primeAnswers({ c1 = '2900' }, { c2 = '480' })
+		module.cell(cellFrame())
+		primeAnswers({ c1 = '2700' }, { c2 = '450' })
+		local text = module.cell(cellFrame({ ['תא'] = 'נקודות', ['קטגוריית מפעל'] = 'רשמי', ['עבור יריבה'] = 'כן' }, true))
+		equals(#stub.calls, 4, 'primed again for the other side')
+		local game = stub.calls[3].tables:find(PLAYERS, 1, true) and stub.calls[4] or stub.calls[3]
+		local event = game == stub.calls[3] and stub.calls[4] or stub.calls[3]
+		contains(game.fields, 'COALESCE(Basketball_Games.TotalPointsOpponent, 0)', "the opponent's points column")
+		equals(game.options.where, 'Basketball_Games.Season = "2023/24"', 'no side on the game query')
+		contains(event.options.where, PLAYERS .. '.Team = 0', "the opponent's rows: asked for, so in the WHERE")
+		equals(text, '2700', 'value')
+	end)
+
+check('games: one query counts games, wins and losses in the four categories', function(module)
+	stub.willReturn({ { c1 = '40', c5 = '31', c9 = '9' } })
+	local frame = stub.newFrame({}, { ['בלוק'] = 'games', ['תא'] = 'ניצחונות', ['קטגוריית מפעל'] = 'רשמי',
+		['עונה'] = '2023/24' })
+	equals(module.cell(frame), '31', 'wins')
+	equals(#stub.calls, 1, 'one query')
+	equals(stub.calls[1].tables, 'Basketball_Games,Basketball_Competitions', 'games only')
+	contains(stub.calls[1].fields,
+		'COUNT(DISTINCT CASE WHEN Basketball_Games.ResultOpt = 1 THEN Basketball_Games._pageID END)=c5',
+		'a win in רשמי: the result, no category condition')
+	local _, columns = stub.calls[1].fields:gsub('=c%d+', '')
+	equals(columns, 12, '3 cells x 4 categories')
+end)
+
+check("games: the player pages' captain filter reaches the per-player table with its constants",
+	function(module)
+		-- ברירת מחדל is not a tab category, so it is primed alone: three cells, c1 the games.
+		stub.willReturn({ { c1 = '12' } })
+		local frame = stub.newFrame({}, { ['בלוק'] = 'games', ['תא'] = 'משחקים', ['קטגוריית מפעל'] = 'ברירת מחדל',
+			['קפטן מכבי'] = 'שרן ייני' })
+		equals(module.cell(frame), '12', 'games as captain')
+		equals(stub.calls[1].tables, 'Basketball_Games,Basketball_Competitions,' .. PLAYERS, 'joined')
+		local _, columns = stub.calls[1].fields:gsub('=c%d+', '')
+		equals(columns, 3, 'the one category asked for, not the four tab ones')
+		equals(stub.calls[1].options.where,
+			PLAYERS .. '.PlayerName = "שרן ייני" AND ' .. PLAYERS .. '.Team = 1 AND ' .. PLAYERS .. '.IsCaptain = 1',
+			'the name, the side and the flag - and no second side default')
+	end)
+
+check("games: the opponent's captain fixes the side, so the Maccabi default stays out", function()
+	local Queries = stub.loadModule('Module:BasketballQueries')
+	local query = Queries.build({ ['קפטן יריבה'] = 'ג\'ון שאייר' })
+	equals(query.where,
+		PLAYERS .. '.PlayerName = "ג\'ון שאייר" AND ' .. PLAYERS .. '.Team = 0 AND ' .. PLAYERS .. '.IsCaptain = 1',
+		'Team = 0 from the filter, and no Team = 1 after it')
+end)
+
+check("numbers: a side word that is not the opponent's means Maccabi for BOTH grains", function(module)
+	primeAnswers({ c1 = '2900' }, { c2 = '480' })
+	module.cell(cellFrame({ ['תא'] = 'נקודות', ['קטגוריית מפעל'] = 'רשמי', ['עבור יריבה'] = 'לא' }))
+	local game = stub.calls[1].tables:find(PLAYERS, 1, true) and stub.calls[2] or stub.calls[1]
+	local event = game == stub.calls[1] and stub.calls[2] or stub.calls[1]
+	contains(game.fields, 'COALESCE(Basketball_Games.TotalPointsMaccabi, 0)', "Maccabi's points column")
+	contains(event.options.where, PLAYERS .. '.Team = 1', "Maccabi's rows - the query layer's own rule")
+end)
+
+check("leaderboard: the opponent's captain as a shared filter keeps Maccabi's side out", function()
+	local Queries = stub.loadModule('Module:BasketballQueries')
+	stub.willReturn({})
+	Queries.leaderboard({ ['קפטן יריבה'] = 'ג\'ון שאייר' },
+		{ { name = 'points', grain = 'event', sum = 'נקודות' } }, { groupBy = 'player', top = 5 })
+	lacks(stub.calls[1].options.where, PLAYERS .. '.Team = 1', 'no contradiction injected')
+	contains(stub.calls[1].options.where, PLAYERS .. '.Team = 0', "the captain's side")
+end)
+
+check('numbers: a grain that mixes cells with and without sides is refused', function(module)
+	stub.dataPatch = function(data)
+		if data['numbers'] then
+			data['numbers'].cells[#data['numbers'].cells + 1] =
+				{ key = 'games', word = 'משחקים', grain = 'game', filters = {} }
+		end
+	end
+	-- The module read its blocks when it loaded; load it again with the patch in place.
+	module = stub.loadModule('Module:BasketballStatsBlock')
+	local ok, message = pcall(module.cell, cellFrame({ ['תא'] = 'נקודות', ['קטגוריית מפעל'] = 'רשמי' }))
+	equals(ok, false)
+	contains(message, 'mixes game-level cells with and without sides')
+end)
+
+check('numbers: an unknown cell or category is an error, and nothing is queried', function(module)
+	local ok, message = pcall(module.cell, cellFrame({ ['תא'] = 'שערים' }))
+	equals(ok, false)
+	contains(message, 'has no cell "שערים"')
+	ok, message = pcall(module.cell, cellFrame({ ['קטגוריית מפעל'] = 'טניס' }))
+	equals(ok, false)
+	contains(message, 'declares no category "טניס"')
+	equals(#stub.calls, 0, 'nothing queried')
+end)
+
 print(string.format('%d passed, %d failed', passed, failed))
 if failed > 0 then
 	os.exit(1)

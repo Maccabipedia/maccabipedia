@@ -71,6 +71,10 @@ return {
 		['Basketball_Games.MainReferee'] = 'keep',
 		['Basketball_Games.AssistantReferees'] = 'keep',
 		['Basketball_Games.ResultOpt'] = 'number',
+		['Basketball_Games.TotalPointsMaccabi'] = 'number',
+		['Basketball_Games.TotalPointsOpponent'] = 'number',
+		['Basketball_Games.CoachMaccabi'] = 'keep',
+		['Basketball_Games.CoachOpponent'] = 'keep',
 		['Basketball_Player_Game_Events_Summary.PlayerName'] = 'keep',
 		['Basketball_Player_Game_Events_Summary.Team'] = 'number',
 		['Basketball_Player_Game_Events_Summary.IsPlayed'] = 'number',
@@ -94,9 +98,24 @@ return {
 		-- as כדורסל:Name; the template stripped the prefix with #replace.
 		['שחקנים'] = { column = 'Basketball_Player_Game_Events_Summary.PlayerName',
 			kind = 'list', quoted = true, stripPrefix = 'כדורסל:' },
+		-- כמות משחקים: a game the player captained, on the given side. The
+		-- template: AND bpges.PlayerName="X" AND bpges.Team=1 AND bpges.IsCaptain=True.
+		['קפטן מכבי'] = { column = 'Basketball_Player_Game_Events_Summary.PlayerName', kind = 'text',
+			extra = 'Basketball_Player_Game_Events_Summary.Team = 1'
+				.. ' AND Basketball_Player_Game_Events_Summary.IsCaptain = 1',
+			constrainsSide = true },
+		['קפטן יריבה'] = { column = 'Basketball_Player_Game_Events_Summary.PlayerName', kind = 'text',
+			extra = 'Basketball_Player_Game_Events_Summary.Team = 0'
+				.. ' AND Basketball_Player_Game_Events_Summary.IsCaptain = 1',
+			constrainsSide = true },
+		['מאמן מכבי'] = { column = 'Basketball_Games.CoachMaccabi', kind = 'text' },
+		['מאמן יריבה'] = { column = 'Basketball_Games.CoachOpponent', kind = 'text' },
 		['שופט ראשי'] = { column = 'Basketball_Games.MainReferee', kind = 'text' },
 		['עוזר שופט'] = { column = 'Basketball_Games.AssistantReferees', kind = 'holds' },
 		['האם עבור יריבה'] = { column = 'Basketball_Player_Game_Events_Summary.Team',
+			kind = 'maccabiSide' },
+		-- The same question under the name סך אירועים uses (עבור יריבה=כן).
+		['עבור יריבה'] = { column = 'Basketball_Player_Game_Events_Summary.Team',
 			kind = 'maccabiSide' },
 		-- The template: הפסד → 3, and every other word (נצחון, ניצחון, or a
 		-- typo) → 1. Here a typo is an error rather than a win.
@@ -132,8 +151,12 @@ return {
 	-- blocks, steals or turnovers - shows 0, and is in the tab.
 	sumMissingAsZero = true,
 
-	-- The אירוע words of the template, each the column it summed.
+	-- The אירוע words of the templates, each the column it summed. The first
+	-- two are GAME columns (סך אירועים sums a team's points from the game rows,
+	-- not from the players' rows); the rest are per-player.
 	sumColumns = {
+		['נקודות קבוצה'] = 'Basketball_Games.TotalPointsMaccabi',
+		['נקודות יריבה'] = 'Basketball_Games.TotalPointsOpponent',
 		['הופעות'] = 'Basketball_Player_Game_Events_Summary.IsPlayed',
 		['נקודות'] = 'Basketball_Player_Game_Events_Summary.TotalPoints',
 		['אסיסטים'] = 'Basketball_Player_Game_Events_Summary.Assists',

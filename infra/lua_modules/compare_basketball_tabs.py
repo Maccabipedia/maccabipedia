@@ -122,21 +122,39 @@ def normalised(html: str) -> str:
     return tie_sorted(VIEWDATA_HREF.sub('href="VIEWDATA"', html))
 
 
+def option(name: str) -> str | None:
+    return sys.argv[sys.argv.index(name) + 1] if name in sys.argv else None
+
+
 def main() -> int:
-    arguments = [argument for argument in sys.argv[1:] if not argument.startswith('--')]
+    # Another template through the same gate: --template "תבנית:…" --candidate FILE
+    # (the candidate's body ready-made). The basketball numbers template
+    # (סך אירועים) goes this way; its pages hold the same leaderboards, so the same
+    # normalisations apply.
+    template = option('--template') or TEMPLATE
+    arguments = [argument for argument in sys.argv[1:]
+                 if not argument.startswith('--') and not argument.endswith('.wiki')
+                 and not argument.startswith('תבנית:')]
     if '--against' in sys.argv:
         # After the switch: the LIVE template is the module's, and the saved previous
         # text (switch_template_prod.py's record) is rendered as the sandbox side. Same
         # comparison, mirrored - OLD below is then the module, NEW the old template.
-        candidate = Path(sys.argv[sys.argv.index('--against') + 1]).read_text(encoding='utf-8')
-        arguments = [argument for argument in arguments if not argument.endswith('.wiki')]
+        candidate = Path(option('--against')).read_text(encoding='utf-8')
+    elif '--candidate' in sys.argv:
+        candidate = Path(option('--candidate')).read_text(encoding='utf-8')
+    elif '--template' in sys.argv:
+        # Another template's candidate is never derived: candidate_of() knows only the
+        # leaderboard template's body, so the leaderboard candidate would be rendered
+        # under the other template's title and the gate would compare the wrong thing.
+        print('--template needs --candidate FILE (or --against FILE)')
+        return 2
     else:
         candidate = candidate_of(page_text(TEMPLATE))
         if '--candidate-only' in sys.argv:
             print(candidate)
             return 0
         Path('.claude/tmp/bb_inner_candidate.wiki').write_text(candidate, encoding='utf-8')
-    override = {'templatesandboxtitle': TEMPLATE, 'templatesandboxtext': candidate,
+    override = {'templatesandboxtitle': template, 'templatesandboxtext': candidate,
                 'templatesandboxcontentmodel': 'wikitext'}
     failed, used, unstable = 0, 0, 0
     for title in Path(arguments[0]).read_text(encoding='utf-8').split('\n'):

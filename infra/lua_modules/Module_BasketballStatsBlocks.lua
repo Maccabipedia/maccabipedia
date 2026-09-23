@@ -17,6 +17,47 @@ kept (the template had no HAVING).
 ]]
 
 return {
+	-- The numbers behind כדורסל/סטטיסטיקה/סך אירועים: eight per category, one query
+	-- template call each on 475 pages (32 per season or opponent page). Its body is now
+	--   {{#invoke:BasketballStatsBlock|cell|בלוק=numbers|תא={{{אירוע}}}|קטגוריית מפעל=…|…}}
+	-- Points are a GAME column - a team's total for the game, or the opponent's when
+	-- עבור יריבה is given - and cannot share a query with the per-player sums (the
+	-- join would multiply them), so the block primes with two queries, not one.
+	-- The template printed COALESCE(…, 0) with default=0: a plain integer, 0 for nothing.
+	['numbers'] = {
+		categories = { 'רשמי', 'ליגה', 'גביע', 'בינלאומי', 'יתר-רשמיים', 'ברירת מחדל' },
+		primeCategories = { 'רשמי', 'ליגה', 'גביע', 'בינלאומי' },
+		sideFilter = 'עבור יריבה',
+		nullValue = '0',
+		cells = {
+			{ key = 'points', word = 'נקודות', grain = 'game',
+			  sides = { maccabi = 'נקודות קבוצה', opponent = 'נקודות יריבה' }, filters = {} },
+			{ key = 'assists', word = 'אסיסטים', grain = 'event', sum = 'אסיסטים', filters = {} },
+			{ key = 'rebounds', word = 'ריבאונדים', grain = 'event', sum = 'ריבאונדים', filters = {} },
+			{ key = 'blocks', word = 'חסימות', grain = 'event', sum = 'חסימות', filters = {} },
+			{ key = 'steals', word = 'חטיפות', grain = 'event', sum = 'חטיפות', filters = {} },
+			{ key = 'turnovers', word = 'איבודים', grain = 'event', sum = 'איבודים', filters = {} },
+			{ key = 'fouls', word = 'עבירות', grain = 'event', sum = 'עבירות', filters = {} },
+		},
+	},
+	-- The counts behind כדורסל/סטטיסטיקה/כמות משחקים: games, wins, losses per category -
+	-- its body is now
+	--   {{#invoke:BasketballStatsBlock|cell|בלוק=games|תא=<משחקים|ניצחונות|הפסדים>|…}}
+	-- with the wrapper turning the template's תוצאה into the cell (any word but הפסד
+	-- meant a win there, as in the template's #בחר). A block of its own, apart from
+	-- `numbers`: its callers include the player pages' captain check, whose filter
+	-- reaches the per-player table - fine for a count, refused for a team-points sum.
+	-- Game grain: COUNT(DISTINCT game), as the template's COUNT(DISTINCT bg._pageName).
+	['games'] = {
+		categories = { 'רשמי', 'ליגה', 'גביע', 'בינלאומי', 'יתר-רשמיים', 'ברירת מחדל' },
+		primeCategories = { 'רשמי', 'ליגה', 'גביע', 'בינלאומי' },
+		nullValue = '0',
+		cells = {
+			{ key = 'games', word = 'משחקים', grain = 'game', filters = {} },
+			{ key = 'wins', word = 'ניצחונות', grain = 'game', filters = { ['תוצאה'] = 'ניצחון' } },
+			{ key = 'losses', word = 'הפסדים', grain = 'game', filters = { ['תוצאה'] = 'הפסד' } },
+		},
+	},
 	['leaderboards'] = {
 		groupBy = 'player',
 		rowTemplate = 'כדורסל/סטטיסטיקה/כמות משחקים/הצגת שחקן',
