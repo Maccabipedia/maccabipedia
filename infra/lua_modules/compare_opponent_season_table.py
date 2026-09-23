@@ -36,6 +36,7 @@ from __future__ import annotations
 
 import argparse
 import html as html_module
+import json
 import re
 import sys
 from collections import Counter
@@ -206,6 +207,20 @@ def catalogue_ranks() -> dict:
             CUP if r['title']['t'] == '1' else OTHER for r in data['cargoquery']}
 
 
+def previous_text() -> str:
+    """The table template's text before the switch, from the record
+    `switch_template_prod.py` wrote. This is what `--against` renders as OLD."""
+    records = []
+    for record in sorted(Path('.claude/tmp/template_switches').glob('*.json')):
+        saved = json.loads(record.read_text(encoding='utf-8'))
+        if saved['title'] == SPORT['table_template']:
+            records.append((record.stat().st_mtime, saved['previous_text']))
+    if not records:
+        raise SystemExit(f'no saved switch record for {SPORT["table_template"]} - '
+                         'cannot run --against')
+    return max(records)[1]
+
+
 def uncatalogued_competitions() -> set:
     """The competitions games are played in that the catalogue does not list.
 
@@ -314,6 +329,8 @@ def main() -> None:
     mode.add_argument('--sandbox', action='store_true')
     mode.add_argument('--full', action='store_true')
     parser.add_argument('--selftest', action='store_true')
+    parser.add_argument('--against', action='store_true',
+                        help='after the switch: the saved previous template is the OLD side')
     parser.add_argument('--only', nargs='*')
     parser.add_argument('--sport', choices=sorted(SPORTS), default='football')
     options = parser.parse_args()
@@ -328,7 +345,13 @@ def main() -> None:
     check_prod_modules(options.sandbox)
     page_body = common.page_text(SPORT['page_template'])
     table_body = common.page_text(SPORT['table_template'])
-    candidate = candidate_of(table_body)
+    # After the switch the live template IS the candidate and holds no
+    # #cargo_query to replace, so the comparison has to be mirrored: the saved
+    # previous text becomes the OLD side and the live page the NEW one. Without
+    # this the gate can only ever run once, before the switch - and the code it
+    # gates keeps changing afterwards.
+    previous = previous_text() if options.against else None
+    candidate = table_body if options.against else candidate_of(table_body)
     # The candidate's body inline, its parameter taken from the page's array.
     inline_new = re.search(r'<includeonly>(.*)</includeonly>', candidate, re.S).group(1).replace(
         '{{{יריבות לשליפה|}}}', '{{#arrayprint: יריבות לשליפה}}')
@@ -346,8 +369,15 @@ def main() -> None:
             text = preamble_for(page_body, common.page_text(title)) + (inline_new if new else old_call)
             page, wall = common.parse(title, text, module_override() if new else None)
             return page, '', wall
-        override = ({'templatesandboxtitle': SPORT['table_template'], 'templatesandboxtext': candidate,
-                     'templatesandboxcontentmodel': 'wikitext'} if new else None)
+        if options.against:
+            # Mirrored: NEW is the live page, OLD is the template it replaced.
+            override = (None if new else
+                        {'templatesandboxtitle': SPORT['table_template'],
+                         'templatesandboxtext': previous,
+                         'templatesandboxcontentmodel': 'wikitext'})
+        else:
+            override = ({'templatesandboxtitle': SPORT['table_template'], 'templatesandboxtext': candidate,
+                         'templatesandboxcontentmodel': 'wikitext'} if new else None)
         page, wall = common.parse(title, common.page_text(title), override)
         tables = TABLE.findall(page)
         if len(tables) != 1:
