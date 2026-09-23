@@ -1,0 +1,22 @@
+<includeonly><!--
+
+-->{{#arraydefine: יריבות |{{{יריבות לשליפה|}}} }}<!--
+
+--><div class="section" id="סטטיסטיקה עונתית">
+<div class="title">סטטיסטיקה עונתית</div><!--
+--><div class="content table four-columns-second-grow">
+<div class="table-header"><!--
+--><span>עונה</span><!--
+--><span>מסגרת</span><!--
+--><span>נצ'</span><!--
+--><span>הפ'</span><!--
+--></div><!--
+
+
+--><div class="table-content">
+{{#invoke:BasketballSeasonTable|rows|יריבות={{{יריבות לשליפה|}}}}}
+</div>
+</div>
+</div><!--
+
+--></includeonly>

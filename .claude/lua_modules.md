@@ -19,7 +19,9 @@ is the wiki page `Module:X` (`_` for `/`). As of 2026-09-23 the shape is:
 | `Module:FootballQueries` | football's five-line shim: `SportQueries.new(mw.loadData('Module:FootballQueries/Fields'))`. The 1,687 pages that invoke it never noticed. |
 | `Module:FootballQueries/Fields` | football's schema (tables, columns, quote rules, filters, categories, sides, aggregates, entry points, `name`). |
 | `Module:FootballStatsBlock` / `…Blocks` | football's renderer shim and its block data. |
-| `FootballSeasonSquad`, `FootballSeasonTable`, `FootballPlayerStats`, `FootballDate` | standalone football modules built on the query module. |
+| `Module:SeasonTable` | **shared**: the rows of a "season by season" table. `new(Queries, declaration, name)`; the declaration is what differs between sports and is written in the sport's own binding. |
+| `Module:FootballSeasonTable` / `Module:BasketballSeasonTable` | those bindings. |
+| `FootballSeasonSquad`, `FootballPlayerStats`, `FootballDate` | standalone football modules built on the query module. |
 | `Module:SeasonTrophies` | the three-sport season trophy lists; its own small module by design. |
 
 **A new sport is a schema page and two shims.** Error messages carry the schema's
@@ -667,7 +669,53 @@ official games), `--full` over 14; section ~0.6 → ~0.1 s. One `--full` FAIL
 were identical on rerun. The comparison's link normaliser had to learn that
 an apostrophe inside a name (`ג'ורג' אשקר`) is not a SQL string delimiter.
 
-## The season-by-season table: `Module:FootballSeasonTable`
+## The season-by-season table: `Module:SeasonTable`
+
+**Shared by the sports since 2026-09-23.** Football's 211-line module became a
+binding: the logic is `Module:SeasonTable`, and each sport's page carries only a
+declaration - the two base columns, the result columns, the catalogue, the link
+shapes, the entities, and the optional competition-grouping map. The football
+section below describes the behaviour; it is now that module's, and 17 football
+tests pass unchanged through the move (byte-identical on production, the only
+difference being a leaderboard tie two *unchanged* renders also swap).
+
+**Basketball, live 2026-09-23** (opponent pages). `יריבת כדורסל/הצגת סטטיסטיקה
+עונתית`, 24 pages: one `#cargo_query` for the pairs plus `כמות משחקים` twice per
+row - 84 queries on `כדורסל:הפועל תל אביב` - became one invoke and ONE query.
+That page: walltime 1.93 → 1.42 s, 47,885 → 33,061 nodes, and the table went
+from 34.7% of the profile (557 ms, its third-largest entry) to outside the top
+ten. Gate: `compare_opponent_season_table.py --sport basketball --full`, 24/24
+with the full three-way check, `--selftest` correctly failing.
+
+What basketball's declaration has to say that football's does not:
+- **two result columns, not three** - there is no draw. Each column is named by
+  its `תוצאה` word and compiled through the schema's own choices
+  (`Queries.choiceCondition`), so a column and a filter by the same word cannot
+  drift apart.
+- **the `כדורסל:` namespace** in both link shapes (`כדורסל: עונת %s`), which the
+  row template wrote out per row.
+- **an explicit `limit`**, because basketball's schema declares no
+  `defaultLimit`. Football's table was being silently cut at Cargo's 100 (three
+  clubs lost their oldest seasons); basketball's largest opponent has 86 pairs,
+  so nothing is cut today - and the query layer now raises rather than truncate
+  when a result reaches the limit, so it cannot start losing rows quietly.
+
+**Not yet switched: the referee families** (191 head-referee, 276
+assistant-referee pages) carry the same table, and the declaration already names
+their entities and `Basketball_Competitions_Map`. They need their own gate
+first, for the reason football's did: when a competition's page is missing the
+referee row shows the GROUPING name instead of the competition, so the cell text
+stops matching the database and the comparison has to compute the expected cell
+itself (`compare_referee_season_table.py`).
+
+The gate takes a sport. `SPORTS` at the top of
+`compare_opponent_season_table.py` holds each one's templates, module, games and
+catalogue tables, result columns, namespace (football's opponents are articles,
+basketball's are ns 3003), known scratch pages, and self-test pair. Basketball's
+uncatalogued competitions are read from the data rather than written down, since
+that list grows.
+
+## The football section, now `Module:SeasonTable`'s behaviour
 
 `תבנית:יריבת כדורגל/הצגת סטטיסטיקה עונתית` listed (season, competition) pairs
 with one `#cargo_query` and ran `כמות נתוני משחק` three times per row: ~300

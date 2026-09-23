@@ -30,12 +30,15 @@ SUITES = [
     'infra/lua_modules/tests/test_season_trophies.lua',
     'infra/lua_modules/tests/test_perplayer_schema.lua',
     'infra/lua_modules/tests/test_basketball.lua',
+    'infra/lua_modules/tests/test_basketball_season_table.lua',
 ]
 RENDERER = Path('infra/lua_modules/Module_StatsBlock.lua')
 BLOCK_SHIM = Path('infra/lua_modules/Module_FootballStatsBlock.lua')
 BLOCKS = Path('infra/lua_modules/Module_FootballStatsBlocks.lua')
 SQUAD = Path('infra/lua_modules/Module_FootballSeasonSquad.lua')
-SEASON_TABLE = Path('infra/lua_modules/Module_FootballSeasonTable.lua')
+SEASON_TABLE = Path('infra/lua_modules/Module_SeasonTable.lua')
+SEASON_TABLE_FB = Path('infra/lua_modules/Module_FootballSeasonTable.lua')
+SEASON_TABLE_BB = Path('infra/lua_modules/Module_BasketballSeasonTable.lua')
 PLAYER_STATS = Path('infra/lua_modules/Module_FootballPlayerStats.lua')
 DATE = Path('infra/lua_modules/Module_FootballDate.lua')
 TROPHIES = Path('infra/lua_modules/Module_SeasonTrophies.lua')
@@ -287,15 +290,21 @@ MUTATIONS = [
     ('date: fallback loses the date', DATE,
      "args = { ['תאריך'] = date }", "args = {}"),
     # Module:FootballSeasonTable - every line that decides a row or its place.
-    ('season table: wins counts draws', SEASON_TABLE,
-     "wins(1) .. '=wins, '", "wins(2) .. '=wins, '"),
-    ('season table: losses counts wins', SEASON_TABLE,
-     "wins(3) .. '=losses'", "wins(1) .. '=losses'"),
+    # The result columns now come from each sport's declaration, read through the
+    # schema's own תוצאה choices, so a wrong word is a wrong column.
+    ('season table: football counts draws as wins', SEASON_TABLE_FB,
+     "{ key = 'wins', word = 'ניצחון' },", "{ key = 'wins', word = 'תיקו' },"),
+    ('season table: football counts wins as losses', SEASON_TABLE_FB,
+     "{ key = 'losses', word = 'הפסד' },", "{ key = 'losses', word = 'ניצחון' },"),
+    ('season table: basketball counts wins as losses', SEASON_TABLE_BB,
+     "{ key = 'losses', word = 'הפסד' },", "{ key = 'losses', word = 'ניצחון' },"),
+    ('season table: the result column is not a conditional sum', SEASON_TABLE,
+     "'SUM(CASE WHEN %s THEN 1 ELSE 0 END)'", "'COUNT(%s)'"),
     ('season table: one row per season, competitions merged', SEASON_TABLE,
-     "groupBy = 'Football_Games.Season, Football_Games.Competition',",
-     "groupBy = 'Football_Games.Season',"),
+     "groupBy = declaration.season .. ', ' .. declaration.competition,",
+     "groupBy = declaration.season,"),
     ('season table: seasons unordered', SEASON_TABLE,
-     "orderBy = 'Football_Games.Season DESC',", ''),
+     "orderBy = declaration.season .. ' DESC',", ''),
     ('season table: cup before league', SEASON_TABLE,
      'local LEAGUE, CUP, OTHER = 1, 2, 3', 'local LEAGUE, CUP, OTHER = 2, 1, 3'),
     ('season table: the cup flag ignored', SEASON_TABLE,
@@ -308,11 +317,19 @@ MUTATIONS = [
     ('season table: an empty list queries everything', SEASON_TABLE,
      'if given == 0 then', 'if false then'),
     ('season table: links without the exists check', SEASON_TABLE,
-     'local title = mw.title.new(target)\n\tif title and title.exists then',
-     'local title = mw.title.new(target)\n\tif title then'),
+     'local title = mw.title.new(target)\n\t\tif title and title.exists then',
+     'local title = mw.title.new(target)\n\t\tif title then'),
     ('season table: grouping links without the exists check', SEASON_TABLE,
-     "local title = grouping ~= '' and mw.title.new(grouping) or nil\n\tif title and title.exists then",
-     "local title = grouping ~= '' and mw.title.new(grouping) or nil\n\tif title then"),
+     "local title = target ~= '' and mw.title.new(target) or nil\n\t\tif title and title.exists then",
+     "local title = target ~= '' and mw.title.new(target) or nil\n\t\tif title then"),
+    ('season table: the season link loses its namespace', SEASON_TABLE_BB,
+     "seasonLink = 'כדורסל: עונת %s',", "seasonLink = 'עונת %s',"),
+    ('season table: the competition link loses its namespace', SEASON_TABLE_BB,
+     "competitionLink = 'כדורסל: %s',", "competitionLink = '%s',"),
+    ('season table: basketball reads football\'s catalogue', SEASON_TABLE_BB,
+     "catalogue = { table = 'Basketball_Competitions',", "catalogue = { table = 'Competitions',"),
+    ('season table: basketball may be silently truncated', SEASON_TABLE_BB,
+     'limit = 5000,', 'limit = 100,'),
     ('season table: decimals printed raw', SEASON_TABLE,
      'return tostring(tonumber(value) or 0)', 'return tostring(value)'),
     ('season table: rows run together', SEASON_TABLE,
@@ -320,21 +337,29 @@ MUTATIONS = [
     ('season table: one map lookup per row, not per competition', SEASON_TABLE,
      'if byName[entry.competition] == nil then', 'if true then'),
     ('season table: the lookup matches a whole list instead of HOLDS', SEASON_TABLE,
-     """where = 'Names HOLDS "' .. competition .. '"'""", """where = 'Names = "' .. competition .. '"'"""),
+     """where = map.names .. ' HOLDS "' .. competition .. '"'""",
+     """where = map.names .. ' = "' .. competition .. '"'"""),
     ('season table: the lookup takes any row', SEASON_TABLE,
      """'"', limit = 1 })""", """'"', limit = 2 })"""),
     ('season table: a quoted competition looked up anyway', SEASON_TABLE,
      """if competition:find('"', 1, true) or competition:find('&', 1, true) then""", 'if false then'),
     ('season table: a missing grouping page shows the competition', SEASON_TABLE,
-     '\treturn grouping\nend', '\treturn competition\nend'),
+     '\t\treturn grouping\n\tend', '\t\treturn competition\n\tend'),
+    # The grouping name is linked through the sport's own shape. Bare, basketball's
+    # referee rows would link גביע המדינה to FOOTBALL's ns-0 article.
+    ('season table: the grouping link ignores the sport\'s namespace', SEASON_TABLE,
+     "local target = grouping ~= ''\n\t\t\tand string.format(declaration.competitionLink, grouping) or ''",
+     "local target = grouping"),
+    ('season table: a result word with no condition becomes empty SQL', SEASON_TABLE,
+     "if condition == '' then", 'if false then'),
     ('season table: the grouping link reads the grouping name', SEASON_TABLE,
-     "return '[[' .. grouping .. '|' .. competition .. ']]'",
-     "return '[[' .. grouping .. '|' .. grouping .. ']]'"),
+     "return '[[' .. target .. '|' .. competition .. ']]'",
+     "return '[[' .. target .. '|' .. grouping .. ']]'"),
     ('season table: two filters accepted', SEASON_TABLE, 'if given > 1 then', 'if false then'),
     ('season table: the map never read', SEASON_TABLE,
      "if trim(frame.args['קישור מפעל']) == 'מרכז' then", 'if false then'),
-    ('season table: the assistant filter dropped', SEASON_TABLE,
-     "local ENTITIES = { 'יריבות', 'שופט', 'עוזר שופט' }", "local ENTITIES = { 'יריבות', 'שופט' }"),
+    ('season table: the assistant filter dropped', SEASON_TABLE_FB,
+     "entities = { 'יריבות', 'שופט', 'עוזר שופט' },", "entities = { 'יריבות', 'שופט' },"),
     ('season table: the class quote left open', SEASON_TABLE,
      """return '<div class="table-row">'""", """return '<div class="table-row>'"""),
     ('quote rule falls back to strip', LOGIC,

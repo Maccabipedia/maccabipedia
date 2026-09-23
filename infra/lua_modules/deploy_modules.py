@@ -29,6 +29,7 @@ MODULES = {
     # a fresh wiki (and a rollback) needs them in place before the shims land.
     'Module_SportQueries.lua': 'Module:SportQueries',
     'Module_StatsBlock.lua': 'Module:StatsBlock',
+    'Module_SeasonTable.lua': 'Module:SeasonTable',
     # Data before the shim that reads it (the shim's error prefix is Fields.name).
     'Module_FootballQueries_Fields.lua': 'Module:FootballQueries/Fields',
     'Module_FootballQueries.lua': 'Module:FootballQueries',
@@ -44,6 +45,7 @@ MODULES = {
     'Module_BasketballQueries.lua': 'Module:BasketballQueries',
     'Module_BasketballStatsBlocks.lua': 'Module:BasketballStatsBlocks',
     'Module_BasketballStatsBlock.lua': 'Module:BasketballStatsBlock',
+    'Module_BasketballSeasonTable.lua': 'Module:BasketballSeasonTable',
 }
 SOURCE_DIR = Path('infra/lua_modules')
 
