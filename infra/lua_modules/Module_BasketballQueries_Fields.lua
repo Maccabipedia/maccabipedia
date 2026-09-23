@@ -115,10 +115,13 @@ return {
 				['ליגה'] = 'Basketball_Competitions.League = 1',
 				['גביע'] = 'Basketball_Competitions.Trophy = 1',
 				['בינלאומי'] = 'Basketball_Competitions.International = 1',
-				['יתר-רשמיים'] = '(Basketball_Competitions.Official = 1'
+				-- No parentheses: this lands inside CASE WHEN … THEN, and Cargo's
+				-- field parser reads `WHEN (` as a call to a function WHEN() and
+				-- refuses the query. An AND chain needs none.
+				['יתר-רשמיים'] = 'Basketball_Competitions.Official = 1'
 					.. ' AND Basketball_Competitions.League = 0'
 					.. ' AND Basketball_Competitions.Trophy = 0'
-					.. ' AND Basketball_Competitions.International = 0)',
+					.. ' AND Basketball_Competitions.International = 0',
 				['רשמי'] = '',
 				['ברירת מחדל'] = 'Basketball_Competitions.Official = 1',
 			} },
