@@ -86,7 +86,7 @@ MUTATIONS = [
     ('tab: a NULL sum is a present player', LOGIC,
      'if entry.count ~= nil and (entry.count > 0 or keepZero) then', 'if entry.count == nil or entry.count > 0 or keepZero then'),
     ('tab: every tab primes again', RENDERER,
-     "\t\tif not primed(category) then\n\t\t\tlocal wanted = {}", "\t\tif true then\n\t\t\tlocal wanted = {}"),
+     "\t\tif not primed(category) then\n\t\t\tlocal wanted = categoriesToPrime", "\t\tif true then\n\t\t\tlocal wanted = categoriesToPrime"),
     ('tab: the key ignores the filters', RENDERER,
      "VAR_PREFIX, blockName, keyed, top)", "VAR_PREFIX, blockName, '', top)"),
     ('tab: the key ignores the limit', RENDERER,

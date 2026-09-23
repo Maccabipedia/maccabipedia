@@ -740,6 +740,27 @@ function StatsBlock.new(Queries, blocksData, name)
 		return shared, table.concat(keyed, '&')
 	end
 
+	--- Which categories one prime covers. A category the tab strips show
+	--- (primeCategories) is primed with all of them - the page will ask for the
+	--- others next; any other category (the untabbed families' default,
+	--- יתר-רשמיים) is primed alone, since every extra aggregate costs the query
+	--- ~12 ms over 57k rows (measured) and nothing else on such a page asks for
+	--- the tab categories. Each primed category marks itself, so nothing is
+	--- primed twice.
+	local function categoriesToPrime(declaration, category)
+		local tabs = declaration.primeCategories or declaration.categories
+		for _, cat in ipairs(tabs) do
+			if cat == category then
+				local all = {}
+				for index, each in ipairs(tabs) do
+					all[index] = each
+				end
+				return all
+			end
+		end
+		return { category }
+	end
+
 	--- The arguments of leaderboardTab that are not filters.
 	local TAB_ARGUMENTS = { ['בלוק'] = true, ['תיבה'] = true, ['קטגוריית מפעל'] = true, ['כמות'] = true }
 
@@ -839,32 +860,11 @@ function StatsBlock.new(Queries, blocksData, name)
 		local shared, keyed = sharedOf(frame, TAB_ARGUMENTS)
 		local key = string.format('%s/leaderboardTab/%s/%s/%d', VAR_PREFIX, blockName, keyed, top)
 
-		-- Which categories one query covers. The first query on a page always
-		-- takes the ones the tab strips show (primeCategories), plus the one
-		-- asked for if it is not among them; a later request for a category
-		-- outside them (the untabbed family's default, יתר-רשמיים) is primed on
-		-- its own. Every conditional sum costs the query ~12 ms over 57k rows
-		-- (measured), and the tab strips never ask for those two. Each primed
-		-- category marks itself, so nothing is primed twice.
 		local function primed(cat)
 			return frame:callParserFunction('#var', { key .. '/primed/' .. cat }) ~= ''
 		end
 		if not primed(category) then
-			local wanted = {}
-			if frame:callParserFunction('#var', { key .. '/primed' }) == '' then
-				for _, cat in ipairs(declaration.primeCategories or declaration.categories) do
-					wanted[#wanted + 1] = cat
-				end
-			end
-			local listed = false
-			for _, cat in ipairs(wanted) do
-				if cat == category then
-					listed = true
-				end
-			end
-			if not listed then
-				wanted[#wanted + 1] = category
-			end
+			local wanted = categoriesToPrime(declaration, category)
 			local columns = {}
 			for _, each in ipairs(declaration.boxes) do
 				for _, cat in ipairs(wanted) do
@@ -905,7 +905,6 @@ function StatsBlock.new(Queries, blocksData, name)
 			for _, cat in ipairs(wanted) do
 				frame:callParserFunction('#vardefine', { key .. '/primed/' .. cat, '1' })
 			end
-			frame:callParserFunction('#vardefine', { key .. '/primed', '1' })
 		end
 
 		local stored = frame:callParserFunction('#var', { key .. '/' .. box.key .. '/' .. category })
@@ -977,21 +976,7 @@ function StatsBlock.new(Queries, blocksData, name)
 		local opponent = sideFilter and shared[sideFilter] ~= nil
 
 		if frame:callParserFunction('#var', { key .. '/primed/' .. category }) == '' then
-			local categories = {}
-			if frame:callParserFunction('#var', { key .. '/primed' }) == '' then
-				for _, cat in ipairs(declaration.primeCategories or declaration.categories) do
-					categories[#categories + 1] = cat
-				end
-			end
-			local listed = false
-			for _, cat in ipairs(categories) do
-				if cat == category then
-					listed = true
-				end
-			end
-			if not listed then
-				categories[#categories + 1] = category
-			end
+			local categories = categoriesToPrime(declaration, category)
 			-- One query per grain. A cell with sides sums a different column for
 			-- the opponent, and the side filter stays out of that query.
 			local byGrain = {}
@@ -1037,7 +1022,6 @@ function StatsBlock.new(Queries, blocksData, name)
 			for _, cat in ipairs(categories) do
 				frame:callParserFunction('#vardefine', { key .. '/primed/' .. cat, '1' })
 			end
-			frame:callParserFunction('#vardefine', { key .. '/primed', '1' })
 		end
 		return frame:callParserFunction('#var', { key .. '/' .. wanted.key .. '/' .. category })
 	end

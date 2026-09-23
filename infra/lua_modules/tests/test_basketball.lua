@@ -267,12 +267,14 @@ end)
 
 check("games: the player pages' captain filter reaches the per-player table with its constants",
 	function(module)
-		-- ברירת מחדל is not a tab category: the first prime takes the four plus it, fifth.
-		stub.willReturn({ { c5 = '12' } })
+		-- ברירת מחדל is not a tab category, so it is primed alone: three cells, c1 the games.
+		stub.willReturn({ { c1 = '12' } })
 		local frame = stub.newFrame({}, { ['בלוק'] = 'games', ['תא'] = 'משחקים', ['קטגוריית מפעל'] = 'ברירת מחדל',
 			['קפטן מכבי'] = 'שרן ייני' })
 		equals(module.cell(frame), '12', 'games as captain')
 		equals(stub.calls[1].tables, 'Basketball_Games,Basketball_Competitions,' .. PLAYERS, 'joined')
+		local _, columns = stub.calls[1].fields:gsub('=c%d+', '')
+		equals(columns, 3, 'the one category asked for, not the four tab ones')
 		equals(stub.calls[1].options.where,
 			PLAYERS .. '.PlayerName = "שרן ייני" AND ' .. PLAYERS .. '.Team = 1 AND ' .. PLAYERS .. '.IsCaptain = 1',
 			'the name, the side and the flag - and no second side default')
