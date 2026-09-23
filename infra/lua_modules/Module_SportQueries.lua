@@ -856,6 +856,13 @@ function SportQueries.new(Fields)
 		}
 	end
 
+	--- Whether a side filter's value asks for the opponent - the same rule the
+	--- maccabiSide handler applies, for a caller that must agree with it (a
+	--- game-level number with a column per side).
+	function Queries.asksForOpponent(value)
+		return normalise(value) == Fields.sides.opponentValue
+	end
+
 	--- The column behind a summable value (נקודות → …TotalPoints), for callers
 	--- that build a link to the same ranking. Raises for an unknown value.
 	function Queries.sumColumn(name)
@@ -1015,6 +1022,15 @@ function SportQueries.new(Fields)
 			local anySide = false
 			for _, column in ipairs(columns) do
 				if column.filters and column.filters[sideFilter] ~= nil then
+					anySide = true
+				end
+			end
+			-- A shared filter whose constants fix the side (the opponent's
+			-- captain) has answered the question: injecting Maccabi's side on
+			-- top would contradict it and empty every tab, with no error.
+			for name in pairs(shared) do
+				local spec = Fields.filters[name]
+				if spec and spec.constrainsSide then
 					anySide = true
 				end
 			end

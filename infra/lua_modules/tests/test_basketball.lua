@@ -288,6 +288,38 @@ check("games: the opponent's captain fixes the side, so the Maccabi default stay
 		'Team = 0 from the filter, and no Team = 1 after it')
 end)
 
+check("numbers: a side word that is not the opponent's means Maccabi for BOTH grains", function(module)
+	primeAnswers({ c1 = '2900' }, { c2 = '480' })
+	module.cell(cellFrame({ ['תא'] = 'נקודות', ['קטגוריית מפעל'] = 'רשמי', ['עבור יריבה'] = 'לא' }))
+	local game = stub.calls[1].tables:find(PLAYERS, 1, true) and stub.calls[2] or stub.calls[1]
+	local event = game == stub.calls[1] and stub.calls[2] or stub.calls[1]
+	contains(game.fields, 'COALESCE(Basketball_Games.TotalPointsMaccabi, 0)', "Maccabi's points column")
+	contains(event.options.where, PLAYERS .. '.Team = 1', "Maccabi's rows - the query layer's own rule")
+end)
+
+check("leaderboard: the opponent's captain as a shared filter keeps Maccabi's side out", function()
+	local Queries = stub.loadModule('Module:BasketballQueries')
+	stub.willReturn({})
+	Queries.leaderboard({ ['קפטן יריבה'] = 'ג\'ון שאייר' },
+		{ { name = 'points', grain = 'event', sum = 'נקודות' } }, { groupBy = 'player', top = 5 })
+	lacks(stub.calls[1].options.where, PLAYERS .. '.Team = 1', 'no contradiction injected')
+	contains(stub.calls[1].options.where, PLAYERS .. '.Team = 0', "the captain's side")
+end)
+
+check('numbers: a grain that mixes cells with and without sides is refused', function(module)
+	stub.dataPatch = function(data)
+		if data['numbers'] then
+			data['numbers'].cells[#data['numbers'].cells + 1] =
+				{ key = 'games', word = 'משחקים', grain = 'game', filters = {} }
+		end
+	end
+	-- The module read its blocks when it loaded; load it again with the patch in place.
+	module = stub.loadModule('Module:BasketballStatsBlock')
+	local ok, message = pcall(module.cell, cellFrame({ ['תא'] = 'נקודות', ['קטגוריית מפעל'] = 'רשמי' }))
+	equals(ok, false)
+	contains(message, 'mixes game-level cells with and without sides')
+end)
+
 check('numbers: an unknown cell or category is an error, and nothing is queried', function(module)
 	local ok, message = pcall(module.cell, cellFrame({ ['תא'] = 'שערים' }))
 	equals(ok, false)

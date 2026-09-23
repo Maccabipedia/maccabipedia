@@ -973,7 +973,10 @@ function StatsBlock.new(Queries, blocksData, name)
 		local shared, keyed = sharedOf(frame, CELL_ARGUMENTS)
 		local key = string.format('%s/cell/%s/%s', VAR_PREFIX, blockName, keyed)
 		local sideFilter = declaration.sideFilter
-		local opponent = sideFilter and shared[sideFilter] ~= nil
+		-- The side by the query layer's own rule, so the game-level column and
+		-- the per-player rows never answer different sides for one word.
+		local opponent = sideFilter ~= nil and shared[sideFilter] ~= nil
+			and FootballQueries.asksForOpponent(shared[sideFilter])
 
 		if frame:callParserFunction('#var', { key .. '/primed/' .. category }) == '' then
 			local categories = categoriesToPrime(declaration, category)
@@ -1004,9 +1007,25 @@ function StatsBlock.new(Queries, blocksData, name)
 			for _, grain in ipairs({ 'game', 'event' }) do
 				local cells = byGrain[grain] or {}
 				if #cells > 0 then
+					-- One query serves the grain, so its cells must agree on the
+					-- side: either all pick a column per side (the side filter
+					-- stays out of the query) or none does (it goes in). A mix
+					-- would answer one of them wrongly, depending on which came
+					-- first, so it is refused.
+					local sided = 0
+					for _, each in ipairs(cells) do
+						if each.sided then
+							sided = sided + 1
+						end
+					end
+					if sided ~= 0 and sided ~= #cells then
+						error(string.format(
+							NAME .. ': block "%s" mixes %s-level cells with and without '
+							.. 'sides', blockName, grain), 0)
+					end
 					local filters = {}
 					for name, value in pairs(shared) do
-						if not (cells[1].sided and name == sideFilter) then
+						if not (sided > 0 and name == sideFilter) then
 							filters[name] = value
 						end
 					end

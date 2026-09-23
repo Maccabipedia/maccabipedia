@@ -142,6 +142,12 @@ def main() -> int:
         candidate = Path(option('--against')).read_text(encoding='utf-8')
     elif '--candidate' in sys.argv:
         candidate = Path(option('--candidate')).read_text(encoding='utf-8')
+    elif '--template' in sys.argv:
+        # Another template's candidate is never derived: candidate_of() knows only the
+        # leaderboard template's body, so the leaderboard candidate would be rendered
+        # under the other template's title and the gate would compare the wrong thing.
+        print('--template needs --candidate FILE (or --against FILE)')
+        return 2
     else:
         candidate = candidate_of(page_text(TEMPLATE))
         if '--candidate-only' in sys.argv:

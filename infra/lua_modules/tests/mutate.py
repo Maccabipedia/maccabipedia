@@ -55,6 +55,13 @@ SEASON_TAB_TAIL = (
 # says so instead of silently mutating the wrong place - which is how a broken
 # mutation once reported a false survivor.
 MUTATIONS = [
+    # The review's three: the side by the layer's rule, the captain in a leaderboard, mixed sides.
+    ('cell: any side word means the opponent', RENDERER,
+     "and FootballQueries.asksForOpponent(shared[sideFilter])", "and true"),
+    ('narrow: a side-fixing filter still gets Maccabi injected', LOGIC,
+     '\t\t\t\tif spec and spec.constrainsSide then', '\t\t\t\tif false then'),
+    ('cell: mixed sides in one grain accepted', RENDERER,
+     'if sided ~= 0 and sided ~= #cells then', 'if false then'),
     # A text filter's constant conditions (basketball's captain).
     ('text: the extra conditions dropped', LOGIC, '\t\tif spec.extra then', '\t\tif false then'),
     ('text: the extra conditions leave the side default on', LOGIC,
@@ -69,7 +76,7 @@ MUTATIONS = [
     ('cell: the per-player sums share the game query', RENDERER,
      "for _, grain in ipairs({ 'game', 'event' }) do", "for _, grain in ipairs({ 'event' }) do"),
     ('cell: the side filter reaches the game query', RENDERER,
-     'if not (cells[1].sided and name == sideFilter) then', 'if true then'),
+     'if not (sided > 0 and name == sideFilter) then', 'if true then'),
     ('cell: the opponent gets the Maccabi column', RENDERER,
      'sum = opponent and each.sides.opponent or each.sides.maccabi', 'sum = each.sides.maccabi'),
     ('cell: nothing summed prints empty', RENDERER,
