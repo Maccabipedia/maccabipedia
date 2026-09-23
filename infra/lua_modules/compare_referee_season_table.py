@@ -263,8 +263,14 @@ def main() -> None:
             page, _ = opponent.common.parse(title, text, opponent.module_override())
         elif options.against:
             # The template this one replaced, rendered inline with the same name.
+            # The `#vardefine` is not decoration: the old ROW template reads
+            # `שם להצגה` as a page variable to filter its per-row counts. Without it
+            # every row counted EVERY game of that season and competition - the old
+            # side showed Maccabi's whole record (32-3) instead of one referee's.
             text = re.search(r'<includeonly>(.*)</includeonly>', old_body, re.S).group(1)
-            page, _ = opponent.common.parse(title, text.replace('{{{שם להצגה|}}}', name))
+            page, _ = opponent.common.parse(
+                title, '{{#vardefine: שם להצגה |' + name + '}}'
+                + text.replace('{{{שם להצגה|}}}', name))
         else:
             call_text = '{{' + template.removeprefix('תבנית:') + ' |שם להצגה=' + name + ' }}'
             page, _ = opponent.common.parse(title, '{{#vardefine: שם להצגה |' + name + '}}' + call_text)
@@ -292,6 +298,10 @@ def main() -> None:
             verdict, detail = compare(title, title)
         except ValueError as error:
             verdict, detail = 'ERROR', str(error)
+        except KeyError as error:
+            # A page that does not exist (a typo in --only) came back as a raw
+            # traceback that killed the whole sweep partway through.
+            verdict, detail = 'ERROR', f'cannot read the page ({error})'
         tally[verdict] += 1
         print(f'{index}/{len(pages)} {verdict:5} {title}: {detail}', flush=True)
     print(f'\n{len(pages)} referees ({options.role}): ' + '  '.join(f'{k} {v}' for k, v in sorted(tally.items())))
