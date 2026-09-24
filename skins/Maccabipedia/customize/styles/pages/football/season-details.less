@@ -37,4 +37,28 @@
                 gap: @space-xLarge;
             });
     }
+
+    .ranking-tables {
+        display: flex;
+        flex-direction: column;
+        gap: @space-regular;
+
+        .viewport-wide-start-from(@viewport-regular; {
+                flex-direction: row;
+                flex-wrap: wrap;
+                gap: @space-xLarge;
+
+                & > * {
+                    flex: 1 1 45%;
+                }
+
+                & > :first-child:nth-last-child(odd) {
+                    flex-basis: 100%;
+                }
+            });
+
+        .title {
+            .title-decorator(@background-contrast-regular, @white, @background-primary);
+        }
+    }
 }
