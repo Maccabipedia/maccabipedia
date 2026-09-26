@@ -74,12 +74,13 @@ League game pages render a nicknamed player's box-score name with a doubled apos
 ### Telling Oren What Changed
 
 Oren follows MaccabiPedia work in the "Maccabipedia Updates" Telegram group; Roee is in it too.
-**When you finish work that changed the wiki, call `mcp__oren__send_to_oren` before you finish the
-session**: 2–3 lines in Hebrew on what changed, with links to the pages. Send nothing else there,
-whether a question, a progress note, or work that changed nothing on the wiki, because it reaches
-a person outside this session. If the tool is missing or fails, tell the user; never work around
-it. The tool lives in the-kosho (`the_kosho/oren_mcp.py`) and is registered in this repo's
-`.mcp.json`.
+**When you finish work that changed pages on the live wiki (www.maccabipedia.co.il), call
+`mcp__oren__send_to_oren` before you finish the session**: 2–3 lines in Hebrew on what changed,
+with links to the pages. Write plain text with bare URLs and no Markdown, because the group shows
+it raw. Send nothing else there, whether a question, a progress note, or work that changed only
+the local test wiki or nothing at all, because it reaches a person outside this session. If the
+tool is missing or fails, tell the user and pass on its error as it is; never work around it. The
+tool lives in the-kosho (`the_kosho/oren_mcp.py`) and is registered in this repo's `.mcp.json`.
 
 ### Finishing a Session
 
