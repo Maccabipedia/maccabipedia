@@ -4,40 +4,31 @@ Wiki page with full list: `https://www.maccabipedia.co.il/מקורות_שימו�
 
 ## Tips for searching a source for MaccabiPedia
 
-- **Search broad inside the source, list everything, pick by eye.** Go into the site's
-  collection or category and search broad terms (`maccabi`, `makkabi`, `makabi`,
-  `tel aviv`, `israel`, `hapoel`, and the Hebrew `מכבי`). Include the club's historical
-  names too: European programmes and tickets of the 1980s–90s say "Maccabi Israel" or
-  "Maccabi Elite". Some hits won't be ours, and that's fine. Never let a title pattern
-  or regex decide relevance. If a script must filter, have it print what it dropped too.
-  In archive.org's `historicalbasketballguides` collection, those terms gave 52 hits, 36
-  of them ours. A first pass that filtered item ids on `MACCABI-ISRAEL` or `Maccabi-Tel`
-  missed two programmes.
-- **Open the item, don't trust its title.** A collector's photo titled "Maccabi Haifa
-  tickets" held a Maccabi Haifa – Maccabi Tel Aviv ticket. Video items are often bundles:
-  one titled "Chelsea vs Maccabi Tel Aviv" held six other games. List every file in an
-  item, and look at every image. Tile the images into contact sheets to review them fast.
-- **Seller and auction descriptions are often wrong.** Read the date, opponent and venue
-  printed on the object itself. One lot sold "the 1982 final in Cologne" but was a Yad
-  Eliyahu ticket with no opponent printed on it.
-- **Check the wiki before calling something new.** Where a Cargo table exists, query it:
-  basketball tickets (`Basketball_Game_Tickets`), posters (`<Sport>_Game_Posters`),
-  full-game videos (`Games_Videos.FullGame`, `Basketball_Games.FullGameVideo`). Football
-  and volleyball tickets have no Cargo table: search File pages (namespace 6) for the
-  match date `DD-MM-YYYY`. If the game has no page at all, that is a finding in itself.
-- **A data fix needs a primary-source proof** unless the error is nonsense. Look in the
-  newspaper archive (`.claude/newspaper_archives.md`), and record the quote and the PDF
-  path. A secondary site, an auction description, or even Wikipedia is a lead, not proof.
-  A text-search miss is not proof that something is absent.
-- **When a site blocks bots, ask the user to save the page.** eBay and Kedem return 403 even to
-  headless Chromium. Ask the user to save the search page as HTML. Don't hammer the site with
-  retries.
-- **When a site is a JavaScript app, find its real API.** Record the network calls in
-  Playwright, then call the JSON endpoint directly. For example, Bidspirit's free-text
-  parameter is `token`, not `q`.
-- **Save finds somewhere durable right away.** Put them in a Drive folder per source, with
-  a `מקור - <site>.txt` file listing the link for each item. The session scratchpad is
-  deleted. Track anything not yet on the wiki in a Trello card.
+Prefer slow and complete over fast. A search that finds everything beats a quick one
+that misses items.
+
+- **Search broad, then filter by eye.** Search inside the source's own collection or
+  category with broad terms: `maccabi`, `makkabi`, `makabi`, `tel aviv`, `מכבי`, and
+  the club's historical names such as "Maccabi Israel" and "Maccabi Elite". List every
+  hit and decide relevance by looking, not with a title pattern or regex. If a script
+  has to filter, have it print what it dropped too.
+- **Iterate on leads.** Each page or item you find points to more: the collection it
+  belongs to, the seller's other items, related items, names and dates it mentions.
+  Follow them and search again until no new leads turn up.
+- **Open every item.** Titles and descriptions are often wrong or incomplete. Look at
+  every image and every file in the item, and read the date, teams and venue from the
+  object itself.
+- **Check the wiki before calling something new.** Query the Cargo table where there is
+  one. Where there isn't, search File pages by the match date. A game with no page at
+  all is a finding in itself.
+- **A data fix needs a primary source** unless the error is nonsense: a newspaper of
+  the time (`.claude/newspaper_archives.md`), with the quote and the PDF path. Anything
+  else is a lead, not proof. A search miss does not prove absence.
+- **When a site blocks bots, ask the user to save the page.** Don't retry in a loop.
+- **When a site is a JavaScript app,** record its network calls and query the JSON API
+  directly.
+- **Save finds somewhere durable right away:** a Drive folder per source, with a file
+  listing each item's link. Track anything not yet on the wiki in a Trello card.
 
 ## Cross-sport sources
 
