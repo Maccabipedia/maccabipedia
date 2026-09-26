@@ -126,11 +126,22 @@ Basketball and volleyball use their own template from the table, with the same
 - **`סיווג`:** the template accepts `טבלת ליגה`, `טבלת גביע`, `לקראת משחק`,
   `סיקור משחק`, `רגע ממשחק`, `סיקור מחזור`, `הגרלת גביע`, `אחר`. A match report is
   `סיקור משחק`; a preview is `לקראת משחק`.
-- **New scan:** name it `<paper> DD-MM-YYYY <opponent> (DD.MM.YYYY).jpg`: the
-  *game* date in the name and the publication date in brackets. Dots in the
-  brackets are the most common form (dashes also appear, e.g. the two Anderlecht
-  files). For a second page of the same paper and day, add a suffix after the
-  brackets: `… (02.01.1972) עיתון2.jpg` is the usual form, and `(2)` also appears.
+- **New scan:** use one format in every sport:
+  `<paper> <publication DD-MM-YYYY> <סיווג> <sport> <opponent> (<game DD.MM.YYYY>).jpg`,
+  where `<sport>` is `כדורגל`, `כדורסל` or `כדורעף`. Example:
+  `ידיעות אחרונות 30-04-2004 לקראת משחק כדורסל סקיפר בולוניה (01.05.2004) עמוד 12.jpg`.
+  Counted on 2026-09-26, most existing files already start with the paper and end
+  with the game date in brackets: football 5,092 of 7,565, basketball 721 of 822,
+  volleyball 715 of 1,082. Most name the publication date first, the game date second
+  (basketball 512 to 75, football 3,035 to 1,604, volleyball 689 to 298). The one real
+  difference is that football names rarely carry the sport word. Include it anyway, so
+  new files look the same in every sport; existing files are not renamed.
+  Don't copy the minority forms: game date first with the publication date in brackets
+  (`דבר 13-09-1978 אנדרלכט (14-09-1978).jpg`), or the date before the paper
+  (`05-10-2000 ידיעות אחרונות …`). Write the opponent without quote marks
+  (`צסקא מוסקבה`). For several pages of the same paper and day, add a suffix after
+  the brackets: `עמוד N` for whole pages (the 2004 Final Four and 1981 CSKA files).
+  `עיתון2` and `(2)` also appear.
   The `תאריך פרסום` param always takes `DD-MM-YYYY`, whatever the file name uses.
   Check the name is not taken, then upload with MCP `upload_file(filename, file_path, text,
   comment)` (a requests multipart post). Do **not** use
