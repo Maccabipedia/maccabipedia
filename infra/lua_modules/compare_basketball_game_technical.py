@@ -21,7 +21,10 @@ canary first): an ignored sandbox override would otherwise pass every check vacu
 """
 import re
 import sys
+import time
 from pathlib import Path
+
+import requests
 
 sys.path.insert(0, 'infra/lua_modules')
 sys.path.insert(0, 'infra/season_pages')
@@ -40,6 +43,20 @@ SCORE_SPAN = re.compile(r'<span class="score">[^<]*</span>')
 
 
 def render(title: str, text: str, candidate: str | None) -> tuple[str, list[str]]:
+    """One render, retried after a minute when production answers with a non-JSON page (its
+    508 resource-limit page) - call_multipart has no retry of its own."""
+    for attempt in range(1, 4):
+        try:
+            return render_once(title, text, candidate)
+        except requests.exceptions.JSONDecodeError:
+            if attempt == 3:
+                raise
+            print(f'    production answered with a non-JSON page - waiting 60s (attempt {attempt})', flush=True)
+            time.sleep(60)
+    raise AssertionError('unreachable')
+
+
+def render_once(title: str, text: str, candidate: str | None) -> tuple[str, list[str]]:
     params = {'action': 'parse', 'title': title, 'text': text + PROBE, 'contentmodel': 'wikitext',
               'prop': 'text|categories', 'disablelimitreport': '1'}
     if candidate is None:
@@ -127,6 +144,9 @@ def sample(titles: list[str], candidate: str) -> int:
 def main() -> int:
     mode, pages_file = sys.argv[1:3]
     titles = [line.strip() for line in Path(pages_file).read_text(encoding='utf-8').split('\n') if line.strip()]
+    if '--start' in sys.argv:
+        # Resume a sample run that stopped: skip the pages already compared (1-based count).
+        titles = titles[int(sys.argv[sys.argv.index('--start') + 1]) - 1:]
     candidate = CANDIDATE.read_text(encoding='utf-8')
     return {'awarded': awarded, 'sample': sample}[mode](titles, candidate)
 
