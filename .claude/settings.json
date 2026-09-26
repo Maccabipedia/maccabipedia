@@ -76,6 +76,7 @@
       "Bash(uv add:*)",
       "Bash(finish-session:*)",
       "mcp__maccabipedia__*",
+      "mcp__oren__send_to_oren",
       "mcp__trello__*",
       "mcp__youtube__*"
     ]
