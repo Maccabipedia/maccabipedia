@@ -244,6 +244,22 @@ A single `:` before the minute (e.g. `גול-נגיחה:67`) instead of `::` (e.
 
 **Tracking category:** Pages with bad events are added to the `משחקים המכילים אירוע לא תקין` tracking category (populated by the `הזנת אירועי משחק` template's `#ברירת מחדל` branch for unknown main event types).
 
+## 9b. Awarded games (`|תוצאה בטכני=`), per sport
+
+- **Basketball** (`תבנית:משחק כדורסל`, 11 pages as of 2026-09): `ניצחון`/`נצחון`/`הפסד` sets
+  Technical 1/2 and overwrites the score *variables* with 20:0 / 0:20. That overwrite is what makes
+  ResultOpt, the header winner class and categories follow `תוצאה בטכני` alone (one page enters a
+  real 61:62 score with `ניצחון`). Cargo stores the raw score params. Since #598 the header prints
+  the entered score through separate display variables when both sides are entered and not 0:0 (three
+  1965 losses enter a placeholder `0:0`). Don't "fix" the overwrite itself: it is the result logic.
+- **Volleyball** (`תבנית:משחק כדורעף`): the same overwrite with 3:0 / 0:3, and the header still
+  shows 3:0 even when a score is entered.
+- **Football** (`תבנית:קטלוג משחקים`, param `|טכני=`): no overwrite. The result test ORs the
+  technical flag in, and the score is checked first, so a technical loss with a higher entered
+  Maccabi score would come out a win.
+- Gate for a change here: `infra/lua_modules/compare_basketball_game_technical.py` (awarded pages
+  plus a byte-for-byte sample, with a probe that prints the variables sent to Cargo).
+
 ## 10. Basketball Player Stats (`|שחקנים מכבי=` / `|שחקנים יריבה=`)
 
 Basketball game pages use template `משחק כדורסל`. Player data is **not** a `::` delimited row — each player is a named-parameter sub-template:
