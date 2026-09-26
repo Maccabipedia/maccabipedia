@@ -81,9 +81,11 @@ it raw.
 
 **It queues; it does not send.** Oren gets one message per thread, only once the thread is really
 over. The update goes out when this session has been finished and quiet for two hours, so a
-follow-up from the user holds it back. Each call replaces the previous one. If the conversation
-continues and more changes, call it again with the update for the **whole** thread, never only
-the new part. Tell the user it is queued, not sent.
+follow-up from the user holds it back. Each call replaces the previous queued one. If the
+conversation continues and more changes, call it again with the update for the **whole** thread.
+The one exception: if the tool's reply shows an update from this thread that already went out,
+write only what is new since it. Tell the user it is queued, not sent, and pass on everything
+else the reply says, such as an earlier update that may not have gone out.
 
 Send nothing else there, whether a question, a progress note, or work that changed only the local
 test wiki or nothing at all, because it reaches a person outside this session. If the tool is
