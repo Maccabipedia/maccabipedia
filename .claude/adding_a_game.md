@@ -126,11 +126,18 @@ Basketball and volleyball use their own template from the table, with the same
 - **`סיווג`:** the template accepts `טבלת ליגה`, `טבלת גביע`, `לקראת משחק`,
   `סיקור משחק`, `רגע ממשחק`, `סיקור מחזור`, `הגרלת גביע`, `אחר`. A match report is
   `סיקור משחק`; a preview is `לקראת משחק`.
-- **New scan:** name it `<paper> DD-MM-YYYY <opponent> (DD.MM.YYYY).jpg`: the
-  *game* date in the name and the publication date in brackets. Dots in the
-  brackets are the most common form (dashes also appear, e.g. the two Anderlecht
-  files). For a second page of the same paper and day, add a suffix after the
-  brackets: `… (02.01.1972) עיתון2.jpg` is the usual form, and `(2)` also appears.
+- **New scan:** use one format in every sport:
+  `<paper> <publication DD-MM-YYYY> <סיווג> <sport> <opponent> (<game DD.MM.YYYY>).jpg`,
+  where `<sport>` is `כדורגל`, `כדורסל` or `כדורעף`. Example:
+  `ידיעות אחרונות 30-04-2004 לקראת משחק כדורסל סקיפר בולוניה (01.05.2004) עמוד 12.jpg`.
+  This is already the majority form in all three sports, except that football names
+  rarely carry the sport word. Include it anyway; existing files are not renamed.
+  Don't copy the minority forms: game date first with the publication date in brackets
+  (`דבר 13-09-1978 אנדרלכט (14-09-1978).jpg`), or the date before the paper
+  (`05-10-2000 ידיעות אחרונות …`). Write the opponent without quote marks
+  (`צסקא מוסקבה`). For several pages of the same paper and day, add a suffix after
+  the brackets: `עמוד N` for whole pages (the 2004 Final Four and 1981 CSKA files).
+  `עיתון2` and `(2)` also appear.
   The `תאריך פרסום` param always takes `DD-MM-YYYY`, whatever the file name uses.
   Check the name is not taken, then upload with MCP `upload_file(filename, file_path, text,
   comment)` (a requests multipart post). Do **not** use
