@@ -39,6 +39,11 @@ Wiki page with full list: `https://www.maccabipedia.co.il/מקורות_שימו�
 **Local newspaper scans (MaccabiPedia shared Google Drive, `ארכיונים/ארכיון עיתונים/`):**
 - Yedioth Ahronoth single sports pages 1939–2021 and full issues 1940–2019 (both text-searchable), Hadashot HaSport full daily issues 1954–84 (image-only), plus Sport HaBoker 1936–46, Aspaklaria 1947–48, Sport Israel 1949–50, Maariv 1994. Layout, search script and how to date a game from them: `.claude/newspaper_archives.md`.
 
+**Memorabilia (tickets, programmes) and recorded games:**
+- Internet Archive items (not the Wayback Machine): https://archive.org/ — collection `historicalbasketballguides` holds scans of about 34 Maccabi basketball programmes (1988–2004) and tickets. Movie collections (`opensource_movies`, `folksoundomy`, `sportstelevision`) hold full TV recordings of Maccabi football and basketball games from 2012 to 2026, often bundled several games to an item. Search API: `archive.org/advancedsearch.php?q=collection:<c> AND (maccabi OR ...)`. Files per item: `archive.org/metadata/<id>`.
+- Bidspirit (aggregates Israeli auction houses): https://il.bidspirit.com/ — the house "הפעם השלישית" (`third-time`) sells Israeli sports memorabilia. Most of its Maccabi basketball tickets are already on the wiki. API details: search `il.bidspirit.com/services/search/searchItemsWithSearchServer/?...&time=PAST&token=<text>`, then full lot text from `getLotItemInfo?catalogKey=<ownerKey>&idInApp=<id>`.
+- eBay, Kedem auctions: have Maccabi tickets, but both block bots, even headless Chromium. Ask the user to save the search page as HTML.
+
 **Photos:**
 - Getty Images: https://www.gettyimages.com/photos/maccabi-tel-aviv
 - Facebook old photos album: https://www.facebook.com/media/set/?set=a.10201605865284990&type=3
