@@ -71,6 +71,27 @@ League game pages render a nicknamed player's box-score name with a doubled apos
 
 ## 5. Workflows
 
+### Telling Oren What Changed
+
+Oren follows MaccabiPedia work in the "Maccabipedia Updates" Telegram group; Roee is in it too.
+**When you finish work that changed pages on the live wiki (www.maccabipedia.co.il), call
+`mcp__oren__send_to_oren` right before `finish-session`**: 2–3 lines in Hebrew on what changed,
+with links to the pages. Write plain text with bare URLs and no Markdown, because the group shows
+it raw.
+
+**It queues; it does not send.** Oren gets one message per thread, only once the thread is really
+over. The update goes out when this session has been finished and quiet for two hours, so a
+follow-up from the user holds it back. Each call replaces the previous queued one. If the
+conversation continues and more changes, call it again with the update for the **whole** thread.
+The one exception: if the tool's reply shows an update from this thread that already went out,
+write only what is new since it. Tell the user it is queued, not sent, and pass on everything
+else the reply says, such as an earlier update that may not have gone out.
+
+Send nothing else there, whether a question, a progress note, or work that changed only the local
+test wiki or nothing at all, because it reaches a person outside this session. If the tool is
+missing or fails, tell the user and pass on its error as it is; never work around it. The tool
+lives in the-kosho (`the_kosho/oren_mcp.py`) and is registered in this repo's `.mcp.json`.
+
 ### Finishing a Session
 
 Every session runs in a named tmux session that outlives the conversation. After a crash the
