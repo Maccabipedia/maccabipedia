@@ -130,12 +130,8 @@ Basketball and volleyball use their own template from the table, with the same
   `<paper> <publication DD-MM-YYYY> <סיווג> <sport> <opponent> (<game DD.MM.YYYY>).jpg`,
   where `<sport>` is `כדורגל`, `כדורסל` or `כדורעף`. Example:
   `ידיעות אחרונות 30-04-2004 לקראת משחק כדורסל סקיפר בולוניה (01.05.2004) עמוד 12.jpg`.
-  Counted on 2026-09-26, most existing files already start with the paper and end
-  with the game date in brackets: football 5,092 of 7,565, basketball 721 of 822,
-  volleyball 715 of 1,082. Most name the publication date first, the game date second
-  (basketball 512 to 75, football 3,035 to 1,604, volleyball 689 to 298). The one real
-  difference is that football names rarely carry the sport word. Include it anyway, so
-  new files look the same in every sport; existing files are not renamed.
+  This is already the majority form in all three sports, except that football names
+  rarely carry the sport word. Include it anyway; existing files are not renamed.
   Don't copy the minority forms: game date first with the publication date in brackets
   (`דבר 13-09-1978 אנדרלכט (14-09-1978).jpg`), or the date before the paper
   (`05-10-2000 ידיעות אחרונות …`). Write the opponent without quote marks

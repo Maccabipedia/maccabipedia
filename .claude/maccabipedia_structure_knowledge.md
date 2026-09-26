@@ -155,11 +155,7 @@ Renaming a game page (wrong home/away orientation, a title typo, or an opponent-
 
 **Title convention:** `<prefix>:DD-MM-YYYY <home> נגד <away> - <competition>` — the home team is listed first. Home game → Maccabi first + `בית חוץ=בית`; away → opponent first + `בית חוץ=חוץ`. A leg officially hosted by Maccabi but **relocated abroad** (e.g. the CEV ban on matches in Israel) is still `בית` per the official designation, even though the stadium is foreign.
 
-**Neutral venues (basketball, decided 2026-09-26):** only the hall changes, to the real one; `בית חוץ` and the title stay as they are. That covers two cases:
-- A two-leg tie moved to a third country keeps each leg's designation. Example: the 1981 CSKA double game in Brussels. The FIBA ticket reads "Maccabi Tel-Aviv - T.S.K.A. Moscou", and the press calls the second night "הגומלין".
-- Single-game European finals and Final Fours keep the stored `בית`/`חוץ` even though the press names no host. Examples: 1981 Strasbourg, 1982 Cologne, 2005–2014 Final Fours. Don't switch them to `נייטרלי`. Only the two 2004 Tel Aviv Final Four games use it.
-
-Yedioth box scores list the **winner** first, so their order is no evidence of designation.
+When researching a neutral-venue game's designation: Yedioth box scores list the **winner** first, so their order is no evidence of which team was at home.
 
 **Steps:**
 
