@@ -131,6 +131,10 @@ Basketball and volleyball use their own template from the table, with the same
   brackets are the most common form (dashes also appear, e.g. the two Anderlecht
   files). For a second page of the same paper and day, add a suffix after the
   brackets: `… (02.01.1972) עיתון2.jpg` is the usual form, and `(2)` also appears.
+  **Basketball's recent uploads reverse the dates:**
+  `ידיעות אחרונות <publication DD-MM-YYYY> <סיווג> כדורסל <opponent> (<game DD.MM.YYYY>) עמוד N.jpg`.
+  That is the publication date first, the game date in brackets, and the opponent with
+  no quote marks (`צסקא מוסקבה`). Examples: the 2004 Final Four and 1981 CSKA files.
   The `תאריך פרסום` param always takes `DD-MM-YYYY`, whatever the file name uses.
   Check the name is not taken, then upload with MCP `upload_file(filename, file_path, text,
   comment)` (a requests multipart post). Do **not** use
