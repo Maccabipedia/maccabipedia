@@ -2,6 +2,34 @@
 
 Wiki page with full list: `https://www.maccabipedia.co.il/מקורות_שימושיים`
 
+## Tips for searching a source for MaccabiPedia
+
+Prefer slow and complete over fast. A search that finds everything beats a quick one
+that misses items.
+
+- **Search broad, then filter by eye.** Search inside the source's own collection or
+  category with broad terms: `maccabi`, `makkabi`, `makabi`, `tel aviv`, `מכבי`, and
+  the club's historical names such as "Maccabi Israel" and "Maccabi Elite". List every
+  hit and decide relevance by looking, not with a title pattern or regex. If a script
+  has to filter, have it print what it dropped too.
+- **Iterate on leads.** Each page or item you find points to more: the collection it
+  belongs to, the seller's other items, related items, names and dates it mentions.
+  Follow them and search again until no new leads turn up.
+- **Open every item.** Titles and descriptions are often wrong or incomplete. Look at
+  every image and every file in the item, and read the date, teams and venue from the
+  object itself.
+- **Check the wiki before calling something new.** Query the Cargo table where there is
+  one. Where there isn't, search File pages by the match date. A game with no page at
+  all is a finding in itself.
+- **A data fix needs a primary source** unless the error is nonsense: a newspaper of
+  the time (`.claude/newspaper_archives.md`), with the quote and the PDF path. Anything
+  else is a lead, not proof. A search miss does not prove absence.
+- **When a site blocks bots, ask the user to save the page.** Don't retry in a loop.
+- **When a site is a JavaScript app,** record its network calls and query the JSON API
+  directly.
+- **Save finds somewhere durable right away:** a Drive folder per source, with a file
+  listing each item's link. Track anything not yet on the wiki in a Trello card.
+
 ## Cross-sport sources
 
 **Old Maccabi websites (Wayback Machine):**
