@@ -2,6 +2,40 @@
 
 Wiki page with full list: `https://www.maccabipedia.co.il/מקורות_שימושיים`
 
+## Tips for searching a source for MaccabiPedia
+
+- **Search broad inside the source, list everything, pick by eye.** Go into the site's
+  collection or category and search the broad term (`maccabi`, `makkabi`, `tel aviv`,
+  `israel`, `hapoel`, and the Hebrew `מכבי`). Some hits won't be ours, and that's fine.
+  Never let a title pattern or regex decide relevance. If a script must filter, have it
+  print what it dropped too. On archive.org, `archive.org/details/historicalbasketballguides`
+  searched for `maccabi` gave 52 hits, 36 of them ours. A first pass that filtered on
+  `MACCABI-ISRAEL` in the item id missed two programmes.
+- **Open the item, don't trust its title.** A collector's photo titled "Maccabi Haifa
+  tickets" held a Maccabi Haifa – Maccabi Tel Aviv ticket. Video items are often bundles:
+  one titled "Chelsea vs Maccabi Tel Aviv" held six other games. List every file in an
+  item, and look at every image. Tile the images into contact sheets to review them fast.
+- **Seller and auction descriptions are often wrong.** Read the date, opponent and venue
+  printed on the object itself. One lot sold "the 1982 final in Cologne" but was a Yad
+  Eliyahu ticket with no opponent printed on it.
+- **Check the wiki before calling something new.** Query the Cargo table first: tickets
+  (`Basketball_Game_Tickets`), full-game videos (`Games_Videos.FullGame`,
+  `Basketball_Games.FullGameVideo`). If the game has no page at all, that is a finding in
+  itself. The 1977 European Cup final has no page.
+- **A data fix needs a primary-source proof** unless the error is nonsense. Look in the
+  newspaper archive (`.claude/newspaper_archives.md`), and record the quote and the PDF
+  path. A secondary site, an auction description, or even Wikipedia is a lead, not proof.
+  A text-search miss is not proof that something is absent.
+- **When a site blocks bots, ask the user to save the page.** eBay and Kedem return 403 even to
+  headless Chromium. Ask the user to save the search page as HTML. Don't hammer the site with
+  retries.
+- **When a site is a JavaScript app, find its real API.** Record the network calls in
+  Playwright, then call the JSON endpoint directly. For example, Bidspirit's free-text
+  parameter is `token`, not `q`.
+- **Save finds somewhere durable right away.** Put them in a Drive folder per source, with
+  a `מקור - <site>.txt` file listing the link for each item. The session scratchpad is
+  deleted. Track anything not yet on the wiki in a Trello card.
+
 ## Cross-sport sources
 
 **Old Maccabi websites (Wayback Machine):**
@@ -38,6 +72,11 @@ Wiki page with full list: `https://www.maccabipedia.co.il/מקורות_שימו�
 
 **Local newspaper scans (MaccabiPedia shared Google Drive, `ארכיונים/ארכיון עיתונים/`):**
 - Yedioth Ahronoth single sports pages 1939–2021 and full issues 1940–2019 (both text-searchable), Hadashot HaSport full daily issues 1954–84 (image-only), plus Sport HaBoker 1936–46, Aspaklaria 1947–48, Sport Israel 1949–50, Maariv 1994. Layout, search script and how to date a game from them: `.claude/newspaper_archives.md`.
+
+**Memorabilia (tickets, programmes) and recorded games:**
+- Internet Archive items (not the Wayback Machine): https://archive.org/ — collection `historicalbasketballguides` holds scans of about 34 Maccabi basketball programmes (1988–2004) and tickets. Movie collections (`opensource_movies`, `folksoundomy`, `sportstelevision`) hold full TV recordings of Maccabi football and basketball games from 2012 to 2026, often bundled several games to an item. Search API: `archive.org/advancedsearch.php?q=collection:<c> AND (maccabi OR ...)`. Files per item: `archive.org/metadata/<id>`.
+- Bidspirit (aggregates Israeli auction houses): https://il.bidspirit.com/ — the house "הפעם השלישית" (`third-time`) sells Israeli sports memorabilia. Most of its Maccabi basketball tickets are already on the wiki. API details: search `il.bidspirit.com/services/search/searchItemsWithSearchServer/?...&time=PAST&token=<text>`, then full lot text from `getLotItemInfo?catalogKey=<ownerKey>&idInApp=<id>`.
+- eBay, Kedem auctions: have Maccabi tickets, but both block bots (see the tips above).
 
 **Photos:**
 - Getty Images: https://www.gettyimages.com/photos/maccabi-tel-aviv
