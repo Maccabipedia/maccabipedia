@@ -126,15 +126,16 @@ Basketball and volleyball use their own template from the table, with the same
 - **`סיווג`:** the template accepts `טבלת ליגה`, `טבלת גביע`, `לקראת משחק`,
   `סיקור משחק`, `רגע ממשחק`, `סיקור מחזור`, `הגרלת גביע`, `אחר`. A match report is
   `סיקור משחק`; a preview is `לקראת משחק`.
-- **New scan:** name it `<paper> DD-MM-YYYY <opponent> (DD.MM.YYYY).jpg`: the
-  *game* date in the name and the publication date in brackets. Dots in the
-  brackets are the most common form (dashes also appear, e.g. the two Anderlecht
-  files). For a second page of the same paper and day, add a suffix after the
-  brackets: `… (02.01.1972) עיתון2.jpg` is the usual form, and `(2)` also appears.
-  **Basketball's recent uploads reverse the dates:**
-  `ידיעות אחרונות <publication DD-MM-YYYY> <סיווג> כדורסל <opponent> (<game DD.MM.YYYY>) עמוד N.jpg`.
-  That is the publication date first, the game date in brackets, and the opponent with
-  no quote marks (`צסקא מוסקבה`). Examples: the 2004 Final Four and 1981 CSKA files.
+- **New scan:** name it with the *publication* date first and the *game* date in
+  brackets: `<paper> <publication DD-MM-YYYY> <סיווג> [כדורסל] <opponent> (<game DD.MM.YYYY>).jpg`.
+  Counted on 2026-09-26, this is the majority form in both sports: basketball has
+  512 files in this form and 75 the other way (mostly score tables), football 3,035
+  and 1,604. The reverse form, game date first and publication date in brackets
+  (`דבר 13-09-1978 אנדרלכט (14-09-1978).jpg`), is the older football minority, so
+  don't copy it. Dots in the brackets are the most common form. Write the opponent
+  without quote marks (`צסקא מוסקבה`). For several pages of the same paper and day,
+  add a suffix after the brackets: `עמוד N` for whole pages (the 2004 Final Four and
+  1981 CSKA files). `עיתון2` and `(2)` also appear.
   The `תאריך פרסום` param always takes `DD-MM-YYYY`, whatever the file name uses.
   Check the name is not taken, then upload with MCP `upload_file(filename, file_path, text,
   comment)` (a requests multipart post). Do **not** use
