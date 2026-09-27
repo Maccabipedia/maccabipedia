@@ -252,6 +252,9 @@ A single `:` before the minute (e.g. `גול-נגיחה:67`) instead of `::` (e.
   real 61:62 score with `ניצחון`). Cargo stores the raw score params. Since #598 the header prints
   the entered score through separate display variables when both sides are entered and not 0:0 (three
   1965 losses enter a placeholder `0:0`). Don't "fix" the overwrite itself: it is the result logic.
+  The 20:0 fallback is the modern score. In the 1950s–60s an Israeli awarded game counted **2:0**
+  (Yedioth 27.6.1965 on the rules; 5.7 and 15.7.1965 on the Maccabi boycott's no-shows: "הפסד טכני
+  בשיעור 2:0"). So an old awarded game should enter 2:0 / 0:2, not rely on the fallback.
 - **Volleyball** (`תבנית:משחק כדורעף`): the same overwrite with 3:0 / 0:3, and the header still
   shows 3:0 even when a score is entered.
 - **Football** (`תבנית:קטלוג משחקים`, param `|טכני=`): no overwrite. The result test ORs the
