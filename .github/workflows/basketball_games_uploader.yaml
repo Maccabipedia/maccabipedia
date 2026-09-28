@@ -44,22 +44,15 @@ jobs:
           uv run python -m maccabipediabot.basketball.gamesbot_basketball \
             --input /tmp/basket.json --skip-existing 2>&1 | tee -a /tmp/uploader.log
 
-      - name: Connect to Tailscale
-        uses: tailscale/github-action@v4
-        with:
-          oauth-client-id: ${{ secrets.TAILSCALE_OAUTH_CLIENT_ID }}
-          oauth-secret: ${{ secrets.TAILSCALE_OAUTH_CLIENT_SECRET }}
-          tags: tag:ci
-
-      - name: Crawl Euroleague (via residential proxy)
+      # EuroLeague's data API (api-live.euroleague.net) has no bot challenge, so no proxy.
+      # A failure here is real and goes red: a soft-fail hid a blocked crawl from 2026-06 until
+      # the season opener went missing.
+      - name: Crawl Euroleague
         id: crawl_euroleague
-        env:
-          HTTPS_PROXY: ${{ secrets.EUROLEAGUE_HTTPS_PROXY }}
         run: |
           uv run python -m maccabipediabot.basketball.crawl_euroleague \
             --season latest --limit 1 --output /tmp/euroleague.json \
-            --unknown-teams-report /tmp/unknown_teams_euroleague.json \
-            --soft-fail-on-block 2>&1 | tee -a /tmp/uploader.log
+            --unknown-teams-report /tmp/unknown_teams_euroleague.json 2>&1 | tee -a /tmp/uploader.log
 
       - name: Upload Euroleague games
         id: upload_euroleague
@@ -127,14 +120,13 @@ jobs:
       # Not a team-mapping failure: report WHICH step died and the real error tail, so the
       # alert points at the actual cause (e.g. a wiki-login TimeoutError) instead of guessing.
       # Each python step tees its combined output to /tmp/uploader.log. Before sending we
-      # redact secret VALUES (proxy URL, bot password) literally plus any scheme://user:pass@
+      # redact the bot password literally plus any scheme://user:pass@
       # credentials, HTML-escape, and cap total size — GitHub masks the run log but NOT the
       # action input we hand to Telegram.
       - name: Collect failure detail
         if: failure() && steps.unknown_team.outputs.found != 'true'
         id: failure_detail
         env:
-          PROXY: ${{ secrets.EUROLEAGUE_HTTPS_PROXY }}
           BOT_PASSWORD: ${{ secrets.MACCABIPEDIA_BOT_PASSWORD }}
         run: |
           if   [ "${{ steps.crawl_basket.outcome }}" = "failure" ]; then failed_step="Crawl basket.co.il"
@@ -150,7 +142,6 @@ jobs:
           [ -n "$detail" ] || detail="(no output captured)"
           # Literal (non-regex) secret redaction via bash substitution: a quoted pattern is
           # matched verbatim, so embedded / . * etc. need no escaping.
-          if [ -n "$PROXY" ]; then detail="${detail//"$PROXY"/[redacted]}"; fi
           if [ -n "$BOT_PASSWORD" ]; then detail="${detail//"$BOT_PASSWORD"/[redacted]}"; fi
           detail="$(printf '%s' "$detail" \
             | sed -E 's#(https?://)[^/@[:space:]]+@#\1[redacted]@#g' \
