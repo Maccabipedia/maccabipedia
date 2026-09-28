@@ -3,9 +3,11 @@ import logging
 import mwparserfromhell
 import requests
 
+from maccabipediabot.basketball.livescore_table import season_of_stage
 from maccabipediabot.common.wiki_login import get_site
 
-_LEAGUE_TABLE_TEMPLATE_ON_MACCABIPEDIA = 'תבנית:טבלת_ליגת_כדורסל_2025/26'
+# Filled with the season of the table livescore serves, e.g. "2026/27".
+_LEAGUE_TABLE_TEMPLATE_ON_MACCABIPEDIA = 'תבנית:טבלת_ליגת_כדורסל_{season}'
 _TABLE_STATUS_KEY = 'טבלה'
 
 OPPONENTS_NAMES_TO_UNICODE = {"Maccabi Tel Aviv": "מכבי תל אביב",
@@ -21,13 +23,13 @@ OPPONENTS_NAMES_TO_UNICODE = {"Maccabi Tel Aviv": "מכבי תל אביב",
                               "Elitzur Netanya": "אליצור עירוני נתניה",
                               "Ironi Nes Ziona": "עירוני נס ציונה",
                               "Bnei Herzliya": "בני הרצליה",
-                              "Ironi Kiryat Ata": "עירוני קרית אתא"
+                              "Ironi Kiryat Ata": "עירוני קרית אתא",
+                              "Hapoel Eilat": "הפועל אילת",
+                              "Maccabi Ashdod": "מכבי אשדוד",
                               }
 
 
-LINKS_TO_FETCH_LEAGUE_TABLE_FROM = [
-    "https://prod-cdn-public-api.livescore.com/v1/api/app/stage/basketball/israel/super-league/2"
-]
+LEAGUE_TABLE_URL = "https://prod-cdn-public-api.livescore.com/v1/api/app/stage/basketball/israel/super-league/2"
 
 from maccabipediabot.common.logging_setup import setup_logging
 setup_logging(level=logging.DEBUG)
@@ -38,40 +40,42 @@ site = get_site()
 import pywikibot as pw
 
 
-def fetch_league_table_data():
+def fetch_league_table_data() -> tuple[str, str]:
+    """The table rows as the template expects them, and the season they belong to."""
+    stage = requests.get(LEAGUE_TABLE_URL, timeout=30).json()["Stages"][0]
     stats = []
-
-    for url in LINKS_TO_FETCH_LEAGUE_TABLE_FROM:
-        resp = requests.get(url)
-        table = resp.json()["Stages"][0]["LeagueTable"]["L"][0]["Tables"][0]["team"]
-        for row in table:
-            stats.append(
-                "^".join(
-                    [
-                        OPPONENTS_NAMES_TO_UNICODE.get(row["Tnm"], row["Tnm"]),
-                        str(row["pld"]),
-                        row["winn"],
-                        row["lstn"],
-                        str(row["gf"]),
-                        str(row["ga"]),
-                        row["ptsn"],
-                    ]
-                )
+    for row in stage["LeagueTable"]["L"][0]["Tables"][0]["team"]:
+        stats.append(
+            "^".join(
+                [
+                    OPPONENTS_NAMES_TO_UNICODE.get(row["Tnm"], row["Tnm"]),
+                    str(row["pld"]),
+                    row["winn"],
+                    row["lstn"],
+                    str(row["gf"]),
+                    str(row["ga"]),
+                    row["ptsn"],
+                ]
             )
+        )
     prettified_result = ",\n".join(stats)
 
     logging.info(f'Fetched league table data: {prettified_result}')
-    return prettified_result
+    return prettified_result, season_of_stage(stage)
 
 
 def update_league_table_status() -> None:
-    logging.info(f'Fetching current league table from: {LINKS_TO_FETCH_LEAGUE_TABLE_FROM}')
-    league_table_data = fetch_league_table_data()
+    logging.info(f'Fetching current league table from: {LEAGUE_TABLE_URL}')
+    league_table_data, season = fetch_league_table_data()
 
-    league_table_template_page = pw.Page(site, _LEAGUE_TABLE_TEMPLATE_ON_MACCABIPEDIA)
+    template_title = _LEAGUE_TABLE_TEMPLATE_ON_MACCABIPEDIA.format(season=season)
+    league_table_template_page = pw.Page(site, template_title)
+    if not league_table_template_page.exists():
+        raise RuntimeError(f"{template_title} does not exist; create the {season} table template "
+                           f"(copy last season's) and add it to the season page")
 
     parsed_mw_text = mwparserfromhell.parse(league_table_template_page.text)
-    table_template = parsed_mw_text.filter_templates(_LEAGUE_TABLE_TEMPLATE_ON_MACCABIPEDIA)[0]
+    table_template = parsed_mw_text.filter_templates(template_title)[0]
     table_template.add(_TABLE_STATUS_KEY, league_table_data)
 
     league_table_template_page.text = parsed_mw_text
