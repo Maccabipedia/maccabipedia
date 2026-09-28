@@ -53,6 +53,10 @@ _TEAM_NAMES: dict[str, str] = {
     "Anadolu Efes Istanbul": "אנאדולו אפס",
     "FC Bayern Munich": "באיירן מינכן",
     "LDLC ASVEL Villeurbanne": "ליון-וילרבאן",
+    # EuroLeague 2026/27 sponsor names, as api-live.euroleague.net spells them.
+    "Armani Olimpia Milan": "ארמאני מילאנו",
+    "Fenerbahce Tarfin Istanbul": "פנרבחצ'ה",
+    "Besiktas Istanbul": "בשיקטאש",
 }
 
 _PERSON_NAMES: dict[str, str] = {
@@ -177,6 +181,18 @@ _PERSON_NAMES: dict[str, str] = {
     "Khalifa Diop": "חאליפה דיופ",
     "Clement Frisch": "קלמנט פריש",
     "Armando Bacot Jr": "ארמנדו בקוט",
+    "Armando Bacot Jr.": "ארמנדו בקוט",  # the EuroLeague API's spelling
+    "Keaton Wallace": "קיטון וואלאס",  # as in תבנית:שחקני סגל נוכחי בכדורסל
+    # ASVEL 2026/27, first met in EuroLeague round 1 (24/09/2026).
+    "Tony Parker": "טוני פארקר",
+    "Marc-Owen Fodzo Dada": "מארק-אואן פודזו דאדה",
+    "Patty Mills": "פטי מילס",
+    "Both Gach": "בות' גאץ'",
+    "Hugo Besson": "הוגו בסון",
+    "Yves Pons": "איב פונס",
+    "Tremont Waters": "טרמונט ווטרס",
+    "Nathan Sestina": "נייתן ססטינה",
+    "Jae Crowder": "ג'יי קראודר",
     "Metecan Birsen": "מצ'אן בירסן",
     "Wade Baldwin Iv": "ווייד בולדווין",
     "Julius Thomas": "ג'וליוס תומאס",
@@ -418,6 +434,7 @@ _STADIUM_NAMES: dict[str, str] = {
     "SALLE GASTON MEDECIN": "סאל גסטון מדסין",
     "MENORA MIVTACHIM ARENA": "היכל מנורה מבטחים",
     "ZALGIRIO ARENA": "ז'לגיריס ארנה",
+    "LDLC ARENA": "LDLC ארנה",
     "ALEKSANDAR NIKOLIC HALL": "היכל פיוניר",
     "PALADOZZA": "פאלאדוסה",
     "SAP GARDEN": "SAP גארדן",
