@@ -9,7 +9,7 @@ import argparse
 import logging
 import re
 import unicodedata
-from datetime import date, datetime
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -46,6 +46,12 @@ COMPETITION_NAME_HE = "יורוליג"
 ISRAEL_TZ = ZoneInfo("Asia/Jerusalem")
 # The API dates each season from July 1st ("startDate": "2026-07-01T00:00:00").
 _SEASON_START_MONTH = 7
+# A game, overtimes included, is long over this long after tip-off.
+FINISHED_AFTER = timedelta(hours=3)
+
+
+def _utc(utc_date: str) -> datetime:
+    return datetime.fromisoformat(utc_date.replace("Z", "+00:00"))
 
 
 def season_code_for(today: date) -> str:
@@ -78,10 +84,17 @@ def _flip_name(name: str) -> str:
     return name.title()
 
 
-def finished_maccabi_games(games: list[dict], limit: int | None = None) -> list[dict]:
-    """Maccabi's played games from a season's games list, newest first, optionally the latest N."""
+def finished_maccabi_games(games: list[dict], limit: int | None = None,
+                           now: datetime | None = None) -> list[dict]:
+    """Maccabi's finished games from a season's games list, newest first, optionally the latest N.
+
+    Besides the API's `played` flag, the tip-off must be FINISHED_AFTER in the past: the uploader
+    skips pages that exist, so a game taken while still live would stay partial for good.
+    """
+    now = now or datetime.now(timezone.utc)
     finished = [game for game in games
                 if game.get("played")
+                and _utc(game["utcDate"]) <= now - FINISHED_AFTER
                 and MACCABI_CLUB_CODE in (game["local"]["club"]["code"], game["road"]["club"]["code"])]
     finished.sort(key=lambda game: game["utcDate"], reverse=True)
     return finished[:limit] if limit else finished
@@ -112,7 +125,7 @@ def build_game(game: dict, boxscore: dict) -> BasketballGame:
         raise UnknownTeamNameError([{"game": game_url, "teams": unmapped, "date": game.get("utcDate")}])
 
     # The API's utcDate is UTC; the wiki keeps Israel local time, without tzinfo.
-    game_dt = (datetime.fromisoformat(game["utcDate"].replace("Z", "+00:00"))
+    game_dt = (_utc(game["utcDate"])
                .astimezone(ISRAEL_TZ).replace(tzinfo=None))
     fixture_round = to_int_or_none(game.get("round"))
 

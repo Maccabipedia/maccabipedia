@@ -1,7 +1,7 @@
 """Tests for crawl_euroleague, which reads api-live.euroleague.net."""
 import copy
 import json
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 import pytest
@@ -97,15 +97,26 @@ def _entry(game_code: int, utc: str, *, played: bool = True, local: str = "TEL",
             "local": {"club": {"code": local}}, "road": {"club": {"code": road}}}
 
 
+_NOW = datetime(2026, 10, 1, 20, 0, tzinfo=timezone.utc)
+
+
 def test_finished_maccabi_games_keeps_played_maccabi_games_newest_first():
     games = [
         _entry(1, "2026-09-24T18:45:00Z", local="ASV", road="TEL"),   # played, away: keep
-        _entry(2, "2026-10-01T18:00:00Z", played=False),              # not played yet: drop
+        _entry(2, "2026-10-02T18:00:00Z", played=False),              # not played yet: drop
         _entry(3, "2026-09-30T18:00:00Z", local="PAN", road="OLY"),   # not Maccabi: drop
         _entry(4, "2026-09-26T18:00:00Z"),                            # played, home: keep
     ]
-    assert [g["gameCode"] for g in finished_maccabi_games(games)] == [4, 1]
-    assert [g["gameCode"] for g in finished_maccabi_games(games, limit=1)] == [4]
+    assert [g["gameCode"] for g in finished_maccabi_games(games, now=_NOW)] == [4, 1]
+    assert [g["gameCode"] for g in finished_maccabi_games(games, limit=1, now=_NOW)] == [4]
+
+
+def test_finished_maccabi_games_waits_out_a_game_in_progress():
+    """`played` may flip on at tip-off; a page saved mid-game would never be corrected
+    (the uploader skips existing pages), so wait until the game is surely over."""
+    live = _entry(5, "2026-10-01T18:30:00Z")           # 1.5 h after tip-off
+    over = _entry(6, "2026-10-01T16:59:00Z")           # just over 3 h
+    assert [g["gameCode"] for g in finished_maccabi_games([live, over], now=_NOW)] == [6]
 
 
 @pytest.mark.parametrize("today, expected", [
