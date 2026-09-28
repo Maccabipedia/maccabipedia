@@ -446,6 +446,7 @@ _PLAYER_NAME_NORMALIZE: dict[str, str] = {
 # (crawl_basket_co_il._competition_from_game_page).
 _BASKET_GAME_TYPE: dict[int, str] = {
     5: "ליגת העל",
+    10: "גביע ווינר סל",
     34: "הסופרקאפ הישראלי",
 }
 

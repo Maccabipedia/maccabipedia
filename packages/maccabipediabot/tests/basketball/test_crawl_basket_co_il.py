@@ -215,7 +215,9 @@ def test_discover_filters_score_edge_cases(monkeypatch):
     ("ליגת סל - סדרת חצי גמר משחק מספר 1", "ליגת העל"),  # any playoff round
     # real header has the sponsor logo as an <img> between "ליגת" and "סל"
     ('ליגת <img src="x"/> סל - רבע הגמר משחק מספר 1', "ליגת העל"),
-    ("גביע ווינר סל - רבע גמר", None),                # a cup -> unrecognised, fail loud
+    ("גביע ווינר סל ", "גביע ווינר סל"),              # real header, GameId 26842 (27/09/2026)
+    ("סופרקאפ הסופר החברתי", "הסופרקאפ הישראלי"),     # real header, GameId 26633 (17/09/2026)
+    ("גביע המדינה בכדורסל - רבע גמר", None),          # a cup never seen on a page -> fail loud
     ("ליגת לאומית בכדורסל - מחזור 5", None),          # 2nd-tier league must NOT match top league
     ("", None),
 ])
@@ -240,6 +242,26 @@ def test_discover_derives_competition_from_page_for_unknown_game_type(monkeypatc
     _stub_feed(monkeypatch, [_maccabi_game(id=1, game_type=26)], game_page_html=league_page)
     discovered = discover_games_latest_season()
     assert [g.competition for g in discovered] == ["ליגת העל"]
+
+
+def test_discover_resolves_winner_cup_game_type(monkeypatch):
+    """The feed entry that stopped the uploader on 27/09/2026: game_type 10, a Winner
+    Cup quarter-final. It must resolve from the map, without the page fallback."""
+    _stub_feed(monkeypatch, [_maccabi_game(
+        id=26842, game_type=10, team_name_eng_2="Ironi Kiryat Ata",
+        score_team1=109, score_team2=61, game_date_txt="27/09/2026")],
+        game_page_html="<html>not a cup header</html>")
+    discovered = discover_games_latest_season()
+    assert [g.competition for g in discovered] == ["גביע ווינר סל"]
+
+
+def test_discover_resolves_winner_cup_from_header_under_a_new_code(monkeypatch):
+    """basket.co.il hands out codes per season and stage; if next season's Winner Cup
+    arrives under another code, its unchanged header still resolves it."""
+    cup_page = '<div id="wrap_inner_3"><h4 class="he">גביע ווינר סל </h4></div>'
+    _stub_feed(monkeypatch, [_maccabi_game(id=1, game_type=11)], game_page_html=cup_page)
+    discovered = discover_games_latest_season()
+    assert [g.competition for g in discovered] == ["גביע ווינר סל"]
 
 
 def test_discover_raises_when_competition_unresolvable(monkeypatch):

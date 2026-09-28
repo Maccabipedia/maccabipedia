@@ -55,19 +55,33 @@ _PLAYOFF_ROUND_NAMES = {
 }
 
 
+# Cup headers name the competition outright, with no round. Checked on real pages:
+# the Winner Cup reads "גביע ווינר סל" in 2024, 2025 and 2026 (GameIds 25336, 26597,
+# 26842); the 2026 Super Cup reads "סופרקאפ הסופר החברתי" (26633).
+_CUP_HEADER_PREFIXES = {
+    "גביע ווינר סל": "גביע ווינר סל",
+    "סופרקאפ": "הסופרקאפ הישראלי",
+}
+
+
 def _competition_from_game_page(html: str) -> str | None:
     """Recover the competition from a game-zone page header when the feed's
     game_type code isn't mapped (e.g. a playoff round, which gets a fresh code
     each stage). The top-league header reads "ליגת <sponsor logo> סל ..." — once
     the logo <img> is dropped, the tokens "ליגת סל" sit adjacent, which positively
-    identifies the top division across every round and excludes both cups
-    ("גביע ... סל") and the second tier ("ליגת לאומית בכדורסל"). Anything else
-    returns None so the caller fails loud rather than mislabeling a page."""
+    identifies the top division across every round and excludes the second tier
+    ("ליגת לאומית בכדורסל"). Cups resolve by the header's leading name
+    (_CUP_HEADER_PREFIXES). Anything else — the State Cup included, whose header
+    has not been seen yet — returns None so the caller fails loud rather than
+    mislabeling a page."""
     soup = BeautifulSoup(html, "html.parser")
     header = soup.select_one("#wrap_inner_3 h4")
     h4_text = re.sub(r"\s+", " ", header.get_text(" ", strip=True)) if header else ""
     if "ליגת סל" in h4_text:
         return "ליגת העל"
+    for prefix, competition in _CUP_HEADER_PREFIXES.items():
+        if h4_text.startswith(prefix):
+            return competition
     return None
 
 
