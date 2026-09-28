@@ -180,8 +180,8 @@ _PERSON_NAMES: dict[str, str] = {
     "Matteo Spagnolo": "מתאו ספניולו",
     "Khalifa Diop": "חאליפה דיופ",
     "Clement Frisch": "קלמנט פריש",
-    "Armando Bacot Jr": "ארמנדו בקוט",
-    "Armando Bacot Jr.": "ארמנדו בקוט",  # the EuroLeague API's spelling
+    "Armando Bacot Jr": "ארמנדו בייקוט",  # as his profile page, כדורסל:ארמנדו בייקוט
+    "Armando Bacot Jr.": "ארמנדו בייקוט",  # the EuroLeague API's spelling
     "Keaton Wallace": "קיטון וואלאס",  # as in תבנית:שחקני סגל נוכחי בכדורסל
     # ASVEL 2026/27, first met in EuroLeague round 1 (24/09/2026).
     "Tony Parker": "טוני פארקר",
@@ -212,7 +212,7 @@ _PERSON_NAMES: dict[str, str] = {
     "Elie Okobo": "אלי אוקובו",
     "Jaron Blossomgame": "ג'רון בלוסומגיים",
     "Yoan Makoundou": "יואן מקונדו",
-    "Daniel Theis": "דניאל טייס",
+    "Daniel Theis": "דניאל תייס",  # as his profile page, כדורסל:דניאל תייס
     "Alpha Diallo": "אלפא דיאלו",
     "Kevarrius Hayes": "קבאריוס האייס",
     "Terry Tarpey": "טרי טארפיי",
