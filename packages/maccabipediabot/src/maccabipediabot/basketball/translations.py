@@ -183,6 +183,16 @@ _PERSON_NAMES: dict[str, str] = {
     "Armando Bacot Jr": "ארמנדו בקוט",
     "Armando Bacot Jr.": "ארמנדו בקוט",  # the EuroLeague API's spelling
     "Keaton Wallace": "קיטון וואלאס",  # as in תבנית:שחקני סגל נוכחי בכדורסל
+    # ASVEL 2026/27, first met in EuroLeague round 1 (24/09/2026).
+    "Tony Parker": "טוני פארקר",
+    "Marc-Owen Fodzo Dada": "מארק-אואן פודזו דאדה",
+    "Patty Mills": "פטי מילס",
+    "Both Gach": "בות' גאץ'",
+    "Hugo Besson": "הוגו בסון",
+    "Yves Pons": "איב פונס",
+    "Tremont Waters": "טרמונט ווטרס",
+    "Nathan Sestina": "נייתן ססטינה",
+    "Jae Crowder": "ג'יי קראודר",
     "Metecan Birsen": "מצ'אן בירסן",
     "Wade Baldwin Iv": "ווייד בולדווין",
     "Julius Thomas": "ג'וליוס תומאס",
