@@ -7,7 +7,20 @@ start date, and a basketball season starts in the autumn.
 """
 from datetime import datetime
 
+import requests
+
 _SEASON_START_MONTH = 7
+# The template on each table page that holds the rows, e.g. {{טבלת כדורסל|טבלה=...}}.
+TABLE_TEMPLATE_NAME = "טבלת כדורסל"
+
+
+def fetch_stage(url: str) -> dict:
+    """The first stage of a livescore stage URL; raises with the raw body on a non-JSON reply."""
+    resp = requests.get(url, timeout=30)
+    if resp.status_code != 200 or "application/json" not in resp.headers.get("Content-Type", ""):
+        raise RuntimeError(f"Unexpected livescore response: status={resp.status_code} "
+                           f"ctype={resp.headers.get('Content-Type')}\n{resp.text[:300]}")
+    return resp.json()["Stages"][0]
 
 
 def season_of_stage(stage: dict) -> str:

@@ -1,9 +1,8 @@
 import logging
 
 import mwparserfromhell
-import requests
 
-from maccabipediabot.basketball.livescore_table import season_of_stage
+from maccabipediabot.basketball.livescore_table import TABLE_TEMPLATE_NAME, fetch_stage, season_of_stage
 from maccabipediabot.common.wiki_login import get_site
 
 # Filled with the season of the table livescore serves, e.g. "2026/27".
@@ -42,7 +41,7 @@ import pywikibot as pw
 
 def fetch_league_table_data() -> tuple[str, str]:
     """The table rows as the template expects them, and the season they belong to."""
-    stage = requests.get(LEAGUE_TABLE_URL, timeout=30).json()["Stages"][0]
+    stage = fetch_stage(LEAGUE_TABLE_URL)
     stats = []
     for row in stage["LeagueTable"]["L"][0]["Tables"][0]["team"]:
         stats.append(
@@ -75,7 +74,7 @@ def update_league_table_status() -> None:
                            f"(copy last season's) and add it to the season page")
 
     parsed_mw_text = mwparserfromhell.parse(league_table_template_page.text)
-    table_template = parsed_mw_text.filter_templates(template_title)[0]
+    table_template = parsed_mw_text.filter_templates(matches=TABLE_TEMPLATE_NAME)[0]
     table_template.add(_TABLE_STATUS_KEY, league_table_data)
 
     league_table_template_page.text = parsed_mw_text
