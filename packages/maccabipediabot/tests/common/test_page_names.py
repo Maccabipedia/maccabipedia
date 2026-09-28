@@ -27,6 +27,17 @@ def test_build_basketball_game_page_name():
     assert result == 'כדורסל:29-04-2004 מכבי תל אביב נגד סקאליני בולוניה - יורוליג'
 
 
+def test_build_basketball_game_page_name_shortens_winner_cup():
+    """Existing Winner Cup pages are titled "גביע ווינר", not the stored "גביע ווינר סל"."""
+    result = build_basketball_game_page_name(
+        game_date=date(2025, 9, 26),
+        home_team='מכבי תל אביב',
+        away_team='הפועל ירושלים',
+        competition='גביע ווינר סל',
+    )
+    assert result == 'כדורסל:26-09-2025 מכבי תל אביב נגד הפועל ירושלים - גביע ווינר'
+
+
 def test_build_volleyball_game_page_name():
     result = build_volleyball_game_page_name(
         game_date=date(1999, 11, 20),
