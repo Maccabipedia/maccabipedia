@@ -244,24 +244,28 @@ def test_discover_derives_competition_from_page_for_unknown_game_type(monkeypatc
     assert [g.competition for g in discovered] == ["ליגת העל"]
 
 
+_WINNER_CUP_PAGE = '<div id="wrap_inner_3"><h4 class="he">גביע ווינר סל </h4></div>'
+
+
 def test_discover_resolves_winner_cup_game_type(monkeypatch):
     """The feed entry that stopped the uploader on 27/09/2026: game_type 10, a Winner
-    Cup quarter-final. It must resolve from the map, without the page fallback."""
+    Cup quarter-final whose page header is "גביע ווינר סל"."""
     _stub_feed(monkeypatch, [_maccabi_game(
         id=26842, game_type=10, team_name_eng_2="Ironi Kiryat Ata",
         score_team1=109, score_team2=61, game_date_txt="27/09/2026")],
-        game_page_html="<html>not a cup header</html>")
+        game_page_html=_WINNER_CUP_PAGE)
     discovered = discover_games_latest_season()
     assert [g.competition for g in discovered] == ["גביע ווינר סל"]
 
 
-def test_discover_resolves_winner_cup_from_header_under_a_new_code(monkeypatch):
-    """basket.co.il hands out codes per season and stage; if next season's Winner Cup
-    arrives under another code, its unchanged header still resolves it."""
-    cup_page = '<div id="wrap_inner_3"><h4 class="he">גביע ווינר סל </h4></div>'
-    _stub_feed(monkeypatch, [_maccabi_game(id=1, game_type=11)], game_page_html=cup_page)
-    discovered = discover_games_latest_season()
-    assert [g.competition for g in discovered] == ["גביע ווינר סל"]
+def test_discover_does_not_trust_code_10_without_the_header(monkeypatch):
+    """basket.co.il hands out codes per season and stage, so 10 is not mapped: the Winner
+    Cup is recognised by its page header. The same code under another header fails loud
+    rather than being labeled Winner Cup."""
+    _stub_feed(monkeypatch, [_maccabi_game(id=1, game_type=10)],
+               game_page_html="<html>maintenance</html>")
+    with pytest.raises(RuntimeError, match="could not resolve competition"):
+        discover_games_latest_season()
 
 
 def test_discover_raises_when_competition_unresolvable(monkeypatch):
