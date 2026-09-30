@@ -57,8 +57,15 @@ class FoundDate:
     hebrew_month_format: bool
 
 
+def _spaced(text: str) -> str:
+    """Underscores read as spaces, the way MediaWiki reads them in a title:
+    ``כרטיס_משחק_03_בדצמבר_1994.jpg`` is ``כרטיס משחק 03 בדצמבר 1994.jpg``."""
+    return text.replace("_", " ")
+
+
 def find_date(text: str) -> FoundDate | None:
     """The first valid calendar date written in ``text``, or ``None``."""
+    text = _spaced(text)
     for match in _HEBREW_DATE.finditer(text):
         found = _safe_date(match["y"], HEBREW_MONTHS.index(match["month"]) + 1, match["d"])
         if found:
@@ -83,6 +90,7 @@ def _safe_date(year: str | int, month: str | int, day: str | int) -> date | None
 def find_sport(text: str) -> Sport | None:
     """The sport named in ``text``. ``כדורגל`` is accepted for football even though
     football file names never say it — people write it in captions and replies."""
+    text = _spaced(text)
     for sport in Sport:
         if sport.value in text:
             return sport
