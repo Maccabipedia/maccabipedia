@@ -114,6 +114,15 @@ def identify(texts: list[str]) -> TicketIdentity | None:
     return TicketIdentity(sport, found.value)
 
 
+# Names that phones and apps give files. The date in them is when the photo was taken or
+# sent ("WhatsApp Image 2026-09-27 at 20.31.24.jpg"), not when the game was played.
+_DEVICE_NAME = re.compile(r"^(whatsapp|img|pxl|screenshot|signal|photo|image|telegram)[\s_-]", re.IGNORECASE)
+
+
+def is_device_name(file_name: str) -> bool:
+    return bool(_DEVICE_NAME.match(file_name))
+
+
 def normalized_extension(file_name: str) -> str | None:
     """Lower-case extension of ``file_name`` if it is a supported image, else ``None``."""
     match = re.search(r"\.[A-Za-z]+$", file_name)

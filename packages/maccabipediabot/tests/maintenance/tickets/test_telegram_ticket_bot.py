@@ -52,8 +52,17 @@ class FakeApi:
     def send_message(self, chat_id, text):
         self.messages.append((chat_id, text))
 
-    def send_document(self, chat_id, file_id, caption, reply_to):
-        self.documents.append((chat_id, file_id, caption, reply_to))
+    def send_document(self, chat_id, file_id, caption, reply_to, buttons=None):
+        self.documents.append((chat_id, file_id, caption, reply_to, buttons))
+
+    edits: list
+    answered: list
+
+    def edit_caption(self, chat_id, message_id, caption, buttons=None):
+        self.__dict__.setdefault("edits", []).append((chat_id, message_id, caption, buttons))
+
+    def answer_callback(self, callback_id):
+        self.__dict__.setdefault("answered", []).append(callback_id)
 
 
 BASKETBALL_GAME = {(Sport.BASKETBALL, date(2020, 9, 24)): ["מכבי נגד פלוני 24-09-2020"]}
@@ -140,6 +149,63 @@ def test_run_sends_one_summary_questions_back_and_confirms_every_page():
     [(chat, text)] = api.messages
     assert chat == ME and "✅ הועלו: 1" in text and "⏭ כבר היו בוויקי: 1" in text and "❓" in text
     assert api.offsets == [None, 103]
+
+
+WHATSAPP = "WhatsApp Image 2026-09-27 at 20.31.24.jpg"
+
+
+def _question_message(message_id=50, file_id="W"):
+    question = _msg(message_id, BOT_ID, document=_doc(WHATSAPP, file_id), caption="...")
+    question["chat"]["id"] = ME
+    return question
+
+
+def _press(update_id, data, sender=ME, message=None):
+    return {"update_id": update_id, "callback_query": {
+        "id": f"cb{update_id}", "from": {"id": sender}, "data": data, "message": message or _question_message()}}
+
+
+class TestSportButtons:
+    def test_date_only_caption_is_asked_with_three_sport_buttons(self):
+        api = FakeApi([_updates(_msg(1, document=_doc(WHATSAPP, "W"), caption="27/09/2026"))])
+        bot.run(api, {ME}, FakeUploader(), dry_run=False)
+        [(_, file_id, caption, reply_to, buttons)] = api.documents
+        assert (file_id, reply_to) == ("W", 1) and "27-09-2026" in caption
+        assert [data for _, data in buttons] == [
+            "sport:FOOTBALL:2026-09-27", "sport:BASKETBALL:2026-09-27", "sport:VOLLEYBALL:2026-09-27"]
+
+    def test_the_date_in_a_whatsapp_name_is_not_the_game_date(self):
+        outcome = bot.process(_job(WHATSAPP), FakeUploader(), bytes)
+        assert outcome.kind is bot.Kind.QUESTION and outcome.asked_date is None
+
+    def test_a_press_uploads_and_rewrites_the_question_without_buttons(self):
+        uploader = FakeUploader({(Sport.BASKETBALL, date(2026, 9, 27)): ["g"]})
+        api = FakeApi([[_press(1, "sport:BASKETBALL:2026-09-27")]])
+        bot.run(api, {ME}, uploader, dry_run=False)
+        assert uploader.uploaded[0][0] == "כרטיס משחק כדורסל 27-09-2026.jpg"
+        assert api.edits == [(ME, 50, "✅ כרטיס משחק כדורסל 27-09-2026.jpg", None)]
+        assert api.answered == ["cb1"]
+
+    def test_only_the_first_press_counts_and_strangers_are_ignored(self):
+        batch = bot.collect([
+            _press(1, "sport:FOOTBALL:2026-09-27", sender=STRANGER),
+            _press(2, "sport:BASKETBALL:2026-09-27"),
+            _press(3, "sport:VOLLEYBALL:2026-09-27"),
+            _press(4, "garbage"),
+        ], {ME})
+        assert [j.hints for j in batch.jobs] == [["כדורסל 27-09-2026"]]
+
+    def test_a_sport_without_a_game_that_day_asks_again_with_buttons(self):
+        api = FakeApi([[_press(1, "sport:VOLLEYBALL:2026-09-27")]])
+        bot.run(api, {ME}, FakeUploader(), dry_run=False)
+        [(_, message_id, caption, buttons)] = api.edits
+        assert message_id == 50 and "אין משחק כדורעף" in caption and len(buttons) == 3
+
+    def test_a_text_reply_to_the_question_rewrites_it(self):
+        uploader = FakeUploader({(Sport.BASKETBALL, date(2026, 9, 27)): ["g"]})
+        api = FakeApi([_updates(_msg(8, reply_to_message=_question_message(), text="כדורסל 27-09-2026"))])
+        bot.run(api, {ME}, uploader, dry_run=False)
+        assert [e[1] for e in api.edits] == [50] and uploader.uploaded
 
 
 def test_summary_links_wiki_files_and_escapes_errors():

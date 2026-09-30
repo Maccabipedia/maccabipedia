@@ -24,7 +24,7 @@ class TelegramApi:
     def get_updates(self, offset: int | None = None, limit: int = 100) -> list[dict]:
         """Unconfirmed updates, oldest first. Passing ``offset`` confirms everything
         before it, so Telegram will not return those again."""
-        params: dict = {"timeout": 0, "limit": limit, "allowed_updates": ["message"]}
+        params: dict = {"timeout": 0, "limit": limit, "allowed_updates": ["message", "callback_query"]}
         if offset is not None:
             params["offset"] = offset
         result = self._call("getUpdates", **params)
@@ -43,8 +43,34 @@ class TelegramApi:
         self._call("sendMessage", chat_id=chat_id, text=text, parse_mode="HTML",
                    link_preview_options={"is_disabled": True})
 
-    def send_document(self, chat_id: int, file_id: str, caption: str, reply_to: int) -> None:
+    def send_document(self, chat_id: int, file_id: str, caption: str, reply_to: int,
+                      buttons: list[tuple[str, str]] | None = None) -> None:
         """Send an already-uploaded Telegram file back by id — no re-upload, and the
-        user can reply to it because the reply carries the document."""
-        self._call("sendDocument", chat_id=chat_id, document=file_id, caption=caption,
-                   reply_parameters={"message_id": reply_to, "allow_sending_without_reply": True})
+        user can reply to it because the reply carries the document. ``buttons`` are
+        ``(label, callback_data)`` pairs shown in one row under the file."""
+        params: dict = {"chat_id": chat_id, "document": file_id, "caption": caption,
+                        "reply_parameters": {"message_id": reply_to, "allow_sending_without_reply": True}}
+        if buttons:
+            params["reply_markup"] = _keyboard(buttons)
+        self._call("sendDocument", **params)
+
+    def edit_caption(self, chat_id: int, message_id: int, caption: str,
+                     buttons: list[tuple[str, str]] | None = None) -> None:
+        """Rewrite the caption of one of the bot's own messages; without ``buttons``
+        its buttons are removed, so a question that was answered cannot be pressed again."""
+        params: dict = {"chat_id": chat_id, "message_id": message_id, "caption": caption}
+        if buttons:
+            params["reply_markup"] = _keyboard(buttons)
+        self._call("editMessageCaption", **params)
+
+    def answer_callback(self, callback_id: str) -> None:
+        """Stop the button's spinner. Telegram refuses answers to presses older than a few
+        minutes, which on a 2-hour schedule is most of them, so failure is expected."""
+        try:
+            self._call("answerCallbackQuery", callback_query_id=callback_id)
+        except RuntimeError:
+            pass
+
+
+def _keyboard(buttons: list[tuple[str, str]]) -> dict:
+    return {"inline_keyboard": [[{"text": label, "callback_data": data} for label, data in buttons]]}
