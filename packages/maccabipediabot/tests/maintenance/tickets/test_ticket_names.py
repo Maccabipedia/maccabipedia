@@ -45,6 +45,11 @@ def test_find_date_skips_an_impossible_date_for_a_real_one():
     (["כדורגל 23-08-2026", "132321.jpg"], TicketIdentity(Sport.FOOTBALL, date(2026, 8, 23))),
     # the reply fixes the date, the name still gives the sport
     (["24-09-2020", "כרטיס משחק כדורסל 132321.jpg"], TicketIdentity(Sport.BASKETBALL, date(2020, 9, 24))),
+    # underscores read as spaces, in every sport
+    (["כרטיס_משחק_03_בדצמבר_1994.jpg"], TicketIdentity(Sport.FOOTBALL, date(1994, 12, 3))),
+    (["כרטיס_משחק_כדורסל_24-09-2020.jpg"], TicketIdentity(Sport.BASKETBALL, date(2020, 9, 24))),
+    (["כרטיס_משחק_כדורעף_08-02-2026.jpg"], TicketIdentity(Sport.VOLLEYBALL, date(2026, 2, 8))),
+    (["כרטיס משחק 3 בדצמבר 1994.jpg"], TicketIdentity(Sport.FOOTBALL, date(1994, 12, 3))),
     # the reply beats a wrong name
     (["כדורעף 08-02-2026", "כרטיס משחק כדורסל 01-01-2001.jpg"], TicketIdentity(Sport.VOLLEYBALL, date(2026, 2, 8))),
 ])

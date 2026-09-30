@@ -112,6 +112,12 @@ class TestProcess:
         bot.process(_job("כרטיס משחק 23 באוגוסט 2026.JPG"), uploader, lambda f: b"x")
         assert uploader.uploaded[0][0::2] == ("כרטיס משחק 23 באוגוסט 2026.jpg", "{{תיוג כרטיס משחק}}")
 
+    def test_football_underscore_name_is_uploaded_under_the_spaced_hebrew_date_name(self):
+        uploader = FakeUploader({(Sport.FOOTBALL, date(1994, 12, 3)): ["g"]})
+        outcome = bot.process(_job("כרטיס_משחק_3_בדצמבר_1994.jpg"), uploader, lambda f: b"x")
+        assert outcome.kind is bot.Kind.UPLOADED
+        assert uploader.uploaded == [("כרטיס משחק 03 בדצמבר 1994.jpg", b"x", "{{תיוג כרטיס משחק}}")]
+
     def test_unknown_name_becomes_a_question(self):
         assert bot.process(_job("132321.jpg"), FakeUploader(), lambda f: b"x").kind is bot.Kind.QUESTION
 
