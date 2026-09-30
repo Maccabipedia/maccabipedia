@@ -1,0 +1,60 @@
+name: Upload Tickets From Telegram
+on:
+  schedule:
+    # Off the hour: every other scheduled job here starts at :00, when GitHub delays runs most.
+    - cron: '17 */2 * * *'
+  workflow_dispatch:
+
+jobs:
+  upload-tickets:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      # getUpdates without an offset only reads — it confirms nothing — so this is a free
+      # "anything waiting?" check. Most runs stop here in seconds, before setup and login.
+      - name: Check for waiting messages
+        id: pending
+        env:
+          TOKEN: ${{ secrets.TELEGRAM_TICKETS_BOT_TOKEN }}
+        run: |
+          count=$(curl -sS --fail "https://api.telegram.org/bot${TOKEN}/getUpdates?limit=1&timeout=0" | jq '.result | length')
+          echo "count=$count" >> "$GITHUB_OUTPUT"
+          echo "Waiting updates: $count"
+
+      - uses: actions/checkout@v6
+        if: steps.pending.outputs.count != '0'
+      - uses: actions/setup-python@v6
+        if: steps.pending.outputs.count != '0'
+        with:
+          python-version: 3.11
+          architecture: x64
+      - uses: astral-sh/setup-uv@v7
+        if: steps.pending.outputs.count != '0'
+      - name: Install dependencies
+        if: steps.pending.outputs.count != '0'
+        run: uv sync
+
+      - name: Upload tickets
+        if: steps.pending.outputs.count != '0'
+        env:
+          PYWIKIBOT_DIR: packages/maccabipediabot/src/maccabipediabot/pywikibot_configs/
+          MACCABIPEDIA_BOT_USERNAME: ${{ secrets.MACCABIPEDIA_BOT_USERNAME }}
+          MACCABIPEDIA_BOT_PASSWORD: ${{ secrets.MACCABIPEDIA_BOT_PASSWORD }}
+          TELEGRAM_TICKETS_BOT_TOKEN: ${{ secrets.TELEGRAM_TICKETS_BOT_TOKEN }}
+          TELEGRAM_TICKETS_ALLOWED_USER_IDS: ${{ secrets.TELEGRAM_TICKETS_ALLOWED_USER_IDS }}
+          MACCABIPEDIA_UA_SCRIPT: upload_tickets_from_telegram
+        run: uv run python -m maccabipediabot.maintenance.tickets.telegram_ticket_bot
+
+      # Per-file problems already reach the sender in the bot's summary; this is for the
+      # bot itself dying (login, Telegram API), which the sender would otherwise never hear.
+      - name: Alert error channel on workflow failure
+        if: failure()
+        uses: appleboy/telegram-action@v1.0.1
+        with:
+          to: ${{ secrets.MACCABIPEDIA_ERRORS_TELEGRAM_TO }}
+          token: ${{ secrets.MACCABIPEDIA_ERRORS_TELEGRAM_TOKEN }}
+          message: |
+            🎟 Telegram ticket uploader failed.
+            Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}

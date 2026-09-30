@@ -24,17 +24,16 @@ Configuration:
 
 import logging
 import re
-import requests
 from pathlib import Path
 from datetime import datetime
 import contextlib
 
 from maccabipediabot.common.logging_setup import setup_logging
-from maccabipediabot.common.maccabipedia_http import MACCABIPEDIA_JSON_HEADERS, build_maccabipedia_session, parse_cargo_rows
+from maccabipediabot.common.maccabipedia_http import build_maccabipedia_session, parse_cargo_rows
 from maccabipediabot.common.paths import basketball_tickets_root
 from maccabipediabot.common.wiki_login import get_site
+from maccabipediabot.maintenance.tickets.wiki_tickets import upload_file
 import pywikibot as pw
-from pywikibot.comms import http as pw_http
 
 setup_logging(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -44,7 +43,6 @@ site = get_site()
 
 _session = build_maccabipedia_session()
 
-API_URL = 'https://www.maccabipedia.co.il/api.php'
 
 SHOULD_SAVE = True
 
@@ -122,48 +120,8 @@ def _get_game_page_name(game_date: datetime) -> str:
 
 
 def _upload_file_via_requests(ticket_file: Path, text: str) -> None:
-    """
-    Uploads a file to Maccabipedia using requests directly.
-    Bypasses pywikibot's MIME multipart builder which produces headers
-    (MIME-Version: 1.0 per part) that Apache rejects with 400 Bad Request.
-    Uses pywikibot's session cookies and CSRF token.
-    """
-    csrf_token = site.tokens['csrf']
-    cookies = {c.name: c.value for c in pw_http.cookie_jar if 'maccabipedia' in (c.domain or '')}
-    ua = site._http_session.headers.get('User-Agent', '') if hasattr(site, '_http_session') else ''
-    if not ua:
-        import os
-        script = os.environ.get('MACCABIPEDIA_UA_SCRIPT', 'upload_basketball_tickets')
-        ua = f'{script} (maccabipedia:he; User:{site.user()}) Pywikibot/9.6.0'
-
-    with open(ticket_file, 'rb') as f:
-        file_data = f.read()
-
-    mime_type = 'image/jpeg' if ticket_file.suffix.lower() in {'.jpg', '.jpeg'} else 'application/octet-stream'
-    response = requests.post(
-        API_URL,
-        data={
-            'action': 'upload',
-            'filename': ticket_file.name,
-            'comment': 'העלאת כרטיס משחק כדורסל',
-            'text': text,
-            'token': csrf_token,
-            'ignorewarnings': '1',
-            'format': 'json',
-        },
-        files={'file': ('FAKE-NAME', file_data, mime_type)},
-        cookies=cookies,
-        headers={'User-Agent': ua, **MACCABIPEDIA_JSON_HEADERS},
-    )
-
-    if 'application/json' not in response.headers.get('Content-Type', ''):
-        raise RuntimeError(f"Upload failed with non-JSON response (status {response.status_code}): {response.text[:300]}")
-
-    result = response.json()
-    if 'error' in result:
-        raise RuntimeError(f"Upload API error: {result['error']}")
-    if result.get('upload', {}).get('result') != 'Success':
-        raise RuntimeError(f"Unexpected upload result: {result}")
+    """Uploads a ticket file; see ``tickets.wiki_tickets.upload_file`` for why requests."""
+    upload_file(site, ticket_file.name, ticket_file.read_bytes(), text, 'העלאת כרטיס משחק כדורסל')
 
 
 def upload_ticket(ticket_file: Path) -> None:
