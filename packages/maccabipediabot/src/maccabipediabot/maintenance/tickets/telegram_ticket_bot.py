@@ -36,7 +36,10 @@ from maccabipediabot.maintenance.tickets.telegram_api import MAX_DOWNLOAD_BYTES,
 from maccabipediabot.maintenance.tickets.ticket_names import (
     Sport,
     canonical_file_name,
+    find_date,
+    find_sport,
     identify,
+    is_device_name,
     normalized_extension,
     tagging_template,
 )
@@ -63,6 +66,10 @@ class TicketJob:
     file_size: int
     hints: list[str] = field(default_factory=list)
     """Texts that may name the sport and date, most trusted first (reply, caption)."""
+    question_message_id: int | None = None
+    """Set when this job is a press of a sport button: the bot's question message, which
+    gets rewritten with the result instead of a new message being sent."""
+    callback_id: str | None = None
 
 
 @dataclass
@@ -88,8 +95,48 @@ def _job_from_document(message: dict, reply_to_id: int, hints: list[str]) -> Tic
     )
 
 
+SPORT_BUTTONS = {Sport.FOOTBALL: "⚽ כדורגל", Sport.BASKETBALL: "🏀 כדורסל", Sport.VOLLEYBALL: "🏐 כדורעף"}
+_CALLBACK_PREFIX = "sport"
+
+
+def sport_buttons(game_date: date) -> list[tuple[str, str]]:
+    """One button per sport. The date rides in the button itself (``sport:BASKETBALL:
+    2026-09-27``, well under Telegram's 64 bytes), so a press is all the next run needs."""
+    return [(label, f"{_CALLBACK_PREFIX}:{sport.name}:{game_date.isoformat()}")
+            for sport, label in SPORT_BUTTONS.items()]
+
+
+def _job_from_button(callback: dict) -> TicketJob | None:
+    parts = callback.get("data", "").split(":")
+    message = callback.get("message", {})
+    if len(parts) != 3 or parts[0] != _CALLBACK_PREFIX or "document" not in message:
+        return None
+    try:
+        sport, game_date = Sport[parts[1]], date.fromisoformat(parts[2])
+    except (KeyError, ValueError):
+        return None
+    job = _job_from_document(message, message["message_id"], [f"{sport.value} {game_date:%d-%m-%Y}"])
+    job.question_message_id = message["message_id"]
+    job.callback_id = callback["id"]
+    return job
+
+
+def _collect_buttons(updates: list[dict], allowed_user_ids: set[int], batch: Batch) -> None:
+    pressed: set[int] = set()
+    for update in updates:
+        callback = update.get("callback_query")
+        if not callback or callback.get("from", {}).get("id") not in allowed_user_ids:
+            continue
+        job = _job_from_button(callback)
+        # Several presses on one question before a run: the first one wins.
+        if job and job.question_message_id not in pressed:
+            pressed.add(job.question_message_id)  # type: ignore[arg-type]
+            batch.jobs.append(job)
+
+
 def collect(updates: list[dict], allowed_user_ids: set[int]) -> Batch:
     batch = Batch()
+    _collect_buttons(updates, allowed_user_ids, batch)
     messages = [
         u["message"] for u in updates
         if "message" in u
@@ -113,9 +160,13 @@ def collect(updates: list[dict], allowed_user_ids: set[int]) -> Batch:
             hints = [message["text"]]
             # The sender's own caption still counts; the bot's question caption does not,
             # because its examples are dates.
-            if replied.get("from", {}).get("id") == message["from"]["id"] and replied.get("caption"):
+            own_file = replied.get("from", {}).get("id") == message["from"]["id"]
+            if own_file and replied.get("caption"):
                 hints.append(replied["caption"])
-            batch.jobs.append(_job_from_document(replied, message["message_id"], hints))
+            job = _job_from_document(replied, message["message_id"], hints)
+            if not own_file:
+                job.question_message_id = replied["message_id"]
+            batch.jobs.append(job)
         else:
             batch.note(chat_id, HELP_TEXT)
     return batch
@@ -134,12 +185,22 @@ class Outcome:
     detail: str
     wiki_name: str = ""
     """Set when the ticket is on the wiki; the summary links it."""
+    asked_date: date | None = None
+    """For a question: the date is known and only the sport is missing — ask with buttons."""
 
 
 QUESTION_SUFFIX = (
     "\nהשיבו להודעה הזו עם ענף ותאריך, למשל:\n"
     "כדורגל 23 באוגוסט 2026\nכדורסל 24-09-2020\nכדורעף 08-02-2026"
 )
+BUTTONS_SUFFIX = (
+    "\nבחרו ענף בכפתורים, או השיבו להודעה הזו עם ענף ותאריך אחרים."
+    "\nהתשובה תטופל בריצה הבאה של הבוט (עד שעתיים)."
+)
+
+
+def question_caption(outcome: Outcome) -> str:
+    return outcome.detail + (BUTTONS_SUFFIX if outcome.asked_date else QUESTION_SUFFIX)
 
 
 class TicketUploader:
@@ -172,14 +233,17 @@ def process(job: TicketJob, uploader: TicketUploader, download: Callable[[str], 
     if job.file_size > MAX_DOWNLOAD_BYTES:
         return Outcome(Kind.FAILED, f"{shown}: הקובץ גדול מ-20MB, טלגרם לא מאפשר לבוט להוריד אותו")
 
-    identity = identify(job.hints + [job.file_name])
+    texts = job.hints + ([] if is_device_name(job.file_name) else [job.file_name])
+    identity = identify(texts)
     if identity is None:
-        return Outcome(Kind.QUESTION, f"לא זיהיתי ענף ותאריך בשם \"{shown}\".")
+        return _question(shown, texts)
 
     pages = uploader.game_pages_on(identity.sport, identity.game_date)
     when = f"{identity.game_date:%d-%m-%Y}"
     if not pages:
-        return Outcome(Kind.QUESTION, f"אין משחק {identity.sport.value} בתאריך {when} (\"{shown}\").")
+        # Buttons again: a wrong sport is fixed with one press; a wrong date by a reply.
+        return Outcome(Kind.QUESTION, f"\"{shown}\": אין משחק {identity.sport.value} בתאריך {when}.",
+                       asked_date=identity.game_date)
     # Football tickets are tagged by date alone, so a double-header is fine there.
     if len(pages) > 1 and identity.sport is not Sport.FOOTBALL:
         return Outcome(Kind.FAILED, f"{shown}: יש {len(pages)} משחקי {identity.sport.value} ב-{when}, צריך להעלות ידנית")
@@ -190,6 +254,18 @@ def process(job: TicketJob, uploader: TicketUploader, download: Callable[[str], 
 
     uploader.upload(wiki_name, download(job.file_id), tagging_template(identity.sport, pages[0]))
     return Outcome(Kind.UPLOADED, wiki_name, wiki_name)
+
+
+def _question(shown: str, texts: list[str]) -> Outcome:
+    """Say exactly what is missing: a date alone gets sport buttons, anything else asks
+    for a text reply with both."""
+    found = next((d for d in map(find_date, texts) if d), None)
+    if found and not any(map(find_sport, texts)):
+        return Outcome(Kind.QUESTION, f"\"{shown}\": התאריך הוא {found.value:%d-%m-%Y}. לאיזה ענף הכרטיס?",
+                       asked_date=found.value)
+    if found is None:
+        return Outcome(Kind.QUESTION, f"\"{shown}\": לא מצאתי תאריך משחק בשם הקובץ או בכיתוב.")
+    return Outcome(Kind.QUESTION, f"\"{shown}\": לא זיהיתי את הכרטיס.")
 
 
 def file_url(file_name: str) -> str:
@@ -224,6 +300,23 @@ def summary(outcomes: list[Outcome]) -> str:
     return "\n\n".join(sections)
 
 
+def _reply_on_the_file(api: TelegramApi, job: TicketJob, outcome: Outcome) -> None:
+    """A question is sent as the file itself, so a reply or a button press carries it. When
+    the job came from a button, that question message is rewritten in place instead: with
+    the result (buttons gone) or with the next question."""
+    buttons = sport_buttons(outcome.asked_date) if outcome.asked_date else None
+    if job.callback_id:
+        api.answer_callback(job.callback_id)
+    if job.question_message_id is not None:
+        if outcome.kind is Kind.QUESTION:
+            caption = question_caption(outcome)
+        else:
+            caption = f"{outcome.kind.value} {outcome.detail}"
+        api.edit_caption(job.chat_id, job.question_message_id, caption, buttons)
+    elif outcome.kind is Kind.QUESTION:
+        api.send_document(job.chat_id, job.file_id, question_caption(outcome), job.message_id, buttons)
+
+
 def handle_batch(api: TelegramApi, batch: Batch, uploader: TicketUploader, dry_run: bool) -> None:
     def send(chat_id: int, text: str) -> None:
         if dry_run:
@@ -240,11 +333,16 @@ def handle_batch(api: TelegramApi, batch: Batch, uploader: TicketUploader, dry_r
             outcome = Outcome(Kind.FAILED, f"{job.file_name}: שגיאה בהעלאה ({error})")
         logger.info("%s %s", outcome.kind.name, outcome.detail)
         outcomes.setdefault(job.chat_id, []).append(outcome)
-        if outcome.kind is Kind.QUESTION:
-            if dry_run:
-                print(f"[DRY RUN] would send back {job.file_name}: {outcome.detail}")
-            else:
-                api.send_document(job.chat_id, job.file_id, outcome.detail + QUESTION_SUFFIX, job.message_id)
+        if dry_run:
+            if outcome.kind is Kind.QUESTION:
+                print(f"[DRY RUN] would ask about {job.file_name}: {question_caption(outcome)}")
+            continue
+        try:
+            _reply_on_the_file(api, job, outcome)
+        except RuntimeError:
+            # e.g. "message is not modified" when the same question is asked again; the
+            # summary below still reports the outcome.
+            logger.warning("Could not update the question for %s", job.file_name, exc_info=True)
 
     for chat_id in {*batch.notes, *outcomes}:
         notes = [html.escape(n) for n in batch.notes.get(chat_id, [])]

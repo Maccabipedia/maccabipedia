@@ -41,9 +41,10 @@ SUPPORTED_EXTENSIONS = (".jpg", ".jpeg", ".png")
 
 # A date must carry separators: a bare digit run such as "132321" or "24092020" is a
 # camera counter as often as a date, and guessing wrong uploads to the wrong game.
+# Any of - . / may separate the parts, mixed too ("24-09/2020"): people type captions fast.
 _NUMERIC_DATE = re.compile(
-    r"(?<!\d)(?:(?P<d>\d{1,2})(?P<sep>[-./])(?P<m>\d{1,2})(?P=sep)(?P<y>\d{4})"
-    r"|(?P<y2>\d{4})-(?P<m2>\d{1,2})-(?P<d2>\d{1,2}))(?!\d)"
+    r"(?<!\d)(?:(?P<d>\d{1,2})[-./](?P<m>\d{1,2})[-./](?P<y>\d{4})"
+    r"|(?P<y2>\d{4})[-./](?P<m2>\d{1,2})[-./](?P<d2>\d{1,2}))(?!\d)"
 )
 _HEBREW_DATE = re.compile(
     r"(?<!\d)(?P<d>\d{1,2})\s+ב(?P<month>" + "|".join(HEBREW_MONTHS) + r")\s+(?P<y>\d{4})(?!\d)"
@@ -111,6 +112,15 @@ def identify(texts: list[str]) -> TicketIdentity | None:
     if sport is None:
         return None
     return TicketIdentity(sport, found.value)
+
+
+# Names that phones and apps give files. The date in them is when the photo was taken or
+# sent ("WhatsApp Image 2026-09-27 at 20.31.24.jpg"), not when the game was played.
+_DEVICE_NAME = re.compile(r"^(whatsapp|img|pxl|screenshot|signal|photo|image|telegram)[\s_-]", re.IGNORECASE)
+
+
+def is_device_name(file_name: str) -> bool:
+    return bool(_DEVICE_NAME.match(file_name))
 
 
 def normalized_extension(file_name: str) -> str | None:
