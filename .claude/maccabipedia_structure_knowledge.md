@@ -118,7 +118,7 @@ Hebrew redirect syntax: `#הפניה [[Target_Page_Name]]`
 - Football: `כרטיס משחק 23 באוגוסט 2026.jpg` + `{{תיוג כרטיס משחק}}` — no parameter: the template reads the date **out of the file name**, so the name format is load-bearing (two-digit day; only .jpg/.jpeg/.png are stripped)
 - Basketball: `כרטיס משחק כדורסל DD-MM-YYYY.jpg` + `{{תיוג כרטיס משחק כדורסל|משחק=PAGE_NAME}}`
 - Volleyball: `כרטיס משחק כדורעף DD-MM-YYYY.jpg` + `{{תיוג כרטיס משחק כדורעף|משחק=PAGE_NAME}}`
-- Upload path for all three: send the files to the tickets Telegram bot (`maintenance/tickets/telegram_ticket_bot.py`, workflow `upload_tickets_from_telegram.yaml`, every 2 h). It renames to the convention above, so incoming names only need a sport + date.
+- Upload path for all three: send the files (as files, not photos) in the tickets Telegram group (`maintenance/tickets/telegram_ticket_bot.py`, workflow `upload_tickets_from_telegram.yaml`, every 2 h). The bot works only in groups whitelisted in the `TELEGRAM_TICKETS_ALLOWED_CHAT_IDS` secret, where every member may upload; private chats are ignored. It renames to the convention above, so incoming names only need a sport + date.
 - Per-season category auto-assigned: `קטגוריה:כרטיסי משחק כדורסל מעונת YYYY/YY`
 - Each season with tickets has a dedicated page `כרטיסי משחק כדורסל YYYY/YY` containing just `{{כרטיסי עונה|ענף=כדורסל|עונה=YYYY/YY}}` — the template renders the tabbed visualization (league/cup/europe/other) by querying the per-season category. After uploading tickets for a new season, create this page if missing.
 

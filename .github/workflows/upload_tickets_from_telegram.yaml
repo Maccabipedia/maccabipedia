@@ -43,7 +43,8 @@ jobs:
           MACCABIPEDIA_BOT_USERNAME: ${{ secrets.MACCABIPEDIA_BOT_USERNAME }}
           MACCABIPEDIA_BOT_PASSWORD: ${{ secrets.MACCABIPEDIA_BOT_PASSWORD }}
           TELEGRAM_TICKETS_BOT_TOKEN: ${{ secrets.TELEGRAM_TICKETS_BOT_TOKEN }}
-          TELEGRAM_TICKETS_ALLOWED_USER_IDS: ${{ secrets.TELEGRAM_TICKETS_ALLOWED_USER_IDS }}
+          # The groups the bot works in; every member may upload. Private chats are ignored.
+          TELEGRAM_TICKETS_ALLOWED_CHAT_IDS: ${{ secrets.TELEGRAM_TICKETS_ALLOWED_CHAT_IDS }}
           MACCABIPEDIA_UA_SCRIPT: upload_tickets_from_telegram
         run: uv run python -m maccabipediabot.maintenance.tickets.telegram_ticket_bot
 
