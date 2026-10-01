@@ -11,8 +11,15 @@ gets it uploaded on the next run. No state is kept anywhere: the reply carries t
 
 Photos are refused on purpose — Telegram recompresses them. Tickets must be sent as files.
 
-Environment: ``TELEGRAM_TICKETS_BOT_TOKEN``, ``TELEGRAM_TICKETS_ALLOWED_USER_IDS``
-(comma-separated Telegram user ids; everyone else is ignored), plus the usual wiki login.
+Works only inside whitelisted Telegram groups, where every member may upload; private
+chats and channels are ignored. In the group the bot reacts to ticket image files, replies
+about them, its buttons and /help, and stays quiet on everything else. For it to see files
+at all, make it a group admin, or turn off its privacy mode in @BotFather (/setprivacy →
+Disable) and then remove and re-add it to the group.
+
+Environment: ``TELEGRAM_TICKETS_BOT_TOKEN``, ``TELEGRAM_TICKETS_ALLOWED_CHAT_IDS``
+(comma-separated group ids, negative numbers), plus the usual wiki login. Messages from any
+other chat are ignored and logged with the chat's id, which is how a new group's id is found.
 
 Usage:
     uv run python -m maccabipediabot.maintenance.tickets.telegram_ticket_bot [--dry-run]
@@ -121,11 +128,20 @@ def _job_from_button(callback: dict) -> TicketJob | None:
     return job
 
 
-def _collect_buttons(updates: list[dict], allowed_user_ids: set[int], batch: Batch) -> None:
+GROUP_TYPES = ("group", "supergroup")
+
+
+def trusted_chat(chat: dict, allowed_chat_ids: frozenset[int]) -> bool:
+    """The bot works only inside whitelisted groups, where every member may upload.
+    Private chats and channels are never read."""
+    return chat.get("type") in GROUP_TYPES and chat.get("id") in allowed_chat_ids
+
+
+def _collect_buttons(updates: list[dict], allowed_chat_ids: frozenset[int], batch: Batch) -> None:
     pressed: set[int] = set()
     for update in updates:
         callback = update.get("callback_query")
-        if not callback or callback.get("from", {}).get("id") not in allowed_user_ids:
+        if not callback or not trusted_chat(callback.get("message", {}).get("chat", {}), allowed_chat_ids):
             continue
         job = _job_from_button(callback)
         # Several presses on one question before a run: the first one wins.
@@ -134,41 +150,70 @@ def _collect_buttons(updates: list[dict], allowed_user_ids: set[int], batch: Bat
             batch.jobs.append(job)
 
 
-def collect(updates: list[dict], allowed_user_ids: set[int]) -> Batch:
+def _is_ticket_answer(message: dict) -> bool:
+    """A text reply about a file: to the bot's question, or naming a sport or date. In a
+    group, "nice ticket!" under someone's file is conversation, not an answer."""
+    replied = message.get("reply_to_message", {})
+    if "text" not in message or "document" not in replied:
+        return False
+    return bool(replied.get("from", {}).get("is_bot") or find_date(message["text"]) or find_sport(message["text"]))
+
+
+def _trusted_messages(updates: list[dict], allowed_chat_ids: frozenset[int]) -> list[dict]:
+    messages = []
+    for update in updates:
+        message = update.get("message")
+        if not message:
+            continue
+        if trusted_chat(message.get("chat", {}), allowed_chat_ids):
+            messages.append(message)
+        else:
+            # Logged so a new group's id can be read off the workflow run.
+            chat = message.get("chat", {})
+            logger.info("Ignoring a message in %s chat %s (%s)", chat.get("type"), chat.get("id"), chat.get("title", ""))
+    return messages
+
+
+def _is_help_command(message: dict) -> bool:
+    return message.get("text", "").split("@")[0].strip() in ("/help", "/start")
+
+
+def collect(updates: list[dict], allowed_chat_ids: frozenset[int]) -> Batch:
     batch = Batch()
-    _collect_buttons(updates, allowed_user_ids, batch)
-    messages = [
-        u["message"] for u in updates
-        if "message" in u
-        and u["message"].get("chat", {}).get("type") == "private"
-        and u["message"].get("from", {}).get("id") in allowed_user_ids
-    ]
+    _collect_buttons(updates, allowed_chat_ids, batch)
+    messages = _trusted_messages(updates, allowed_chat_ids)
     # A file answered by a reply in this same batch is handled once, through the reply.
-    answered = {m["reply_to_message"]["message_id"] for m in messages
-                if "text" in m and "document" in m.get("reply_to_message", {})}
+    answered = {m["reply_to_message"]["message_id"] for m in messages if _is_ticket_answer(m)}
 
     for message in messages:
         chat_id = message["chat"]["id"]
         if "document" in message:
+            # A PDF or spreadsheet someone shares in the group is not a ticket sent badly.
+            if normalized_extension(message["document"].get("file_name", "")) is None:
+                continue
             if message["message_id"] not in answered:
                 hints = [message["caption"]] if message.get("caption") else []
                 batch.jobs.append(_job_from_document(message, message["message_id"], hints))
-        elif "photo" in message:
-            batch.note(chat_id, PHOTO_TEXT)
-        elif "text" in message and "document" in message.get("reply_to_message", {}):
+        elif _is_ticket_answer(message):
             replied = message["reply_to_message"]
             hints = [message["text"]]
-            # The sender's own caption still counts; the bot's question caption does not,
+            # The file's own caption still counts; the bot's question caption does not,
             # because its examples are dates.
-            own_file = replied.get("from", {}).get("id") == message["from"]["id"]
-            if own_file and replied.get("caption"):
+            from_bot = replied.get("from", {}).get("is_bot", False)
+            if not from_bot and replied.get("caption"):
                 hints.append(replied["caption"])
             job = _job_from_document(replied, message["message_id"], hints)
-            if not own_file:
+            if from_bot:
                 job.question_message_id = replied["message_id"]
             batch.jobs.append(job)
-        else:
+        elif _is_help_command(message):
             batch.note(chat_id, HELP_TEXT)
+        elif "photo" in message:
+            # Photos and chat in the group are none of the bot's business, unless the
+            # photo's caption says it is a ticket — then it was meant for the bot, sent badly.
+            caption = message.get("caption", "")
+            if find_date(caption) or find_sport(caption):
+                batch.note(chat_id, PHOTO_TEXT)
     return batch
 
 
@@ -351,14 +396,14 @@ def handle_batch(api: TelegramApi, batch: Batch, uploader: TicketUploader, dry_r
             send(chat_id, text)
 
 
-def run(api: TelegramApi, allowed_user_ids: set[int], uploader: TicketUploader, dry_run: bool) -> None:
+def run(api: TelegramApi, allowed_chat_ids: frozenset[int], uploader: TicketUploader, dry_run: bool) -> None:
     """Process waiting messages 100 at a time. Asking for the next page with ``offset``
     confirms the page before it, so a crash re-serves only the unfinished page — and its
     already-uploaded files come back as duplicates, not as second uploads."""
     offset = None
     while updates := api.get_updates(offset=offset):
         logger.info("Processing %d updates", len(updates))
-        handle_batch(api, collect(updates, allowed_user_ids), uploader, dry_run)
+        handle_batch(api, collect(updates, allowed_chat_ids), uploader, dry_run)
         if dry_run:
             return
         offset = updates[-1]["update_id"] + 1
@@ -371,9 +416,11 @@ def main() -> None:
     args = parser.parse_args()
 
     setup_logging(level=logging.INFO)
-    allowed = {int(i) for i in os.environ["TELEGRAM_TICKETS_ALLOWED_USER_IDS"].split(",") if i.strip()}
+    # Comma-separated group ids (negative numbers). Unset means no group: nothing is read.
+    allowed_chat_ids = frozenset(
+        int(i) for i in os.environ.get("TELEGRAM_TICKETS_ALLOWED_CHAT_IDS", "").split(",") if i.strip())
     api = TelegramApi(os.environ["TELEGRAM_TICKETS_BOT_TOKEN"])
-    run(api, allowed, TicketUploader(args.dry_run), args.dry_run)
+    run(api, allowed_chat_ids, TicketUploader(args.dry_run), args.dry_run)
 
 
 if __name__ == "__main__":
