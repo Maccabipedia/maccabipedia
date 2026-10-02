@@ -4,17 +4,20 @@ The last step of the `maccabipedia-add-feature` skill. The text is 2-3 lines of 
 with bare URLs; it is sent as-is, HTML-escaped, each line prefixed with a right-to-left
 mark so Hebrew and URLs read the same on every Telegram client.
 
-Environment (put them in `.claude/settings.json` -> `env`, never in the repo):
+Environment (put them in `.claude/settings.local.json` -> `env`; that file is gitignored,
+`.claude/settings.json` is tracked):
   TELEGRAM_UPDATES_BOT_TOKEN   a bot that is a member of the group
   TELEGRAM_UPDATES_CHAT_ID     the group's chat id (negative for groups)
 
-Usage:
-  uv run python .claude/scripts/notify_updates.py "<text>"             # send
-  uv run python .claude/scripts/notify_updates.py --dry-run "<text>"   # print only
+Usage — write the message to a file first (a multi-line argv string needs a multi-line
+command, which CLAUDE.md forbids):
+  uv run python .claude/scripts/notify_updates.py --file <path>             # send
+  uv run python .claude/scripts/notify_updates.py --file <path> --dry-run   # print only
 """
 import argparse
 import html
 import os
+import pathlib
 import sys
 
 from maccabipediabot.maintenance.tickets.telegram_api import TelegramApi
@@ -29,23 +32,24 @@ def format_message(text: str) -> str:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("text", help="the message, Hebrew, plain text, bare URLs")
+    parser.add_argument("--file", required=True, type=pathlib.Path,
+                        help="file holding the message: Hebrew, plain text, bare URLs")
     parser.add_argument("--dry-run", action="store_true", help="print the message, send nothing")
     args = parser.parse_args()
 
-    message = format_message(args.text)
+    message = format_message(args.file.read_text(encoding="utf-8"))
     if not message:
-        print("nothing to send: the text is empty", file=sys.stderr)
+        print(f"nothing to send: {args.file} is empty", file=sys.stderr)
         return 2
     if args.dry_run:
         print(message)
         return 0
 
     token = os.environ.get("TELEGRAM_UPDATES_BOT_TOKEN")
-    chat_id = os.environ.get("TELEGRAM_UPDATES_CHAT_ID")
-    if not token or not chat_id:
-        print("set TELEGRAM_UPDATES_BOT_TOKEN and TELEGRAM_UPDATES_CHAT_ID (see the docstring)",
-              file=sys.stderr)
+    chat_id = os.environ.get("TELEGRAM_UPDATES_CHAT_ID", "")
+    if not token or not chat_id.lstrip("-").isdigit():
+        print("set TELEGRAM_UPDATES_BOT_TOKEN and a numeric TELEGRAM_UPDATES_CHAT_ID "
+              "(see the docstring)", file=sys.stderr)
         return 2
 
     TelegramApi(token).send_message(int(chat_id), message)

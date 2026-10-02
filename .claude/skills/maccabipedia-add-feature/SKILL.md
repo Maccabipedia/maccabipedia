@@ -56,7 +56,8 @@ design ceremony on a three-line fix.
 ## 5. Independent review
 
 One call to the `reviewer` agent (`.claude/agents/reviewer.md`); it cannot spawn agents.
-Its prompt must carry what it cannot see: the diff command (`git diff master...HEAD`),
+Its prompt must carry what it cannot see: the diff command (`git fetch origin && git diff
+origin/master...HEAD` — local `master` is stale in a worktree and shows other people's work),
 the card text, the row from step 2, and the local-wiki evidence. Answer every finding in
 writing — fixed, or refuted with the line that proves it. Then re-run the tests the fix
 touched. Do not use `/code-review`; it fans out dozens of agents for a one-line fix.
@@ -68,9 +69,9 @@ touched. Do not use `/code-review`; it fans out dozens of agents for a one-line 
 - Description, first five lines: what changes, what could break, the local-wiki evidence,
   what you need from a maintainer (nothing / look at canary / deploy). Details below that.
   It is read on a phone.
-- Before opening: no conflicts with `master`, `uv run pytest` green, `uv run mypy` adds no
-  errors. After: watch CI; fix and push before telling anyone. No real names or local
-  paths anywhere in the PR, commits, or code.
+- Before opening: level with `origin/master` and no conflicts, `uv run pytest` green.
+  After: watch CI; fix and push before telling anyone. No real names or local paths
+  anywhere in the PR, commits, or code.
 
 ## 7. Roll out gradually (rows that write to prod)
 
@@ -95,7 +96,9 @@ touched. Do not use `/code-review`; it fans out dozens of agents for a one-line 
 - `gh pr view <n> --json state` says MERGED (`git branch --merged` lies about squashes).
   Delete the branch on remote and local; remove the worktree; move the card to done.
 - Announce in the MaccabiPedia Updates Telegram group — 2–3 lines in Hebrew, plain text,
-  bare URLs, what changed and where: `uv run python .claude/scripts/notify_updates.py
-  "<text>"`. If this session has `mcp__oren__send_to_oren`, use that instead (it queues
-  and sends once). Local-only or docs-only changes are not announced.
+  bare URLs, what changed and where. One sender, never both: a session that has the
+  queued sender tool from `CLAUDE.md` ("Telling … What Changed") uses it; any other
+  session writes the text to a file and runs
+  `uv run python .claude/scripts/notify_updates.py --file <path>` (sends at once).
+  Local-only or docs-only changes are not announced.
 - Learned something not written down? Put it in the right `.claude/*.md` file now.
