@@ -256,9 +256,9 @@ awarded game was actually played, goes in the game summary, not in a field.
   result logic. Cargo stores the raw score params, and since #598 the header prints exactly the
   entered pair (no hidden 20:0). An awarded page must enter its official score. A score that
   contradicts the flag, or isn't a number, puts the page in the hidden
-  `קטגוריה:משחקי כדורסל טכניים עם תוצאה סותרת`. In 2026-10 that category holds only 26-05-1961,
-  which enters the on-court 61:62 with a technical win (Hapoel Haifa fielded the suspended Albert
-  Hamo; no source for the awarded score has been found yet).
+  `קטגוריה:משחקי כדורסל טכניים עם תוצאה סותרת` (empty in 2026-10). Example of the model:
+  26-05-1961 Hapoel Haifa enters 20:0 (a technical win: Haifa fielded the suspended Albert Hamo),
+  and its summary keeps the on-court 62:61 to Haifa.
   The awarded score depends on the era. In the 1950s–60s an Israeli awarded game counted **2:0**
   (Yedioth 27.6.1965 on the rules; 5.7 and 15.7.1965 on the Maccabi boycott's no-shows: "הפסד טכני
   בשיעור 2:0"); today it is 20:0.
