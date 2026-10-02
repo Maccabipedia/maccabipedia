@@ -11,12 +11,14 @@ not assumed.
 
 awarded - pages with |תוצאה בטכני=. The probe, the categories, the winner classes and
           all HTML outside the two score spans must be identical; the score spans must
-          show exactly what expected_scores() derives from the page's own params.
+          show the page's own score params. The one category allowed to appear is
+          CONTRADICTION, and it must appear exactly on the pages whose score contradicts
+          their flag (contradicts()).
 sample  - every other page: the full HTML (probe included) and the categories must be
           byte-identical. A mismatch is rendered again both ways, and only one that
           survives counts.
 
-Both modes refuse to pass if the candidate changed no awarded header (sample mode checks a
+Both modes refuse to pass if the candidate changed no awarded page (sample mode checks a
 canary first): an ignored sandbox override would otherwise pass every check vacuously.
 """
 import re
@@ -34,7 +36,9 @@ from season_api import call  # noqa: E402
 
 TEMPLATE = 'תבנית:משחק כדורסל'
 CANDIDATE = Path('infra/lua_modules/wiki_templates/basketball_game.wiki')
-CANARY = 'כדורסל:09-12-1976 מכבי תל אביב נגד ברנו - גביע אירופה לאלופות'
+# Enters the on-court 61:62 with a technical win, so the candidate must add it to CONTRADICTION.
+CANARY = 'כדורסל:26-05-1961 הפועל חיפה נגד מכבי תל אביב - הליגה הלאומית'
+CONTRADICTION = 'משחקי_כדורסל_טכניים_עם_תוצאה_סותרת'
 PROBE = ('\n<div id="mp598-probe">ResultOpt={{#var: אופטימיזציית תוצאה}};Technical={{#var: תוצאה טכני}};'
          'host={{#var: תוצאה מארחת}};away={{#var: תוצאה אורחת}}</div>')
 PROBE_OUT = re.compile(r'<div id="mp598-probe">(.*?)</div>')
@@ -73,13 +77,20 @@ def param(text: str, name: str) -> str:
 
 
 def expected_scores(text: str) -> tuple[str, str]:
-    """(host, away) as the header must show them, from the page's own params: the entered
-    score when both sides are entered and it is not 0:0, else 20:0 for the awarded side."""
+    """(host, away) as the header must show them: the page's own score params, as entered.
+    An awarded game enters its official score; the template no longer invents 20:0."""
     maccabi, opponent = param(text, 'תוצאת משחק מכבי'), param(text, 'תוצאת משחק יריבה')
-    if not (maccabi and opponent) or (maccabi, opponent) == ('0', '0'):
-        won = param(text, 'תוצאה בטכני') in ('ניצחון', 'נצחון')
-        maccabi, opponent = ('20', '0') if won else ('0', '20')
     return (opponent, maccabi) if param(text, 'בית חוץ') == 'חוץ' else (maccabi, opponent)
+
+
+def contradicts(text: str) -> bool:
+    """True when the entered score says the opposite of |תוצאה בטכני= (a win entered as a
+    lower Maccabi score, or a loss as a higher one) - the page belongs in CONTRADICTION."""
+    maccabi, opponent = param(text, 'תוצאת משחק מכבי'), param(text, 'תוצאת משחק יריבה')
+    if not (maccabi and opponent):
+        return False
+    won = param(text, 'תוצאה בטכני') in ('ניצחון', 'נצחון')
+    return not (int(maccabi) > int(opponent) if won else int(maccabi) < int(opponent))
 
 
 def awarded(titles: list[str], candidate: str) -> int:
@@ -91,8 +102,13 @@ def awarded(titles: list[str], candidate: str) -> int:
         problems = []
         if PROBE_OUT.findall(old) != PROBE_OUT.findall(new):
             problems.append(f'probe {PROBE_OUT.findall(old)} -> {PROBE_OUT.findall(new)}')
-        if old_categories != new_categories:
+        gained = {entry for entry in new_categories if entry.startswith(CONTRADICTION + '|')}
+        if [entry for entry in old_categories if not entry.startswith(CONTRADICTION + '|')] \
+                != [entry for entry in new_categories if not entry.startswith(CONTRADICTION + '|')]:
             problems.append(f'categories {set(old_categories) ^ set(new_categories)}')
+        if bool(gained) != contradicts(text):
+            problems.append(f'tracking category {"present" if gained else "missing"}, '
+                            f'contradiction={contradicts(text)}')
         if [cls for cls, _ in old_teams] != [cls for cls, _ in new_teams] or len(new_teams) != 2:
             problems.append(f'winner class {old_teams} -> {new_teams}')
         if SCORE_SPAN.sub('', old) != SCORE_SPAN.sub('', new):
@@ -100,19 +116,19 @@ def awarded(titles: list[str], candidate: str) -> int:
         shown = tuple(score.strip() for _, score in new_teams)
         if shown != expected_scores(text):
             problems.append(f'shows {shown}, expected {expected_scores(text)}')
-        changed += [score for _, score in old_teams] != [score for _, score in new_teams]
+        changed += (old, old_categories) != (new, new_categories)
         failures += bool(problems)
         print(f"  {'FAIL' if problems else 'ok  '} {title}: {[s for _, s in old_teams]} -> {list(shown)} "
               f"{[c for c, _ in new_teams]} {PROBE_OUT.findall(new)}", flush=True)
         for problem in problems:
             print(f'      {problem}')
-    print(f'{failures} awarded page(s) failed, {changed} header(s) changed')
+    print(f'{failures} awarded page(s) failed, {changed} page(s) changed')
     return 1 if failures or not changed else 0
 
 
 def sample(titles: list[str], candidate: str) -> int:
     # An ignored override would make every page "identical": the canary, an awarded page
-    # with an entered score, must change first.
+    # whose score contradicts its flag, must change first.
     text = page_text(CANARY)
     if render(CANARY, text, None) == render(CANARY, text, candidate):
         print(f'the candidate did not change {CANARY} - the override was not applied; refusing')

@@ -246,15 +246,22 @@ A single `:` before the minute (e.g. `גול-נגיחה:67`) instead of `::` (e.
 
 ## 9b. Awarded games (`|תוצאה בטכני=`), per sport
 
-- **Basketball** (`תבנית:משחק כדורסל`, 11 pages as of 2026-09): `ניצחון`/`נצחון`/`הפסד` sets
+**The model (agreed 2026-10, applied to basketball):** one score pair holding the **official**
+result, plus the technical flag. The flag alone decides win/loss. The score on the pitch, when an
+awarded game was actually played, goes in the game summary, not in a field.
+
+- **Basketball** (`תבנית:משחק כדורסל`, 11 pages as of 2026-10): `ניצחון`/`נצחון`/`הפסד` sets
   Technical 1/2 and overwrites the score *variables* with 20:0 / 0:20. That overwrite is what makes
-  ResultOpt, the header winner class and categories follow `תוצאה בטכני` alone (one page enters a
-  real 61:62 score with `ניצחון`). Cargo stores the raw score params. Since #598 the header prints
-  the entered score through separate display variables when both sides are entered and not 0:0 (three
-  1965 losses enter a placeholder `0:0`). Don't "fix" the overwrite itself: it is the result logic.
-  The 20:0 fallback is the modern score. In the 1950s–60s an Israeli awarded game counted **2:0**
+  ResultOpt and the header winner class follow `תוצאה בטכני` alone. Don't "fix" it: it is the
+  result logic. Cargo stores the raw score params, and since #598 the header prints exactly the
+  entered pair (no hidden 20:0). An awarded page must enter its official score. A score that
+  contradicts the flag, or isn't a number, puts the page in the hidden
+  `קטגוריה:משחקי כדורסל טכניים עם תוצאה סותרת`. In 2026-10 that category holds only 26-05-1961,
+  which enters the on-court 61:62 with a technical win (Hapoel Haifa fielded the suspended Albert
+  Hamo; no source for the awarded score has been found yet).
+  The awarded score depends on the era. In the 1950s–60s an Israeli awarded game counted **2:0**
   (Yedioth 27.6.1965 on the rules; 5.7 and 15.7.1965 on the Maccabi boycott's no-shows: "הפסד טכני
-  בשיעור 2:0"). So an old awarded game should enter 2:0 / 0:2, not rely on the fallback.
+  בשיעור 2:0"); today it is 20:0.
 - **Volleyball** (`תבנית:משחק כדורעף`): the same overwrite with 3:0 / 0:3, and the header still
   shows 3:0 even when a score is entered.
 - **Football** (`תבנית:קטלוג משחקים`, param `|טכני=`): no overwrite. The result test ORs the
