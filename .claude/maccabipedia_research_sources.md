@@ -128,7 +128,7 @@ that misses items.
 - linguasport (Wayback only; the bare domain is now a gambling spam site, never link it): every European club game with scores, half-time scores, round dates and footnotes (neutral venues, forfeits, replays, played-on dates). Covers Maccabi's Champions Cup / EuroLeague seasons 1958–2022/23, the Cup Winners' Cup (1966/67, 1969/70) and the Korać Cup (1993/94). The only 2023/24 capture is from September 2023, before the season, so it has no games. Finals overview: https://web.archive.org/web/20160519102508/http://linguasport.com/baloncesto/internacional/clubes/c1/palmares.htm ; season example: https://web.archive.org/web/20220123223023/http://www.linguasport.com:80/baloncesto/internacional/clubes/c1/C1_81.htm
   - Folders: `c1/C1_YY.htm` Champions Cup / European League / FIBA EuroLeague / SuproLeague (to 2000/01), `c2/C2_YY.htm` Cup Winners' Cup, `c3/C3_YY.htm` Korać, `EL/EL_YY.htm` EuroLeague from 2000/01 (`YY` = ending year; English Wikipedia does not link these, so find them through CDX). Find a working snapshot with the CDX API (`web.archive.org/cdx/search/cdx?url=...&filter=statuscode:200&output=json`), and fetch it before linking.
   - Scores are home team first: in `A - B | s1 | s2`, s1 was played at A. Checked against Yedioth scans in October 2026 (card #597), it was right in all 12 games where it disagreed with the wiki.
-  - All 478 European game pages 1958–2000/01 link their season's page in `כתבה2`.
+  - Every European game page 1958–2000/01 links its season's page in the first free article slot (`כתבה2` on most, `כתבה1` where that was empty).
 
 **Rosters & players:**
 - Kadorsela dictionary: http://www.cadursela.co.il/Dictionary.asp
