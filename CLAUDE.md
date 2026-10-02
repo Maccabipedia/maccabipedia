@@ -107,17 +107,11 @@ Never run it at an ordinary handoff. A session marked finished while work remain
 the next crash restore, silently, and the user loses the tab. There is no `unfinish` and none is
 needed — any later activity in the session clears the marker by itself.
 
-### PR Workflow (all PRs)
+### Any change, start to finish
 
-**Before creating any PR:**
-- No merge conflicts with `master`
-- `uv run pytest` passes
-- `uv run mypy` has no new type errors
-- PR description includes what changed and why
-
-**After PR is created:**
-- Monitor CI — if checks fail, fix and push before notifying the user
-- User reviews and merges
+Use the `maccabipedia-add-feature` skill (`.claude/skills/maccabipedia-add-feature/SKILL.md`)
+for every change: card → shape → local-wiki test → independent review → PR → gradual rollout
+→ merge on a CI-green commit → look at it → Telegram update.
 
 ### maccabistats Version Bump (maccabistats PRs only)
 
