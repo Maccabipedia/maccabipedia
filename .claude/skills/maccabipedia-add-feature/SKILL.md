@@ -107,7 +107,6 @@ touched. Do not use `/code-review`; it fans out dozens of agents for a one-line 
 
 Every change that touched the live wiki is announced there; local-only or docs-only
 changes are not. 2–3 lines in Hebrew, plain text, bare URLs: what changed, where, and who
-made it (the script appends `MACCABIPEDIA_AUTHOR`). One sender, never both: a session
-that has the queued sender tool from `CLAUDE.md` ("Telling … What Changed") uses it; any
-other session writes the text to a file, checks it with `--file <path> --dry-run`, then
-sends with `uv run python .claude/scripts/notify_updates.py --file <path>`.
+made it (the script appends `MACCABIPEDIA_AUTHOR`). Write the text to a file, check it
+with `--file <path> --dry-run`, then send with
+`uv run python .claude/scripts/notify_updates.py --file <path>`.
