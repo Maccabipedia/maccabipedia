@@ -5,11 +5,14 @@ merged PRs), has Claude write a short Hebrew summary of it, and posts that. Noth
 message. The window starts where the last sent note ended, capped at a week back, so a day the
 machine was off is covered by the next note rather than lost.
 
-Runs from a systemd user timer on the founder's PC (`infra/daily-digest/`), from the repo root:
-  uv run python -m maccabipediabot.maintenance.daily_digest.daily_digest --dry-run
+The daily schedule lives outside this repo, in one maintainer's personal scheduler, so no
+clone posts on its own. Anyone can run it by hand from the repo root:
+  uv run python -m maccabipediabot.maintenance.daily_digest.daily_digest --dry-run --hours 24
   uv run python -m maccabipediabot.maintenance.daily_digest.daily_digest
 Needs `.env` with TELEGRAM_UPDATES_BOT_TOKEN and TELEGRAM_UPDATES_CHAT_ID (see `.env.example`),
-a logged-in `claude` CLI, and `gh` for the merged PRs.
+MACCABIPEDIA_BOT_USERNAME in the environment (pywikibot's user-config reads it at import), a
+logged-in `claude` CLI, and `gh` for the merged PRs. Without --dry-run it records where the sent
+note ended in ~/.local/state/maccabipedia/, so a hand run moves the scheduled window too.
 """
 from __future__ import annotations
 
