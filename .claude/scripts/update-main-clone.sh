@@ -11,18 +11,30 @@
 # command text; nothing in .claude/settings.json grants this. Keep the script narrow for that
 # reason: it only fast-forwards master, and refuses everything else.
 set -euo pipefail
+# Every failure ends in a ✗ line, so the skill's "on ✗, tell the person" covers git's own
+# errors (a failed fetch, a broken repo) too.
+trap 'echo "✗ update-main-clone failed — see the git error above" >&2' ERR
 
-# The main clone is wherever the shared .git lives, so this works from any worktree.
+# The main clone is wherever the shared .git lives, so this works from any worktree. That
+# holds only when the git dir is `<main clone>/.git`; refuse any other layout rather than
+# act on the wrong directory.
 MAIN="$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")"
+if [[ "$(git -C "$MAIN" rev-parse --show-toplevel 2>/dev/null)" != "$MAIN" ]]; then
+    trap - ERR
+    echo "✗ cannot find the main clone (its git dir is not <clone>/.git) — update it by hand" >&2
+    exit 1
+fi
 cd "$MAIN"
 
-branch="$(git symbolic-ref --quiet --short HEAD || echo "(detached)")"
+# Prints HEAD when detached; fails loudly (ERR trap) if this is not a repository.
+branch="$(git rev-parse --abbrev-ref HEAD)"
 if [[ "$branch" != "master" ]]; then
     echo "✗ the main clone is on '$branch', not master — switch it by hand; not touching it" >&2
     exit 1
 fi
 
-# Untracked files do not block a fast-forward, so only tracked changes refuse.
+# Tracked changes refuse here. An untracked file refuses only if origin/master adds a file
+# at the same path — git's own message below then names it.
 if [[ -n "$(git status --porcelain --untracked-files=no)" ]]; then
     echo "✗ uncommitted changes in the main clone — stash or discard them first" >&2
     exit 1
@@ -31,7 +43,9 @@ fi
 before="$(git rev-parse --short master)"
 git fetch -q origin master
 if ! git merge --ff-only -q origin/master; then
-    echo "✗ the main clone's master has diverged from origin/master — resolve by hand" >&2
+    trap - ERR
+    echo "✗ cannot fast-forward the main clone: master has diverged, or an untracked file" \
+         "is in the way (git's message above says which) — resolve by hand" >&2
     exit 1
 fi
 echo "main clone master $before → $(git rev-parse --short HEAD)"

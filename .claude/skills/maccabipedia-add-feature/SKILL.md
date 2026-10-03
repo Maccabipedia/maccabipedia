@@ -99,11 +99,16 @@ touched. Do not use `/code-review`; it fans out dozens of agents for a one-line 
 
 ## 9. Finish
 
-- `gh pr view <n> --json state` says MERGED (`git branch --merged` lies about squashes).
-  Delete the branch on remote and local; remove the worktree; move the card to done.
-- Update the main clone: `bash .claude/scripts/update-main-clone.sh` must print
-  `main clone master <before> → <after>`. The worktree hook and the deploy skills run from
-  the main clone; until it moves, the next session gets the old ones. On `✗`, tell the person.
+In this order — each line needs the one before it:
+1. `gh pr view <n> --json state` says MERGED (`git branch --merged` lies about squashes).
+2. Update the main clone, from this worktree (the script lives here; the main clone may not
+   have it yet): `bash .claude/scripts/update-main-clone.sh` must print
+   `main clone master <before> → <after>`. The worktree hook and the deploy skills run from
+   the main clone; until it moves, the next session gets the old ones. Anything else, tell
+   the person.
+3. `git checkout --detach origin/master` — git will not delete a branch that a worktree has
+   checked out. Then `git branch -D <branch>` and `git push origin --delete <branch>`.
+4. Move the card to done. The worktree itself goes when the session ends.
 - Learned something not written down? Put it in the right `.claude/*.md` file now.
 
 ## 10. Announce in the MaccabiPedia Updates Telegram group
