@@ -88,8 +88,10 @@ write only what is new since it. Tell the user it is queued, not sent, and pass 
 else the reply says, such as an earlier update that may not have gone out.
 
 Send nothing else there, whether a question, a progress note, or work that changed only the local
-test wiki or nothing at all, because it reaches a person outside this session. If the tool is
-missing or fails, tell the user and pass on its error as it is; never work around it. The tool
+test wiki or nothing at all, because it reaches a person outside this session. If the tool
+fails, tell the user and pass on its error as it is. If it is missing (another contributor's
+machine), the `maccabipedia-add-feature` skill's last step sends the same note through
+`.claude/scripts/notify_updates.py` instead — one sender per thread, never both. The tool
 lives in the-kosho (`the_kosho/oren_mcp.py`) and is registered in this repo's `.mcp.json`.
 
 ### Finishing a Session
@@ -107,17 +109,11 @@ Never run it at an ordinary handoff. A session marked finished while work remain
 the next crash restore, silently, and the user loses the tab. There is no `unfinish` and none is
 needed — any later activity in the session clears the marker by itself.
 
-### PR Workflow (all PRs)
+### Any change, start to finish
 
-**Before creating any PR:**
-- No merge conflicts with `master`
-- `uv run pytest` passes
-- `uv run mypy` has no new type errors
-- PR description includes what changed and why
-
-**After PR is created:**
-- Monitor CI — if checks fail, fix and push before notifying the user
-- User reviews and merges
+Use the `maccabipedia-add-feature` skill (`.claude/skills/maccabipedia-add-feature/SKILL.md`)
+for every change: card → shape → local-wiki test → independent review → PR → gradual rollout
+→ merge on a CI-green commit → look at it → Telegram update.
 
 ### maccabistats Version Bump (maccabistats PRs only)
 

@@ -46,6 +46,13 @@ if [ -f "$MCP_SRC" ]; then
     cp "$MCP_SRC" "${WT_DIR}/.mcp.json"
 fi
 
+# Copy repo-root .env (gitignored, has the Telegram Updates bot + contributor name)
+ROOT_ENV="${REPO_ROOT}/.env"
+if [ -f "$ROOT_ENV" ]; then
+    cp "$ROOT_ENV" "${WT_DIR}/.env"
+    chmod 600 "${WT_DIR}/.env"
+fi
+
 # Copy calendar .env (gitignored, has Google/API credentials)
 CAL_ENV="${REPO_ROOT}/packages/maccabipediabot/src/maccabipediabot/calendar/.env"
 if [ -f "$CAL_ENV" ]; then
