@@ -15,6 +15,7 @@ from collections.abc import Iterable
 from urllib.parse import quote
 
 WIKI_URL = "https://www.maccabipedia.co.il/"
+GITHUB_REPO = "Maccabipedia/maccabipedia"
 SAMPLE_TITLES_PER_GROUP = 8
 MAX_GROUPS = 80
 MAX_COMMENT_CHARS = 150
@@ -68,15 +69,28 @@ def new_game_pages(changes: Iterable[dict]) -> list[dict]:
 
 
 def fetch_changes(site, since: datetime.datetime, until: datetime.datetime) -> list[dict]:
-    """Every recent change from ``since`` to ``until``: edits, page creations and all log types."""
-    return list(site.recentchanges(start=since, end=until, reverse=True))
+    """Every recent change in [since, until): edits, page creations and all log types.
+
+    MediaWiki includes both ends, so the end stops a second short of ``until``, which is where
+    the next window starts.
+    """
+    return list(site.recentchanges(start=since, end=until - datetime.timedelta(seconds=1), reverse=True))
 
 
-def fetch_merged_prs(since: datetime.datetime) -> list[dict]:
-    """PRs merged into the bot repo since ``since``, from the gh CLI in the current repo."""
-    stamp = since.astimezone(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+def _github_stamp(moment: datetime.datetime) -> str:
+    return moment.astimezone(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def fetch_merged_prs(since: datetime.datetime, until: datetime.datetime) -> list[dict]:
+    """PRs merged into the bot repo in [since, until), from the gh CLI.
+
+    The repo is named explicitly: GitHub search does not follow a rename, and a clone whose
+    origin still has the old name gets an empty list with exit code 0.
+    """
+    last_second = until - datetime.timedelta(seconds=1)
     output = subprocess.run(
-        ["gh", "pr", "list", "--state", "merged", "--search", f"merged:>={stamp}",
+        ["gh", "pr", "list", "--repo", GITHUB_REPO, "--state", "merged",
+         "--search", f"merged:{_github_stamp(since)}..{_github_stamp(last_second)}",
          "--json", "number,title,url,mergedAt", "--limit", "50"],
         check=True, capture_output=True, text=True, timeout=120).stdout
     return sorted(json.loads(output), key=lambda pr: pr["mergedAt"])
@@ -100,3 +114,8 @@ def link_targets(activity: dict) -> set[str]:
         for label in group["sample_titles"]:
             titles.update(part.strip() for part in label.split(" → "))
     return titles
+
+
+def link_urls(activity: dict) -> set[str]:
+    """Every non-wiki URL the digest may show: the merged PRs."""
+    return {pr["url"] for pr in activity["merged_prs"]}

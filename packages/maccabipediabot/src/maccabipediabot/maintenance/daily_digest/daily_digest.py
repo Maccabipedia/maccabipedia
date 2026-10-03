@@ -27,7 +27,7 @@ from dotenv import find_dotenv, load_dotenv
 
 from maccabipediabot.common.wiki_login import get_site
 from maccabipediabot.maintenance.daily_digest.collect import (
-    build_activity, fetch_changes, fetch_merged_prs, link_targets)
+    build_activity, fetch_changes, fetch_merged_prs, link_targets, link_urls)
 from maccabipediabot.maintenance.daily_digest.render import render_message
 from maccabipediabot.maintenance.tickets.telegram_api import TelegramApi
 
@@ -40,12 +40,16 @@ CLAUDE_TIMEOUT_SECONDS = 600
 
 
 def window_start(now: datetime.datetime, state_file: Path) -> datetime.datetime:
-    """Where the last sent note ended; a day back on the first run; never more than a week."""
+    """Where the last sent note ended; a day back on the first run; never more than a week.
+
+    A saved end later than ``now`` (the clock stepped back) gives an empty window rather than
+    an inverted one, which the wiki API would refuse on every run until the clock caught up.
+    """
     try:
         last_until = datetime.datetime.fromisoformat(json.loads(state_file.read_text())["last_until"])
     except FileNotFoundError:
         return now - DEFAULT_WINDOW
-    return max(last_until, now - MAX_WINDOW)
+    return min(max(last_until, now - MAX_WINDOW), now)
 
 
 def save_window_end(until: datetime.datetime, state_file: Path) -> None:
@@ -84,7 +88,11 @@ def main() -> int:
 
     until = datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0)
     since = until - datetime.timedelta(hours=args.hours) if args.hours else window_start(until, STATE_FILE)
-    activity = build_activity(fetch_changes(get_site(), since, until), fetch_merged_prs(since), since, until)
+    if since >= until:
+        logging.info(f"Empty window: the last note ended at {since}, after now ({until})")
+        return 0
+    activity = build_activity(fetch_changes(get_site(), since, until), fetch_merged_prs(since, until),
+                              since, until)
     logging.info(f"{activity['total_changes']} changes, {len(activity['new_games'])} new games, "
                  f"{len(activity['merged_prs'])} merged PRs from {since} to {until}")
     if args.save_activity:
@@ -96,7 +104,7 @@ def main() -> int:
             save_window_end(until, STATE_FILE)
         return 0
 
-    message = render_message(write_digest(activity), link_targets(activity))
+    message = render_message(write_digest(activity), link_targets(activity), link_urls(activity))
     if not message:
         raise RuntimeError("Claude returned an empty digest")
     if args.dry_run:

@@ -53,7 +53,7 @@ def test_new_games_are_created_game_pages_only_with_their_sport():
 
 def test_render_links_only_titles_from_the_data_and_escapes_the_rest():
     text = f"• נוסף [[{BASKETBALL_GAME}|המשחק מול בשיקטאש]] ו-[[דף שהומצא|דף אחר]] <b>\n\nסוף"
-    message = render.render_message(text, {BASKETBALL_GAME})
+    message = render.render_message(text, {BASKETBALL_GAME}, set())
     lines = message.split("\n")
     assert lines[0].startswith(render.RIGHT_TO_LEFT_MARK)
     assert f'<a href="{collect.page_url(BASKETBALL_GAME)}">המשחק מול בשיקטאש</a>' in lines[0]
@@ -70,8 +70,18 @@ def test_page_url_keeps_quotes_from_ending_the_link():
     assert url.startswith("https://www.maccabipedia.co.il/%D7%A7%D7%95%D7%91%D7%A5:")
 
 
+def test_only_wiki_and_known_pr_urls_survive_as_bare_links():
+    pr_url = "https://github.com/Maccabipedia/maccabipedia/pull/259"
+    text = (f"• מוזג {pr_url}. ראו https://evil.example/x ו-"
+            f"{collect.WIKI_URL}%D7%A2%D7%95%D7%A0%D7%95%D7%AA")
+    line = render.render_message(text, set(), {pr_url}).split("\n")[0]
+    assert f"{pr_url}." in line
+    assert "evil.example" not in line
+    assert f"{collect.WIKI_URL}%D7%A2%D7%95%D7%A0%D7%95%D7%AA" in line
+
+
 def test_render_of_an_empty_reply_is_empty():
-    assert render.render_message("\n  \n", set()) == ""
+    assert render.render_message("\n  \n", set(), set()) == ""
 
 
 def test_window_starts_a_day_back_on_the_first_run(tmp_path):
@@ -88,6 +98,12 @@ def test_window_never_reaches_back_more_than_a_week(tmp_path):
     state = tmp_path / "state.json"
     state.write_text(json.dumps({"last_until": (NOW - datetime.timedelta(days=40)).isoformat()}))
     assert daily_digest.window_start(NOW, state) == NOW - datetime.timedelta(days=7)
+
+
+def test_a_saved_end_in_the_future_gives_an_empty_window_not_an_inverted_one(tmp_path):
+    state = tmp_path / "state.json"
+    daily_digest.save_window_end(NOW + datetime.timedelta(hours=2), state)
+    assert daily_digest.window_start(NOW, state) == NOW
 
 
 def test_a_window_with_nothing_has_no_activity():

@@ -7,7 +7,9 @@ Type=oneshot
 # The main clone, so the note runs the merged code and reads its .env (Telegram token, chat id).
 WorkingDirectory=%h/code/maccabipedia_mediawikibot
 # `/bin/bash -lc` with an absolute uv: systemd's search path has no ~/.local/bin, where uv and
-# claude live, and the login profile is what puts them (and gh) on PATH.
-ExecStart=/bin/bash -lc 'exec %h/.local/bin/uv run python -m maccabipediabot.maintenance.daily_digest.daily_digest'
+# claude live, and the login profile is what puts them (and gh) on PATH. ~/.secrets is sourced
+# by hand: ~/.pywikibot/user-config.py reads MACCABIPEDIA_BOT_USERNAME at import, and only an
+# interactive ~/.bashrc sources it. Its `export` lines are why this is not EnvironmentFile=.
+ExecStart=/bin/bash -lc 'source %h/.secrets && exec %h/.local/bin/uv run python -m maccabipediabot.maintenance.daily_digest.daily_digest'
 # One wiki listing, one gh call and one claude -p run; the claude call has its own 10-minute cap.
 TimeoutStartSec=900
