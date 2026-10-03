@@ -41,9 +41,12 @@ class TestDoubleLeagueFixtures:
 
 class TestLeagueGamesWithoutFixture:
     def test_only_league_games_with_no_fixture_number_are_reported(self):
+        cup_game = _league_game("", datetime.datetime(1938, 1, 28), "1938")
+        cup_game.competition = "הגביע הארץ ישראלי"
         games = [_league_game("", datetime.datetime(1932, 10, 29), "1932/33"),
                  _league_game("ליגת תל אביב", datetime.datetime(1939, 1, 14), "1938"),
-                 _league_game("מחזור 4", datetime.datetime(1945, 1, 6), "1944/45")]
+                 _league_game("מחזור 4", datetime.datetime(1945, 1, 6), "1944/45"),
+                 cup_game]
 
         flagged = ErrorsFinder(_stats(games)).get_league_games_without_fixture()
 

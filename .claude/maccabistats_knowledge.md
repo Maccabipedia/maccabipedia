@@ -55,7 +55,7 @@ games.home_games.league_games.get_games_against_team("הפועל תל אביב")
 | `get_games_by_season(season)` | e.g. `"2022/23"` |
 | `get_games_by_competition(comp)` | by competition name(s) |
 | `get_games_by_stadium(name)` | by stadium |
-| `played_before(date)` / `played_after(date)` / `played_at(date)` | by date |
+| `played_before(date)` / `played_after(date)` / `played_at(date)` | by date, both ends inclusive. Pass a full date (`"1950-12-31"`): a bare year `"1950"` is parsed with today's month and day |
 | `get_games_by_day_at_month(day, month)` | specific calendar day |
 
 ### Available Data Properties
@@ -292,7 +292,8 @@ The package queries MaccabiPedia's MediaWiki Cargo extension:
 - **Endpoint**: `http://www.maccabipedia.co.il/index.php?title=Special:CargoExport&format=json`
 - **Pagination**: 5000 items per request via offset
 - **Tables queried**:
-  - `Football_Games` (joined with `Competitions`, `Stadiums`, `Opponents`) — game metadata
+  - `Football_Games` (joined with `Competitions`, `Stadiums`) — game metadata. The opponent is the game's own `Opponent` field (quote marks stripped by the wiki); the parser restores the opponent page's name (`ביתר ירושלים` → `בית"ר ירושלים`) from one crawl of `Opponents.OriginalName`. Never join on `Opponents.CanonicalName`: it is the merged-club family name (`מ.ס. אשדוד (משוכלל)`) that no game stores, and that join left 852 games with no opponent until 2.73.
+  - `Opponents` — `OriginalName` only, for the name lookup above
   - `Games_Events` — player events (goals, cards, subs, lineup) with fields: `_pageName, Date, PlayerName, PlayerNumber, Minute, EventType, SubType, Team, Part`
   - `Profiles` — player metadata (DoB, HomePlayer flag)
 - **Crawler class**: `MaccabiPediaCargoChunksCrawler(tables_name, tables_fields, join_tables_on, where_condition)`
