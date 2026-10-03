@@ -11,6 +11,10 @@ version bumps) and, in its "Lessons Learned", why most of them exist.
 
 ## 1. Start from a card
 
+- **Setup gate:** `uv run python .claude/scripts/notify_updates.py --check`. It must print
+  `ok`. On `STOP`, stop here and tell the person what it names: `.env` at the repo root
+  needs the Updates bot token, chat id, and their name (`.env.example`; a maintainer
+  has the token). No work starts on a clone that cannot announce it.
 - A Trello card describes the task (`.claude/trello.md`). None? Add one, then start.
   Move it to the in-progress list. Anyone may start; nobody waits for permission.
 - Work in a worktree on a feature branch — the hooks in `.claude/hooks/` make it.
@@ -103,7 +107,7 @@ touched. Do not use `/code-review`; it fans out dozens of agents for a one-line 
 
 Every change that touched the live wiki is announced there; local-only or docs-only
 changes are not. 2–3 lines in Hebrew, plain text, bare URLs: what changed, where, and who
-made it. One sender, never both: a session that has the queued sender tool from
-`CLAUDE.md` ("Telling … What Changed") uses it; any other session writes the text to a
-file and runs `uv run python .claude/scripts/notify_updates.py --file <path> --author
-<your name>` (sends at once).
+made it (the script appends `MACCABIPEDIA_AUTHOR`). One sender, never both: a session
+that has the queued sender tool from `CLAUDE.md` ("Telling … What Changed") uses it; any
+other session writes the text to a file, checks it with `--file <path> --dry-run`, then
+sends with `uv run python .claude/scripts/notify_updates.py --file <path>`.

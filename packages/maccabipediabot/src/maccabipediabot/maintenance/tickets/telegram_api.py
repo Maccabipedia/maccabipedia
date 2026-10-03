@@ -31,6 +31,12 @@ class TelegramApi:
         assert isinstance(result, list)
         return result
 
+    def get_chat(self, chat_id: int) -> dict:
+        """The chat's details; fails unless the bot is a member of it."""
+        result = self._call("getChat", chat_id=chat_id)
+        assert isinstance(result, dict)
+        return result
+
     def download(self, file_id: str) -> bytes:
         file_info = self._call("getFile", file_id=file_id)
         assert isinstance(file_info, dict)
