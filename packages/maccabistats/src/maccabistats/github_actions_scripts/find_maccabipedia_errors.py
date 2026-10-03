@@ -112,22 +112,16 @@ def show_all_errors() -> None:
     maccabipedia_games = load_from_maccabipedia_source().official_games
     logging.info(f'Loaded MaccabiPedia games: {maccabipedia_games}')
 
-    # Split by calendar year, so every game lands in exactly one report. (played_before/played_after
-    # with a bare "1950" are parsed with today's month and day, which left a gap that moved every day,
-    # and a game's date carries its kick-off hour, so a date cut-off can still drop a game.)
-    old_games = maccabipedia_games.create_maccabi_games_stats_with_filtered_games(
-        [game for game in maccabipedia_games if game.date.year <= 1950], 'Played in 1950 or before')
-    new_games = maccabipedia_games.create_maccabi_games_stats_with_filtered_games(
-        [game for game in maccabipedia_games if game.date.year >= 1951], 'Played in 1951 or after')
-
+    # Full dates on purpose: a bare year like "1950" is parsed with today's month and day, so the split
+    # moved every day and the games between the two cut-offs were never checked.
     old_games_file_handler = FileHandler(f'{base_log_file_name}_before_1950.txt', encoding='utf8')
     logging.getLogger().addHandler(old_games_file_handler)
-    show_errors_for_maccabi_games(old_games)
+    show_errors_for_maccabi_games(maccabipedia_games.played_before("1950-12-31"))
     logging.getLogger().removeHandler(old_games_file_handler)
 
     new_games_file_handler = FileHandler(f'{base_log_file_name}_after_1950.txt', encoding='utf8')
     logging.getLogger().addHandler(new_games_file_handler)
-    show_errors_for_maccabi_games(new_games)
+    show_errors_for_maccabi_games(maccabipedia_games.played_after("1951-01-01"))
     logging.getLogger().removeHandler(new_games_file_handler)
 
     logging.info('\n\nFinished to find errors from MaccabiPedia')
