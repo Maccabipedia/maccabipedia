@@ -27,6 +27,16 @@ def show_double_league_fixtures(errors_finder: ErrorsFinder) -> None:
         logging.info(f'    {fixture_and_season}: {maccabi_games_stats.games}')
 
 
+def show_league_games_without_fixture(errors_finder: ErrorsFinder) -> None:
+    problematic_games = errors_finder.get_league_games_without_fixture()
+    if not problematic_games:
+        return
+
+    logging.info(f'\nLeague games without a fixture number:')
+    for game in problematic_games:
+        logging.info(f'    {game}')
+
+
 def show_games_with_difference_between_the_score_and_goals_amount(errors_finder: ErrorsFinder) -> None:
     problematic_games = errors_finder.get_games_with_wrong_goals_team_belonging()
     if not problematic_games:
@@ -93,6 +103,7 @@ def show_errors_for_maccabi_games(maccabi_games: MaccabiGamesStats) -> None:
     maccabipedia_errors_finder = ErrorsFinder(maccabi_games)
 
     show_double_league_fixtures(maccabipedia_errors_finder)
+    show_league_games_without_fixture(maccabipedia_errors_finder)
     show_games_with_difference_between_the_score_and_goals_amount(maccabipedia_errors_finder)
     show_games_with_missing_goals_events(maccabipedia_errors_finder)
     show_games_with_incorrect_seasons(maccabipedia_errors_finder)

@@ -182,6 +182,15 @@ class ErrorsFinder:
 
         return double_fixtures
 
+    def get_league_games_without_fixture(self):
+        """
+        League games with no fixture number ("מחזור N"). The double-fixture check skips them,
+        so this is where they are reported.
+        """
+        games = [game for game in self.maccabi_games_stats.league_games if game.league_fixture is None]
+        return self.maccabi_games_stats.create_maccabi_games_stats_with_filtered_games(
+            games, 'League games without a fixture number')
+
     def get_games_without_stadium(self):
         """
         Returns the games without defined stadium

@@ -3,8 +3,9 @@
     Fixed the opponents join (it matched the canonical name), so 852 games that had no
     opponent name now have one; names with a quote mark (בית"ר) are restored too.
 
-    ErrorsFinder: fewer false reports (games with no fixture number, seasons 1938 and
-    1941/42), and the daily errors script now also checks season 1950/51.
+    ErrorsFinder: league games with no fixture number get their own check instead of being
+    reported as fake double fixtures; seasons 1938 and 1941/42 are no longer "incorrect
+    season"; and the daily errors script now also checks season 1950/51.
 
 ## Version 2.72 ##
 

@@ -39,6 +39,17 @@ class TestDoubleLeagueFixtures:
         assert len(doubles[0][1]) == 2
 
 
+class TestLeagueGamesWithoutFixture:
+    def test_only_league_games_with_no_fixture_number_are_reported(self):
+        games = [_league_game("", datetime.datetime(1932, 10, 29), "1932/33"),
+                 _league_game("ליגת תל אביב", datetime.datetime(1939, 1, 14), "1938"),
+                 _league_game("מחזור 4", datetime.datetime(1945, 1, 6), "1944/45")]
+
+        flagged = ErrorsFinder(_stats(games)).get_league_games_without_fixture()
+
+        assert [str(game.date.date()) for game in flagged] == ["1932-10-29", "1939-01-14"]
+
+
 class TestIncorrectSeason:
     def test_game_outside_its_season_is_flagged(self):
         games = [_league_game("מחזור 1", datetime.datetime(1948, 1, 3), "1946/47")]
