@@ -21,6 +21,10 @@ writer's prose into this style. A stub may be expanded.
 
 ## Game summary
 
+**Only when it adds something** the score and the events don't already show: how it happened,
+context, why it mattered, something unusual. A summary that restates the score or the goal list
+is left out, and the field stays empty.
+
 1. **What was at stake:** stage, form, the previous meeting (linked), a back story.
    > לאחר שלושה נצחונות ופתיחת עונה טובה, מתארחת מכבי בחיפה אצל קבוצתו של לא אחר מ[[אלי פוקס]]...
 2. **The game in order, by minute:** `בדקה ה-32 ...`, `דקה חולפת ו...`. Each goal: who, from where,
