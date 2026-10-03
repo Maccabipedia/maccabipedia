@@ -1,3 +1,17 @@
+## Version 2.73 ##
+
+    Every MaccabiPedia game has its opponent again: 852 of 3,509 games had an empty
+    opponent name. The games query joined the Opponents table on its canonical (merged-club)
+    name, which games never store (מ.ס. אשדוד vs מ.ס. אשדוד (משוכלל)), and opponent names
+    with a quote mark never matched because the wiki strips quotes from a game's opponent
+    field. The opponent now comes from the game itself, and the parser restores the opponent
+    page's name (ביתר ירושלים -> בית"ר ירושלים) from one crawl of the Opponents table.
+
+    ErrorsFinder: a league game without a fixture number is no longer a "double fixture" of
+    every other such game; seasons 1938 and 1941/42, which really ended in 1939 and 1943,
+    are no longer "incorrect season"; and the daily errors script splits at 31-12-1950 /
+    01-01-1951 instead of a cut-off that moved every day and skipped season 1950/51.
+
 ## Version 2.72 ##
 
     Removed the `upload_maccabipedia_games_to_ftp` GitHub Actions script and its workflow.
