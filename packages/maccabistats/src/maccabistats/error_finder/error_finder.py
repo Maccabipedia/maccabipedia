@@ -9,7 +9,13 @@ from maccabistats.models.player_game_events import GameEventTypes
 from maccabistats.stats.maccabi_games_stats import MaccabiGamesStats
 
 logger = logging.getLogger(__name__)
-""" 
+
+# Seasons that really ran past the year their name says, so a game dated in that later year is not an error:
+#   1938    - the Arab revolt stopped the national league; the Tel Aviv league that counted towards it ended 14-01-1939.
+#   1941/42 - the war-time league finished with a title play-off against Maccabi Rishon LeZion and Homenetmen
+#             in September-October 1943 (Maccabi won it).
+_PROLONGED_SEASONS_LAST_YEAR = {"1938": 1939, "1941/42": 1943}
+"""
 This class is responsible to find errors in MaccabiGamesStats object, 
 such as games that the amount of goals does not match to the final score sum,
 empty events and so on.
@@ -111,10 +117,12 @@ class ErrorsFinder:
         """ Finds games which their date does not match the seasons (date between seasons). """
 
         def validate_season(game):
-            if game.season[-2:] == "00":  # We should add 100 year to the max season in this counting system:
-                return int(game.season[:4]) <= game.date.year <= int(game.season[:2] + game.season[-2:]) + 100
-            else:
-                return int(game.season[:4]) <= game.date.year <= int(game.season[:2] + game.season[-2:])
+            last_year = _PROLONGED_SEASONS_LAST_YEAR.get(game.season)
+            if last_year is None:
+                last_year = int(game.season[:2] + game.season[-2:])
+                if game.season[-2:] == "00":  # We should add 100 year to the max season in this counting system:
+                    last_year += 100
+            return int(game.season[:4]) <= game.date.year <= last_year
 
         games_with_incorrect_season = [(game.season, str(game.date.date()), game) for game in self.maccabi_games_stats
                                        if not validate_season(game)]
@@ -161,8 +169,11 @@ class ErrorsFinder:
             if not season:
                 continue
 
-            # This season is not empty
+            # This season is not empty. Games with no fixture number (most seasons before 1950 carry
+            # none on the wiki) are not "the same fixture" as each other, so they are skipped.
             for game in season:
+                if game.league_fixture is None:
+                    continue
                 fixtures_from_all_seasons[f"Season {season[0].season} Fixture {game.league_fixture}"].append(game)
 
         double_fixtures = [(season_and_fixture, self.maccabi_games_stats.create_maccabi_games_stats_with_filtered_games(games, f'Double fixture: {season_and_fixture}')) for season_and_fixture, games in
@@ -170,6 +181,15 @@ class ErrorsFinder:
                            len(games) > 1]
 
         return double_fixtures
+
+    def get_league_games_without_fixture(self):
+        """
+        League games with no fixture number ("מחזור N"). The double-fixture check skips them,
+        so this is where they are reported.
+        """
+        games = [game for game in self.maccabi_games_stats.league_games if game.league_fixture is None]
+        return self.maccabi_games_stats.create_maccabi_games_stats_with_filtered_games(
+            games, 'League games without a fixture number')
 
     def get_games_without_stadium(self):
         """
