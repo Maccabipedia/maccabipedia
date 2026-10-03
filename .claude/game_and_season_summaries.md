@@ -78,7 +78,7 @@ season ended, then covers what changed in the break. One bold label per competit
 - No link for what has no page (most opposing players), generic words (`ניצחון טכני`, `VAR`), anything
   red. An opponent who has a page (a former Maccabi player) is linked.
 - A game link matches the real title: no `- מוקדמות`, the right date, home team first. Seasons are
-  `עונת YYYY/YY`, except `עונת 1955`.
+  named as their page (`עונת YYYY/YY`, but single-year seasons exist: `עונת 1937`, `עונת 1955`).
 
 ### Spelling, punctuation, numbers
 - `ניצחון`, never `נצחון`. Names are spelled as on the player's page.
