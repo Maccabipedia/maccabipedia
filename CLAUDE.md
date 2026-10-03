@@ -88,7 +88,11 @@ write only what is new since it. Tell the user it is queued, not sent, and pass 
 else the reply says, such as an earlier update that may not have gone out.
 
 Send nothing else there, whether a question, a progress note, or work that changed only the local
-test wiki or nothing at all, because it reaches a person outside this session. If the tool
+test wiki or nothing at all, because it reaches a person outside this session. The one other
+sender is the daily digest (`maintenance/daily_digest/`): a Claude-written summary of the wiki's
+recent changes, new games and merged PRs. One maintainer's personal scheduler runs it every
+morning; the schedule is not in this repo, so a clone never posts it on its own. It does not
+replace the per-thread note. If the tool
 fails, tell the user and pass on its error as it is. If it is missing (another contributor's
 machine), the `maccabipedia-add-feature` skill's last step sends the same note through
 `.claude/scripts/notify_updates.py` instead — one sender per thread, never both. The tool
