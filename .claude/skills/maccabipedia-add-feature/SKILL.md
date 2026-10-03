@@ -33,7 +33,7 @@ Pick the row. It decides what "tested locally", "gradual" and "look at it" mean 
 | **`LocalSettings.shared.php`** | `deploy-localsettings` | — (that skill) | `validate-site-ok.sh` |
 | **`maccabistats`** | `uv run pytest`; prove a new stat against a number you already know is right | version bump + changelog (`CLAUDE.md`) | — |
 | **Data fix on prod pages** | prove the current value is wrong from a source (scan, record) before touching it | 1 page → the rest | the page |
-| **Docs, knowledge files, CI** | — | — | — |
+| **Docs, knowledge files, CI, dev tooling** (no wiki effect) | run the tool for real, and make each refusal it has fire once | — | — |
 
 If the change spans rows, every row applies. Unsure which row? The stricter one.
 
@@ -101,6 +101,9 @@ touched. Do not use `/code-review`; it fans out dozens of agents for a one-line 
 
 - `gh pr view <n> --json state` says MERGED (`git branch --merged` lies about squashes).
   Delete the branch on remote and local; remove the worktree; move the card to done.
+- Update the main clone: `bash .claude/scripts/update-main-clone.sh` must print
+  `main clone master <before> → <after>`. The worktree hook and the deploy skills run from
+  the main clone; until it moves, the next session gets the old ones. On `✗`, tell the person.
 - Learned something not written down? Put it in the right `.claude/*.md` file now.
 
 ## 10. Announce in the MaccabiPedia Updates Telegram group
