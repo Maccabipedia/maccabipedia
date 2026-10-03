@@ -244,31 +244,17 @@ A single `:` before the minute (e.g. `גול-נגיחה:67`) instead of `::` (e.
 
 **Tracking category:** Pages with bad events are added to the `משחקים המכילים אירוע לא תקין` tracking category (populated by the `הזנת אירועי משחק` template's `#ברירת מחדל` branch for unknown main event types).
 
-## 9b. Awarded games (`|תוצאה בטכני=`), per sport
+## 9b. Awarded (technical) games, per sport
 
-**The model (agreed 2026-10, applied to basketball):** one score pair holding the **official**
-result, plus the technical flag. The flag alone decides win/loss. The score on the pitch, when an
-awarded game was actually played, goes in the game summary, not in a field.
+The score fields always hold the **official** awarded score (e.g. 2:0 in the 1950s–60s, 20:0 today in
+basketball, 3:0 in football and volleyball); the flag decides win/loss. The score on the court of a
+game that was played and then awarded goes in `|סיכום משחק=`.
 
-- **Basketball** (`תבנית:משחק כדורסל`, 11 pages as of 2026-10): `ניצחון`/`נצחון`/`הפסד` sets
-  Technical 1/2 and overwrites the score *variables* with 20:0 / 0:20. That overwrite is what makes
-  ResultOpt and the header winner class follow `תוצאה בטכני` alone. Don't "fix" it: it is the
-  result logic. Cargo stores the raw score params, and since #598 the header prints exactly the
-  entered pair (no hidden 20:0). An awarded page must enter its official score. A score that
-  contradicts the flag, or isn't a number, puts the page in the hidden
-  `קטגוריה:משחקי כדורסל טכניים עם תוצאה סותרת` (empty in 2026-10). Example of the model:
-  26-05-1961 Hapoel Haifa enters 20:0 (a technical win: Haifa fielded the suspended Albert Hamo),
-  and its summary keeps the on-court 62:61 to Haifa.
-  The awarded score depends on the era. In the 1950s–60s an Israeli awarded game counted **2:0**
-  (Yedioth 27.6.1965 on the rules; 5.7 and 15.7.1965 on the Maccabi boycott's no-shows: "הפסד טכני
-  בשיעור 2:0"); today it is 20:0.
-- **Volleyball** (`תבנית:משחק כדורעף`): the same overwrite with 3:0 / 0:3, and the header still
-  shows 3:0 even when a score is entered.
-- **Football** (`תבנית:קטלוג משחקים`, param `|טכני=`): no overwrite. The result test ORs the
-  technical flag in, and the score is checked first, so a technical loss with a higher entered
-  Maccabi score would come out a win.
-- Gate for a change here: `infra/lua_modules/compare_basketball_game_technical.py` (awarded pages
-  plus a byte-for-byte sample, with a probe that prints the variables sent to Cargo).
+| Sport | Flag | Values | What it does |
+|---|---|---|---|
+| Basketball | `\|תוצאה בטכני=` | `ניצחון` / `נצחון` / `הפסד` | Sets Technical 1/2; the flag alone decides the result. A score that contradicts the flag goes to hidden `קטגוריה:משחקי כדורסל טכניים עם תוצאה סותרת`. |
+| Volleyball | `\|תוצאה בטכני=` | `ניצחון` / `נצחון` / `הפסד` | Sets Technical 1/2 and forces the score to 3:0 / 0:3 (header and Cargo). |
+| Football | `\|טכני=` | `ניצחון` / `נצחון` / `הפסד` | Sets Technical 1/2; the result comes from the score, and the flag only decides a draw. |
 
 ## 10. Basketball Player Stats (`|שחקנים מכבי=` / `|שחקנים יריבה=`)
 
