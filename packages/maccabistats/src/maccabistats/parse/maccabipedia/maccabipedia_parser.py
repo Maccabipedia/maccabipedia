@@ -1,9 +1,11 @@
 # -*- coding: utf-8 -*-
 
 
+import html
 import logging
 from collections import defaultdict
 from datetime import timedelta
+from typing import Dict, Iterable, Set
 
 from dateutil.parser import parse as datetime_parser
 
@@ -75,6 +77,34 @@ MACCABIPEDIA_ASSISTS_TYPE = {40: AssistTypes.UNCATEGORIZED,
                              }
 
 
+def _without_quote_marks(name: str) -> str:
+    """ The wiki strips ' and " from a game's opponent field when it saves the page (not the Hebrew ׳ ״). """
+    return name.replace('"', '').replace("'", '')
+
+
+def build_opponent_names_lookup(opponent_page_names: Iterable[str]) -> Dict[str, str]:
+    """
+    Map an opponent name as a game stores it (quote marks stripped) to the opponent page's name.
+    Two pages that differ only by quote marks would be indistinguishable, so such a key is left out
+    and those games keep the stored name.
+    """
+    pages_by_key: Dict[str, Set[str]] = defaultdict(set)
+    for page_name in opponent_page_names:
+        page_name = html.unescape(page_name)
+        pages_by_key[_without_quote_marks(page_name)].add(page_name)
+
+    ambiguous = {key: pages for key, pages in pages_by_key.items() if len(pages) > 1}
+    for key, pages in ambiguous.items():
+        logger.warning(f"Opponent pages {sorted(pages)} differ only by quote marks, games with {key!r} keep that name")
+
+    return {key: pages.pop() for key, pages in pages_by_key.items() if key not in ambiguous}
+
+
+def restore_opponent_name(stored_name: str, opponent_names_lookup: Dict[str, str]) -> str:
+    """ ביתר ירושלים -> בית"ר ירושלים; a name with no opponent page (e.g. 'מכבי פת') is kept as stored. """
+    return opponent_names_lookup.get(_without_quote_marks(stored_name), stored_name)
+
+
 class MaccabiPediaParser(object):
 
     def __init__(self):
@@ -85,6 +115,9 @@ class MaccabiPediaParser(object):
         # Json as it downloaded from maccabipedia mediawiki api
         self._games_metadata_as_json = self._get_games_metadata()
         self._games_events_as_json = self._get_games_events()
+        self._opponent_names_lookup = build_opponent_names_lookup(
+            row["OriginalName"] for row in MaccabiPediaCargoChunksCrawler.create_opponents_crawler()
+            if row.get("OriginalName"))
 
         # Dict from pageName to json
         # TODO: should check if there are more than 1 item in any list, means two game share the same date
@@ -195,7 +228,6 @@ class MaccabiPediaParser(object):
         :rtype: GameData
         """
 
-        # TODO: atm opponent is number, should add join to the query with opponents table, SAME for competition
         maccabi_players = self._extract_players_events_for_team(
             [event for event in game_events if event['Team'] == _MACCABI_TEAM],
             log_errors=True)
@@ -206,7 +238,8 @@ class MaccabiPediaParser(object):
             [event for event in game_events if event['Team'] == _NOT_MACCABI_TEAM],
             log_errors=False)
 
-        not_maccabi_team = TeamInGame(game_metadata.get("Opponent", ""), game_metadata.get("CoachOpponent", ''),
+        opponent_name = restore_opponent_name(game_metadata.get("Opponent", ""), self._opponent_names_lookup)
+        not_maccabi_team = TeamInGame(opponent_name,game_metadata.get("CoachOpponent", ''),
                                       game_metadata["ResultOpponent"], not_maccabi_players)
 
         home_team, away_team = (maccabi_team, not_maccabi_team) if game_metadata.get("HomeAway", '') == "בית" else (

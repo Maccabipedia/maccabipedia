@@ -164,6 +164,11 @@ class MaccabiPediaCargoChunksCrawler(Iterator):
                    join_tables_on=MaccabiStatsConfigSingleton.maccabipedia.games_data_query.join_on)
 
     @classmethod
+    def create_opponents_crawler(cls):
+        return cls(tables_name=MaccabiStatsConfigSingleton.maccabipedia.opponents_query.tables_names,
+                   tables_fields=MaccabiStatsConfigSingleton.maccabipedia.opponents_query.fields_names)
+
+    @classmethod
     def create_games_events_crawler(cls):
         return cls(tables_name=MaccabiStatsConfigSingleton.maccabipedia.games_events_query.tables_names,
                    tables_fields=MaccabiStatsConfigSingleton.maccabipedia.games_events_query.fields_names)
