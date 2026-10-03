@@ -247,6 +247,18 @@ A single `:` before the minute (e.g. `גול-נגיחה:67`) instead of `::` (e.
 
 **Tracking category:** Pages with bad events are added to the `משחקים המכילים אירוע לא תקין` tracking category (populated by the `הזנת אירועי משחק` template's `#ברירת מחדל` branch for unknown main event types).
 
+## 9b. Awarded (technical) games, per sport
+
+The score fields always hold the **official** awarded score (e.g. 2:0 in the 1950s–60s, 20:0 today in
+basketball, 3:0 in football and volleyball); the flag decides win/loss. The score on the court of a
+game that was played and then awarded goes in `|סיכום משחק=`.
+
+| Sport | Flag | Values | What it does |
+|---|---|---|---|
+| Basketball | `\|תוצאה בטכני=` | `ניצחון` / `נצחון` / `הפסד` | Sets Technical 1/2; the flag alone decides the result. A score that contradicts the flag goes to hidden `קטגוריה:משחקי כדורסל טכניים עם תוצאה סותרת`. |
+| Volleyball | `\|תוצאה בטכני=` | `ניצחון` / `נצחון` / `הפסד` | Sets Technical 1/2 and forces the score to 3:0 / 0:3 (header and Cargo). |
+| Football | `\|טכני=` | `ניצחון` / `נצחון` / `הפסד` | Sets Technical 1/2; the result comes from the score, and the flag only decides a draw. |
+
 ## 10. Basketball Player Stats (`|שחקנים מכבי=` / `|שחקנים יריבה=`)
 
 Basketball game pages use template `משחק כדורסל`. Player data is **not** a `::` delimited row — each player is a named-parameter sub-template:
