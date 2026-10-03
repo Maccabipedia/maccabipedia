@@ -10,9 +10,10 @@ Environment (put them in `.claude/settings.local.json` -> `env`; that file is gi
   TELEGRAM_UPDATES_CHAT_ID     the group's chat id (negative for groups)
 
 Usage — write the message to a file first (a multi-line argv string needs a multi-line
-command, which CLAUDE.md forbids):
-  uv run python .claude/scripts/notify_updates.py --file <path>             # send
-  uv run python .claude/scripts/notify_updates.py --file <path> --dry-run   # print only
+command, which CLAUDE.md forbids). Several people change the wiki, so the note ends with
+who made this change:
+  uv run python .claude/scripts/notify_updates.py --file <path> --author <name>             # send
+  uv run python .claude/scripts/notify_updates.py --file <path> --author <name> --dry-run   # print
 """
 import argparse
 import html
@@ -25,8 +26,11 @@ from maccabipediabot.maintenance.tickets.telegram_api import TelegramApi
 RIGHT_TO_LEFT_MARK = "‏"
 
 
-def format_message(text: str) -> str:
+def format_message(text: str, author: str) -> str:
     lines = [line.strip() for line in text.strip().splitlines() if line.strip()]
+    if not lines:
+        return ""
+    lines.append(f"— {author.strip()}")
     return "\n".join(RIGHT_TO_LEFT_MARK + html.escape(line) for line in lines)
 
 
@@ -34,10 +38,11 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--file", required=True, type=pathlib.Path,
                         help="file holding the message: Hebrew, plain text, bare URLs")
+    parser.add_argument("--author", required=True, help="who made the change; ends the note")
     parser.add_argument("--dry-run", action="store_true", help="print the message, send nothing")
     args = parser.parse_args()
 
-    message = format_message(args.file.read_text(encoding="utf-8"))
+    message = format_message(args.file.read_text(encoding="utf-8"), args.author)
     if not message:
         print(f"nothing to send: {args.file} is empty", file=sys.stderr)
         return 2

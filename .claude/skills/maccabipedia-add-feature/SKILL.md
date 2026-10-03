@@ -7,7 +7,7 @@ description: Use for ANY change to this repo — a feature, a bug fix, a data fi
 
 Follow the steps in order. Each has a check; do not skip to the next without it.
 `CLAUDE.md` holds the rules this skill assumes (script execution, `uv run`, commit scopes,
-version bumps). Why a rule exists is in `reference.md`, next to this file.
+version bumps) and, in its "Lessons Learned", why most of them exist.
 
 ## 1. Start from a card
 
@@ -53,9 +53,11 @@ design ceremony on a three-line fix.
 - Never invent wiki data (names, dates, scores). A field you cannot source stays empty or
   `לא ידוע`; see `.claude/maccabipedia_data_edge_cases.md`.
 
-## 5. Independent review
+## 5. Review — the person, then the agent
 
-One call to the `reviewer` agent (`.claude/agents/reviewer.md`); it cannot spawn agents.
+The person driving the session reads the whole diff first (`git diff origin/master...HEAD`),
+not a summary of it. Then one call to the `reviewer` agent (`.claude/agents/reviewer.md`);
+it cannot spawn agents and does not replace the human read.
 Its prompt must carry what it cannot see: the diff command (`git fetch origin && git diff
 origin/master...HEAD` — local `master` is stale in a worktree and shows other people's work),
 the card text, the row from step 2, and the local-wiki evidence. Answer every finding in
@@ -95,10 +97,13 @@ touched. Do not use `/code-review`; it fans out dozens of agents for a one-line 
 
 - `gh pr view <n> --json state` says MERGED (`git branch --merged` lies about squashes).
   Delete the branch on remote and local; remove the worktree; move the card to done.
-- Announce in the MaccabiPedia Updates Telegram group — 2–3 lines in Hebrew, plain text,
-  bare URLs, what changed and where. One sender, never both: a session that has the
-  queued sender tool from `CLAUDE.md` ("Telling … What Changed") uses it; any other
-  session writes the text to a file and runs
-  `uv run python .claude/scripts/notify_updates.py --file <path>` (sends at once).
-  Local-only or docs-only changes are not announced.
 - Learned something not written down? Put it in the right `.claude/*.md` file now.
+
+## 10. Announce in the MaccabiPedia Updates Telegram group
+
+Every change that touched the live wiki is announced there; local-only or docs-only
+changes are not. 2–3 lines in Hebrew, plain text, bare URLs: what changed, where, and who
+made it. One sender, never both: a session that has the queued sender tool from
+`CLAUDE.md` ("Telling … What Changed") uses it; any other session writes the text to a
+file and runs `uv run python .claude/scripts/notify_updates.py --file <path> --author
+<your name>` (sends at once).

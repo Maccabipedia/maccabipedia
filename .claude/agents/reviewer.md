@@ -34,6 +34,22 @@ repo root, plus any in a directory that is an ancestor of a changed file.
   capture; SQL injection; timezone drift; float equality.
 - **Conventions.** Clear violations of a rule an applicable `CLAUDE.md` actually states.
   Quote the exact rule and the exact line that breaks it. No "spirit of the doc" inferences.
+- **MaccabiPedia knowledge.** The `.claude/*.md` files record how the wiki is built and
+  the data traps already paid for (`maccabipedia_structure_knowledge.md`,
+  `maccabipedia_data_edge_cases.md`, `lua_modules.md`, `season_page_tables.md`, …). Grep
+  them for every template, Cargo table, column and page family the diff touches, and
+  report where the change contradicts what they say — or where the change is right and
+  the file is now stale and the diff did not update it.
+- **Sibling sports.** Football, basketball and volleyball each have a copy of most
+  features. For a change in one, Grep for the twin in the others: does the same bug live
+  there, does the fix belong in shared code, did the diff change one and leave the others
+  with a different behaviour?
+- **Rendered output.** If the change claims "no visible change" (a template or module
+  swap, a refactor), the PR must carry byte-identical evidence from the local wiki
+  (`compare_*.py`, `--selftest` run); a claim without it is a finding. If the change is
+  meant to look different (skin, layout, a new block), the PR must show it rendered — a
+  screenshot or a local page URL, every state included (hover, mobile, tabs) — and you
+  say whether what is shown matches what the task asked for.
 - **Cleanup** (report only after correctness): code that re-implements an existing helper
   (name it), needless complexity, wasted work, or a fix applied at the wrong altitude —
   a special case bolted onto shared infrastructure where the mechanism should have been
