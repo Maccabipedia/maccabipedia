@@ -9,8 +9,9 @@
 
     ErrorsFinder: a league game without a fixture number is no longer a "double fixture" of
     every other such game; seasons 1938 and 1941/42, which really ended in 1939 and 1943,
-    are no longer "incorrect season"; and the daily errors script splits at 31-12-1950 /
-    01-01-1951 instead of a cut-off that moved every day and skipped season 1950/51.
+    are no longer "incorrect season"; and the daily errors script splits its two reports by
+    calendar year (up to 1950 / from 1951) instead of a cut-off that moved every day and
+    skipped season 1950/51.
 
 ## Version 2.72 ##
 
