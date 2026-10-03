@@ -22,6 +22,7 @@ foreground, with `time.sleep(3)` between saves.
 | Referee column | `Refs` | `MainReferee` | `Refs` |
 | Player / opponent pages | main namespace | `כדורסל:<name>` | `כדורעף:<name>` |
 | Newspaper template | `{{תיוג עיתונים}}` | `{{תיוג עיתוני כדורסל}}` | `{{תיוג עיתוני כדורעף}}` |
+| Series links (tie/playoff) | `משחק1`/`משחק2`/`משחק3` = `[[<title>\|<score>]]` | `משחק קודם בסדרה`/`משחק הבא בסדרה` = bare title | same as basketball |
 | Reference code for the page text | an existing page of the same era | `basketball/gamesbot_basketball.py` | `volleyball/gamesbot_volleyball.py` |
 
 The newspaper param is `שיוך משחק` in every sport. Purge lists for football and
@@ -93,6 +94,10 @@ none there (see step 7).
   number. Valid types are in `.claude/maccabipedia_structure_knowledge.md`. A
   substitute gets `ספסל` plus `מחליף`, and the player he replaced gets `מוחלף`;
   minute `0` when unknown. A goal from a rebound off the crossbar has no assist.
+- **Part of a tie or series?** Link it both ways: fill the series parameters (table above) on
+  the new page *and* on every sibling game that exists. A link to a missing page puts the
+  game in a "bad entry" category, but a missing link back is caught by nothing. Details
+  are in `.claude/maccabipedia_structure_knowledge.md` §7c.
 - Save it with one pywikibot script that refuses to overwrite an existing page,
   then check the games-table row and the player-event rows in Cargo.
 - Show the maintainer the live page before touching anything else.

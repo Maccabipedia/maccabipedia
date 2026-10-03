@@ -171,11 +171,46 @@ When researching a neutral-venue game's designation: Yedioth box scores list the
    - **newspaper** — volleyball/basketball `{{תיוג עיתוני <sport>|…|שיוך משחק=}}`; **football the generic `{{תיוג עיתונים|…|שיוך משחק=}}`** (no sport suffix). Param is `שיוך משחק`, not `משחק`.
 
    **Finding the files:** posters & tickets are named by the **match date**, so an ns=6 search for the game's `DD-MM-YYYY` finds them (and `<Sport>_Game_Posters WHERE gamePage='<old title>'` for posters). **Newspaper files are named by the PUBLICATION date, which routinely differs from the match date — a match-date search MISSES them**, and newspapers are the most numerous media type. Find newspaper coverage by searching ns=6 for the **opponent / game-title string**, or via the per-game category (football `עיתונות למשחק מה-<day> ב<month> <year>` — Hebrew long date, no sport word, no dashes, e.g. `עיתונות למשחק מה-29 באוגוסט 1954`, confirmed 2026-09 on live file pages; other sports `עיתונות למשחק <sport> מה-<match-date>`). For each hit, edit its game-page param to the new title.
-4. **Series navigation** — sibling game pages point here via `משחק קודם בסדרה` / `משחק הבא בסדרה`. Update those to the new title.
+4. **Series navigation** — sibling game pages point here via `משחק קודם בסדרה` / `משחק הבא בסדרה` (basketball, volleyball) or `משחק1`/`משחק2`/`משחק3` (football). Update those to the new title (§7c).
 5. **Purge** (`forcelinkupdate`): the renamed page, every updated `File:` page, and all aggregators that list it via Cargo — season, opponent, stadium, competition, referee pages (§3) — plus `עמוד ראשי` and `פורטל שחקנים`. The season/opponent/stadium/referee/adjacent-date backlinks are Cargo/template-generated; they follow the move **only after a purge** and are NOT hardcoded breakage.
 6. **Verify** — `<Sport>_Games` Cargo shows exactly one row at the new title with the correct `HomeAway`; attached files now name the new title; and the media **tracking categories show no new members** (`כרזות משחק <sport> ללא תיוג משחק`, `כרטיסי משחק ללא תיוג משחק`, basketball/volleyball `עיתוני <sport> עם שיוך לא תקין למשחק`, football `קטעי עיתונות עם שיוך לא תקין למשחק`) — these collect files whose game-page param is missing or points at a non-existent title.
 
 **Finding rename-worthy games:** duplicates → `<Sport>_Games GROUP BY Date,Opponent,Competition HAVING COUNT(*)>1`; orientation/typo → reconstruct the expected title from (`Date`,`Opponent`,`Competition`,`HomeAway`) and diff against `_pageName`.
+
+## 7c. Series Links Between Games
+
+Games of one tie or series (a two-legged cup or European tie, a replay, a basketball
+best-of-5 playoff, a volleyball playoff series) link to each other through parameters of the
+game template. The link is **display-only**: no Cargo column stores it, so it cannot be
+queried. To list the pages that use it, take the template's `embeddedin` and read the page text.
+
+| | Football `קטלוג משחקים` | Basketball `משחק כדורסל`, volleyball `משחק כדורעף` |
+|---|---|---|
+| Parameters | `משחק1`, `משחק2`, `משחק3`: the number is the game's place in the tie | `משחק קודם בסדרה`, `משחק הבא בסדרה` |
+| Value | a full wikilink labelled with the score, shown as-is: `[[משחק:12-09-1953 מכבי ירושלים נגד מכבי תל אביב - גביע המדינה\|מכבי ירושלים 0 - 4 מכבי תל אביב]]` | the bare page title, no `[[ ]]`; the template builds the link |
+| Each page names | every other game of the tie, never itself | only the game before it and the game after it |
+| Bad entry (target page missing) | `קטגוריה:משחקים המפנים למשחק בסדרה ללא עמוד` | `קטגוריה:משחקי כדורסל עם הזנת משחק קודם בסדרה שגויה`, `… הבא בסדרה שגויה`, and the same two for `כדורעף` |
+
+**Why two conventions.** Football ties are two games. There is one three-game tie, the 1961
+State Cup against שמשון תל אביב, whose third game was a replay. Basketball series run up
+to game 5 (`Leg` = `גמר - משחק 5`), and numbered slots would make every game list four
+others. Both conventions stay, decided 2026-10-03: don't migrate football to previous/next.
+
+**Rules:**
+- **Link both ways.** Every game of a series names the others. A one-way link is the usual
+  error, and no category catches it, because the checks test only that the target page exists.
+- **Football:** the check reads the title between `[[` and the first `|` or `]`. A bare title
+  with no `[[ ]]` is flagged, since the template would show it as plain text, not a link. The
+  check runs for friendlies too: it sits in the "official and unofficial" tracking block.
+- **Basketball/volleyball:** the check runs only when the parameter is filled. Until
+  2026-10-03 the volleyball template added both categories to every game with an empty
+  parameter (about 1,300 false members). Basketball always had the guard.
+- Each filled parameter costs one `#קיים`, an expensive parser function.
+- Renaming a game means updating its siblings' series parameters (§7b step 4).
+
+**State measured 2026-10-03:** football had 227 pages with 230 links (4 one-way, 0 missing).
+Basketball had 10 linked pages out of 280 series games (games whose `Leg` holds `משחק N`).
+Volleyball had 294 pages (2 links to missing pages, 4 one-way).
 
 ## 8. Non-Game Entities
 
