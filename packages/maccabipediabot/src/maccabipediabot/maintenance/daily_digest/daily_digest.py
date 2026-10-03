@@ -30,7 +30,7 @@ from dotenv import find_dotenv, load_dotenv
 
 from maccabipediabot.common.wiki_login import get_site
 from maccabipediabot.maintenance.daily_digest.collect import (
-    build_activity, fetch_changes, fetch_merged_prs, link_targets, link_urls)
+    build_activity, fetch_changes, fetch_edit_details, fetch_merged_prs, link_targets, link_urls)
 from maccabipediabot.maintenance.daily_digest.render import render_message
 from maccabipediabot.maintenance.tickets.telegram_api import TelegramApi
 
@@ -94,8 +94,10 @@ def main() -> int:
     if since >= until:
         logging.info(f"Empty window: the last note ended at {since}, after now ({until})")
         return 0
-    activity = build_activity(fetch_changes(get_site(), since, until), fetch_merged_prs(since, until),
-                              since, until)
+    site = get_site()
+    changes = fetch_changes(site, since, until)
+    activity = build_activity(changes, fetch_merged_prs(since, until), since, until,
+                              fetch_edit_details(site, changes))
     logging.info(f"{activity['total_changes']} changes, {len(activity['new_games'])} new games, "
                  f"{len(activity['merged_prs'])} merged PRs from {since} to {until}")
     if args.save_activity:

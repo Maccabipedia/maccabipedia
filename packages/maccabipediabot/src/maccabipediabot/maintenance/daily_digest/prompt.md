@@ -17,17 +17,27 @@ Fields:
   A group with a large count and one repeated comment is a bot maintenance run: mention it in
   one short line at most, or skip it. Work by people (few pages, specific comments, uploads of
   scans or photos, new templates) is what the founders want to read about.
+- `edit_details`: for each page edited by hand (not a bulk run), the net change over the
+  window — `diff` holds the lines removed (`-`) and added (`+`) between the page before the
+  user's first edit and after their last, in wikitext; `created` means the page is new.
+  Read it to say what the edits DID: what the page now shows, fixes, or holds that it did
+  not before — "the season squad template now shows each player's shirt number", not "edited
+  the template 7 times". Never report how many times something was edited, and never call
+  an edit "without a comment". If a diff is too technical to explain, say what the page is
+  for and that it was improved.
 - `merged_prs`: changes to the bot/site code that were merged. Their titles are already
   plain-language outcomes; say in Hebrew what each notable one does.
 
 Write in Hebrew, in exactly this layout:
 1. One headline line: what the day was about.
 2. One empty line.
-3. 3 to 8 bullet lines, each starting with "• ", most important first. One item per bullet.
-4. If there were merged PRs, one last bullet starting with "• בקוד:" that covers all of them.
+3. 3 to 8 item lines, most important first, one item per line, each a single line with no
+   marker in front (they are numbered for you).
+4. If there were merged PRs, one last item starting with "בקוד:" that covers all of them.
+Each item says what changed for a reader of the site — the effect — not counts of edits.
 Plain text otherwise: no Markdown, no bold, no headings with #.
 
-Links — the reader taps them on a phone, so every bullet carries at least one inline link,
+Links — the reader taps them on a phone, so every item carries at least one inline link,
 and nothing is a bare URL:
 - A wiki page: `[[exact title|short Hebrew text]]`, the title copied exactly from the data.
   Link the words that name the thing ("[[כדורסל:09-11-1967 ...|המשחק מול אלזאס באניולה]]"),

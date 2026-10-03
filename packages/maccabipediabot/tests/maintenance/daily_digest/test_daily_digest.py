@@ -81,10 +81,27 @@ def test_only_wiki_and_known_pr_urls_survive_as_bare_links():
     assert f'<a href="{collect.WIKI_URL}%D7%A2%D7%95%D7%A0%D7%95%D7%AA">קישור</a>' in line
 
 
-def test_layout_is_headline_blank_bullets_however_the_model_spaced_them():
-    text = "כותרת\n• א\n\n• ב\n\n\n• ג"
+def test_items_are_numbered_whatever_marker_and_spacing_the_model_used():
+    text = "כותרת\n• א\n\n3) ב\n\n\nג\n- ד"
     lines = render.render_message(text, set(), set()).replace(render.RIGHT_TO_LEFT_MARK, "").split("\n")
-    assert lines == ["כותרת", "", "• א", "• ב", "• ג", "", render.SIGNATURE]
+    assert lines == ["כותרת", "", "1. א", "2. ב", "3. ג", "4. ד", "", render.SIGNATURE]
+
+
+def test_hand_edits_are_diffed_once_per_page_and_bulk_runs_are_not():
+    template = "תבנית:ארון תארים/הצגת תואר"
+    changes = [_change(template, kind="new", user="אורן המתעפץ", revid=100, old_revid=0)]
+    changes += [_change(template, user="אורן המתעפץ", revid=101 + n, old_revid=100 + n) for n in range(7)]
+    changes += [_change(f"כדורסל:דף {n}", comment="refresh", bot=True, revid=500 + n, old_revid=400 + n)
+                for n in range(collect.MAX_HAND_GROUP + 1)]
+    pages = collect.pages_worth_diffing(changes)
+    assert [(page["title"], page["edits"], page["from_revid"], page["to_revid"]) for page in pages] == [
+        (template, 8, 0, 107)]
+
+
+def test_compact_diff_keeps_only_changed_lines():
+    before = "{{שחקן}}\n|מספר=\n|עמדה=גארד"
+    after = "{{שחקן}}\n|מספר=10\n|עמדה=גארד"
+    assert collect.compact_diff(before, after) == "-|מספר=\n+|מספר=10"
 
 
 def test_pr_and_user_links_render_inline_only_when_the_data_names_them():

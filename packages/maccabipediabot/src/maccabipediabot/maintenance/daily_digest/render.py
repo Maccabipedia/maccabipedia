@@ -23,6 +23,7 @@ _LINK = re.compile(r"\[\[?(?P<url>https?://[^\s\[\]]+) (?P<url_label>[^\[\]]+)\]
 _BARE_URL = re.compile(r"https?://[^\s<>\"]+")
 _TRAILING_PUNCTUATION = ".,;:!?)"
 _PULL_NUMBER = re.compile(r"/pull/(\d+)$")
+_ITEM_MARKER = re.compile(r"^(?:[•\-*·]|\d+[.)])\s*")
 
 
 def _anchor(url: str, text: str) -> str:
@@ -70,14 +71,16 @@ def _render_line(line: str, known_titles: set[str], known_urls: set[str]) -> str
 
 
 def render_message(digest_text: str, known_titles: set[str], known_urls: set[str]) -> str:
-    """Headline, blank line, bullets, blank line, signature; empty when the model wrote nothing.
+    """Headline, blank line, numbered items, blank line, signature; empty when the model wrote nothing.
 
     The layout is fixed here rather than trusted to the prompt: the model puts blank lines
-    between bullets on busy days, which doubles the message's height on a phone.
+    between items on busy days, which doubles the message's height on a phone, and marks items
+    with bullets or numbers as it likes. Whatever marker it used is replaced by 1., 2., ...
     """
     lines = [line.strip() for line in digest_text.strip().splitlines() if line.strip()]
     if not lines:
         return ""
-    headline, *bullets = (_render_line(line, known_titles, known_urls) for line in lines)
+    items = [f"{number}. {_ITEM_MARKER.sub('', line)}" for number, line in enumerate(lines[1:], start=1)]
+    headline, *bullets = (_render_line(line, known_titles, known_urls) for line in [lines[0], *items])
     signature = _render_line(SIGNATURE, set(), set())
     return "\n".join([headline, "", *bullets, "", signature] if bullets else [headline, "", signature])
