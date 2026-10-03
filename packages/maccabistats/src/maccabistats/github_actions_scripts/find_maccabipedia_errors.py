@@ -112,14 +112,16 @@ def show_all_errors() -> None:
     maccabipedia_games = load_from_maccabipedia_source().official_games
     logging.info(f'Loaded MaccabiPedia games: {maccabipedia_games}')
 
+    # Full dates on purpose: a bare year like "1950" is parsed with today's month and day, so the split
+    # would drift every day and the games between the two cut-offs would never be checked at all.
     old_games_file_handler = FileHandler(f'{base_log_file_name}_before_1950.txt', encoding='utf8')
     logging.getLogger().addHandler(old_games_file_handler)
-    show_errors_for_maccabi_games(maccabipedia_games.played_before("1950"))
+    show_errors_for_maccabi_games(maccabipedia_games.played_before("1950-12-31"))
     logging.getLogger().removeHandler(old_games_file_handler)
 
     new_games_file_handler = FileHandler(f'{base_log_file_name}_after_1950.txt', encoding='utf8')
     logging.getLogger().addHandler(new_games_file_handler)
-    show_errors_for_maccabi_games(maccabipedia_games.played_after("1951"))
+    show_errors_for_maccabi_games(maccabipedia_games.played_after("1951-01-01"))
     logging.getLogger().removeHandler(new_games_file_handler)
 
     logging.info('\n\nFinished to find errors from MaccabiPedia')
