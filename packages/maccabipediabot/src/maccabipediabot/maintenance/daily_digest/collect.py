@@ -110,10 +110,19 @@ def build_activity(changes: list[dict], merged_prs: list[dict],
 def link_targets(activity: dict) -> set[str]:
     """Every wiki title the digest may link to: the ones the data actually names."""
     titles = {game["title"] for game in activity["new_games"]}
+    users = {game["user"] for game in activity["new_games"]}
     for group in activity["change_groups"]:
+        users.add(group["user"])
         for label in group["sample_titles"]:
             titles.update(part.strip() for part in label.split(" → "))
+    for user in users:
+        titles.update(user_pages(user))
     return titles
+
+
+def user_pages(user: str) -> tuple[str, str]:
+    """The user's page and their contributions list, the two links a name can carry."""
+    return f"משתמש:{user}", f"מיוחד:תרומות/{user}"
 
 
 def link_urls(activity: dict) -> set[str]:

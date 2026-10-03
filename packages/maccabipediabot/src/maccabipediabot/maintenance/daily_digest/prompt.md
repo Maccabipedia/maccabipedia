@@ -18,14 +18,25 @@ Fields:
   one short line at most, or skip it. Work by people (few pages, specific comments, uploads of
   scans or photos, new templates) is what the founders want to read about.
 - `merged_prs`: changes to the bot/site code that were merged. Their titles are already
-  plain-language outcomes; mention the notable ones with their bare URL.
+  plain-language outcomes; say in Hebrew what each notable one does.
 
-Write in Hebrew:
-- 4 to 12 short lines, plain text. No Markdown, no bold, no headings with #, no bullet
-  syntax other than "• " at the start of a line.
-- First line: a one-line headline of the day.
-- Link wiki pages as `[[exact title|short text]]`, using only titles that appear in the
-  data, copied exactly. At most 8 wiki links. PR links are bare URLs.
+Write in Hebrew, in exactly this layout:
+1. One headline line: what the day was about.
+2. One empty line.
+3. 3 to 8 bullet lines, each starting with "• ", most important first. One item per bullet.
+4. If there were merged PRs, one last bullet starting with "• בקוד:" that covers all of them.
+Plain text otherwise: no Markdown, no bold, no headings with #.
+
+Links — the reader taps them on a phone, so every bullet carries at least one inline link,
+and nothing is a bare URL:
+- A wiki page: `[[exact title|short Hebrew text]]`, the title copied exactly from the data.
+  Link the words that name the thing ("[[כדורסל:09-11-1967 ...|המשחק מול אלזאס באניולה]]"),
+  never a word like "כאן".
+- A person: `[[משתמש:<username>|<username>]]`; for "what they did today" link their
+  contributions instead: `[[מיוחד:תרומות/<username>|<text>]]`.
+- A group with many pages: link one or two of its sample titles, not all of them.
+- A PR: `[<url> short Hebrew text]`, using the PR's url exactly.
+- Do not link to a page that the data shows was deleted.
 - Name people by their wiki username as written in the data.
 - Never invent facts, scores, numbers or reasons that are not in the data. If the window had
   only bot maintenance, say so in one or two lines.

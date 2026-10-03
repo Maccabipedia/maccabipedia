@@ -37,7 +37,8 @@ def test_a_move_names_where_the_page_went_and_both_titles_are_linkable():
     assert group["action"] == "move/move"
     assert group["sample_titles"] == ["משחק: 11-11-1939 מכבי תל אביב נגד הכח → משחק:11-11-1939 מכבי תל אביב נגד הכח"]
     assert collect.link_targets(activity) == {"משחק: 11-11-1939 מכבי תל אביב נגד הכח",
-                                              "משחק:11-11-1939 מכבי תל אביב נגד הכח"}
+                                              "משחק:11-11-1939 מכבי תל אביב נגד הכח",
+                                              *collect.user_pages("MaccabiBot")}
 
 
 def test_new_games_are_created_game_pages_only_with_their_sport():
@@ -75,9 +76,28 @@ def test_only_wiki_and_known_pr_urls_survive_as_bare_links():
     text = (f"• מוזג {pr_url}. ראו https://evil.example/x ו-"
             f"{collect.WIKI_URL}%D7%A2%D7%95%D7%A0%D7%95%D7%AA")
     line = render.render_message(text, set(), {pr_url}).split("\n")[0]
-    assert f"{pr_url}." in line
+    assert f'<a href="{pr_url}">PR #259</a>.' in line
     assert "evil.example" not in line
-    assert f"{collect.WIKI_URL}%D7%A2%D7%95%D7%A0%D7%95%D7%AA" in line
+    assert f'<a href="{collect.WIKI_URL}%D7%A2%D7%95%D7%A0%D7%95%D7%AA">קישור</a>' in line
+
+
+def test_layout_is_headline_blank_bullets_however_the_model_spaced_them():
+    text = "כותרת\n• א\n\n• ב\n\n\n• ג"
+    lines = render.render_message(text, set(), set()).replace(render.RIGHT_TO_LEFT_MARK, "").split("\n")
+    assert lines == ["כותרת", "", "• א", "• ב", "• ג", "", render.SIGNATURE]
+
+
+def test_pr_and_user_links_render_inline_only_when_the_data_names_them():
+    pr_url = "https://github.com/Maccabipedia/maccabipedia/pull/259"
+    activity = collect.build_activity([_change(FOOTBALL_GAME, user="אורן המתעפץ")], [{"url": pr_url}], NOW, NOW)
+    text = (f"• [[מיוחד:תרומות/אורן המתעפץ|אורן]] ו-[[משתמש:זר|זר]]: [{pr_url} קישורי סדרה] "
+            f"[https://evil.example/x פרס] [[{pr_url} שוב]]")
+    line = render.render_message(text, collect.link_targets(activity), collect.link_urls(activity)).split("\n")[0]
+    assert f'<a href="{pr_url}">קישורי סדרה</a>' in line
+    assert f'<a href="{collect.page_url("מיוחד:תרומות/אורן המתעפץ")}">אורן</a>' in line
+    assert f'<a href="{pr_url}">שוב</a>' in line
+    assert line.count("<a ") == 3
+    assert "evil.example" not in line and "פרס" in line
 
 
 def test_render_of_an_empty_reply_is_empty():
