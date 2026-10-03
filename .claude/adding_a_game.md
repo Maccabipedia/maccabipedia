@@ -126,6 +126,31 @@ Basketball and volleyball use their own template from the table, with the same
   category `עיתונות למשחק מה-<day> ב<month> <year>`, and in any sport an ns=6
   search for the game title finds the files whose `שיוך משחק` names it. Pick the
   most informative ones (full match report and lineups first).
+- **Upload the Maccabi item, not the page.** Crop the scan to the article about the
+  game: its headline, its columns, its photo and caption, and nothing else on the page.
+  That is how the uploaders to follow (`אורן המתעפץ`, `Kosh`) built the ~4,600 files
+  they uploaded across all three sports. Their median file is 0.5–0.7 megapixels, and
+  old papers usually come out 350–850 px wide. Measured 2026-10 on every file that
+  carries the three tagging templates. The shapes they use:
+  - **A full report:** the headline plus every column of the article. When the columns
+    wrap around other stories, cut them out and stack them into one strip.
+  - **A round-up or preview column** (all of the round's games in one item): crop just
+    the Maccabi paragraph, with the column's headline above it when it fits. Oren
+    often marks the Maccabi lines with a yellow highlighter.
+  - **A table:** the table and its header only (`טבלת ליגה`, `טבלה לאחר משחק …`).
+  - **A photo:** the photo with its caption (`רגע ממשחק`).
+  - **The only time a whole page is right:** a page or spread that is entirely the
+    Maccabi story, of any era: a title win, a derby, a 1969 Asia Cup report, a jubilee
+    spread. Even then, crop off ads and other sections. Never upload a page where
+    Maccabi is one item among others. The reader has to hunt for it, and the file is
+    10–20 times larger than it needs to be.
+  Crop from the archive's highest-resolution render (`pdftoppm -r 200`), and don't
+  shrink the crop to match the widths above. Those come from smaller sources, and
+  small print has to stay readable. A 200-dpi article crop is around 1,000–1,400 px
+  wide and under 1 MB, far below a full spread's 3,850 px. Find the
+  article with the text layer (`pdftotext -bbox`, see `.claude/newspaper_archives.md`),
+  then open the crop and read it before uploading. An article that runs onto a second
+  page is two files, or one stacked image, never two whole pages.
 - **Existing scan:** add `סיווג` and `שיוך משחק` inside the template, and keep the
   rest of the page unchanged.
 - **`סיווג`:** the template accepts `טבלת ליגה`, `טבלת גביע`, `לקראת משחק`,
@@ -134,15 +159,18 @@ Basketball and volleyball use their own template from the table, with the same
 - **New scan:** use one format in every sport:
   `<paper> <publication DD-MM-YYYY> <סיווג> <sport> <opponent> (<game DD.MM.YYYY>).jpg`,
   where `<sport>` is `כדורגל`, `כדורסל` or `כדורעף`. Example:
-  `ידיעות אחרונות 30-04-2004 לקראת משחק כדורסל סקיפר בולוניה (01.05.2004) עמוד 12.jpg`.
+  `ידיעות אחרונות 30-04-2004 לקראת משחק כדורסל סקיפר בולוניה (01.05.2004).jpg`.
   This is already the majority form in all three sports, except that football names
   rarely carry the sport word. Include it anyway; existing files are not renamed.
   Don't copy the minority forms: game date first with the publication date in brackets
   (`דבר 13-09-1978 אנדרלכט (14-09-1978).jpg`), or the date before the paper
   (`05-10-2000 ידיעות אחרונות …`). Write the opponent without quote marks
   (`צסקא מוסקבה`). For several pages of the same paper and day, add a suffix after
-  the brackets: `עמוד N` for whole pages (the 2004 Final Four and 1981 CSKA files).
-  `עיתון2` and `(2)` also appear.
+  the brackets: `(2)`, `(3)` (Oren's form). `עיתון1`/`עיתון2` (Kosh, and the most
+  common suffix overall) also appears. The `עמוד N` suffix belongs to the 2026-09 bot
+  uploads of whole pages (the 2004 Final Four, 1967–1998 European basketball, the 1958
+  IFK Göteborg friendly). Don't copy it: the page number tells the reader of a crop
+  nothing.
   The `תאריך פרסום` param always takes `DD-MM-YYYY`, whatever the file name uses.
   Check the name is not taken, then upload with MCP `upload_file(filename, file_path, text,
   comment)` (a requests multipart post). Do **not** use
