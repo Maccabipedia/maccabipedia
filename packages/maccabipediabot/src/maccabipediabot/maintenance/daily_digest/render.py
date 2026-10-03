@@ -17,6 +17,8 @@ from maccabipediabot.maintenance.daily_digest.collect import WIKI_URL, page_url
 
 RIGHT_TO_LEFT_MARK = "‏"
 SIGNATURE = "— תקציר יומי אוטומטי של מכביפדיה"
+# The optional closing "worth a public post" line is a pointer, not one more numbered item.
+UNNUMBERED_PREFIX = "שווה פוסט"
 # The model sometimes double-brackets an external link, [[url text]]; both forms are accepted.
 _LINK = re.compile(r"\[\[?(?P<url>https?://[^\s\[\]]+) (?P<url_label>[^\[\]]+)\]\]?"
                    r"|\[\[(?P<title>[^\[\]|]+)(?:\|(?P<label>[^\[\]]+))?\]\]")
@@ -80,7 +82,10 @@ def render_message(digest_text: str, known_titles: set[str], known_urls: set[str
     lines = [line.strip() for line in digest_text.strip().splitlines() if line.strip()]
     if not lines:
         return ""
-    items = [f"{number}. {_ITEM_MARKER.sub('', line)}" for number, line in enumerate(lines[1:], start=1)]
+    items = []
+    for line in lines[1:]:
+        line = _ITEM_MARKER.sub("", line)
+        items.append(line if line.startswith(UNNUMBERED_PREFIX) else f"{len(items) + 1}. {line}")
     headline, *bullets = (_render_line(line, known_titles, known_urls) for line in [lines[0], *items])
     signature = _render_line(SIGNATURE, set(), set())
     return "\n".join([headline, "", *bullets, "", signature] if bullets else [headline, "", signature])

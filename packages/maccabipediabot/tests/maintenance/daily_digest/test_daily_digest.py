@@ -82,9 +82,9 @@ def test_only_wiki_and_known_pr_urls_survive_as_bare_links():
 
 
 def test_items_are_numbered_whatever_marker_and_spacing_the_model_used():
-    text = "כותרת\n• א\n\n3) ב\n\n\nג\n- ד"
+    text = "כותרת\n• א\n\n3) ב\n\n\nג\n- ד\nשווה פוסט: ב"
     lines = render.render_message(text, set(), set()).replace(render.RIGHT_TO_LEFT_MARK, "").split("\n")
-    assert lines == ["כותרת", "", "1. א", "2. ב", "3. ג", "4. ד", "", render.SIGNATURE]
+    assert lines == ["כותרת", "", "1. א", "2. ב", "3. ג", "4. ד", "שווה פוסט: ב", "", render.SIGNATURE]
 
 
 def test_hand_edits_are_diffed_once_per_page_and_bulk_runs_are_not():

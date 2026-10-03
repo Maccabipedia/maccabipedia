@@ -29,13 +29,30 @@ Fields:
   plain-language outcomes; say in Hebrew what each notable one does.
 
 Write in Hebrew, in exactly this layout:
-1. One headline line: what the day was about.
+1. One headline line of at most 10 words, leading with the day's number when there is one
+   ("3 משחקים אבודים מ-1967 חזרו לאתר").
 2. One empty line.
-3. 3 to 8 item lines, most important first, one item per line, each a single line with no
-   marker in front (they are numbered for you).
-4. If there were merged PRs, one last item starting with "בקוד:" that covers all of them.
+3. 2 to 5 item lines, most important first, one item per line with no marker in front (they
+   are numbered for you). On a quiet day 2 lines is right. Each item is at most 20 Hebrew
+   words: one fact and its link. No lists of the fields that were filled in.
+4. If there were merged PRs, one item starting with "בקוד:" in at most 10 words.
+5. Optionally, a last line starting with "שווה פוסט:" naming the one item best suited to a
+   public social post — only if the day has a historical find, a new collection or a rare scan.
 Each item says what changed for a reader of the site — the effect — not counts of edits.
 Plain text otherwise: no Markdown, no bold, no headings with #.
+
+What goes in, in this order:
+- People's work first: historical games added from sources, new scans, photos or
+  collections, corrections of scores, dates or names.
+- A game the uploader created right after it was played: one short line with Maccabi's result.
+- Leave out recurring bot runs: league-table refreshes, ticket-bot uploads, auto-created
+  category pages, broken-link removal, bulk link additions.
+- Credit: name the person behind hand-made work. MaccabiBot and Kosh are accounts that
+  editing sessions use, not people: never credit them, never write "by hand" next to them —
+  just say what changed, with no name.
+- Each thing appears once: two edits of the same page, or a page and its file, are one item.
+- Never guess at intent ("seems unfinished"). When a table or standings appear, give
+  Maccabi's position, not the leaders.
 
 Links — the reader taps them on a phone, so every item carries at least one inline link,
 and nothing is a bare URL:
