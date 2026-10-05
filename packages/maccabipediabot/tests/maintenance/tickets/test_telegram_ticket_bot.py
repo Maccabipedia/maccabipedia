@@ -244,6 +244,12 @@ class TestSportButtons:
         assert [e[1] for e in api.edits] == [50] and uploader.uploaded
 
 
+def test_group_ids_are_read_with_or_without_their_minus_sign():
+    assert bot.parse_group_ids("5470692268") == frozenset({-5470692268})
+    assert bot.parse_group_ids(" -5470692268, -1001234 ") == frozenset({-5470692268, -1001234})
+    assert bot.parse_group_ids("") == frozenset()
+
+
 def test_summary_links_wiki_files_and_escapes_errors():
     text = bot.summary([
         bot.Outcome(bot.Kind.UPLOADED, "כרטיס משחק כדורסל 24-09-2020.jpg", "כרטיס משחק כדורסל 24-09-2020.jpg"),
