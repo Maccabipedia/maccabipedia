@@ -238,3 +238,11 @@ def test_is_video_broken_returns_false_for_unknown_domain():
     result = asyncio.run(is_video_broken(mock_session, "https://www.facebook.com/video/123"))
     assert result is False
     mock_session.get.assert_not_called()
+
+
+@pytest.mark.parametrize("error", [asyncio.TimeoutError(), aiohttp.ClientConnectionError("reset")])
+def test_is_video_broken_returns_false_when_request_fails(error):
+    mock_session = Mock()
+    mock_session.get = Mock(side_effect=error)
+    result = asyncio.run(is_video_broken(mock_session, "https://www.youtube.com/watch?v=slow"))
+    assert result is False

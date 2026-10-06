@@ -139,12 +139,16 @@ async def is_video_broken(session: aiohttp.ClientSession, url: str) -> bool:
     if not oembed:
         logger.debug("No oEmbed endpoint for %s — skipping", url)
         return False
-    async with session.get(oembed) as resp:
-        if resp.status in (400, 401, 404):
-            return True
-        if resp.status != 200:
-            logger.warning("Unexpected oEmbed status %s for %s — skipping", resp.status, url)
+    try:
+        async with session.get(oembed) as resp:
+            if resp.status in (400, 401, 404):
+                return True
+            if resp.status != 200:
+                logger.warning("Unexpected oEmbed status %s for %s — skipping", resp.status, url)
             return False
+    except (asyncio.TimeoutError, aiohttp.ClientError) as error:
+        # A video we could not check is not proof it is broken, and one slow answer must not abort the run.
+        logger.warning("oEmbed request failed for %s (%r) — skipping", url, error)
         return False
 
 
