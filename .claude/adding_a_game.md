@@ -149,7 +149,9 @@ Basketball and volleyball use their own template from the table, with the same
   small print has to stay readable. A 200-dpi article crop is around 1,000–1,400 px
   wide and under 1 MB, far below a full spread's 3,850 px. Find the
   article with the text layer (`pdftotext -bbox`, see `.claude/newspaper_archives.md`),
-  then open the crop and read it before uploading. An article that runs onto a second
+  then open the crop and read it before uploading. Check the bottom edge: the crop ends
+  at the article's own end, which is the dashed rule or the `(סוף בעמוד …)` continuation
+  note, and not at the first line that looks like a stopping point. An article that runs onto a second
   page is two files, or one stacked image, never two whole pages.
 - **Existing scan:** add `סיווג` and `שיוך משחק` inside the template, and keep the
   rest of the page unchanged.
