@@ -199,6 +199,13 @@ others. Both conventions stay, decided 2026-10-03: don't migrate football to pre
 **Rules:**
 - **Link both ways.** Every game of a series names the others. A one-way link is the usual
   error, and no category catches it, because the checks test only that the target page exists.
+- **Self-links** (a game naming itself, usually a copy-paste of its own title) are not caught by
+  any category either. They were rare (three volleyball games, fixed 2026-10-03) and nothing
+  creates them, so they are checked by a one-time scan, not a template check. The scan on
+  2026-10-10 found none in 950 links across all three sports.
+- **Football `משחק:` is a title prefix in the main namespace, not a namespace** (unlike
+  `כדורסל:`/`כדורעף:`). So `משחק: X` with a space is a *different* title, usually a redirect
+  left by an old move. Old series values written that way still work through the redirect.
 - **Football:** the check reads the title between `[[` and the first `|` or `]`. A bare title
   with no `[[ ]]` is flagged, since the template would show it as plain text, not a link. The
   check runs for friendlies too: it sits in the "official and unofficial" tracking block.
@@ -211,6 +218,10 @@ others. Both conventions stay, decided 2026-10-03: don't migrate football to pre
 **State measured 2026-10-03:** football had 227 pages with 230 links (4 one-way, 0 missing).
 Basketball had 10 linked pages out of 280 series games (games whose `Leg` holds `משחק N`).
 Volleyball had 294 pages (2 links to missing pages, 4 one-way).
+All were fixed on 2026-10-03, along with three volleyball self-links. On 2026-10-09 every
+basketball game whose `Leg` holds `<round> - משחק N` was linked: 97 series, 279 pages. Series
+not labelled that way (Euroleague playoffs labelled `מחזור N`, old two-legged ties) are not
+linked yet.
 
 ## 8. Non-Game Entities
 
