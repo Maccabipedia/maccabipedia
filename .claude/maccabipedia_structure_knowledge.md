@@ -190,7 +190,6 @@ queried. To list the pages that use it, take the template's `embeddedin` and rea
 | Value | a full wikilink labelled with the score, shown as-is: `[[משחק:12-09-1953 מכבי ירושלים נגד מכבי תל אביב - גביע המדינה\|מכבי ירושלים 0 - 4 מכבי תל אביב]]` | the bare page title, no `[[ ]]`; the template builds the link |
 | Each page names | every other game of the tie, never itself | only the game before it and the game after it |
 | Bad entry (target page missing) | `קטגוריה:משחקים המפנים למשחק בסדרה ללא עמוד` | `קטגוריה:משחקי כדורסל עם הזנת משחק קודם בסדרה שגויה`, `… הבא בסדרה שגויה`, and the same two for `כדורעף` |
-| Bad entry (game links to itself) | `קטגוריה:משחקים המפנים לעצמם כמשחק בסדרה` | the same "wrong entry" (`שגויה`) categories as a missing page |
 
 **Why two conventions.** Football ties are two games. There is one three-game tie, the 1961
 State Cup against שמשון תל אביב, whose third game was a replay. Basketball series run up
@@ -199,13 +198,14 @@ others. Both conventions stay, decided 2026-10-03: don't migrate football to pre
 
 **Rules:**
 - **Link both ways.** Every game of a series names the others. A one-way link is the usual
-  error, and no category catches it: the checks test only that the target exists and is not
-  the game itself.
-- **Self-links** (a game naming itself, usually a copy-paste of its own title) are caught since
-  2026-10-09. Both sides go through `{{FULLPAGENAME:…}}`, so spaces, underscores and `"` compare
-  equal. In football, `משחק:` is a title prefix in the main namespace, not a namespace, so
-  `משחק: X` (with a space) is a *different* title: a redirect left by an old move, or missing.
-  A self-link through such a redirect is not caught.
+  error, and no category catches it, because the checks test only that the target page exists.
+- **Self-links** (a game naming itself, usually a copy-paste of its own title) are not caught by
+  any category either. They were rare (three volleyball games, fixed 2026-10-03) and nothing
+  creates them, so they are checked by a one-time scan, not a template check. The scan on
+  2026-10-10 found none in 950 links across all three sports.
+- **Football `משחק:` is a title prefix in the main namespace, not a namespace** (unlike
+  `כדורסל:`/`כדורעף:`). So `משחק: X` with a space is a *different* title, usually a redirect
+  left by an old move. Old series values written that way still work through the redirect.
 - **Football:** the check reads the title between `[[` and the first `|` or `]`. A bare title
   with no `[[ ]]` is flagged, since the template would show it as plain text, not a link. The
   check runs for friendlies too: it sits in the "official and unofficial" tracking block.
