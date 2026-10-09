@@ -190,6 +190,7 @@ queried. To list the pages that use it, take the template's `embeddedin` and rea
 | Value | a full wikilink labelled with the score, shown as-is: `[[משחק:12-09-1953 מכבי ירושלים נגד מכבי תל אביב - גביע המדינה\|מכבי ירושלים 0 - 4 מכבי תל אביב]]` | the bare page title, no `[[ ]]`; the template builds the link |
 | Each page names | every other game of the tie, never itself | only the game before it and the game after it |
 | Bad entry (target page missing) | `קטגוריה:משחקים המפנים למשחק בסדרה ללא עמוד` | `קטגוריה:משחקי כדורסל עם הזנת משחק קודם בסדרה שגויה`, `… הבא בסדרה שגויה`, and the same two for `כדורעף` |
+| Bad entry (game links to itself) | `קטגוריה:משחקים המפנים לעצמם כמשחק בסדרה` | the same "wrong entry" (`שגויה`) categories as a missing page |
 
 **Why two conventions.** Football ties are two games. There is one three-game tie, the 1961
 State Cup against שמשון תל אביב, whose third game was a replay. Basketball series run up
@@ -198,7 +199,13 @@ others. Both conventions stay, decided 2026-10-03: don't migrate football to pre
 
 **Rules:**
 - **Link both ways.** Every game of a series names the others. A one-way link is the usual
-  error, and no category catches it, because the checks test only that the target page exists.
+  error, and no category catches it: the checks test only that the target exists and is not
+  the game itself.
+- **Self-links** (a game naming itself, usually a copy-paste of its own title) are caught since
+  2026-10-09. Both sides go through `{{FULLPAGENAME:…}}`, so spaces, underscores and `"` compare
+  equal. In football, `משחק:` is a title prefix in the main namespace, not a namespace, so
+  `משחק: X` (with a space) is a *different* title: a redirect left by an old move, or missing.
+  A self-link through such a redirect is not caught.
 - **Football:** the check reads the title between `[[` and the first `|` or `]`. A bare title
   with no `[[ ]]` is flagged, since the template would show it as plain text, not a link. The
   check runs for friendlies too: it sits in the "official and unofficial" tracking block.
@@ -211,6 +218,10 @@ others. Both conventions stay, decided 2026-10-03: don't migrate football to pre
 **State measured 2026-10-03:** football had 227 pages with 230 links (4 one-way, 0 missing).
 Basketball had 10 linked pages out of 280 series games (games whose `Leg` holds `משחק N`).
 Volleyball had 294 pages (2 links to missing pages, 4 one-way).
+All were fixed on 2026-10-03, along with three volleyball self-links. On 2026-10-09 every
+basketball game whose `Leg` holds `<round> - משחק N` was linked: 97 series, 279 pages. Series
+not labelled that way (Euroleague playoffs labelled `מחזור N`, old two-legged ties) are not
+linked yet.
 
 ## 8. Non-Game Entities
 
