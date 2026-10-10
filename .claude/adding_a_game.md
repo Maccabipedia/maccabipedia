@@ -237,15 +237,20 @@ Basketball and volleyball use their own template from the table, with the same
   Don't copy the minority forms: game date first with the publication date in brackets
   (`דבר 13-09-1978 אנדרלכט (14-09-1978).jpg`), or the date before the paper
   (`05-10-2000 ידיעות אחרונות …`). Write the opponent without quote marks
-  (`צסקא מוסקבה`). For several pages of the same paper and day, add a suffix after
-  the brackets: `(2)`, `(3)` (Oren's form). `עיתון1`/`עיתון2` (Kosh, and the most
-  common suffix overall) also appears. The `עמוד N` suffix belongs to the 2026-09 bot
+  (`צסקא מוסקבה`). **Several pieces from the same paper and day: no numbers.** The
+  main report keeps the plain name. Each other piece gets a short Hebrew description
+  after the game-date brackets, saying what it is. This is Oren's form, measured on
+  110 such groups since 2024:
+  `מעריב 08-03-1959 רגע ממשחק ליגה ביתר תל אביב (07.03.1959) לוי מנסה להדוף כדור מפלשל.jpg`,
+  `... (29.10.1998) תגובות קטש וג'אקוביץ'.jpg`. Don't use `(2)`, `(3)` or
+  `עיתון2`. They show up in old or modern multi-part uploads, but they tell the
+  reader nothing. The `עמוד N` suffix belongs to the 2026-09 bot
   uploads of whole pages (the 2004 Final Four, 1967–1998 European basketball, the 1958
   IFK Göteborg friendly). Don't copy it: the page number tells the reader of a crop
   nothing.
   The `<סיווג>` in the name is one of the template's values listed above (a reactions
-  piece is still `סיקור משחק`; there is no `תגובות`). The `(2)`, `(3)` suffix also
-  numbers a second or third crop from the same page. Spell the opponent exactly as the
+  piece is still `סיקור משחק`; there is no `תגובות`. The word goes in the description
+  instead). Spell the opponent exactly as the
   game page title does, including an ASCII apostrophe (`רג'יו`, not the Hebrew
   geresh `׳`).
   The `תאריך פרסום` param always takes `DD-MM-YYYY`, whatever the file name uses.

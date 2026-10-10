@@ -85,7 +85,7 @@ and some issues had none at all — so check every page, not just the front.
   `_p69.pdf`). Hash the files before cropping, or the same article goes up twice.
   These scans are the raw material, not the upload: crop the Maccabi article out of
   the page or spread first (`.claude/adding_a_game.md` §6). When uploading several
-  crops from one day to one game, give each file a unique ending (`(2)`, `(3)`, Oren's form); a
+  crops from one day to one game, give each other piece a short Hebrew description after the game date (`adding_a_game.md` §6, never `(2)`); a
   shared name overwrites silently when the upload sends `ignorewarnings`.
 
 ## Where this was used
