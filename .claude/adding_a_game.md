@@ -170,6 +170,19 @@ Basketball and volleyball use their own template from the table, with the same
     between two rows of text without cutting a single letter, so read what it covers.
   Then confirm by eye. Separators don't bound everything, because an article can wrap
   around another story, so the reading order still decides which areas belong to it.
+  **Find all of the game's coverage before you crop.** One game is often spread over
+  several areas, and each separate article becomes its own file (counted against the
+  per-game cap above):
+  - a continuation note at the end of a column: `(המשך בעמוד N)`, `(סוף בעמוד אחרון)`;
+  - the facing page of a spread, which often holds a second piece on the same game,
+    such as an analysis, player ratings or reactions under a different headline;
+  - a second headline inside the same block (quotes, reactions) is a separate area,
+    so crop it as its own image and don't hang it under the main report;
+  - the rest of the issue: run the text-layer search over the day's pages
+    (`search_newspaper_archive --date … --terms <opponent>`).
+  Write down every piece you found, including the ones you won't upload and the ones
+  the archive doesn't have (a continuation page that was never scanned). That way the
+  next person knows the coverage is incomplete, not missing.
   **Review the whole edge (היקף) of every crop before it goes up.** A crop looks right
   at thumbnail size and still cuts text, so do it zoomed in, on the original scan:
   walk all four sides of every kept rectangle, and every side of every area you
