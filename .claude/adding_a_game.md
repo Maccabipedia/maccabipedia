@@ -133,15 +133,21 @@ Basketball and volleyball use their own template from the table, with the same
   old papers usually come out 350–850 px wide. Measured 2026-10 on every file that
   carries the three tagging templates. The shapes they use:
   - **A full report:** the headline plus every column of the article. When the columns
-    wrap around other stories, cut them out and stack them into one strip.
+    wrap around other stories, cut them out and stack them into one strip. One
+    article means one headline. A piece with its own headline (and often its own
+    byline or frame) is a separate article and becomes its own image, even when it
+    sits inside the report's block: an interview box, a columnist's frame, reactions.
+    A box score, a side table or a photo caption has no headline of its own, so it
+    stays with the report.
   - **A round-up or preview column** (all of the round's games in one item): crop just
     the Maccabi paragraph, with the column's headline above it when it fits. Oren
     often marks the Maccabi lines with a yellow highlighter.
   - **A table:** the table and its header only (`טבלת ליגה`, `טבלה לאחר משחק …`).
   - **A photo:** the photo with its caption (`רגע ממשחק`).
   - **The only time a whole page is right:** a page or spread that is entirely the
-    Maccabi story, of any era: a title win, a derby, a 1969 Asia Cup report, a jubilee
-    spread. Even then, crop off ads and other sections. Never upload a page where
+    game's coverage under one frame or banner (and even then a separately headlined
+    piece inside it can still go up on its own when the cap allows), of any era: a
+    title win, a derby, a 1969 Asia Cup report, a jubilee spread. Even then, crop off ads and other sections. Never upload a page where
     Maccabi is one item among others. The reader has to hunt for it, and the file is
     10–20 times larger than it needs to be.
   Crop from the archive's highest-resolution render (`pdftoppm -r 200`), and don't
@@ -168,6 +174,10 @@ Basketball and volleyball use their own template from the table, with the same
     "sits near the rule" and can still slice the line just above it.
   - **Blank edges off any rule:** such an edge can hide whole lines of the article
     between two rows of text without cutting a single letter, so read what it covers.
+  Every "cuts ink" result is either fixed or explained in writing (it is the rule
+  itself, a frame line, or the seam between two stacked pieces). Never let one through
+  silently, and never mark a crop clean while one is unexplained. A blank whose edge
+  sits on an ad's black frame leaves the frame as a bar, so run the blank past it.
   Then confirm by eye. Separators don't bound everything, because an article can wrap
   around another story, so the reading order still decides which areas belong to it.
   **Find all of the game's coverage before you crop.** One game is often spread over
@@ -178,11 +188,18 @@ Basketball and volleyball use their own template from the table, with the same
     such as an analysis, player ratings or reactions under a different headline;
   - a second headline inside the same block (quotes, reactions) is a separate area,
     so crop it as its own image and don't hang it under the main report;
+  - every other story on the same page or spread: read them all, because a story
+    written from the opponent's side (their hotel, their ticket sales) is still about
+    this game; check boxes right under your crop and items outside a frame;
+  - a column that ends mid-word with no continuation note is unfinished: record it;
   - the rest of the issue: run the text-layer search over the day's pages
     (`search_newspaper_archive --date … --terms <opponent>`).
   Write down every piece you found, including the ones you won't upload and the ones
   the archive doesn't have (a continuation page that was never scanned). That way the
-  next person knows the coverage is incomplete, not missing.
+  next person knows the coverage is incomplete, not missing. Then count the files
+  against the cap, the existing ones included (the game page's backlinks in ns=6).
+  When there are more pieces than the cap allows, pick the most informative ones and
+  ask the maintainer.
   **Review the whole edge (היקף) of every crop before it goes up.** A crop looks right
   at thumbnail size and still cuts text, so do it zoomed in, on the original scan:
   walk all four sides of every kept rectangle, and every side of every area you
@@ -224,6 +241,11 @@ Basketball and volleyball use their own template from the table, with the same
   uploads of whole pages (the 2004 Final Four, 1967–1998 European basketball, the 1958
   IFK Göteborg friendly). Don't copy it: the page number tells the reader of a crop
   nothing.
+  The `<סיווג>` in the name is one of the template's values listed above (a reactions
+  piece is still `סיקור משחק`; there is no `תגובות`). The `(2)`, `(3)` suffix also
+  numbers a second or third crop from the same page. Spell the opponent exactly as the
+  game page title does, including an ASCII apostrophe (`רג'יו`, not the Hebrew
+  geresh `׳`).
   The `תאריך פרסום` param always takes `DD-MM-YYYY`, whatever the file name uses.
   Check the name is not taken, then upload with MCP `upload_file(filename, file_path, text,
   comment)` (a requests multipart post). Do **not** use
