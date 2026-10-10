@@ -29,9 +29,9 @@ doesn't have.
   game params and no image. It prints the game page, the file name it would build, and
   every newspaper already linked against the cap. A game at its cap needs a swap
   decision from the maintainer, not a new crop.
-- **Cap:** 2 for a regular game, 5 for a title, a cup final or a milestone game
-  (`--special`). More candidates than room? Show them to the maintainer as pictures and
-  let them choose.
+- **Cap by tier** (`--tier`, the maintainer decides): regular **3**, iconic **6**,
+  legendary **9**. More candidates than room? Show them to the maintainer as pictures
+  and let them choose, or ask whether the game is a higher tier.
 - **One image per article.** Anything with its own headline is its own file. A box
   score, a table or a photo caption stays with its report. Keep the group table, but
   blank the items about other games in the group.
@@ -56,7 +56,7 @@ original-scan pixels:
 uv run python -m maccabipediabot.maintenance.papers.upload_newspaper \
     --sport כדורסל --paper "ידיעות אחרונות" --publish-date 30-10-1998 \
     --classification "סיקור משחק" --opponent "הכוכב האדום בלגרד" --game-date 29-10-1998 \
-    --orig scan.jpg --spec crop.json [--description "תגובות קטש"] [--special]
+    --orig scan.jpg --spec crop.json [--description "תגובות קטש"] [--tier iconic]
 ```
 
 - The main report has no `--description`. Every other piece from the same paper and day

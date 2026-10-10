@@ -18,15 +18,15 @@ same params.
 }}
 ```
 
-- **How many:** up to **2** newspapers for a regular game, and up to **5** for a
-  special one: the game that clinched a championship, a cup final, and other
-  milestone games of that weight. Ask the maintainer when it's unclear whether a
-  game counts as special. The cap counts **every** newspaper file linked to the
-  game, whatever its `סיווג`, and whether it was already on the wiki or newly
-  uploaded. Count them before adding more: football files appear in the per-game
-  category `עיתונות למשחק מה-<day> ב<month> <year>`, and in any sport an ns=6
-  search for the game title finds the files whose `שיוך משחק` names it. Pick the
-  most informative ones (full match report and lineups first).
+- **How many, by tier** (`--tier`, which the maintainer decides; the default is regular):
+  - **regular**: up to **3** newspaper files.
+  - **iconic**: up to **6**.
+  - **legendary**: up to **9**.
+  The cap counts **every** newspaper file linked to the game, whatever its `סיווג`,
+  whether it was already on the wiki or is newly uploaded. The tool counts them,
+  including files linked through an old redirect title. Pick the most informative
+  ones (the full match report and lineups first). Ask the maintainer when a game might
+  be a higher tier.
 - **Upload the Maccabi item, not the page.** Crop the scan to the article about the
   game: its headline, its columns, its photo and caption, and nothing else on the page.
   That is how the uploaders to follow (`אורן המתעפץ`, `Kosh`) built the ~4,600 files
@@ -126,12 +126,14 @@ same params.
 - **`סיווג`:** the template accepts `טבלת ליגה`, `טבלת גביע`, `לקראת משחק`,
   `סיקור משחק`, `רגע ממשחק`, `סיקור מחזור`, `הגרלת גביע`, `אחר`. A match report is
   `סיקור משחק`; a preview is `לקראת משחק`.
-- **New scan:** use one format in every sport:
-  `<paper> <publication DD-MM-YYYY> <סיווג> <sport> <opponent> (<game DD.MM.YYYY>).jpg`,
-  where `<sport>` is `כדורגל`, `כדורסל` or `כדורעף`. Example:
-  `ידיעות אחרונות 30-04-2004 לקראת משחק כדורסל סקיפר בולוניה (01.05.2004).jpg`.
-  This is already the majority form in all three sports, except that football names
-  rarely carry the sport word. Include it anyway; existing files are not renamed.
+- **New scan:**
+  `<paper> <publication DD-MM-YYYY> <סיווג> [<sport> ]<opponent> (<game DD.MM.YYYY>).jpg`.
+  - **Basketball and volleyball** say the sport (`כדורסל`, `כדורעף`):
+    `ידיעות אחרונות 30-04-2004 לקראת משחק כדורסל סקיפר בולוניה (01.05.2004).jpg`.
+  - **Football** has no sport word, no competition and no venue mark (ב/ח/נ). This was
+    the maintainer's decision on 2026-10-10:
+    `חדשות הספורט 05-03-1958 סיקור משחק IFK גטבורג (04.03.1958).jpg`.
+    Older football files with `ליגה`/`גביע` and `(ב)` are not renamed for that.
   Don't copy the minority forms: game date first with the publication date in brackets
   (`דבר 13-09-1978 אנדרלכט (14-09-1978).jpg`), or the date before the paper
   (`05-10-2000 ידיעות אחרונות …`). Write the opponent without quote marks
@@ -174,7 +176,7 @@ same params.
 They are listed here so a reader knows they exist. Change them in the code and its tests.
 - Preview published 0–7 days before the game; report or photo 0–14 days after it
   (`newspaper_names.py`).
-- Cap: 2 newspaper files per game, 5 with `--special`, counting files linked through
+- Cap by `--tier`: regular 3, iconic 6, legendary 9 newspaper files per game, counting files linked through
   redirects too.
 - Whole page: the crop keeps more than 50% of one page (a landscape scan counts as a
   two-page spread), or a finished `--image` is over 4 MP. Either needs

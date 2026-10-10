@@ -3,7 +3,8 @@
 Pure functions, no network. The conventions follow the main uploaders' files (9,605 files
 checked 2026-10, see `.claude/skills/upload-newspaper/rules.md`):
 
-* name: ``<paper> <DD-MM-YYYY> <סיווג> <sport> <opponent> (<DD.MM.YYYY>)[ <description>].jpg``
+* name: ``<paper> <DD-MM-YYYY> <סיווג> [<sport> ]<opponent> (<DD.MM.YYYY>)[ <description>].jpg``,
+  the sport word only for basketball and volleyball (football: no sport, competition or venue)
   e.g. ``ידיעות אחרונות 30-10-1998 סיקור משחק כדורסל הכוכב האדום בלגרד (29.10.1998).jpg``
 * a second piece from the same paper and day gets a short Hebrew description after the
   game-date brackets, never a number: ``... (29.10.1998) תגובות קטש וג'אקוביץ'.jpg``
@@ -40,9 +41,9 @@ TEMPLATES = {
 }
 GAME_PAGE_PREFIXES = {Sport.FOOTBALL: "משחק:", Sport.BASKETBALL: "כדורסל:", Sport.VOLLEYBALL: "כדורעף:"}
 
-# Per-game cap on newspaper files, counting every file already linked to the game.
-REGULAR_GAME_CAP = 2
-SPECIAL_GAME_CAP = 5
+# Per-game cap on newspaper files by how big the game is (the maintainer decides the tier),
+# counting every file already linked to the game.
+GAME_CAPS = {"regular": 3, "iconic": 6, "legendary": 9}
 
 # How far the publication can be from the game, in days.
 MAX_DAYS_BEFORE_GAME = 7
@@ -74,7 +75,10 @@ class NewspaperClip:
 
     @property
     def file_name(self) -> str:
-        name = (f"{self.paper} {self.publish_date:%d-%m-%Y} {self.classification} {self.sport.value} "
+        # Football names carry no sport word (nor competition or venue mark); basketball and
+        # volleyball say which sport, as their existing files do.
+        sport = "" if self.sport is Sport.FOOTBALL else f"{self.sport.value} "
+        name = (f"{self.paper} {self.publish_date:%d-%m-%Y} {self.classification} {sport}"
                 f"{self.opponent} ({self.game_date:%d.%m.%Y})")
         if self.description:
             name += f" {self.description}"
@@ -175,15 +179,15 @@ def game_page_title(cargo_page_name: str) -> str:
     return html.unescape(cargo_page_name)
 
 
-def game_cap(special: bool) -> int:
-    return SPECIAL_GAME_CAP if special else REGULAR_GAME_CAP
+def game_cap(tier: str) -> int:
+    return GAME_CAPS[tier]
 
 
-def check_cap(existing_files: list[str], new_files: int, special: bool) -> None:
-    cap = game_cap(special)
+def check_cap(existing_files: list[str], new_files: int, tier: str) -> None:
+    cap = game_cap(tier)
     if len(existing_files) + new_files > cap:
-        kind = "special" if special else "regular"
         raise NewspaperClipError(
-            f"a {kind} game takes up to {cap} newspaper files; it has {len(existing_files)} "
+            f"a {tier} game takes up to {cap} newspaper files; it has {len(existing_files)} "
             f"({', '.join(existing_files) or 'none'}) and this adds {new_files}. Pick the most "
-            f"informative ones, or pass --special for a title/cup-final/milestone game")
+            f"informative ones, or ask the maintainer whether the game is a higher --tier "
+            f"({', '.join(f'{t} {c}' for t, c in GAME_CAPS.items())})")

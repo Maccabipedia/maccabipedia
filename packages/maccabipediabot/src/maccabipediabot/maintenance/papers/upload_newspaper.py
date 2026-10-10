@@ -32,7 +32,7 @@ from maccabipediabot.maintenance.papers.newspaper_crop import (
     CropSpecError, before_after, check_edges, compose, kept_fraction, load_scan, load_spec,
 )
 from maccabipediabot.maintenance.papers.newspaper_names import (
-    TEMPLATES, NewspaperClip, NewspaperClipError, check_cap, game_cap, game_page_title,
+    GAME_CAPS, TEMPLATES, NewspaperClip, NewspaperClipError, check_cap, game_cap, game_page_title,
 )
 from maccabipediabot.maintenance.tickets.ticket_names import Sport
 
@@ -71,7 +71,9 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     p.add_argument("--game-date", required=True, type=_date, help="DD-MM-YYYY")
     p.add_argument("--description", default="", help="a second piece from the same paper and day")
     p.add_argument("--game-page", help="needed only when the date has more than one game")
-    p.add_argument("--special", action="store_true", help="title, cup final or milestone game: cap 5")
+    p.add_argument("--tier", choices=list(GAME_CAPS), default="regular",
+                   help="how big the game is, which sets the newspaper cap (the maintainer decides): "
+                        + ", ".join(f"{t} {c}" for t, c in GAME_CAPS.items()))
     src = p.add_mutually_exclusive_group()  # neither: info only (game, name, cap)
     src.add_argument("--orig", type=Path, help="the full scan; with --spec")
     src.add_argument("--image", type=Path, help="a finished crop")
@@ -235,12 +237,14 @@ def main(argv: list[str] | None = None) -> int:
         file_name = args.replace or clip.file_name
         existing = linked_newspaper_files(game_page)
         print(f"game page: {game_page}\nfile:      {file_name}")
+        if args.replace and rename_target(args.replace, clip):
+            print(f"rename to: {rename_target(args.replace, clip)}  (after the new version)")
         print(file_text(file_name) if args.replace else clip.page_text)
         print(f"linked:    {len(existing)} newspaper file(s) on this game (cap "
-              f"{game_cap(args.special)}){''.join(chr(10) + '           ' + f for f in existing)}")
-        if not args.replace and len(existing) >= game_cap(args.special):
+              f"{game_cap(args.tier)}){''.join(chr(10) + '           ' + f for f in existing)}")
+        if not args.replace and len(existing) >= game_cap(args.tier):
             print(f"AT CAP:    no room for a new file; a swap needs the maintainer's choice"
-                  f"{'' if args.special else ' (or --special for a title, cup final or milestone game)'}")
+                  f" ({args.tier}; ask whether the game is a higher --tier)")
         if not args.replace and file_text(file_name) is not None:
             print(f"EXISTS:    {file_name} is already on the wiki; another piece needs its own --description")
         if not (args.orig or args.image):
@@ -282,7 +286,30 @@ def main(argv: list[str] | None = None) -> int:
         from maccabipediabot.maintenance.tickets.wiki_tickets import upload_file
         upload_file(get_site(), file_name, data, file_text(file_name) if args.replace else clip.page_text, comment)
     finish(file_name, game_page, sport)
+    target = rename_target(args.replace, clip) if args.replace else None
+    if target:
+        rename(file_name, target, game_page)
     return 0
+
+
+def rename_target(file_name: str, clip: NewspaperClip) -> str | None:
+    """A replaced file still named for a whole page ('... עמוד 68.jpg') takes the clip's name."""
+    if not re.search(r"עמוד \d+", file_name) or clip.file_name == file_name:
+        return None
+    return clip.file_name
+
+
+def rename(old: str, new: str, game_page: str) -> None:
+    import pywikibot as pw
+
+    from maccabipediabot.common.wiki_login import get_site
+    from maccabipediabot.common.wiki_purge import purge_pages
+
+    site = get_site()
+    pw.FilePage(site, f"File:{old}").move(f"File:{new}", reason="שם לפי המוסכמה, אחרי חיתוך לכתבה",
+                                          noredirect=True)
+    purge_pages(site, [game_page])
+    print(f"renamed:  {old}\n       -> https://www.maccabipedia.co.il/File:{new.replace(' ', '_')}")
 
 
 def image_bytes(args: argparse.Namespace, image: Image.Image) -> bytes:
@@ -306,6 +333,10 @@ def upload_problems(args: argparse.Namespace, clip: NewspaperClip, file_name: st
                         f"--whole-page-because '<why the page is all one Maccabi story>'")
     if args.replace:
         problems += check_replace_target(args.replace, game_page, data, clip)
+        target = rename_target(args.replace, clip)
+        if target and file_text(target) is not None:
+            problems.append(f"after the new version, {args.replace} would be renamed to {target}, which is "
+                            f"taken; give this piece its own --description")
     else:
         if file_text(file_name) is not None:
             problems.append(f"{file_name} already exists with a different image; if this is another piece "
@@ -313,7 +344,7 @@ def upload_problems(args: argparse.Namespace, clip: NewspaperClip, file_name: st
         if was_deleted(file_name):
             problems.append(f"{file_name} was deleted by an admin before; ask before uploading it again")
         try:
-            check_cap(existing, 1, args.special)
+            check_cap(existing, 1, args.tier)
         except NewspaperClipError as error:
             problems.append(str(error))
     duplicates = [t for t in same_bytes_on_wiki(data) if t.removeprefix("File:").removeprefix("קובץ:") != file_name]

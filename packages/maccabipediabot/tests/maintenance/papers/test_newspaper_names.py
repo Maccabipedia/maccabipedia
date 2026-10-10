@@ -22,6 +22,13 @@ def test_file_name_is_built_from_the_params():
     assert clip().file_name == "ידיעות אחרונות 30-10-1998 סיקור משחק כדורסל הכוכב האדום בלגרד (29.10.1998).jpg"
 
 
+def test_football_name_has_no_sport_competition_or_venue():
+    friendly = clip(paper="חדשות הספורט", publish_date=date(1958, 3, 5), sport=Sport.FOOTBALL,
+                    opponent="IFK גטבורג", game_date=date(1958, 3, 4),
+                    game_page="משחק:04-03-1958 מכבי תל אביב נגד IFK גטבורג - ידידות")
+    assert friendly.file_name == "חדשות הספורט 05-03-1958 סיקור משחק IFK גטבורג (04.03.1958).jpg"
+
+
 def test_second_piece_gets_its_description_after_the_game_date():
     assert clip(description="תגובות קטש").file_name.endswith("(29.10.1998) תגובות קטש.jpg")
 
@@ -97,10 +104,8 @@ def test_invisible_or_wiki_special_characters_are_refused(description):
         clip(description=description)
 
 
-def test_cap_counts_existing_files():
-    check_cap(["קובץ:א.jpg"], 1, special=False)
-    with pytest.raises(NewspaperClipError, match="up to 2"):
-        check_cap(["קובץ:א.jpg", "קובץ:ב.jpg"], 1, special=False)
-    check_cap(["קובץ:א.jpg", "קובץ:ב.jpg"], 1, special=True)
-    with pytest.raises(NewspaperClipError, match="up to 5"):
-        check_cap([f"קובץ:{n}.jpg" for n in range(5)], 1, special=True)
+@pytest.mark.parametrize("tier, cap", [("regular", 3), ("iconic", 6), ("legendary", 9)])
+def test_cap_counts_existing_files_by_tier(tier, cap):
+    check_cap([f"קובץ:{n}.jpg" for n in range(cap - 1)], 1, tier)
+    with pytest.raises(NewspaperClipError, match=f"up to {cap}"):
+        check_cap([f"קובץ:{n}.jpg" for n in range(cap)], 1, tier)

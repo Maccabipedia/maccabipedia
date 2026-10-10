@@ -60,7 +60,7 @@ def wiki(monkeypatch):
 
 
 def args(**changes):
-    base = dict(replace=None, image=None, special=False, whole_page_because="")
+    base = dict(replace=None, image=None, tier="regular", whole_page_because="")
     return Namespace(**{**base, **changes})
 
 
@@ -93,9 +93,9 @@ def test_linked_files_count_only_newspaper_templates(wiki):
 
 def test_new_upload_over_the_cap_is_refused(wiki):
     wiki()
-    problems = tool.upload_problems(args(), CLIP, CLIP.file_name, GAME, ["קובץ:א.jpg", "קובץ:ב.jpg"],
+    problems = tool.upload_problems(args(), CLIP, CLIP.file_name, GAME, ["קובץ:א.jpg", "קובץ:ב.jpg", "קובץ:ג.jpg"],
                                     Image.new("RGB", (800, 600)), DATA)
-    assert any("up to 2" in p for p in problems)
+    assert any("up to 3" in p for p in problems)
 
 
 def test_new_upload_refuses_taken_deleted_or_duplicate(wiki):
