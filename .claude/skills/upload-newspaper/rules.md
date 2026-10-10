@@ -1,62 +1,9 @@
-# Uploading newspapers to MaccabiPedia
+# Newspaper upload rules: the reasons behind the tool
 
-How newspaper scans go up on the wiki in every sport: what to crop, how many per game,
-file names, the file-page template and the checks before upload. It follows how the
-main uploaders (`אורן המתעפץ`, `Kosh`) do it. Finding a scan in the archive is in
-`.claude/newspaper_archives.md`; adding a whole missing game is in `.claude/adding_a_game.md`.
+Reference for the `upload-newspaper` skill (`SKILL.md` next to this file). The tool
+`maintenance/papers/upload_newspaper.py` enforces most of these; a new rule goes into
+the tool and its tests first, then gets a line here.
 
-## Upload with the tool, never by hand
-
-```
-uv run python -m maccabipediabot.maintenance.papers.upload_newspaper \
-    --sport כדורסל --paper "ידיעות אחרונות" --publish-date 30-10-1998 \
-    --classification "סיקור משחק" --opponent "הכוכב האדום בלגרד" --game-date 29-10-1998 \
-    --orig scan.jpg --spec crop.json [--description "תגובות קטש"] [--special] [--apply]
-```
-
-You choose what to keep, by eye, in the crop spec (format in `newspaper_crop.py`). The
-tool enforces the rest and refuses with a reason:
-- **File name and page text:** built from the params. The paper must be a known one,
-  the `סיווג` a template value, the opponent spelled exactly as in the game title, and
-  the description Hebrew words, never a number.
-- **Dates:** a preview is published up to 7 days before the game, a report up to 14
-  days after it, and the game page has to be on the game date.
-- **Cap:** counts the newspapers already linked to the game. The limit is 2, or 5 with
-  `--special`.
-- **Edges:** every edge that cuts text is refused until it is fixed or explained with
-  `--accept-edge`, and every blank that sits off a rule needs `--blanks-read`.
-- **Size:** a crop above 6 MP needs `--whole-page-because`.
-- **Upload:** it is a dry run unless you pass `--apply`. Then it uploads, refreshes the
-  game page and checks that the game link works. `--replace` uploads a new version of
-  an existing file.
-
-The rules below are the reasons behind these checks. A new rule goes into the tool and
-its tests first, then gets a line here.
-
-## Several newspaper files for one game: the short version
-
-The rules below, in order. Example: one Yedioth issue the day after a cup final,
-with a report, a reactions box and a photo.
-
-1. **Count** what the game already has: every file in ns=6 that links to the game page.
-2. **Cap:** 2 for a regular game, 5 for a special one (title, cup final, milestone).
-   More candidates than room? Pick the most informative ones and ask the maintainer.
-3. **One image per article.** A separate headline (reactions, an interview, a
-   column) is its own file. A box score, a table or a photo caption stays with its report.
-4. **Crop each one** to its own area on the page's rules, then run the edge review.
-5. **Names:** the main report gets the plain name. Every other piece from the same
-   paper and day gets the same name plus a short Hebrew description after the
-   game-date brackets, and never a number:
-   ```
-   ידיעות אחרונות 30-10-1998 סיקור משחק כדורסל הכוכב האדום בלגרד (29.10.1998).jpg
-   ידיעות אחרונות 30-10-1998 סיקור משחק כדורסל הכוכב האדום בלגרד (29.10.1998) תגובות קטש וג'אקוביץ'.jpg
-   ```
-6. **File page:** the same `{{תיוג עיתונים …}}` text on every piece: the same paper,
-   date, `סיווג` and `שיוך משחק`.
-7. **Record** any piece you left out or that the archive doesn't have. Then purge
-   the game page and check that every file appears on it.
-
-## The full rules
 
 File-page text, football version (matches the existing football files).
 Basketball uses `{{תיוג עיתוני כדורסל}}` and volleyball `{{תיוג עיתוני כדורעף}}`, with the same

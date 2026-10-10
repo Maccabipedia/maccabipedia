@@ -1,7 +1,7 @@
 """What a newspaper clip is on the wiki: its file name and file-page text, built from strict params.
 
 Pure functions, no network. The conventions follow the main uploaders' files (9,605 files
-checked 2026-10, see ``.claude/uploading_newspapers.md``):
+checked 2026-10, see `.claude/skills/upload-newspaper/rules.md`):
 
 * name: ``<paper> <DD-MM-YYYY> <סיווג> <sport> <opponent> (<DD.MM.YYYY>)[ <description>].jpg``
   e.g. ``ידיעות אחרונות 30-10-1998 סיקור משחק כדורסל הכוכב האדום בלגרד (29.10.1998).jpg``

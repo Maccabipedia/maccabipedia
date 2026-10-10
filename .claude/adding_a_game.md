@@ -104,7 +104,7 @@ none there (see step 7).
 
 ## 6. Newspapers: upload new scans, link existing ones
 
-Follow `.claude/uploading_newspapers.md`. It covers the cap per game, cropping to the
+Follow the `upload-newspaper` skill (`.claude/skills/upload-newspaper/`). It covers the cap per game, cropping to the
 Maccabi article, file names for one or several pieces, the `{{תיוג עיתונים}}` text with
 `שיוך משחק` (use the exact game-page title from §5), and the checks before upload.
 

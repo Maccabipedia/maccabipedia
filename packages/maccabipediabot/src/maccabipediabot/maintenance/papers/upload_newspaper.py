@@ -3,7 +3,7 @@
 You choose what to keep on the page (by eye, in a crop spec); this tool builds the file
 name and page text from strict params, checks the crop's edges, the per-game cap and the
 dates, and only then uploads. Dry run by default; ``--apply`` uploads. Rules and their
-reasons: ``.claude/uploading_newspapers.md``.
+reasons: `.claude/skills/upload-newspaper/rules.md`.
 
     uv run python -m maccabipediabot.maintenance.papers.upload_newspaper \\
         --sport כדורסל --paper "ידיעות אחרונות" --publish-date 30-10-1998 \\

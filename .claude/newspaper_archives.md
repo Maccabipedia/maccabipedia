@@ -84,8 +84,8 @@ and some issues had none at all — so check every page, not just the front.
   numbers of a spread are often byte-identical files (`2004-05-02_p68.pdf` =
   `_p69.pdf`). Hash the files before cropping, or the same article goes up twice.
   These scans are the raw material, not the upload: crop the Maccabi article out of
-  the page or spread first (`.claude/uploading_newspapers.md`). When uploading several
-  crops from one day to one game, give each other piece a short Hebrew description after the game date (`uploading_newspapers.md`, never `(2)`); a
+  the page or spread first (the `upload-newspaper` skill). When uploading several
+  crops from one day to one game, give each other piece a short Hebrew description after the game date (the `upload-newspaper` skill, never `(2)`); a
   shared name overwrites silently when the upload sends `ignorewarnings`.
 
 ## Where this was used
