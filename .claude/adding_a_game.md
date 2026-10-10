@@ -151,7 +151,11 @@ Basketball and volleyball use their own template from the table, with the same
   article with the text layer (`pdftotext -bbox`, see `.claude/newspaper_archives.md`),
   then open the crop and read it before uploading. Check the bottom edge: the crop ends
   at the article's own end, which is the dashed rule or the `(סוף בעמוד …)` continuation
-  note, and not at the first line that looks like a stopping point. An article that runs onto a second
+  note, and not at the first line that looks like a stopping point. Check the side
+  edges too: old scans are often tilted, so a column rule can drift 15 px or more
+  down the page. A straight cut then shows slivers of the next column at one end and
+  clips this article's letters at the other. Follow the rule, or cut the block into
+  slices. An article that runs onto a second
   page is two files, or one stacked image, never two whole pages.
 - **Existing scan:** add `סיווג` and `שיוך משחק` inside the template, and keep the
   rest of the page unchanged.
