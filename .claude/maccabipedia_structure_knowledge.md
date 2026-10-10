@@ -199,10 +199,6 @@ others. Both conventions stay, decided 2026-10-03: don't migrate football to pre
 **Rules:**
 - **Link both ways.** Every game of a series names the others. A one-way link is the usual
   error, and no category catches it, because the checks test only that the target page exists.
-- **Self-links** (a game naming itself, usually a copy-paste of its own title) are not caught by
-  any category either. They were rare (three volleyball games, fixed 2026-10-03) and nothing
-  creates them, so they are checked by a one-time scan, not a template check. The scan on
-  2026-10-10 found none in 950 links across all three sports.
 - **Football `משחק:` is a title prefix in the main namespace, not a namespace** (unlike
   `כדורסל:`/`כדורעף:`). So `משחק: X` with a space is a *different* title, usually a redirect
   left by an old move. Old series values written that way still work through the redirect.
@@ -218,10 +214,31 @@ others. Both conventions stay, decided 2026-10-03: don't migrate football to pre
 **State measured 2026-10-03:** football had 227 pages with 230 links (4 one-way, 0 missing).
 Basketball had 10 linked pages out of 280 series games (games whose `Leg` holds `משחק N`).
 Volleyball had 294 pages (2 links to missing pages, 4 one-way).
-All were fixed on 2026-10-03, along with three volleyball self-links. On 2026-10-09 every
-basketball game whose `Leg` holds `<round> - משחק N` was linked: 97 series, 279 pages. Series
-not labelled that way (Euroleague playoffs labelled `מחזור N`, old two-legged ties) are not
-linked yet.
+All were fixed on 2026-10-03. By 2026-10-10 every basketball series was linked: 115 series,
+342 games.
+
+### Basketball stage labels (`שלב במפעל`) for series
+
+The series links come from the stage label: a game is found as part of a series only when its
+label reads `<round> - משחק N`. Rules settled 2026-10-10:
+
+| Games | Label |
+|---|---|
+| Regular-season rounds, any competition | `מחזור N`, and **only** these. Euroleague playoff games were labelled `מחזור 1…5` until 2026-10-10, which mixed them with the season's real rounds 1–5 |
+| Euroleague playoffs, 2005/06 on, with or without groups | `הצלבה - משחק N` |
+| Euroleague play-in | `פליי-אין` (a single game, not a series) |
+| FIBA-era knockout rounds (1990s) and older two-legged ties | the round: `שמינית גמר - משחק N` or `רבע גמר - משחק N`. Name the round, because in some seasons Maccabi played both |
+| A deciding game after a tied two-legged tie | the next number, `<round> - משחק 3`; the page's summary says it was a decider |
+
+**Proving the stage:** the Euroleague's official record names the phase of a game (checked for
+2005/06–2023/24; `api-live.euroleague.net/v1/games?seasonCode=E2011&gameCode=179` gives
+`phasetypename="Playoffs"`). The season code and game code come from the page's own Euroleague
+link in `כתבה`. For older seasons, use linguasport's season page, which the game pages cite: it
+lists each tie under its round heading (`1/8 FINAL`, `1/4 FINAL`).
+
+**Finding unlabelled series:** a series shows up as three or more games against one opponent in
+one competition within about 25 days. A round-robin group (`בית הגמר`) also matches that
+pattern but is not a series.
 
 ## 8. Non-Game Entities
 
