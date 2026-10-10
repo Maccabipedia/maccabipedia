@@ -13,7 +13,7 @@ from pathlib import Path
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
-from maccabipediabot.maintenance.papers.newspaper_crop import thin_rules
+from maccabipediabot.maintenance.papers.newspaper_crop import load_scan, thin_rules
 
 
 def page_map(orig: Image.Image, step: int, region: tuple[int, int, int, int] | None) -> Image.Image:
@@ -46,7 +46,7 @@ def main() -> None:
     p.add_argument("--step", type=int, default=100)
     p.add_argument("--region", type=int, nargs=4, metavar=("X0", "Y0", "X1", "Y1"))
     args = p.parse_args()
-    page_map(Image.open(args.scan), args.step, tuple(args.region) if args.region else None).save(args.out, quality=85)
+    page_map(load_scan(args.scan), args.step, tuple(args.region) if args.region else None).save(args.out, quality=85)
     print(args.out)
 
 

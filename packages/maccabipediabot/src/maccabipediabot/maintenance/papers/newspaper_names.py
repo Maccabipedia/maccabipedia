@@ -50,7 +50,7 @@ MAX_DAYS_AFTER_GAME = 14
 
 MAX_FILE_NAME_BYTES = 240  # MediaWiki's title limit is 255 bytes, minus "File:" and slack
 
-_FORBIDDEN_IN_NAME =re.compile(r'["/\\:#<>\[\]|{}*?]')
+_FORBIDDEN_IN_NAME = re.compile(r'["/\\:#<>\[\]|{}*?~\t\n\r\u00a0\u200e\u200f\u202a-\u202e]')
 _HEBREW = re.compile(r"[א-ת]")
 
 
@@ -121,7 +121,7 @@ def _check_text(field: str, value: str) -> None:
         raise NewspaperClipError(f"{field} {value!r}: empty, or has stray spaces")
     if _FORBIDDEN_IN_NAME.search(value):
         raise NewspaperClipError(f"{field} {value!r} has a character a file name can't hold "
-                                 f"(write the opponent without quote marks: צסקא מוסקבה)")
+                                 f"(no quote marks, slashes, tildes, tabs or invisible direction marks: צסקא מוסקבה)")
 
 
 def _check_dates(clip: NewspaperClip) -> None:
@@ -151,7 +151,7 @@ def _check_game_page(clip: NewspaperClip) -> None:
         raise NewspaperClipError(f"game page {clip.game_page!r} is not on {clip.game_date:%d-%m-%Y}")
     if clip.opponent not in game_opponents(clip.game_page):
         raise NewspaperClipError(f"opponent {clip.opponent!r} must be spelled as in the game page title, "
-                                 f"without quote marks: {' / '.join(game_opponents(clip.game_page)) or clip.game_page!r}")
+                                 f"without quote marks, a slash written as -: {' / '.join(game_opponents(clip.game_page)) or clip.game_page!r}")
 
 
 # "<date> <home> נגד <away>[ - <competition>]"; volleyball titles also write "<away>- CEV CUP"
@@ -165,7 +165,8 @@ def game_opponents(game_page: str) -> set[str]:
     teams = _TEAMS.match(rest)
     if not teams:
         return set()
-    sides = {t.strip().replace('"', "") for t in teams.groups()}
+    # A file name holds no quote mark and no slash: בית"ר -> ביתר, "הפועל מטה אשר/עכו" -> "...אשר-עכו".
+    sides = {t.strip().replace('"', "").replace("/", "-") for t in teams.groups()}
     return {t for t in sides if t.replace("-", " ") != "מכבי תל אביב"}
 
 

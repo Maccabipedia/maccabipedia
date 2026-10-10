@@ -25,11 +25,11 @@ from datetime import date, datetime
 from io import BytesIO
 from pathlib import Path
 
-from PIL import Image, ImageOps
+from PIL import Image
 
 from maccabipediabot.common.maccabipedia_http import build_maccabipedia_session
 from maccabipediabot.maintenance.papers.newspaper_crop import (
-    CropSpecError, before_after, check_edges, compose, kept_fraction, load_spec,
+    CropSpecError, before_after, check_edges, compose, kept_fraction, load_scan, load_spec,
 )
 from maccabipediabot.maintenance.papers.newspaper_names import (
     TEMPLATES, NewspaperClip, NewspaperClipError, check_cap, game_cap, game_page_title,
@@ -37,7 +37,7 @@ from maccabipediabot.maintenance.papers.newspaper_names import (
 from maccabipediabot.maintenance.tickets.ticket_names import Sport
 
 API_URL = "https://www.maccabipedia.co.il/api.php"
-MAX_MEGAPIXELS = 6.0
+MAX_MEGAPIXELS = 4.0  # a finished --image above this is treated as a whole page
 MAX_KEPT_SHARE = 0.5  # a crop keeping more than half the scan is a whole page
 _SPORTS = {s.value: s for s in Sport}
 _session = build_maccabipedia_session()
@@ -120,13 +120,13 @@ def find_game(sport: Sport, game_date: date, override: str | None) -> str:
 def build_image(args: argparse.Namespace) -> tuple[Image.Image, list[str], Image.Image | None]:
     """The crop, the problems that block the upload, and a before/after preview."""
     if args.image:
-        return ImageOps.exif_transpose(Image.open(args.image)).convert("RGB"), [], None
-    orig = ImageOps.exif_transpose(Image.open(args.orig))
+        return load_scan(args.image), [], None
+    orig = load_scan(args.orig)
     spec = load_spec(args.spec)
     accepted = dict(args.accept_edge)
     problems = []
     share = kept_fraction(orig.size, spec)
-    print(f"kept:      {share:.0%} of the scan")
+    print(f"kept:      {share:.0%} of a page")
     if share > MAX_KEPT_SHARE and not args.whole_page_because:
         problems.append(f"the crop keeps {share:.0%} of the scan, a whole page; crop to the Maccabi article, "
                         f"or --whole-page-because '<why the page is all one Maccabi story>'")
@@ -182,7 +182,7 @@ def current_sha1(file_name: str) -> str | None:
     return info[0]["sha1"] if info else None
 
 
-def check_replace_target(file_name: str, game_page: str, data: bytes) -> list[str]:
+def check_replace_target(file_name: str, game_page: str, data: bytes, clip: NewspaperClip) -> list[str]:
     text = file_text(file_name)
     if text is None:
         return [f"--replace: {file_name} does not exist"]
@@ -194,6 +194,12 @@ def check_replace_target(file_name: str, game_page: str, data: bytes) -> list[st
     linked = link.group(1).strip() if link else ""
     if not linked or resolved_title(linked) != game_page:
         return [f"--replace: {file_name} is linked to {linked or 'no game'!r}, not to {game_page!r}"]
+    for param, wanted in (("שם עיתון", clip.paper), ("תאריך פרסום", f"{clip.publish_date:%d-%m-%Y}"),
+                          ("סיווג", clip.classification)):
+        found = re.search(rf"{param}\s*=\s*([^\n|}}]*)", text)
+        if not found or found.group(1).strip() != wanted:
+            return [f"--replace: {file_name} has {param}={found.group(1).strip() if found else '(none)'!r}, "
+                    f"but this clip is {wanted!r}: a new version must be the same piece"]
     if current_sha1(file_name) == hashlib.sha1(data).hexdigest():
         return [f"--replace: the wiki already has exactly this image as {file_name}"]
     return []
@@ -234,7 +240,7 @@ def main(argv: list[str] | None = None) -> int:
     image.save(buffer, format="JPEG", quality=90)
     data = buffer.getvalue()
     if args.replace:
-        problems += check_replace_target(args.replace, game_page, data)
+        problems += check_replace_target(args.replace, game_page, data, clip)
     else:
         if file_text(file_name) is not None:
             problems.append(f"{file_name} already exists; a second piece needs its own --description")

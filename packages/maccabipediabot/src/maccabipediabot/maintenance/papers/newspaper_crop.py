@@ -30,7 +30,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageOps
 
 _WINDOW, _SIDE, _MIN_LEN, _SNAP = 41, 6, 160, 30
 _DARK = 140
@@ -52,22 +52,55 @@ class EdgeResult:
         return f"{self.label:22} {self.verdict:8} at {self.position} span {self.span[0]}-{self.span[1]} ink {self.ink:.1%}"
 
 
-def load_spec(path: Path) -> dict:
-    return json.loads(Path(path).read_text(encoding="utf-8"))
-
-
 class CropSpecError(ValueError):
-    """The spec would drop or duplicate part of the page."""
+    """The spec would drop or duplicate part of the page, or is malformed."""
+
+
+def load_spec(path: Path) -> dict:
+    try:
+        spec = json.loads(Path(path).read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        raise CropSpecError(f"cannot read spec {path}: {error}") from None
+    if not isinstance(spec, dict) or not isinstance(spec.get("pieces"), list) or not spec["pieces"]:
+        raise CropSpecError("a spec needs a non-empty 'pieces' list")
+    for key in ("width", "height"):
+        if not isinstance(spec.get(key), int):
+            raise CropSpecError(f"a spec needs an integer {key!r}")
+    return spec
+
+
+def load_scan(path: Path) -> Image.Image:
+    """Open a scan the way every step sees it: EXIF rotation applied, 8-bit, on white."""
+    img = ImageOps.exif_transpose(Image.open(path))
+    if img.mode in ("I;16", "I;16B", "I;16L", "I"):
+        array = np.asarray(img, dtype=np.float64)
+        top = array.max() or 1
+        img = Image.fromarray((array * 255 / top).astype(np.uint8), "L")
+    if img.mode in ("RGBA", "LA", "P"):
+        img = img.convert("RGBA")
+        background = Image.new("RGBA", img.size, "white")
+        img = Image.alpha_composite(background, img)
+    return img.convert("RGB")
 
 
 def validate_spec(size: tuple[int, int], spec: dict) -> None:
     width, height = size
     placed = []
-    for i, piece in enumerate(spec["pieces"]):
-        x0, y0, x1, y1 = piece["box"]
+    sources = []
+    try:
+        pieces = [(tuple(p["box"]), tuple(p.get("at", (0, 0))), [tuple(b) for b in p.get("blank", [])])
+                  for p in spec["pieces"]]
+    except (KeyError, TypeError, ValueError) as error:
+        raise CropSpecError(f"malformed piece in spec: {error}") from None
+    if not pieces:
+        raise CropSpecError("the spec has no pieces")
+    for i, ((x0, y0, x1, y1), (ax, ay), blanks) in enumerate(pieces):
         if not (0 <= x0 < x1 <= width and 0 <= y0 < y1 <= height):
-            raise CropSpecError(f"piece {i} box {piece['box']} is outside the {width}x{height} scan")
-        ax, ay = piece.get("at", (0, 0))
+            raise CropSpecError(f"piece {i} box {[x0, y0, x1, y1]} is outside the {width}x{height} scan")
+        for j, (b0, b1, b2, b3) in enumerate(blanks):
+            if not (0 <= b0 < b2 <= x1 - x0 and 0 <= b1 < b3 <= y1 - y0):
+                raise CropSpecError(f"piece {i} blank {j} {[b0, b1, b2, b3]} is outside its piece "
+                                    f"({x1 - x0}x{y1 - y0}); blanks are relative to the piece")
         target = (ax, ay, ax + x1 - x0, ay + y1 - y0)
         if target[0] < 0 or target[1] < 0 or target[2] > spec["width"] or target[3] > spec["height"]:
             raise CropSpecError(f"piece {i} lands at {target}, outside the {spec['width']}x{spec['height']} "
@@ -75,7 +108,16 @@ def validate_spec(size: tuple[int, int], spec: dict) -> None:
         for j, other in enumerate(placed):
             if target[0] < other[2] and other[0] < target[2] and target[1] < other[3] and other[1] < target[3]:
                 raise CropSpecError(f"pieces {j} and {i} overlap on the canvas")
+        for j, other in enumerate(sources):
+            if x0 < other[2] and other[0] < x1 and y0 < other[3] and other[1] < y1:
+                raise CropSpecError(f"pieces {j} and {i} take overlapping parts of the scan")
         placed.append(target)
+        sources.append((x0, y0, x1, y1))
+    used_w = max(t[2] for t in placed)
+    used_h = max(t[3] for t in placed)
+    if (used_w, used_h) != (spec["width"], spec["height"]):
+        raise CropSpecError(f"canvas is {spec['width']}x{spec['height']} but the pieces fill {used_w}x{used_h}; "
+                            f"set width/height to match")
 
 
 def compose(orig: Image.Image, spec: dict) -> Image.Image:
@@ -131,6 +173,24 @@ def _keep_mask(size: tuple[int, int], spec: dict) -> np.ndarray:
     return np.asarray(mask) > 0
 
 
+def _owner_offsets(size: tuple[int, int], spec: dict) -> np.ndarray:
+    """Per scan pixel: 0 if dropped, else an id of how its piece moves onto the canvas.
+
+    Two neighbouring pixels with the same id stay neighbours in the crop (a seam); with
+    different ids they are pulled apart, so the line between them is a real cut.
+    """
+    keep = _keep_mask(size, spec)
+    owner = np.zeros(keep.shape, dtype=np.int32)
+    moves: dict[tuple[int, int], int] = {}
+    for piece in spec["pieces"]:
+        x0, y0, x1, y1 = piece["box"]
+        ax, ay = piece.get("at", (0, 0))
+        move = moves.setdefault((ax - x0, ay - y0), len(moves) + 1)
+        owner[y0:y1, x0:x1] = move
+    owner[~keep] = 0
+    return owner
+
+
 def _edges(spec: dict) -> list[tuple[str, str, int, int, int]]:
     edges = []
     for i, piece in enumerate(spec["pieces"]):
@@ -150,25 +210,30 @@ def _edges(spec: dict) -> list[tuple[str, str, int, int, int]]:
 def check_edges(orig: Image.Image, spec: dict) -> list[EdgeResult]:
     dark = (np.asarray(orig.convert("L")) < _DARK).astype(np.float32)
     validate_spec(orig.size, spec)
-    keep = _keep_mask(orig.size, spec)
+    owner = _owner_offsets(orig.size, spec)
     rules = {"h": thin_rules(dark), "v": thin_rules(dark.T)}
     h, w = dark.shape
     results = []
     for label, kind, at, a, b in _edges(spec):
-        def px(offset: int, grid: np.ndarray, t: int) -> bool:
+        def px(offset: int, grid: np.ndarray, t: int):
             yy, xx = (at + offset, t) if kind == "h" else (t, at + offset)
-            return bool(grid[min(max(yy, 0), h - 1), min(max(xx, 0), w - 1)])
+            return grid[min(max(yy, 0), h - 1), min(max(xx, 0), w - 1)]
 
         # A column rule crossing this edge is dark on both sides of it too, but it is a
         # rule, not a letter: skip a few px around every perpendicular rule that crosses.
         crossing = {t for pos, s0, s1 in rules["v" if kind == "h" else "h"]
                     if s0 - _CROSS_PAD <= at <= s1 + _CROSS_PAD
                     for t in range(pos - _CROSS_PAD, pos + _CROSS_PAD + 1)}
+        # An edge laid on a thick rule (a frame line, 5+ px) is dark on both sides of the
+        # cut line too: skip where a parallel rule runs right along the edge.
+        along = {t for pos, s0, s1 in rules[kind] if abs(pos - at) <= _CROSS_PAD
+                 for t in range(s0, s1 + 1)}
         crossed = total = 0
         for t in range(max(a, 0), min(b, w if kind == "h" else h)):
-            if px(-3, keep, t) == px(3, keep, t):
-                continue  # a seam between two kept pieces, not a cut
-            if t in crossing:
+            before, after = px(-3, owner, t), px(3, owner, t)
+            if before == after:
+                continue  # both sides kept and moved together (a seam), or both dropped
+            if t in crossing or t in along:
                 continue
             total += 1
             crossed += px(0, dark, t) and px(-2, dark, t) and px(2, dark, t)
@@ -188,8 +253,14 @@ def check_edges(orig: Image.Image, spec: dict) -> list[EdgeResult]:
 
 
 def kept_fraction(size: tuple[int, int], spec: dict) -> float:
-    """Share of the scan the crop keeps; above about half it is a whole page."""
-    return float(_keep_mask(size, spec).mean())
+    """Share of ONE PAGE the crop keeps; above about half it is a whole page.
+
+    A landscape scan is a two-page spread (the Yedioth archive), so a page is half of it:
+    keeping one full page of a spread is 100%, not 50%.
+    """
+    width, height = size
+    pages = 2 if width > 1.25 * height else 1
+    return float(_keep_mask(size, spec).sum()) / (width * height / pages)
 
 
 def before_after(orig: Image.Image, spec: dict, crop: Image.Image, height: int = 1400) -> Image.Image:

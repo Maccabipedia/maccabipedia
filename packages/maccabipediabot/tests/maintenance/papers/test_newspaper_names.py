@@ -87,6 +87,16 @@ def test_tables_are_not_named_like_game_clips(table):
         clip(classification=table)
 
 
+def test_slash_in_a_team_name_is_written_as_a_dash():
+    assert game_opponents("כדורעף:01-03-1990 הפועל מטה אשר/עכו נגד מכבי תל אביב - ליגה") == {"הפועל מטה אשר-עכו"}
+
+
+@pytest.mark.parametrize("description", ["תגובות~~~", "תגובות\tהמאמן", "תגובות‏המאמן", "תגובות המאמן"])
+def test_invisible_or_wiki_special_characters_are_refused(description):
+    with pytest.raises(NewspaperClipError):
+        clip(description=description)
+
+
 def test_cap_counts_existing_files():
     check_cap(["קובץ:א.jpg"], 1, special=False)
     with pytest.raises(NewspaperClipError, match="up to 2"):

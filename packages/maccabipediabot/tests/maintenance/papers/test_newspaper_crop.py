@@ -1,8 +1,11 @@
 from PIL import Image, ImageDraw
 
+import numpy as np
 import pytest
 
-from maccabipediabot.maintenance.papers.newspaper_crop import CropSpecError, check_edges, compose, kept_fraction
+from maccabipediabot.maintenance.papers.newspaper_crop import (
+    CropSpecError, check_edges, compose, kept_fraction, load_scan,
+)
 
 # A synthetic page: two text blocks of 6 px "letters" separated by a 2 px rule at y=200.
 W, H = 600, 400
@@ -79,9 +82,54 @@ def test_column_rule_crossing_the_cut_is_not_ink():
 
 def test_kept_fraction_flags_a_whole_page():
     whole = {"width": 600, "height": 400, "pieces": [{"box": [0, 0, 600, 400], "at": [0, 0]}]}
-    part = {"width": 600, "height": 100, "pieces": [{"box": [0, 0, 600, 100], "at": [0, 0]}]}
+    part = {"width": 600, "height": 60, "pieces": [{"box": [0, 0, 600, 60], "at": [0, 0]}]}
     assert kept_fraction((W, H), whole) > 0.99
     assert kept_fraction((W, H), part) < 0.5
+
+
+def test_edge_laid_on_a_thick_frame_line_is_not_ink():
+    """Virtus 1981: a 6 px dashed frame read 93% ink when the edge sat exactly on it."""
+    img = page()
+    ImageDraw.Draw(img).rectangle([20, 197, 580, 202], fill=0)  # 6 px rule at y=197..202
+    spec = {"width": 600, "height": 200, "pieces": [{"box": [0, 0, 600, 200], "at": [0, 0]}]}
+    assert {e.label: e.verdict for e in check_edges(img, spec)}["P0 bottom"] != "cuts_ink"
+
+
+def test_neighbours_moved_apart_are_a_cut():
+    """Two pieces touching on the scan but stacked apart on the canvas split the letters between them."""
+    spec = {"width": 304, "height": 400,
+            "pieces": [{"box": [0, 0, 296, 200], "at": [0, 0]},
+                       {"box": [296, 0, 600, 200], "at": [0, 200]}]}  # 296 splits the letter at 292-300
+    assert {e.label: e.verdict for e in check_edges(page(), spec)}["P0 right"] == "cuts_ink"
+
+
+@pytest.mark.parametrize("spec", [
+    {"width": 10, "height": 10, "pieces": []},                                                    # empty
+    {"width": 600, "height": 400, "pieces": [{"box": [0, 0, 600, 200], "at": [0, 0]}]},           # canvas too big
+    {"width": 600, "height": 200, "pieces": [{"box": [0, 0, 600, 200], "at": [0, 0],
+                                              "blank": [[0, 150, 600, 260]]}]},                   # blank outside
+    {"width": 600, "height": 200, "pieces": [{"box": [0, 0, 600, 200], "at": [0, 0],
+                                              "blank": [[-5, 0, 100, 50]]}]},                     # negative blank
+    {"width": 600, "height": 400, "pieces": [{"box": [0, 0, 600, 200], "at": [0, 0]},
+                                              {"box": [0, 100, 600, 300], "at": [0, 200]}]},      # same source twice
+    {"width": 600, "height": 200, "pieces": [{"at": [0, 0]}]},                                    # no box
+])
+def test_malformed_or_lossy_specs_are_refused(spec):
+    with pytest.raises(CropSpecError):
+        compose(page(), spec)
+
+
+def test_a_spread_counts_one_page_as_the_whole_page():
+    spread = (3850, 2630)
+    one_page = {"width": 1925, "height": 2630, "pieces": [{"box": [1925, 0, 3850, 2630], "at": [0, 0]}]}
+    assert kept_fraction(spread, one_page) > 0.99
+
+
+def test_16_bit_scan_keeps_its_ink(tmp_path):
+    path = tmp_path / "scan16.png"
+    array = (np.asarray(page(), dtype=np.uint16) * 257)
+    Image.fromarray(array).save(path)  # uint16 -> a 16-bit image
+    assert load_scan(path).convert("L").getextrema()[0] < 50  # the letters are still dark
 
 
 def test_compose_stacks_pieces_and_blanks():
