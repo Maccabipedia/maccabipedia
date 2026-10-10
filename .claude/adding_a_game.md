@@ -150,6 +150,23 @@ Basketball and volleyball use their own template from the table, with the same
   wide and under 1 MB, far below a full spread's 3,850 px. Find the
   article with the text layer (`pdftotext -bbox`, see `.claude/newspaper_archives.md`),
   then open the crop and read it before uploading.
+  **Cut along the page's own separators.** A newspaper page is divided into areas by
+  solid rules, dotted or dashed rules, photo frames, boxes and the white gutters
+  between columns. Find those first, then build the crop from whole areas: the
+  article's areas are kept, and every other area is dropped or blanked. Each kept edge
+  should run along a separator or through empty gutter. Each blank edge should run
+  along the rule that bounds the neighbouring story. A coordinate picked by eye in
+  the middle of a text block is how a crop clips a headline's descenders or leaves a
+  dash of the next story's rule at the bottom. A thin-rule detector works for this:
+  a rule is a band that is dark along its length but light a few px to either side,
+  which also catches dotted rules and keeps text and headline strokes out. Check two
+  things automatically:
+  - **Ink across the cut:** a pixel on the cut line that is dark, with dark pixels
+    5 px to each side, is a cut through a letter or a photo.
+  - **Blank edges off any rule:** such an edge can hide whole lines of the article
+    between two rows of text without cutting a single letter, so read what it covers.
+  Then confirm by eye. Separators don't bound everything, because an article can wrap
+  around another story, so the reading order still decides which areas belong to it.
   **Review the whole edge (היקף) of every crop before it goes up.** A crop looks right
   at thumbnail size and still cuts text, so do it zoomed in, on the original scan:
   walk all four sides of every kept rectangle, and every side of every area you
