@@ -162,7 +162,10 @@ Basketball and volleyball use their own template from the table, with the same
   which also catches dotted rules and keeps text and headline strokes out. Check two
   things automatically:
   - **Ink across the cut:** a pixel on the cut line that is dark, with dark pixels
-    5 px to each side, is a cut through a letter or a photo.
+    2 px to each side, is a cut through a letter or a photo (5 px missed the
+    bottom strokes of a cut text line).
+  - Test for cut ink before you trust a nearby rule. A cut 20 px above a rule
+    "sits near the rule" and can still slice the line just above it.
   - **Blank edges off any rule:** such an edge can hide whole lines of the article
     between two rows of text without cutting a single letter, so read what it covers.
   Then confirm by eye. Separators don't bound everything, because an article can wrap
