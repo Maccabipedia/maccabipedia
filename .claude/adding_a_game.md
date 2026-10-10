@@ -138,7 +138,9 @@ Basketball and volleyball use their own template from the table, with the same
     byline or frame) is a separate article and becomes its own image, even when it
     sits inside the report's block: an interview box, a columnist's frame, reactions.
     A box score, a side table or a photo caption has no headline of its own, so it
-    stays with the report.
+    stays with the report. The group or league table stays too, but a short item on
+    another game in the group (e.g. Real–Bosna next to a Maccabi report) is blanked:
+    keep the table, drop the other game.
   - **A round-up or preview column** (all of the round's games in one item): crop just
     the Maccabi paragraph, with the column's headline above it when it fits. Oren
     often marks the Maccabi lines with a yellow highlighter.
