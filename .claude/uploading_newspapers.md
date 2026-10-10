@@ -5,6 +5,34 @@ file names, the file-page template and the checks before upload. It follows how 
 main uploaders (`אורן המתעפץ`, `Kosh`) do it. Finding a scan in the archive is in
 `.claude/newspaper_archives.md`; adding a whole missing game is in `.claude/adding_a_game.md`.
 
+## Upload with the tool, never by hand
+
+```
+uv run python -m maccabipediabot.maintenance.papers.upload_newspaper \
+    --sport כדורסל --paper "ידיעות אחרונות" --publish-date 30-10-1998 \
+    --classification "סיקור משחק" --opponent "הכוכב האדום בלגרד" --game-date 29-10-1998 \
+    --orig scan.jpg --spec crop.json [--description "תגובות קטש"] [--special] [--apply]
+```
+
+You choose what to keep, by eye, in the crop spec (format in `newspaper_crop.py`). The
+tool enforces the rest and refuses with a reason:
+- **File name and page text:** built from the params. The paper must be a known one,
+  the `סיווג` a template value, the opponent spelled exactly as in the game title, and
+  the description Hebrew words, never a number.
+- **Dates:** a preview is published up to 7 days before the game, a report up to 14
+  days after it, and the game page has to be on the game date.
+- **Cap:** counts the newspapers already linked to the game. The limit is 2, or 5 with
+  `--special`.
+- **Edges:** every edge that cuts text is refused until it is fixed or explained with
+  `--accept-edge`, and every blank that sits off a rule needs `--blanks-read`.
+- **Size:** a crop above 6 MP needs `--whole-page-because`.
+- **Upload:** it is a dry run unless you pass `--apply`. Then it uploads, refreshes the
+  game page and checks that the game link works. `--replace` uploads a new version of
+  an existing file.
+
+The rules below are the reasons behind these checks. A new rule goes into the tool and
+its tests first, then gets a line here.
+
 ## Several newspaper files for one game: the short version
 
 The rules below, in order. Example: one Yedioth issue the day after a cup final,
