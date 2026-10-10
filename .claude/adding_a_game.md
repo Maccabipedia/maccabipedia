@@ -149,7 +149,21 @@ Basketball and volleyball use their own template from the table, with the same
   small print has to stay readable. A 200-dpi article crop is around 1,000–1,400 px
   wide and under 1 MB, far below a full spread's 3,850 px. Find the
   article with the text layer (`pdftotext -bbox`, see `.claude/newspaper_archives.md`),
-  then open the crop and read it before uploading. Check the bottom edge: the crop ends
+  then open the crop and read it before uploading.
+  **Review the whole edge (היקף) of every crop before it goes up.** A crop looks right
+  at thumbnail size and still cuts text, so do it zoomed in, on the original scan:
+  walk all four sides of every kept rectangle, and every side of every area you
+  blanked out. At each side, ask two questions:
+  1. Is any letter of the article cut, or did it end up outside the crop or inside a
+     blank? Typical misses are the last line of a column, a box score's final row,
+     and the end of a sidebar.
+  2. Does the article continue past this edge? Look across it: a column may run on
+     below the cut, a section such as `נקמה` may follow under its own subhead, or a
+     second piece on the same game (reactions, quotes) may sit right underneath. If
+     it does, extend the crop or add a stacked piece.
+  Before trusting a blank, read the text it covers. Twice a blanked block turned out
+  to be part of the article, not a neighbouring story. The edge review found
+  something on 8 of the first 12 crops (2026-10). Check the bottom edge: the crop ends
   at the article's own end, which is the dashed rule or the `(סוף בעמוד …)` continuation
   note, and not at the first line that looks like a stopping point. Check the side
   edges too: old scans are often tilted, so a column rule can drift 15 px or more
