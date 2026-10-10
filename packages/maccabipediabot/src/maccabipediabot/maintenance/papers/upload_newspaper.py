@@ -88,8 +88,14 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     p.add_argument("--replace", type=lambda s: re.sub(r"^(?:File|קובץ):", "", s.strip()),
                    help="existing newspaper file of this game to upload a new version of")
     p.add_argument("--comment", default="", help="upload summary (a default is used)")
+    p.add_argument("--rename", action="store_true",
+                   help="with --replace: rename to the convention name even without an 'עמוד N' suffix")
+    p.add_argument("--rename-only", action="store_true",
+                   help="with --replace and no image: the file is already right, only fix its name")
     p.add_argument("--apply", action="store_true", help="upload; without it, a dry run")
     args = p.parse_args(argv)
+    if args.rename_only and (not args.replace or args.orig or args.image):
+        p.error("--rename-only needs --replace and no image")
     if args.orig and not args.spec:
         p.error("--orig needs --spec")
     if args.image and not args.no_edge_check_because:
@@ -237,8 +243,8 @@ def main(argv: list[str] | None = None) -> int:
         file_name = args.replace or clip.file_name
         existing = linked_newspaper_files(game_page)
         print(f"game page: {game_page}\nfile:      {file_name}")
-        if args.replace and rename_target(args.replace, clip):
-            print(f"rename to: {rename_target(args.replace, clip)}  (after the new version)")
+        if args.replace and not args.rename_only and rename_target(args.replace, clip, args.rename):
+            print(f"rename to: {rename_target(args.replace, clip, args.rename)}  (after the new version)")
         print(file_text(file_name) if args.replace else clip.page_text)
         print(f"linked:    {len(existing)} newspaper file(s) on this game (cap "
               f"{game_cap(args.tier)}){''.join(chr(10) + '           ' + f for f in existing)}")
@@ -248,6 +254,8 @@ def main(argv: list[str] | None = None) -> int:
         if not args.replace and file_text(file_name) is not None:
             print(f"EXISTS:    {file_name} is already on the wiki; another piece needs its own --description")
         if not (args.orig or args.image):
+            if args.rename_only:
+                return rename_only(args, clip, game_page)
             print("info only: no image given (add --orig/--spec or --image to check a crop)")
             return 0
         print("edges:")
@@ -286,15 +294,35 @@ def main(argv: list[str] | None = None) -> int:
         from maccabipediabot.maintenance.tickets.wiki_tickets import upload_file
         upload_file(get_site(), file_name, data, file_text(file_name) if args.replace else clip.page_text, comment)
     finish(file_name, game_page, sport)
-    target = rename_target(args.replace, clip) if args.replace else None
+    target = rename_target(args.replace, clip, args.rename) if args.replace else None
     if target:
         rename(file_name, target, game_page)
     return 0
 
 
-def rename_target(file_name: str, clip: NewspaperClip) -> str | None:
-    """A replaced file still named for a whole page ('... עמוד 68.jpg') takes the clip's name."""
-    if not re.search(r"עמוד \d+", file_name) or clip.file_name == file_name:
+def rename_only(args: argparse.Namespace, clip: NewspaperClip, game_page: str) -> int:
+    """A file that is already the right image (a whole Maccabi page) only needs its name fixed."""
+    problems = check_replace_target(args.replace, game_page, b"", clip)
+    target = rename_target(args.replace, clip, args.rename)
+    if not target:
+        problems.append(f"{args.replace} has no 'עמוד N' to fix, or already has the convention name")
+    elif file_text(target) is not None:
+        problems.append(f"{target} is taken; give this piece its own --description")
+    if problems:
+        print("REFUSED:\n  " + "\n  ".join(problems))
+        return 2
+    print(f"rename to: {target}")
+    if not args.apply:
+        print("dry run: the rename passes; add --apply to rename")
+        return 0
+    rename(args.replace, target, game_page)
+    return 0
+
+
+def rename_target(file_name: str, clip: NewspaperClip, force: bool = False) -> str | None:
+    """The clip's convention name, for a replaced file still named for a whole page
+    ('... עמוד 68.jpg'), or for any off-convention name when --rename asks for it."""
+    if clip.file_name == file_name or not (force or re.search(r"עמוד \d+", file_name)):
         return None
     return clip.file_name
 
@@ -333,7 +361,7 @@ def upload_problems(args: argparse.Namespace, clip: NewspaperClip, file_name: st
                         f"--whole-page-because '<why the page is all one Maccabi story>'")
     if args.replace:
         problems += check_replace_target(args.replace, game_page, data, clip)
-        target = rename_target(args.replace, clip)
+        target = rename_target(args.replace, clip, args.rename)
         if target and file_text(target) is not None:
             problems.append(f"after the new version, {args.replace} would be renamed to {target}, which is "
                             f"taken; give this piece its own --description")
