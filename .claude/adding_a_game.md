@@ -239,8 +239,8 @@ Basketball and volleyball use their own template from the table, with the same
   (`05-10-2000 ידיעות אחרונות …`). Write the opponent without quote marks
   (`צסקא מוסקבה`). **Several pieces from the same paper and day: no numbers.** The
   main report keeps the plain name. Each other piece gets a short Hebrew description
-  after the game-date brackets, saying what it is. This is Oren's form, measured on
-  110 such groups since 2024:
+  after the game-date brackets, saying what it is. This is the most common of Oren's
+  forms since 2024 (105 files; 54 used numbers, which we no longer do):
   `מעריב 08-03-1959 רגע ממשחק ליגה ביתר תל אביב (07.03.1959) לוי מנסה להדוף כדור מפלשל.jpg`,
   `... (29.10.1998) תגובות קטש וג'אקוביץ'.jpg`. Don't use `(2)`, `(3)` or
   `עיתון2`. They show up in old or modern multi-part uploads, but they tell the
@@ -270,6 +270,29 @@ Basketball and volleyball use their own template from the table, with the same
   `עיתוני <sport> ללא שיוך למשחק`). These only catch a title that doesn't exist:
   a link to a redirect (e.g. the old spaced title) passes silently, so check the
   title against the table above yourself.
+
+### Several newspaper files for one game: the short version
+
+The rules above, in order. Example: one Yedioth issue the day after a cup final,
+with a report, a reactions box and a photo.
+
+1. **Count** what the game already has: every file in ns=6 that links to the game page.
+2. **Cap:** 2 for a regular game, 5 for a special one (title, cup final, milestone).
+   More candidates than room? Pick the most informative ones and ask the maintainer.
+3. **One image per article.** A separate headline (reactions, an interview, a
+   column) is its own file. A box score, a table or a photo caption stays with its report.
+4. **Crop each one** to its own area on the page's rules, then run the edge review.
+5. **Names:** the main report gets the plain name. Every other piece from the same
+   paper and day gets the same name plus a short Hebrew description after the
+   game-date brackets, and never a number:
+   ```
+   ידיעות אחרונות 30-10-1998 סיקור משחק כדורסל הכוכב האדום בלגרד (29.10.1998).jpg
+   ידיעות אחרונות 30-10-1998 סיקור משחק כדורסל הכוכב האדום בלגרד (29.10.1998) תגובות קטש וג'אקוביץ'.jpg
+   ```
+6. **File page:** the same `{{תיוג עיתונים …}}` text on every piece: the same paper,
+   date, `סיווג` and `שיוך משחק`.
+7. **Record** any piece you left out or that the archive doesn't have. Then purge
+   the game page and check that every file appears on it.
 
 ## 7. Purge and report
 
