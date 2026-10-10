@@ -12,34 +12,49 @@ reasons: ``.claude/uploading_newspapers.md``.
 
 A crop spec is described in ``newspaper_crop``. ``--image`` uploads a crop made elsewhere
 (no edge check is possible then, so it needs ``--no-edge-check-because``).
-``--replace`` uploads a new version of an existing file under its existing name.
+``--replace`` uploads a new version of an existing newspaper file of the same game.
 """
 from __future__ import annotations
 
 import argparse
-import logging
+import hashlib
+import re
 import sys
 from datetime import date, datetime
 from io import BytesIO
 from pathlib import Path
 
-from PIL import Image
+from PIL import Image, ImageOps
 
-from maccabipediabot.maintenance.papers.newspaper_crop import check_edges, compose, load_spec
+from maccabipediabot.common.maccabipedia_http import build_maccabipedia_session
+from maccabipediabot.maintenance.papers.newspaper_crop import CropSpecError, check_edges, compose, load_spec
 from maccabipediabot.maintenance.papers.newspaper_names import (
-    NewspaperClip, NewspaperClipError, check_cap, TEMPLATES,
+    TEMPLATES, NewspaperClip, NewspaperClipError, check_cap, game_page_title,
 )
 from maccabipediabot.maintenance.tickets.ticket_names import Sport
 
 API_URL = "https://www.maccabipedia.co.il/api.php"
 MAX_MEGAPIXELS = 6.0
 _SPORTS = {s.value: s for s in Sport}
+_session = build_maccabipedia_session()
 
-logger = logging.getLogger(__name__)
+
+class WikiCheckError(RuntimeError):
+    """The wiki answered with something other than the JSON we asked for."""
 
 
 def _date(text: str) -> date:
-    return datetime.strptime(text, "%d-%m-%Y").date()
+    try:
+        return datetime.strptime(text, "%d-%m-%Y").date()
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"{text!r} is not a DD-MM-YYYY date") from None
+
+
+def _edge_note(text: str) -> tuple[str, str]:
+    label, sep, reason = text.partition("=")
+    if not sep or not label.strip() or not reason.strip():
+        raise argparse.ArgumentTypeError(f"{text!r}: use 'LABEL=why it is not a cut', e.g. 'P0 left=frame line'")
+    return label.strip(), reason.strip()
 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
@@ -48,7 +63,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     p.add_argument("--paper", required=True)
     p.add_argument("--publish-date", required=True, type=_date, help="DD-MM-YYYY")
     p.add_argument("--classification", required=True, help="סיווג, e.g. 'סיקור משחק'")
-    p.add_argument("--opponent", required=True, help="spelled exactly as in the game page title")
+    p.add_argument("--opponent", required=True, help="as in the game page title, without quote marks")
     p.add_argument("--game-date", required=True, type=_date, help="DD-MM-YYYY")
     p.add_argument("--description", default="", help="a second piece from the same paper and day")
     p.add_argument("--game-page", help="needed only when the date has more than one game")
@@ -57,14 +72,15 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     src.add_argument("--orig", type=Path, help="the full scan; with --spec")
     src.add_argument("--image", type=Path, help="a finished crop")
     p.add_argument("--spec", type=Path, help="crop spec JSON (with --orig)")
-    p.add_argument("--accept-edge", action="append", default=[], metavar="LABEL=REASON",
-                   help="explain a cuts_ink edge that is really a rule or a seam, e.g. 'P0 left=frame line'")
+    p.add_argument("--accept-edge", action="append", default=[], type=_edge_note, metavar="LABEL=REASON",
+                   help="explain a cuts_ink edge that is really a rule or a seam")
     p.add_argument("--blanks-read", action="store_true",
                    help="you read what every off-rule blank covers and none of it is the article")
     p.add_argument("--no-edge-check-because", default="", help="required with --image")
     p.add_argument("--whole-page-because", default="",
                    help=f"required above {MAX_MEGAPIXELS:.0f} MP: why the whole page is the Maccabi story")
-    p.add_argument("--replace", help="existing file name to upload a new version of")
+    p.add_argument("--replace", help="existing newspaper file of this game to upload a new version of")
+    p.add_argument("--comment", default="", help="upload summary (a default is used)")
     p.add_argument("--apply", action="store_true", help="upload; without it, a dry run")
     args = p.parse_args(argv)
     if args.orig and not args.spec:
@@ -74,13 +90,35 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     return args
 
 
+def api(**params) -> dict:
+    """GET the API and return its JSON, refusing an HTML error page (CLAUDE.md: validate first)."""
+    response = _session.get(API_URL, params={**params, "format": "json", "formatversion": "2"})
+    if response.status_code != 200 or "application/json" not in response.headers.get("Content-Type", ""):
+        raise WikiCheckError(f"API {params.get('action')} returned {response.status_code}: {response.text[:300]}")
+    data = response.json()
+    if "error" in data:
+        raise WikiCheckError(f"API error: {data['error']}")
+    return data
+
+
+def find_game(sport: Sport, game_date: date, override: str | None) -> str:
+    from maccabipediabot.maintenance.tickets.wiki_tickets import find_game_page
+    title = game_page_title(override or find_game_page(sport, game_date))
+    page = api(action="query", titles=title, redirects=0)["query"]["pages"][0]
+    if page.get("missing") or page.get("invalid"):
+        raise NewspaperClipError(f"game page {title!r} does not exist")
+    if "redirect" in page:
+        raise NewspaperClipError(f"game page {title!r} is a redirect; link the page it points to")
+    return title
+
+
 def build_image(args: argparse.Namespace) -> tuple[Image.Image, list[str]]:
     """The crop, and the problems that block the upload."""
     if args.image:
-        return Image.open(args.image).convert("RGB"), []
-    orig = Image.open(args.orig)
+        return ImageOps.exif_transpose(Image.open(args.image)).convert("RGB"), []
+    orig = ImageOps.exif_transpose(Image.open(args.orig))
     spec = load_spec(args.spec)
-    accepted = dict(item.split("=", 1) for item in args.accept_edge)
+    accepted = dict(args.accept_edge)
     problems = []
     for edge in check_edges(orig, spec):
         print("   ", edge)
@@ -92,42 +130,90 @@ def build_image(args: argparse.Namespace) -> tuple[Image.Image, list[str]]:
     return compose(orig, spec), problems
 
 
+def linked_newspaper_files(game_page: str) -> list[str]:
+    """Newspaper files linked to the game, also through a redirect to it (old spaced titles)."""
+    templates = {f"תבנית:{name}" for name in TEMPLATES.values()}
+    data = api(action="query", generator="backlinks", gbltitle=game_page, gblnamespace=6,
+               gblredirect=1, gbllimit="max", prop="templates", tllimit="max",
+               tltemplates="|".join(sorted(templates)))
+    return sorted(p["title"] for p in data.get("query", {}).get("pages", [])
+                  if any(t["title"] in templates for t in p.get("templates", [])))
+
+
+def same_bytes_on_wiki(data: bytes) -> list[str]:
+    sha1 = hashlib.sha1(data).hexdigest()
+    found = api(action="query", list="allimages", aisha1=sha1, ailimit=10)["query"]["allimages"]
+    return [f["title"] for f in found]
+
+
+def was_deleted(file_name: str) -> bool:
+    events = api(action="query", list="logevents", letype="delete", letitle=f"File:{file_name}", lelimit=1)
+    return bool(events["query"]["logevents"])
+
+
+def file_text(file_name: str) -> str | None:
+    page = api(action="query", titles=f"File:{file_name}", prop="revisions", rvprop="content",
+               rvslots="main")["query"]["pages"][0]
+    if page.get("missing"):
+        return None
+    return page["revisions"][0]["slots"]["main"]["content"]
+
+
+def check_replace_target(file_name: str, game_page: str) -> list[str]:
+    text = file_text(file_name)
+    if text is None:
+        return [f"--replace: {file_name} does not exist"]
+    if not any(f"{{{{{t}" in text for t in TEMPLATES.values()):
+        return [f"--replace: {file_name} is not a newspaper file"]
+    link = re.search(r"שיוך משחק\s*=\s*([^\n|}]*)", text)
+    if not link or link.group(1).strip() != game_page:
+        return [f"--replace: {file_name} is linked to {link.group(1).strip() if link else 'no game'!r}, "
+                f"not to {game_page!r}"]
+    return []
+
+
 def main(argv: list[str] | None = None) -> int:
-    logging.basicConfig(level=logging.INFO, format="%(message)s")
     args = parse_args(sys.argv[1:] if argv is None else argv)
     sport = _SPORTS[args.sport]
 
-    from maccabipediabot.maintenance.tickets.wiki_tickets import GameLookupError, file_exists, find_game_page
+    from maccabipediabot.maintenance.tickets.wiki_tickets import GameLookupError
     try:
-        game_page = args.game_page or find_game_page(sport, args.game_date)
+        game_page = find_game(sport, args.game_date, args.game_page)
         clip = NewspaperClip(paper=args.paper, publish_date=args.publish_date,
                              classification=args.classification, sport=sport, opponent=args.opponent,
                              game_date=args.game_date, game_page=game_page, description=args.description)
-    except (NewspaperClipError, GameLookupError) as error:
+        file_name = args.replace or clip.file_name
+        print(f"game page: {game_page}\nfile:      {file_name}\n{clip.page_text}\nedges:")
+        image, problems = build_image(args)
+    except (NewspaperClipError, GameLookupError, CropSpecError, WikiCheckError) as error:
         print(f"REFUSED: {error}")
         return 2
 
-    file_name = args.replace or clip.file_name
-    print(f"game page: {game_page}\nfile:      {file_name}\n{clip.page_text}\nedges:")
-    image, problems = build_image(args)
     megapixels = image.width * image.height / 1e6
     print(f"image:     {image.width}x{image.height} ({megapixels:.1f} MP)")
     if megapixels > MAX_MEGAPIXELS and not args.whole_page_because:
         problems.append(f"{megapixels:.1f} MP is a whole page; crop to the Maccabi article, or "
                         f"--whole-page-because '<why the page is all one Maccabi story>'")
 
+    buffer = BytesIO()
+    image.save(buffer, format="JPEG", quality=90)
+    data = buffer.getvalue()
     existing = linked_newspaper_files(game_page)
+    print(f"linked:    {len(existing)} newspaper file(s) on this game")
     if args.replace:
-        if not file_exists(args.replace):
-            problems.append(f"--replace: {args.replace} does not exist")
+        problems += check_replace_target(args.replace, game_page)
     else:
-        if file_exists(file_name):
-            problems.append(f"{file_name} already exists; a second piece needs --description")
+        if file_text(file_name) is not None:
+            problems.append(f"{file_name} already exists; a second piece needs its own --description")
+        if was_deleted(file_name):
+            problems.append(f"{file_name} was deleted by an admin before; ask before uploading it again")
         try:
             check_cap(existing, 1, args.special)
         except NewspaperClipError as error:
             problems.append(str(error))
-    print(f"linked:    {len(existing)} newspaper file(s) on this game")
+    duplicates = [t for t in same_bytes_on_wiki(data) if t.removeprefix("File:").removeprefix("קובץ:") != file_name]
+    if duplicates:
+        problems.append(f"the same image is already on the wiki: {', '.join(duplicates)}")
 
     preview = (args.spec or args.image).with_suffix(".preview.jpg")
     image.save(preview, quality=90)
@@ -138,29 +224,12 @@ def main(argv: list[str] | None = None) -> int:
     if not args.apply:
         print("dry run: everything passes; add --apply to upload")
         return 0
-    upload(file_name, image, clip, game_page, replace=bool(args.replace))
+    comment = args.comment or ("חיתוך לכתבה על מכבי בלבד" if args.replace else f"העלאת עיתון: {clip.classification}")
+    upload(file_name, data, file_text(file_name) if args.replace else clip.page_text, comment, game_page)
     return 0
 
 
-def linked_newspaper_files(game_page: str) -> list[str]:
-    from maccabipediabot.maintenance.tickets.wiki_tickets import _session
-    templates = {f"תבנית:{name}" for name in TEMPLATES.values()}
-    files: list[str] = []
-    params = {"action": "query", "list": "backlinks", "bltitle": game_page, "blnamespace": 6,
-              "bllimit": "max", "format": "json", "formatversion": "2"}
-    response = _session.get(API_URL, params=params)
-    response.raise_for_status()
-    for link in response.json()["query"]["backlinks"]:
-        info = _session.get(API_URL, params={"action": "query", "titles": link["title"], "prop": "templates",
-                                             "tllimit": "max", "format": "json", "formatversion": "2"})
-        info.raise_for_status()
-        used = {t["title"] for t in info.json()["query"]["pages"][0].get("templates", [])}
-        if used & templates:
-            files.append(link["title"])
-    return files
-
-
-def upload(file_name: str, image: Image.Image, clip: NewspaperClip, game_page: str, *, replace: bool) -> None:
+def upload(file_name: str, data: bytes, text: str, comment: str, game_page: str) -> None:
     import pywikibot as pw
 
     from maccabipediabot.common.wiki_login import get_site
@@ -168,11 +237,7 @@ def upload(file_name: str, image: Image.Image, clip: NewspaperClip, game_page: s
     from maccabipediabot.maintenance.tickets.wiki_tickets import upload_file
 
     site = get_site()
-    buffer = BytesIO()
-    image.save(buffer, format="JPEG", quality=90)
-    text = pw.FilePage(site, f"File:{file_name}").text if replace else clip.page_text
-    comment = "חיתוך לכתבה על מכבי בלבד" if replace else f"העלאת עיתון: {clip.classification}"
-    upload_file(site, file_name, buffer.getvalue(), text, comment)
+    upload_file(site, file_name, data, text, comment)
     purge_pages(site, [game_page, f"File:{file_name}"])
     # The templates file a wrong or empty game link under a tracking category.
     bad = [c.title() for c in pw.FilePage(site, f"File:{file_name}").categories()

@@ -12,6 +12,7 @@ checked 2026-10, see ``.claude/uploading_newspapers.md``):
 """
 from __future__ import annotations
 
+import html
 import re
 from dataclasses import dataclass
 from datetime import date
@@ -47,7 +48,9 @@ SPECIAL_GAME_CAP = 5
 MAX_DAYS_BEFORE_GAME = 7
 MAX_DAYS_AFTER_GAME = 14
 
-_FORBIDDEN_IN_NAME = re.compile(r'["/\\:#<>\[\]|{}*?]')
+MAX_FILE_NAME_BYTES = 240  # MediaWiki's title limit is 255 bytes, minus "File:" and slack
+
+_FORBIDDEN_IN_NAME =re.compile(r'["/\\:#<>\[\]|{}*?]')
 _HEBREW = re.compile(r"[א-ת]")
 
 
@@ -104,6 +107,9 @@ def validate(clip: NewspaperClip) -> None:
             raise NewspaperClipError("description must be Hebrew words saying what the piece is")
     _check_dates(clip)
     _check_game_page(clip)
+    if len(clip.file_name.encode("utf-8")) > MAX_FILE_NAME_BYTES:
+        raise NewspaperClipError(f"file name is {len(clip.file_name.encode('utf-8'))} bytes; the wiki "
+                                 f"takes {MAX_FILE_NAME_BYTES}. Shorten the description")
 
 
 def _check_text(field: str, value: str) -> None:
@@ -128,14 +134,40 @@ def _check_game_page(clip: NewspaperClip) -> None:
     prefix = GAME_PAGE_PREFIXES[clip.sport]
     if not clip.game_page.startswith(prefix):
         raise NewspaperClipError(f"{clip.sport.value} game page must start with {prefix!r}: {clip.game_page!r}")
-    match = re.match(r"\s*(\d\d)-(\d\d)-(\d{4}) ", clip.game_page[len(prefix):])
-    if not match or date(int(match[3]), int(match[2]), int(match[1])) != clip.game_date:
+    if "&quot;" in clip.game_page or "&#" in clip.game_page:
+        raise NewspaperClipError(f"game page {clip.game_page!r} is HTML-escaped; pass the real title "
+                                 f"(game_page_title() unescapes Cargo's)")
+    rest = clip.game_page[len(prefix):]
+    match = re.match(r"\s*(\d\d)-(\d\d)-(\d{4}) ", rest)
+    try:
+        on_date = match and date(int(match[3]), int(match[2]), int(match[1]))
+    except ValueError:
+        on_date = None
+    if on_date != clip.game_date:
         raise NewspaperClipError(f"game page {clip.game_page!r} is not on {clip.game_date:%d-%m-%Y}")
-    teams = re.match(r"\s*\d\d-\d\d-\d{4} (.+?) נגד (.+?) - ", clip.game_page[len(prefix):])
-    opponents = {t for t in (teams.groups() if teams else ()) if t != "מכבי תל אביב"}
-    if clip.opponent not in opponents:
-        raise NewspaperClipError(f"opponent {clip.opponent!r} must be spelled exactly as in the game "
-                                 f"page title: {' / '.join(opponents) or clip.game_page!r}")
+    if clip.opponent not in game_opponents(clip.game_page):
+        raise NewspaperClipError(f"opponent {clip.opponent!r} must be spelled as in the game page title, "
+                                 f"without quote marks: {' / '.join(game_opponents(clip.game_page)) or clip.game_page!r}")
+
+
+# "<date> <home> נגד <away>[ - <competition>]"; volleyball titles also write "<away>- CEV CUP"
+# or leave the competition out.
+_TEAMS = re.compile(r"\s*\d\d-\d\d-\d{4} (.+?) נגד (.+?)(?:\s*-\s+.*)?$")
+
+
+def game_opponents(game_page: str) -> set[str]:
+    """The non-Maccabi side(s) of a game title, written the way a file name holds them (no quotes)."""
+    _, _, rest = game_page.partition(":")
+    teams = _TEAMS.match(rest)
+    if not teams:
+        return set()
+    sides = {t.strip().replace('"', "") for t in teams.groups()}
+    return {t for t in sides if t.replace("-", " ") != "מכבי תל אביב"}
+
+
+def game_page_title(cargo_page_name: str) -> str:
+    """Cargo returns titles HTML-escaped (בית&quot;ר); the wiki title has the real quote."""
+    return html.unescape(cargo_page_name)
 
 
 def game_cap(special: bool) -> int:

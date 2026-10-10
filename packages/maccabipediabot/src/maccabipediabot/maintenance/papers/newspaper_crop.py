@@ -35,6 +35,8 @@ from PIL import Image, ImageDraw
 _WINDOW, _SIDE, _MIN_LEN, _SNAP = 41, 6, 160, 30
 _DARK = 140
 _INK_LIMIT = 0.01
+# One cut letter on a long edge is a small share but still a cut: a stroke is 3+ px wide.
+_INK_MIN_PIXELS = 3
 
 
 @dataclass(frozen=True)
@@ -53,7 +55,30 @@ def load_spec(path: Path) -> dict:
     return json.loads(Path(path).read_text(encoding="utf-8"))
 
 
+class CropSpecError(ValueError):
+    """The spec would drop or duplicate part of the page."""
+
+
+def validate_spec(size: tuple[int, int], spec: dict) -> None:
+    width, height = size
+    placed = []
+    for i, piece in enumerate(spec["pieces"]):
+        x0, y0, x1, y1 = piece["box"]
+        if not (0 <= x0 < x1 <= width and 0 <= y0 < y1 <= height):
+            raise CropSpecError(f"piece {i} box {piece['box']} is outside the {width}x{height} scan")
+        ax, ay = piece.get("at", (0, 0))
+        target = (ax, ay, ax + x1 - x0, ay + y1 - y0)
+        if target[0] < 0 or target[1] < 0 or target[2] > spec["width"] or target[3] > spec["height"]:
+            raise CropSpecError(f"piece {i} lands at {target}, outside the {spec['width']}x{spec['height']} "
+                                f"canvas: part of it would be lost")
+        for j, other in enumerate(placed):
+            if target[0] < other[2] and other[0] < target[2] and target[1] < other[3] and other[1] < target[3]:
+                raise CropSpecError(f"pieces {j} and {i} overlap on the canvas")
+        placed.append(target)
+
+
 def compose(orig: Image.Image, spec: dict) -> Image.Image:
+    validate_spec(orig.size, spec)
     orig = orig.convert("RGB")
     canvas = Image.new("RGB", (spec["width"], spec["height"]), "white")
     for piece in spec["pieces"]:
@@ -123,6 +148,7 @@ def _edges(spec: dict) -> list[tuple[str, str, int, int, int]]:
 
 def check_edges(orig: Image.Image, spec: dict) -> list[EdgeResult]:
     dark = (np.asarray(orig.convert("L")) < _DARK).astype(np.float32)
+    validate_spec(orig.size, spec)
     keep = _keep_mask(orig.size, spec)
     rules = {"h": thin_rules(dark), "v": thin_rules(dark.T)}
     h, w = dark.shape
@@ -141,7 +167,7 @@ def check_edges(orig: Image.Image, spec: dict) -> list[EdgeResult]:
         ink = crossed / total if total else 0.0
         near_rule = any(abs(pos - at) <= _SNAP and max(0, min(b, s1) - max(a, s0)) >= 0.5 * max(b - a, 1)
                         for pos, s0, s1 in rules[kind])
-        if ink >= _INK_LIMIT:
+        if ink >= _INK_LIMIT or crossed >= _INK_MIN_PIXELS:
             verdict = "cuts_ink"
         elif near_rule:
             verdict = "on_rule"

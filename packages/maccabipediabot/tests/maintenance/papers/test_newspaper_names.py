@@ -2,7 +2,9 @@ from datetime import date
 
 import pytest
 
-from maccabipediabot.maintenance.papers.newspaper_names import NewspaperClip, NewspaperClipError, check_cap
+from maccabipediabot.maintenance.papers.newspaper_names import (
+    NewspaperClip, NewspaperClipError, check_cap, game_opponents, game_page_title,
+)
 from maccabipediabot.maintenance.tickets.ticket_names import Sport
 
 RED_STAR = dict(
@@ -49,6 +51,34 @@ def test_numbered_or_non_hebrew_description_is_refused(description):
 def test_broken_params_are_refused(changes):
     with pytest.raises(NewspaperClipError):
         clip(**changes)
+
+
+def test_quoted_team_is_written_without_quotes():
+    assert game_opponents('משחק:17-02-2003 בית"ר ירושלים נגד מכבי תל אביב - ליגת העל') == {"ביתר ירושלים"}
+
+
+@pytest.mark.parametrize("title, opponent", [
+    ("כדורעף:13-11-1976 סט. מור נגד מכבי תל אביב - ליגת האלופות", "סט. מור"),
+    ("כדורעף:20-10-2010 בודנס נגד מכבי תל אביב- CEV CUP", "בודנס"),
+    ("כדורעף:01-02-1980 מכבי תל-אביב נגד הפועל כפר סבא", "הפועל כפר סבא"),
+])
+def test_unusual_titles_still_give_the_opponent(title, opponent):
+    assert game_opponents(title) == {opponent}
+
+
+def test_html_escaped_title_is_refused():
+    with pytest.raises(NewspaperClipError, match="escaped"):
+        clip(game_page="כדורסל:29-10-1998 הכוכב &quot;האדום&quot; בלגרד נגד מכבי תל אביב - פיבא יורוליג")
+
+
+def test_cargo_title_is_unescaped():
+    assert game_page_title("משחק:17-02-2003 בית&quot;ר ירושלים נגד מכבי תל אביב") == \
+        'משחק:17-02-2003 בית"ר ירושלים נגד מכבי תל אביב'
+
+
+def test_too_long_file_name_is_refused():
+    with pytest.raises(NewspaperClipError, match="bytes"):
+        clip(description=" ".join(["תגובות"] * 20))
 
 
 def test_cap_counts_existing_files():
