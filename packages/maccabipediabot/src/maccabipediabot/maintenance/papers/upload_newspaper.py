@@ -20,6 +20,7 @@ import argparse
 import hashlib
 import re
 import sys
+import time
 from datetime import date, datetime
 from io import BytesIO
 from pathlib import Path
@@ -27,14 +28,17 @@ from pathlib import Path
 from PIL import Image, ImageOps
 
 from maccabipediabot.common.maccabipedia_http import build_maccabipedia_session
-from maccabipediabot.maintenance.papers.newspaper_crop import CropSpecError, check_edges, compose, load_spec
+from maccabipediabot.maintenance.papers.newspaper_crop import (
+    CropSpecError, before_after, check_edges, compose, kept_fraction, load_spec,
+)
 from maccabipediabot.maintenance.papers.newspaper_names import (
-    TEMPLATES, NewspaperClip, NewspaperClipError, check_cap, game_page_title,
+    TEMPLATES, NewspaperClip, NewspaperClipError, check_cap, game_cap, game_page_title,
 )
 from maccabipediabot.maintenance.tickets.ticket_names import Sport
 
 API_URL = "https://www.maccabipedia.co.il/api.php"
 MAX_MEGAPIXELS = 6.0
+MAX_KEPT_SHARE = 0.5  # a crop keeping more than half the scan is a whole page
 _SPORTS = {s.value: s for s in Sport}
 _session = build_maccabipedia_session()
 
@@ -68,7 +72,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     p.add_argument("--description", default="", help="a second piece from the same paper and day")
     p.add_argument("--game-page", help="needed only when the date has more than one game")
     p.add_argument("--special", action="store_true", help="title, cup final or milestone game: cap 5")
-    src = p.add_mutually_exclusive_group(required=True)
+    src = p.add_mutually_exclusive_group()  # neither: info only (game, name, cap)
     src.add_argument("--orig", type=Path, help="the full scan; with --spec")
     src.add_argument("--image", type=Path, help="a finished crop")
     p.add_argument("--spec", type=Path, help="crop spec JSON (with --orig)")
@@ -79,7 +83,8 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     p.add_argument("--no-edge-check-because", default="", help="required with --image")
     p.add_argument("--whole-page-because", default="",
                    help=f"required above {MAX_MEGAPIXELS:.0f} MP: why the whole page is the Maccabi story")
-    p.add_argument("--replace", help="existing newspaper file of this game to upload a new version of")
+    p.add_argument("--replace", type=lambda s: re.sub(r"^(?:File|קובץ):", "", s.strip()),
+                   help="existing newspaper file of this game to upload a new version of")
     p.add_argument("--comment", default="", help="upload summary (a default is used)")
     p.add_argument("--apply", action="store_true", help="upload; without it, a dry run")
     args = p.parse_args(argv)
@@ -112,14 +117,19 @@ def find_game(sport: Sport, game_date: date, override: str | None) -> str:
     return title
 
 
-def build_image(args: argparse.Namespace) -> tuple[Image.Image, list[str]]:
-    """The crop, and the problems that block the upload."""
+def build_image(args: argparse.Namespace) -> tuple[Image.Image, list[str], Image.Image | None]:
+    """The crop, the problems that block the upload, and a before/after preview."""
     if args.image:
-        return ImageOps.exif_transpose(Image.open(args.image)).convert("RGB"), []
+        return ImageOps.exif_transpose(Image.open(args.image)).convert("RGB"), [], None
     orig = ImageOps.exif_transpose(Image.open(args.orig))
     spec = load_spec(args.spec)
     accepted = dict(args.accept_edge)
     problems = []
+    share = kept_fraction(orig.size, spec)
+    print(f"kept:      {share:.0%} of the scan")
+    if share > MAX_KEPT_SHARE and not args.whole_page_because:
+        problems.append(f"the crop keeps {share:.0%} of the scan, a whole page; crop to the Maccabi article, "
+                        f"or --whole-page-because '<why the page is all one Maccabi story>'")
     for edge in check_edges(orig, spec):
         print("   ", edge)
         if edge.verdict == "cuts_ink" and edge.label not in accepted:
@@ -127,7 +137,8 @@ def build_image(args: argparse.Namespace) -> tuple[Image.Image, list[str]]:
                             f"--accept-edge '{edge.label}=<why it is not a cut>'")
         if edge.verdict == "off_rule" and not args.blanks_read:
             problems.append(f"{edge.label} is a blank edge off any rule: read what it covers, then --blanks-read")
-    return compose(orig, spec), problems
+    crop = compose(orig, spec)
+    return crop, problems, before_after(orig, spec, crop)
 
 
 def linked_newspaper_files(game_page: str) -> list[str]:
@@ -159,16 +170,32 @@ def file_text(file_name: str) -> str | None:
     return page["revisions"][0]["slots"]["main"]["content"]
 
 
-def check_replace_target(file_name: str, game_page: str) -> list[str]:
+def resolved_title(title: str) -> str:
+    """Follow a redirect (e.g. Oren's old spaced 'כדורסל: 13-04-1956 ...' titles)."""
+    data = api(action="query", titles=title, redirects=1)["query"]
+    return data["pages"][0]["title"]
+
+
+def current_sha1(file_name: str) -> str | None:
+    page = api(action="query", titles=f"File:{file_name}", prop="imageinfo", iiprop="sha1")["query"]["pages"][0]
+    info = page.get("imageinfo")
+    return info[0]["sha1"] if info else None
+
+
+def check_replace_target(file_name: str, game_page: str, data: bytes) -> list[str]:
     text = file_text(file_name)
     if text is None:
         return [f"--replace: {file_name} does not exist"]
+    if not file_name.lower().endswith((".jpg", ".jpeg")):
+        return [f"--replace: {file_name} is not a JPEG; the crop is uploaded as JPEG bytes"]
     if not any(f"{{{{{t}" in text for t in TEMPLATES.values()):
         return [f"--replace: {file_name} is not a newspaper file"]
     link = re.search(r"שיוך משחק\s*=\s*([^\n|}]*)", text)
-    if not link or link.group(1).strip() != game_page:
-        return [f"--replace: {file_name} is linked to {link.group(1).strip() if link else 'no game'!r}, "
-                f"not to {game_page!r}"]
+    linked = link.group(1).strip() if link else ""
+    if not linked or resolved_title(linked) != game_page:
+        return [f"--replace: {file_name} is linked to {linked or 'no game'!r}, not to {game_page!r}"]
+    if current_sha1(file_name) == hashlib.sha1(data).hexdigest():
+        return [f"--replace: the wiki already has exactly this image as {file_name}"]
     return []
 
 
@@ -183,8 +210,16 @@ def main(argv: list[str] | None = None) -> int:
                              classification=args.classification, sport=sport, opponent=args.opponent,
                              game_date=args.game_date, game_page=game_page, description=args.description)
         file_name = args.replace or clip.file_name
-        print(f"game page: {game_page}\nfile:      {file_name}\n{clip.page_text}\nedges:")
-        image, problems = build_image(args)
+        existing = linked_newspaper_files(game_page)
+        print(f"game page: {game_page}\nfile:      {file_name}")
+        print(file_text(file_name) if args.replace else clip.page_text)
+        print(f"linked:    {len(existing)} newspaper file(s) on this game (cap "
+              f"{game_cap(args.special)}){''.join(chr(10) + '           ' + f for f in existing)}")
+        if not (args.orig or args.image):
+            print("info only: no image given (add --orig/--spec or --image to check a crop)")
+            return 0
+        print("edges:")
+        image, problems, comparison = build_image(args)
     except (NewspaperClipError, GameLookupError, CropSpecError, WikiCheckError) as error:
         print(f"REFUSED: {error}")
         return 2
@@ -198,10 +233,8 @@ def main(argv: list[str] | None = None) -> int:
     buffer = BytesIO()
     image.save(buffer, format="JPEG", quality=90)
     data = buffer.getvalue()
-    existing = linked_newspaper_files(game_page)
-    print(f"linked:    {len(existing)} newspaper file(s) on this game")
     if args.replace:
-        problems += check_replace_target(args.replace, game_page)
+        problems += check_replace_target(args.replace, game_page, data)
     else:
         if file_text(file_name) is not None:
             problems.append(f"{file_name} already exists; a second piece needs its own --description")
@@ -218,6 +251,10 @@ def main(argv: list[str] | None = None) -> int:
     preview = (args.spec or args.image).with_suffix(".preview.jpg")
     image.save(preview, quality=90)
     print(f"preview:   {preview}")
+    if comparison is not None:
+        comparison_path = preview.with_suffix("").with_suffix(".before_after.jpg")
+        comparison.save(comparison_path, quality=85)
+        print(f"compare:   {comparison_path}  (show this to the maintainer)")
     if problems:
         print("REFUSED:\n  " + "\n  ".join(problems))
         return 2
@@ -239,9 +276,16 @@ def upload(file_name: str, data: bytes, text: str, comment: str, game_page: str)
     site = get_site()
     upload_file(site, file_name, data, text, comment)
     purge_pages(site, [game_page, f"File:{file_name}"])
-    # The templates file a wrong or empty game link under a tracking category.
-    bad = [c.title() for c in pw.FilePage(site, f"File:{file_name}").categories()
-           if "שיוך לא תקין" in c.title() or "ללא שיוך" in c.title()]
+    # The templates file a wrong or empty game link under a tracking category. Categories
+    # land after the links update, so look a few times before concluding.
+    for _ in range(4):
+        time.sleep(5)
+        categories = [c.title() for c in pw.FilePage(site, f"File:{file_name}").categories()]
+        if categories:
+            break
+    bad = [c for c in categories if "שיוך לא תקין" in c or "ללא שיוך" in c]
+    if not categories:
+        raise RuntimeError(f"uploaded, but {file_name} has no categories yet: open it and check the game link")
     if bad:
         raise RuntimeError(f"uploaded, but the game link is broken: {', '.join(bad)}")
     print(f"uploaded: https://www.maccabipedia.co.il/File:{file_name.replace(' ', '_')}")

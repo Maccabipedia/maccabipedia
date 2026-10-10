@@ -81,6 +81,12 @@ def test_too_long_file_name_is_refused():
         clip(description=" ".join(["תגובות"] * 20))
 
 
+@pytest.mark.parametrize("table", ["טבלת ליגה", "טבלת גביע"])
+def test_tables_are_not_named_like_game_clips(table):
+    with pytest.raises(NewspaperClipError, match="own names"):
+        clip(classification=table)
+
+
 def test_cap_counts_existing_files():
     check_cap(["קובץ:א.jpg"], 1, special=False)
     with pytest.raises(NewspaperClipError, match="up to 2"):

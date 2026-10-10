@@ -1,6 +1,6 @@
 ---
 name: upload-newspaper
-description: Use whenever a newspaper scan goes up on MaccabiPedia, in any sport. That covers a new clip for a game, fixing an uploaded file (crop, rename, new version), or several pieces for one game. You crop the Maccabi article by eye, never a whole page. The upload_newspaper tool builds the name and page text from strict params and refuses a cut edge, a broken cap or a bad date. Nothing goes up before the maintainer has seen the before/after.
+description: Use whenever a newspaper scan goes up on MaccabiPedia, in any sport. That covers a new clip for a game, a new version of an uploaded file (a better crop), or several pieces for one game. You crop the Maccabi article by eye, never a whole page. The upload_newspaper tool builds the name and page text from strict params and refuses a cut edge, a broken cap or a bad date. Nothing goes up before the maintainer has seen the before/after.
 ---
 
 # Upload a newspaper clip
@@ -25,7 +25,10 @@ doesn't have.
 
 ## 2. Pick what goes up
 
-- **Count** what the game already has. The tool prints `linked: N`.
+- **Count** what the game already has, before you crop anything. Run the tool with the
+  game params and no image. It prints the game page, the file name it would build, and
+  every newspaper already linked against the cap. A game at its cap needs a swap
+  decision from the maintainer, not a new crop.
 - **Cap:** 2 for a regular game, 5 for a title, a cup final or a milestone game
   (`--special`). More candidates than room? Show them to the maintainer as pictures and
   let them choose.
@@ -39,6 +42,9 @@ For each piece, write a crop spec (format at the top of `newspaper_crop.py`), in
 original-scan pixels:
 - Work from the archive's highest-resolution render (`pdftoppm -r 200`), not a
   downsized copy.
+- Get the coordinates from a page map. It draws the detected rules in blue over a grid
+  in scan pixels, and `--region` zooms in on one area:
+  `uv run python -m maccabipediabot.maintenance.papers.newspaper_pagemap scan.jpg map.jpg --step 50 --region x0 y0 x1 y1`
 - Cut along the page's own rules and gutters. Stack an article's columns when they wrap
   around another story. Blank the neighbouring stories along the rules that bound them.
   Use `wipe` polygons for slanted rules.
@@ -63,8 +69,9 @@ uv run python -m maccabipediabot.maintenance.papers.upload_newspaper \
 
 ## 5. Show the maintainer, then upload
 
-1. Publish a before/after report: the scan with the kept area outlined, and the crop next
-   to it. They answer by picture, not by reading text.
+1. Show the maintainer the `.before_after.jpg` from each dry run: the scan with the
+   kept area outlined, with the crop next to it. For several clips, put them in one
+   report. They answer by picture, not by reading text.
 2. After their OK: `--apply` on **one** file. Open it on the wiki.
 3. Then the rest, one run per file. To fix a file the bot already uploaded, use
    `--replace "<existing name>"`, which uploads a new version under the same name.

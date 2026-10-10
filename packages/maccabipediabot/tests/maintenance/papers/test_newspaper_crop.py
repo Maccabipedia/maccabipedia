@@ -2,7 +2,7 @@ from PIL import Image, ImageDraw
 
 import pytest
 
-from maccabipediabot.maintenance.papers.newspaper_crop import CropSpecError, check_edges, compose
+from maccabipediabot.maintenance.papers.newspaper_crop import CropSpecError, check_edges, compose, kept_fraction
 
 # A synthetic page: two text blocks of 6 px "letters" separated by a 2 px rule at y=200.
 W, H = 600, 400
@@ -65,6 +65,23 @@ def test_one_cut_letter_on_a_long_edge_is_still_a_cut():
 def test_spec_that_would_lose_text_is_refused(spec):
     with pytest.raises(CropSpecError):
         compose(page(), spec)
+
+
+def test_column_rule_crossing_the_cut_is_not_ink():
+    """1975 Rotterdam: a 5 px column rule running through the bottom edge was refused."""
+    img = page()
+    d = ImageDraw.Draw(img)
+    d.rectangle([284, 0, 316, 400], fill=255)  # the white gutter between two columns
+    d.rectangle([298, 0, 302, 400], fill=0)    # a thick column rule in it
+    spec = {"width": 600, "height": 200, "pieces": [{"box": [0, 0, 600, 200], "at": [0, 0]}]}
+    assert {e.label: e.verdict for e in check_edges(img, spec)}["P0 bottom"] != "cuts_ink"
+
+
+def test_kept_fraction_flags_a_whole_page():
+    whole = {"width": 600, "height": 400, "pieces": [{"box": [0, 0, 600, 400], "at": [0, 0]}]}
+    part = {"width": 600, "height": 100, "pieces": [{"box": [0, 0, 600, 100], "at": [0, 0]}]}
+    assert kept_fraction((W, H), whole) > 0.99
+    assert kept_fraction((W, H), part) < 0.5
 
 
 def test_compose_stacks_pieces_and_blanks():

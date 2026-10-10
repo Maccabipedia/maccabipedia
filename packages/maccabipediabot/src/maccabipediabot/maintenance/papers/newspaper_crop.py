@@ -37,6 +37,7 @@ _DARK = 140
 _INK_LIMIT = 0.01
 # One cut letter on a long edge is a small share but still a cut: a stroke is 3+ px wide.
 _INK_MIN_PIXELS = 3
+_CROSS_PAD = 6  # px either side of a crossing rule that are not counted as cut ink
 
 
 @dataclass(frozen=True)
@@ -158,10 +159,17 @@ def check_edges(orig: Image.Image, spec: dict) -> list[EdgeResult]:
             yy, xx = (at + offset, t) if kind == "h" else (t, at + offset)
             return bool(grid[min(max(yy, 0), h - 1), min(max(xx, 0), w - 1)])
 
+        # A column rule crossing this edge is dark on both sides of it too, but it is a
+        # rule, not a letter: skip a few px around every perpendicular rule that crosses.
+        crossing = {t for pos, s0, s1 in rules["v" if kind == "h" else "h"]
+                    if s0 - _CROSS_PAD <= at <= s1 + _CROSS_PAD
+                    for t in range(pos - _CROSS_PAD, pos + _CROSS_PAD + 1)}
         crossed = total = 0
         for t in range(max(a, 0), min(b, w if kind == "h" else h)):
             if px(-3, keep, t) == px(3, keep, t):
                 continue  # a seam between two kept pieces, not a cut
+            if t in crossing:
+                continue
             total += 1
             crossed += px(0, dark, t) and px(-2, dark, t) and px(2, dark, t)
         ink = crossed / total if total else 0.0
@@ -177,3 +185,34 @@ def check_edges(orig: Image.Image, spec: dict) -> list[EdgeResult]:
             verdict = "gutter"
         results.append(EdgeResult(label, verdict, at, (a, b), ink))
     return results
+
+
+def kept_fraction(size: tuple[int, int], spec: dict) -> float:
+    """Share of the scan the crop keeps; above about half it is a whole page."""
+    return float(_keep_mask(size, spec).mean())
+
+
+def before_after(orig: Image.Image, spec: dict, crop: Image.Image, height: int = 1400) -> Image.Image:
+    """The scan with kept boxes in red and blanked areas crossed out, next to the crop."""
+    marked = orig.convert("RGB")
+    shade = Image.new("RGBA", marked.size, (0, 0, 0, 0))
+    sd = ImageDraw.Draw(shade)
+    for piece in spec["pieces"]:
+        x0, y0, x1, y1 = piece["box"]
+        for b0, b1, b2, b3 in piece.get("blank", []):
+            rect = [x0 + b0, y0 + b1, min(x0 + b2, x1), min(y0 + b3, y1)]
+            sd.rectangle(rect, fill=(90, 90, 90, 150))
+            sd.line(rect, fill=(200, 0, 0, 220), width=8)
+            sd.line([rect[0], rect[3], rect[2], rect[1]], fill=(200, 0, 0, 220), width=8)
+    for polygon in spec.get("wipe", []):
+        sd.polygon([tuple(pt) for pt in polygon], fill=(90, 90, 90, 150))
+    marked = Image.alpha_composite(marked.convert("RGBA"), shade).convert("RGB")
+    draw = ImageDraw.Draw(marked)
+    for piece in spec["pieces"]:
+        draw.rectangle(piece["box"], outline=(220, 0, 0), width=max(6, marked.width // 300))
+    before = marked.resize((round(marked.width * height / marked.height), height))
+    after = crop.convert("RGB").resize((round(crop.width * height / crop.height), height))
+    canvas = Image.new("RGB", (before.width + after.width + 30, height), "white")
+    canvas.paste(before, (0, 0))
+    canvas.paste(after, (before.width + 30, 0))
+    return canvas

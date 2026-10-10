@@ -5,9 +5,9 @@ Reference for the `upload-newspaper` skill (`SKILL.md` next to this file). The t
 the tool and its tests first, then gets a line here.
 
 
-File-page text, football version (matches the existing football files).
-Basketball uses `{{תיוג עיתוני כדורסל}}` and volleyball `{{תיוג עיתוני כדורעף}}`, with the same
-`שיוך משחק` param; copy the other params from an existing file of that sport.
+File-page text, football version, as the tool writes it (it matches the existing files).
+Basketball uses `{{תיוג עיתוני כדורסל}}` and volleyball `{{תיוג עיתוני כדורעף}}`, with the
+same params.
 
 ```
 {{תיוג עיתונים
@@ -155,9 +155,9 @@ Basketball uses `{{תיוג עיתוני כדורסל}}` and volleyball `{{תי�
   game page title does, including an ASCII apostrophe (`רג'יו`, not the Hebrew
   geresh `׳`).
   The `תאריך פרסום` param always takes `DD-MM-YYYY`, whatever the file name uses.
-  Check the name is not taken, then upload with MCP `upload_file(filename, file_path, text,
-  comment)` (a requests multipart post). Do **not** use
-  `football/papers/upload_games_papers_bot.py` for this: it calls
+  The `upload_newspaper` tool checks the name and uploads (a requests multipart post).
+  Don't upload by hand or through MCP `upload_file`. Don't use
+  `football/papers/upload_games_papers_bot.py` either: it calls
   `FilePage.upload()` (broken, see CLAUDE.md), it finds the game through
   maccabistats (so it can't see a game page created a minute ago), and it writes
   no `סיווג`.

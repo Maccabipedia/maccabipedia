@@ -97,6 +97,10 @@ def validate(clip: NewspaperClip) -> None:
     if clip.classification not in CLASSIFICATIONS:
         raise NewspaperClipError(f"סיווג {clip.classification!r} is not a template value; "
                                  f"use one of: {', '.join(CLASSIFICATIONS)}")
+    if clip.classification in ("טבלת ליגה", "טבלת גביע"):
+        raise NewspaperClipError(f"{clip.classification} files use their own names "
+                                 f"('טבלת ליגה לאחר מחזור N עונת YYYY-YY.jpg', 294 files); this tool "
+                                 f"does game clips only")
     _check_text("opponent", clip.opponent)
     if clip.description:
         _check_text("description", clip.description)
