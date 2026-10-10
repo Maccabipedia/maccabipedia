@@ -104,62 +104,9 @@ none there (see step 7).
 
 ## 6. Newspapers: upload new scans, link existing ones
 
-File-page text, football version (matches the existing football files).
-Basketball and volleyball use their own template from the table, with the same
-`שיוך משחק` param; copy the other params from an existing file of that sport.
-
-```
-{{תיוג עיתונים
-|שם עיתון=דבר
-|תאריך פרסום=14-09-1978
-|סיווג=סיקור משחק
-|שיוך משחק=משחק:13-09-1978 מכבי תל אביב נגד אנדרלכט - ידידות
-}}
-```
-
-- **How many:** up to **2** newspapers for a regular game, and up to **5** for a
-  special one: the game that clinched a championship, a cup final, and other
-  milestone games of that weight. Ask the maintainer when it's unclear whether a
-  game counts as special. The cap counts **every** newspaper file linked to the
-  game, whatever its `סיווג`, and whether it was already on the wiki or newly
-  uploaded. Count them before adding more: football files appear in the per-game
-  category `עיתונות למשחק מה-<day> ב<month> <year>`, and in any sport an ns=6
-  search for the game title finds the files whose `שיוך משחק` names it. Pick the
-  most informative ones (full match report and lineups first).
-- **Existing scan:** add `סיווג` and `שיוך משחק` inside the template, and keep the
-  rest of the page unchanged.
-- **`סיווג`:** the template accepts `טבלת ליגה`, `טבלת גביע`, `לקראת משחק`,
-  `סיקור משחק`, `רגע ממשחק`, `סיקור מחזור`, `הגרלת גביע`, `אחר`. A match report is
-  `סיקור משחק`; a preview is `לקראת משחק`.
-- **New scan:** use one format in every sport:
-  `<paper> <publication DD-MM-YYYY> <סיווג> <sport> <opponent> (<game DD.MM.YYYY>).jpg`,
-  where `<sport>` is `כדורגל`, `כדורסל` or `כדורעף`. Example:
-  `ידיעות אחרונות 30-04-2004 לקראת משחק כדורסל סקיפר בולוניה (01.05.2004) עמוד 12.jpg`.
-  This is already the majority form in all three sports, except that football names
-  rarely carry the sport word. Include it anyway; existing files are not renamed.
-  Don't copy the minority forms: game date first with the publication date in brackets
-  (`דבר 13-09-1978 אנדרלכט (14-09-1978).jpg`), or the date before the paper
-  (`05-10-2000 ידיעות אחרונות …`). Write the opponent without quote marks
-  (`צסקא מוסקבה`). For several pages of the same paper and day, add a suffix after
-  the brackets: `עמוד N` for whole pages (the 2004 Final Four and 1981 CSKA files).
-  `עיתון2` and `(2)` also appear.
-  The `תאריך פרסום` param always takes `DD-MM-YYYY`, whatever the file name uses.
-  Check the name is not taken, then upload with MCP `upload_file(filename, file_path, text,
-  comment)` (a requests multipart post). Do **not** use
-  `football/papers/upload_games_papers_bot.py` for this: it calls
-  `FilePage.upload()` (broken, see CLAUDE.md), it finds the game through
-  maccabistats (so it can't see a game page created a minute ago), and it writes
-  no `סיווג`.
-- `שיוך משחק` must be the exact title of the game page. Verify that the file's
-  categories include the per-game one (football:
-  `עיתונות למשחק מה-<day> ב<month> <year>`) and that its name appears in the game
-  page's parsed HTML. A wrong title lands the file in a tracking category:
-  football `קטעי עיתונות עם שיוך לא תקין למשחק` (and an empty param
-  `קטעי עיתונות ללא שיוך למשחק`); basketball/volleyball
-  `עיתוני <sport> עם שיוך לא תקין למשחק` (and an empty param
-  `עיתוני <sport> ללא שיוך למשחק`). These only catch a title that doesn't exist:
-  a link to a redirect (e.g. the old spaced title) passes silently, so check the
-  title against the table above yourself.
+Follow the `upload-newspaper` skill (`.claude/skills/upload-newspaper/`). It covers the cap per game, cropping to the
+Maccabi article, file names for one or several pieces, the `{{תיוג עיתונים}}` text with
+`שיוך משחק` (use the exact game-page title from §5), and the checks before upload.
 
 ## 7. Purge and report
 

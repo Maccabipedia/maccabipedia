@@ -129,7 +129,7 @@ Hebrew redirect syntax: `#הפניה [[Target_Page_Name]]`
 
 **Newspapers** (`File:` pages, template `{{תיוג עיתונים}}`):
 - File naming: `{שם_עיתון}_{תאריך_המשחק}_{שם_היריבה}_{מספר}_{(תאריך_פרסום)}`
-- Football files in practice: `<עיתון> <DD-MM-YYYY publication> <סיווג> משחק <מפעל> <יריבה> (ב/ח/נ) (<DD.MM.YYYY match>).jpg`, e.g. `חרות 04-07-1954 סיקור משחק גביע מכבי נתניה (נ) (03.07.1954).jpg`. Description is just `{{תיוג עיתונים |שם עיתון= |תאריך פרסום= |סיווג= |שיוך משחק=<game page>}}`; `סיווג` is one of `טבלת ליגה`, `טבלת גביע`, `לקראת משחק`, `סיקור משחק`, `רגע ממשחק`, `סיקור מחזור`, `אחר`. Upload via `requests` (not pywikibot), then purge the game page — the clipping renders there automatically.
+- Football files in practice: `<עיתון> <DD-MM-YYYY publication> <סיווג> משחק <מפעל> <יריבה> (ב/ח/נ) (<DD.MM.YYYY match>).jpg`, e.g. `חרות 04-07-1954 סיקור משחק גביע מכבי נתניה (נ) (03.07.1954).jpg` (older files). New uploads go through the `upload-newspaper` skill and its tool, which builds `<עיתון> <date> <סיווג> <opponent> (<game date>).jpg` for football (no sport word, competition or venue) and the `{{תיוג עיתונים}}` text; see `.claude/skills/upload-newspaper/rules.md`.
 
 **Check the thumbnail after every upload.** The game page embeds each clipping as a
 338px thumbnail (`/images/thumb/.../338px-<name>`). Prod does not always generate it:

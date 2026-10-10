@@ -82,10 +82,11 @@ and some issues had none at all — so check every page, not just the front.
   belong to a different article. Confirm on the image before trusting a snippet.
 - The 2004 Yedioth single pages are really two-page spreads, and the two page
   numbers of a spread are often byte-identical files (`2004-05-02_p68.pdf` =
-  `_p69.pdf`). Hash the files before uploading, or the same spread goes up twice.
-  When uploading several spreads from one day to one game, give each file a unique
-  ending (e.g. `... (01.05.2004) עמוד 68.jpg`); a shared name overwrites silently
-  when the upload sends `ignorewarnings`.
+  `_p69.pdf`). Hash the files before cropping, or the same article goes up twice.
+  These scans are the raw material, not the upload: crop the Maccabi article out of
+  the page or spread first (the `upload-newspaper` skill). When uploading several
+  crops from one day to one game, give each other piece a short Hebrew description after the game date (the `upload-newspaper` skill, never `(2)`); a
+  shared name overwrites silently when the upload sends `ignorewarnings`.
 
 ## Where this was used
 
