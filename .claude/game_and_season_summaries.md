@@ -10,11 +10,21 @@ last section override everything above them.**
 | Game page (`משחק:...`) | `\|סיכום משחק=` | the next `\|param=` of the game template |
 | Season page (`עונת YYYY/YY`) | `\|סיכום העונה=` of `{{עונת כדורגל}}` | the template's closing `}}`; text boxes (`מולטימדיה`, `כתבות`) follow it |
 
-Learned from football pages; the same voice, link and score rules apply to basketball and volleyball.
-Model pages to read before writing: `משחק:30-09-1958 הפועל חיפה נגד מכבי תל אביב - גביע המדינה`
-(match report), `משחק:17-03-2014 הפועל תל אביב נגד מכבי תל אביב - ליגת העל` (iconic game),
-`עונת 1957/58` (chronicle), `עונת 1978/79` (feature). Don't learn from a page just because its
-summary is long or recent; season pages 2005/06–2017/18 are a bot import.
+These rules were learned from football pages, and the same voice, link and score rules apply to
+basketball and volleyball.
+
+Before writing, read one good example of the kind you are writing:
+
+| Kind | Example page |
+|---|---|
+| Match report | `משחק:30-09-1958 הפועל חיפה נגד מכבי תל אביב - גביע המדינה` |
+| Iconic game | `משחק:17-03-2014 הפועל תל אביב נגד מכבי תל אביב - ליגת העל` |
+| Season, chronicle | `עונת 1957/58` |
+| Season, feature | `עונת 1978/79` |
+
+Other summaries on the wiki are not automatically good examples, even long or recent ones. The
+summaries on the season pages 2005/06–2017/18 were copied in by a bot from an older source, so
+don't copy their style.
 
 **Editing an existing summary:** fix facts, links, spelling and score order; don't rewrite another
 writer's prose into this style. A stub may be expanded.
@@ -29,16 +39,23 @@ is left out, and the field stays empty.
    > לאחר שלושה נצחונות ופתיחת עונה טובה, מתארחת מכבי בחיפה אצל קבוצתו של לא אחר מ[[אלי פוקס]]...
 2. **The game in order, by minute:** `בדקה ה-32 ...`, `דקה חולפת ו...`. Each goal: who, from where,
    how it went in, then the score. Misses, saves, disallowed goals and red cards belong too.
-3. **The end:** the result and what it means (trophy, double, table). It may close on the question
-   the next game answers: `האם תשלים הקבוצה דאבל נטול הפסדים?`
+3. **The end:** the result and what it means (trophy, double, table).
 
 **Short notes** for unusual games: an awarded game gives the score on the pitch, then the official
 awarded score, why and by whose decision (the score fields hold only the official one); a game never
 played says so in bold; an estimated date says so and gives the reasoning.
 > '''תאריך המשחק הוא הערכה בלבד''', המבוססת על דפוס המשחקים: כל משחקי אפריל 1950 נערכו בימי שבת...
 
-**Iconic games** (a handful) are told as a story: why the game has a name (`"דרבי זהבי"`), the
-ending held back, the build-up to the decisive moment, what it changed, a light closing line.
+### Iconic and important games
+
+Some games deserve more than a match report:
+- a game that changed the season's momentum dramatically (a comeback in the title race, the end of
+  a long streak);
+- a game that won a title or a cup;
+- a unique situation, on the pitch or off it (a famous goal, a protest, a game that was stopped).
+
+Tell these as a story: why the game is remembered (`"דרבי זהבי"`), the build-up to the decisive
+moment, and what it changed for the season or the club.
 
 ## Season summary
 
@@ -73,7 +90,7 @@ season ended, then covers what changed in the break. One bold label per competit
 - The Hebrew prefix stays outside: `ו[[שייע גלזר|גלזר]]`, `ש[[מכבי רחובות|רחובות]]`.
 - **First mention on the page only.**
   > [[שייע גלזר|גלזר]] בעט פצצה אל הרשת... דקה חולפת וגלזר בישל ל[[רפי לוי]]... ושוב רפי לוי מרעיד את הרשת
-- Link what has a page: clubs (`[[הפועל תל אביב|הפועל]]`), stadiums, seasons (`[[עונת 1963/64|64]]`),
+- Link what has a page: clubs (`[[הפועל תל אביב|הפועל]]`), stadiums, seasons (`[[עונת 1963/64]]`, or `[[עונת 1963/64|63/64]]` to shorten),
   referees (`[[כדורגל:זיו אדלר (שופט)]]`), stat pages (`[[שלושער]]`).
 - No link for what has no page (most opposing players), generic words (`ניצחון טכני`, `VAR`), anything
   red. An opponent who has a page (a former Maccabi player) is linked.
@@ -82,7 +99,8 @@ season ended, then covers what changed in the break. One bold label per competit
 
 ### Spelling, punctuation, numbers
 - `ניצחון`, never `נצחון`. Names are spelled as on the player's page.
-- `(!)` only, attached to the word (`בליגה(!)`), never `(!!!)`.
+- Exclamation marks rarely, and never `(!!!)`: at most one `(!)` for a truly remarkable fact, placed
+  where the context needs it. Keep a professional voice.
 - A hyphen after a prefix letter before a number or link: `ה-19`, `ב-2:2`, `ב-[[משחק:...`.
   Minutes are `בדקה ה-11`.
 - Small numbers in words in running text (`שתי דקות`, `שמונה נקודות`); scores, minutes and big
