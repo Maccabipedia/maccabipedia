@@ -57,6 +57,23 @@ Some games deserve more than a match report:
 Tell these as a story: why the game is remembered (`"דרבי זהבי"`), the build-up to the decisive
 moment, and what it changed for the season or the club.
 
+### The bigger picture
+
+A summary is written after the fact, so use what a match report on the day could not know. When it
+matters, say what happened beyond this game:
+- **Hindsight:** this was the game that turned the season (`ניצחון זה החל רצף של 11 משחקים ללא הפסד
+  שהסתיים באליפות`), or the last game before a collapse.
+- **Absences and their cost:** a key player injured here and out for five games, and what the team
+  did without him.
+- **Records and milestones:** a club or league record, a player's 100th goal, the first win at a
+  ground in 20 years, the longest streak since a named season.
+- **Other games and other seasons:** the rival's result the same day that decided the table, the
+  previous meeting, the same fixture in a title year.
+
+Only what matters for this game, in a sentence or two. Every such fact is checked against the data
+(Cargo, maccabistats, the season and player pages) before it is written; a streak or record states
+what it counts (league only or all competitions, from which season).
+
 ## Season summary
 
 **Chronicle** (old seasons): flowing prose with no `=` sections. It opens where the previous
