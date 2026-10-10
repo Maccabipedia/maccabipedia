@@ -78,8 +78,8 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     p.add_argument("--spec", type=Path, help="crop spec JSON (with --orig)")
     p.add_argument("--accept-edge", action="append", default=[], type=_edge_note, metavar="LABEL=REASON",
                    help="explain a cuts_ink edge that is really a rule or a seam")
-    p.add_argument("--blanks-read", action="store_true",
-                   help="you read what every off-rule blank covers and none of it is the article")
+    p.add_argument("--blanks-read", action="append", default=[], metavar="LABEL",
+                   help="this off-rule blank edge was zoomed into and covers none of the article (repeat per edge)")
     p.add_argument("--no-edge-check-because", default="", help="required with --image")
     p.add_argument("--whole-page-because", default="",
                    help=f"required above {MAX_MEGAPIXELS:.0f} MP: why the whole page is the Maccabi story")
@@ -117,28 +117,45 @@ def find_game(sport: Sport, game_date: date, override: str | None) -> str:
     return title
 
 
-def build_image(args: argparse.Namespace) -> tuple[Image.Image, list[str], Image.Image | None]:
-    """The crop, the problems that block the upload, and a before/after preview."""
+def build_image(args: argparse.Namespace) -> tuple[Image.Image, list[str], list[str], Image.Image | None]:
+    """The crop, the problems that block the upload, the waived checks, and a before/after preview."""
+    overrides = []
     if args.image:
-        return load_scan(args.image), [], None
+        overrides.append(f"no edge check: {args.no_edge_check_because}")
+        if args.whole_page_because:
+            overrides.append(f"whole page: {args.whole_page_because}")
+        return load_scan(args.image), [], overrides, None
     orig = load_scan(args.orig)
     spec = load_spec(args.spec)
     accepted = dict(args.accept_edge)
     problems = []
     share = kept_fraction(orig.size, spec)
     print(f"kept:      {share:.0%} of a page")
-    if share > MAX_KEPT_SHARE and not args.whole_page_because:
-        problems.append(f"the crop keeps {share:.0%} of the scan, a whole page; crop to the Maccabi article, "
-                        f"or --whole-page-because '<why the page is all one Maccabi story>'")
+    if share > MAX_KEPT_SHARE:
+        if args.whole_page_because:
+            overrides.append(f"whole page: {args.whole_page_because}")
+        else:
+            problems.append(f"the crop keeps {share:.0%} of a page, a whole page; crop to the Maccabi article, "
+                            f"or --whole-page-because '<why the page is all one Maccabi story>'")
+    flagged = []
     for edge in check_edges(orig, spec):
         print("   ", edge)
-        if edge.verdict == "cuts_ink" and edge.label not in accepted:
-            problems.append(f"{edge.label} cuts ink: move it onto the rule or gutter, or "
-                            f"--accept-edge '{edge.label}=<why it is not a cut>'")
-        if edge.verdict == "off_rule" and not args.blanks_read:
-            problems.append(f"{edge.label} is a blank edge off any rule: read what it covers, then --blanks-read")
+        if edge.verdict == "cuts_ink":
+            flagged.append(edge)
+            if edge.label in accepted:
+                overrides.append(f"{edge.label}: {accepted[edge.label]}")
+            else:
+                problems.append(f"{edge.label} cuts ink: move it onto the rule or gutter, or "
+                                f"--accept-edge '{edge.label}=<why it is not a cut>'")
+        if edge.verdict == "off_rule":
+            flagged.append(edge)
+            if edge.label in args.blanks_read:
+                overrides.append(f"{edge.label}: blank read")
+            else:
+                problems.append(f"{edge.label} is a blank edge off any rule: zoom into what it covers, "
+                                f"then --blanks-read '{edge.label}'")
     crop = compose(orig, spec)
-    return crop, problems, before_after(orig, spec, crop)
+    return crop, problems, overrides, before_after(orig, spec, crop, flagged)
 
 
 def linked_newspaper_files(game_page: str) -> list[str]:
@@ -221,38 +238,28 @@ def main(argv: list[str] | None = None) -> int:
         print(file_text(file_name) if args.replace else clip.page_text)
         print(f"linked:    {len(existing)} newspaper file(s) on this game (cap "
               f"{game_cap(args.special)}){''.join(chr(10) + '           ' + f for f in existing)}")
+        if not args.replace and len(existing) >= game_cap(args.special):
+            print(f"AT CAP:    no room for a new file; a swap needs the maintainer's choice"
+                  f"{'' if args.special else ' (or --special for a title, cup final or milestone game)'}")
+        if not args.replace and file_text(file_name) is not None:
+            print(f"EXISTS:    {file_name} is already on the wiki; another piece needs its own --description")
         if not (args.orig or args.image):
             print("info only: no image given (add --orig/--spec or --image to check a crop)")
             return 0
         print("edges:")
-        image, problems, comparison = build_image(args)
+        image, problems, overrides, comparison = build_image(args)
     except (NewspaperClipError, GameLookupError, CropSpecError, WikiCheckError) as error:
         print(f"REFUSED: {error}")
         return 2
 
-    megapixels = image.width * image.height / 1e6
-    print(f"image:     {image.width}x{image.height} ({megapixels:.1f} MP)")
-    if megapixels > MAX_MEGAPIXELS and not args.whole_page_because:
-        problems.append(f"{megapixels:.1f} MP is a whole page; crop to the Maccabi article, or "
-                        f"--whole-page-because '<why the page is all one Maccabi story>'")
-
-    buffer = BytesIO()
-    image.save(buffer, format="JPEG", quality=90)
-    data = buffer.getvalue()
-    if args.replace:
-        problems += check_replace_target(args.replace, game_page, data, clip)
+    print(f"image:     {image.width}x{image.height} ({image.width * image.height / 1e6:.1f} MP)")
+    data = image_bytes(args, image)
+    already_uploaded = (not args.replace and current_sha1(file_name) == hashlib.sha1(data).hexdigest())
+    if already_uploaded:
+        print(f"finish:    the wiki already has exactly this image as {file_name} (an earlier --apply "
+              f"stopped after the upload); --apply now only purges and checks the game link")
     else:
-        if file_text(file_name) is not None:
-            problems.append(f"{file_name} already exists; a second piece needs its own --description")
-        if was_deleted(file_name):
-            problems.append(f"{file_name} was deleted by an admin before; ask before uploading it again")
-        try:
-            check_cap(existing, 1, args.special)
-        except NewspaperClipError as error:
-            problems.append(str(error))
-    duplicates = [t for t in same_bytes_on_wiki(data) if t.removeprefix("File:").removeprefix("קובץ:") != file_name]
-    if duplicates:
-        problems.append(f"the same image is already on the wiki: {', '.join(duplicates)}")
+        problems += upload_problems(args, clip, file_name, game_page, existing, image, data)
 
     preview = (args.spec or args.image).with_suffix(".preview.jpg")
     image.save(preview, quality=90)
@@ -268,19 +275,61 @@ def main(argv: list[str] | None = None) -> int:
         print("dry run: everything passes; add --apply to upload")
         return 0
     comment = args.comment or ("חיתוך לכתבה על מכבי בלבד" if args.replace else f"העלאת עיתון: {clip.classification}")
-    upload(file_name, data, file_text(file_name) if args.replace else clip.page_text, comment, game_page)
+    if overrides:
+        comment += " | " + "; ".join(overrides)  # the maintainer sees why a check was waived
+    if not already_uploaded:
+        from maccabipediabot.common.wiki_login import get_site
+        from maccabipediabot.maintenance.tickets.wiki_tickets import upload_file
+        upload_file(get_site(), file_name, data, file_text(file_name) if args.replace else clip.page_text, comment)
+    finish(file_name, game_page, sport)
     return 0
 
 
-def upload(file_name: str, data: bytes, text: str, comment: str, game_page: str) -> None:
+def image_bytes(args: argparse.Namespace, image: Image.Image) -> bytes:
+    """A finished JPEG --image goes up byte for byte; anything built here is encoded once."""
+    if args.image and args.image.suffix.lower() in (".jpg", ".jpeg"):
+        original = Image.open(args.image)
+        if original.getexif().get(0x0112, 1) == 1:  # no EXIF rotation to bake in
+            return args.image.read_bytes()
+    buffer = BytesIO()
+    image.save(buffer, format="JPEG", quality=92)
+    return buffer.getvalue()
+
+
+def upload_problems(args: argparse.Namespace, clip: NewspaperClip, file_name: str, game_page: str,
+                    existing: list[str], image: Image.Image, data: bytes) -> list[str]:
+    """Every wiki-side rule for one upload, in one place. Wiki reads all go through api()."""
+    problems = []
+    megapixels = image.width * image.height / 1e6
+    if args.image and megapixels > MAX_MEGAPIXELS and not args.whole_page_because:
+        problems.append(f"{megapixels:.1f} MP is a whole page; crop to the Maccabi article, or "
+                        f"--whole-page-because '<why the page is all one Maccabi story>'")
+    if args.replace:
+        problems += check_replace_target(args.replace, game_page, data, clip)
+    else:
+        if file_text(file_name) is not None:
+            problems.append(f"{file_name} already exists with a different image; if this is another piece "
+                            f"from the same paper and day, give it its own --description")
+        if was_deleted(file_name):
+            problems.append(f"{file_name} was deleted by an admin before; ask before uploading it again")
+        try:
+            check_cap(existing, 1, args.special)
+        except NewspaperClipError as error:
+            problems.append(str(error))
+    duplicates = [t for t in same_bytes_on_wiki(data) if t.removeprefix("File:").removeprefix("קובץ:") != file_name]
+    if duplicates:
+        problems.append(f"the same image is already on the wiki: {', '.join(duplicates)}")
+    return problems
+
+
+def finish(file_name: str, game_page: str, sport: Sport) -> None:
+    """After the upload: purge, then confirm the game link took. Safe to re-run."""
     import pywikibot as pw
 
     from maccabipediabot.common.wiki_login import get_site
     from maccabipediabot.common.wiki_purge import purge_pages
-    from maccabipediabot.maintenance.tickets.wiki_tickets import upload_file
 
     site = get_site()
-    upload_file(site, file_name, data, text, comment)
     purge_pages(site, [game_page, f"File:{file_name}"])
     # The templates file a wrong or empty game link under a tracking category. Categories
     # land after the links update, so look a few times before concluding.
@@ -294,6 +343,10 @@ def upload(file_name: str, data: bytes, text: str, comment: str, game_page: str)
         raise RuntimeError(f"uploaded, but {file_name} has no categories yet: open it and check the game link")
     if bad:
         raise RuntimeError(f"uploaded, but the game link is broken: {', '.join(bad)}")
+    # Football files also land in a per-game category ("עיתונות למשחק מה-..."); its absence
+    # means the template did not recognise the game.
+    if sport is Sport.FOOTBALL and not any("עיתונות למשחק" in c for c in categories):
+        raise RuntimeError(f"uploaded, but {file_name} is not in its per-game category: check the game link")
     print(f"uploaded: https://www.maccabipedia.co.il/File:{file_name.replace(' ', '_')}")
 
 

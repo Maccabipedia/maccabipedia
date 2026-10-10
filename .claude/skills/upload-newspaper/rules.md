@@ -66,21 +66,18 @@ same params.
   should run along a separator or through empty gutter. Each blank edge should run
   along the rule that bounds the neighbouring story. A coordinate picked by eye in
   the middle of a text block is how a crop clips a headline's descenders or leaves a
-  dash of the next story's rule at the bottom. A thin-rule detector works for this:
-  a rule is a band that is dark along its length but light a few px to either side,
-  which also catches dotted rules and keeps text and headline strokes out. Check two
-  things automatically:
-  - **Ink across the cut:** a pixel on the cut line that is dark, with dark pixels
-    2 px to each side, is a cut through a letter or a photo (5 px missed the
-    bottom strokes of a cut text line).
-  - Test for cut ink before you trust a nearby rule. A cut 20 px above a rule
-    "sits near the rule" and can still slice the line just above it.
-  - **Blank edges off any rule:** such an edge can hide whole lines of the article
-    between two rows of text without cutting a single letter, so read what it covers.
-  Every "cuts ink" result is either fixed or explained in writing (it is the rule
-  itself, a frame line, or the seam between two stacked pieces). Never let one through
-  silently, and never mark a crop clean while one is unexplained. A blank whose edge
-  sits on an ad's black frame leaves the frame as a bar, so run the blank past it.
+  dash of the next story's rule at the bottom. The tool (`newspaper_crop.py`) checks
+  every edge and says why. The thresholds live in the code, not here:
+  - **cuts_ink:** a letter or photo continues on both sides of the cut. It is tested
+    before trusting a nearby rule, since a cut 20 px above a rule still slices the line
+    above it. One cut letter on a long edge counts. A rule running along or across the
+    cut does not.
+  - **off_rule:** a blank edge in plain gutter can hide whole lines of the article
+    without cutting a letter. Zoom in, then name that edge in `--blanks-read`.
+  - Every waived check (`--accept-edge`, `--blanks-read`, `--whole-page-because`) is
+    written into the upload summary and drawn in orange on the before/after. Waive only
+    a real rule, frame line or seam. A blank whose edge sits on an ad's black frame
+    leaves the frame as a bar, so run the blank past it.
   Then confirm by eye. Separators don't bound everything, because an article can wrap
   around another story, so the reading order still decides which areas belong to it.
   **Find all of the game's coverage before you crop.** One game is often spread over
@@ -161,14 +158,26 @@ same params.
   `FilePage.upload()` (broken, see CLAUDE.md), it finds the game through
   maccabistats (so it can't see a game page created a minute ago), and it writes
   no `סיווג`.
-- `שיוך משחק` must be the exact title of the game page. Verify that the file's
-  categories include the per-game one (football:
-  `עיתונות למשחק מה-<day> ב<month> <year>`) and that its name appears in the game
-  page's parsed HTML. A wrong title lands the file in a tracking category:
+- `שיוך משחק` must be the exact title of the game page. The tool writes it from the
+  game page it found (never a redirect) and after `--apply` checks the categories: for
+  football, the per-game `עיתונות למשחק מה-<day> ב<month> <year>`. A wrong title lands
+  the file in a tracking category:
   football `קטעי עיתונות עם שיוך לא תקין למשחק` (and an empty param
   `קטעי עיתונות ללא שיוך למשחק`); basketball/volleyball
   `עיתוני <sport> עם שיוך לא תקין למשחק` (and an empty param
-  `עיתוני <sport> ללא שיוך למשחק`). These only catch a title that doesn't exist:
-  a link to a redirect (e.g. the old spaced title) passes silently, so check the
-  title against the game-title formats in `.claude/adding_a_game.md` (per-sport table) yourself.
+  `עיתוני <sport> ללא שיוך למשחק`). These only catch a title that doesn't exist, and a
+  link to a redirect (the old spaced title) passes them silently. That is why the tool
+  refuses a redirect as the game page.
 
+## Limits enforced in code
+
+They are listed here so a reader knows they exist. Change them in the code and its tests.
+- Preview published 0–7 days before the game; report or photo 0–14 days after it
+  (`newspaper_names.py`).
+- Cap: 2 newspaper files per game, 5 with `--special`, counting files linked through
+  redirects too.
+- Whole page: the crop keeps more than 50% of one page (a landscape scan counts as a
+  two-page spread), or a finished `--image` is over 4 MP. Either needs
+  `--whole-page-because`.
+- File name: at most 240 bytes. No quote marks, slashes, `~`, tabs or invisible
+  direction marks. A slash in a team name becomes `-`.

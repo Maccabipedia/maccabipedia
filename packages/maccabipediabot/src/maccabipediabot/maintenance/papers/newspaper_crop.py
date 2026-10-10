@@ -30,10 +30,10 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
-from PIL import Image, ImageDraw, ImageOps
+from PIL import Image, ImageDraw, ImageFont, ImageOps
 
 _WINDOW, _SIDE, _MIN_LEN, _SNAP = 41, 6, 160, 30
-_DARK = 140
+DARK = 140  # grey level below which a pixel is ink; shared with the page map
 _INK_LIMIT = 0.01
 # One cut letter on a long edge is a small share but still a cut: a stroke is 3+ px wide.
 _INK_MIN_PIXELS = 3
@@ -208,7 +208,7 @@ def _edges(spec: dict) -> list[tuple[str, str, int, int, int]]:
 
 
 def check_edges(orig: Image.Image, spec: dict) -> list[EdgeResult]:
-    dark = (np.asarray(orig.convert("L")) < _DARK).astype(np.float32)
+    dark = (np.asarray(orig.convert("L")) < DARK).astype(np.float32)
     validate_spec(orig.size, spec)
     owner = _owner_offsets(orig.size, spec)
     rules = {"h": thin_rules(dark), "v": thin_rules(dark.T)}
@@ -263,7 +263,8 @@ def kept_fraction(size: tuple[int, int], spec: dict) -> float:
     return float(_keep_mask(size, spec).sum()) / (width * height / pages)
 
 
-def before_after(orig: Image.Image, spec: dict, crop: Image.Image, height: int = 1400) -> Image.Image:
+def before_after(orig: Image.Image, spec: dict, crop: Image.Image, flagged: list[EdgeResult] = (),
+                 height: int = 1400) -> Image.Image:
     """The scan with kept boxes in red and blanked areas crossed out, next to the crop."""
     marked = orig.convert("RGB")
     shade = Image.new("RGBA", marked.size, (0, 0, 0, 0))
@@ -281,6 +282,15 @@ def before_after(orig: Image.Image, spec: dict, crop: Image.Image, height: int =
     draw = ImageDraw.Draw(marked)
     for piece in spec["pieces"]:
         draw.rectangle(piece["box"], outline=(220, 0, 0), width=max(6, marked.width // 300))
+    # Flagged edges (a waived cut, a blank read by eye) in orange with their label, so the
+    # maintainer judges exactly those spots.
+    font = ImageFont.load_default(size=max(24, marked.width // 80))
+    for edge in flagged:
+        a, b = edge.span
+        line = [(a, edge.position), (b, edge.position)] if edge.label.endswith(("top", "bottom")) \
+            else [(edge.position, a), (edge.position, b)]
+        draw.line(line, fill=(255, 140, 0), width=max(8, marked.width // 200))
+        draw.text((line[0][0] + 10, line[0][1] + 10), edge.label, fill=(255, 100, 0), font=font)
     before = marked.resize((round(marked.width * height / marked.height), height))
     after = crop.convert("RGB").resize((round(crop.width * height / crop.height), height))
     canvas = Image.new("RGB", (before.width + after.width + 30, height), "white")

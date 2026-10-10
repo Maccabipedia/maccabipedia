@@ -13,12 +13,12 @@ from pathlib import Path
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
-from maccabipediabot.maintenance.papers.newspaper_crop import load_scan, thin_rules
+from maccabipediabot.maintenance.papers.newspaper_crop import DARK, load_scan, thin_rules
 
 
 def page_map(orig: Image.Image, step: int, region: tuple[int, int, int, int] | None) -> Image.Image:
     img = orig.convert("RGB")
-    dark = (np.asarray(img.convert("L")) < 140).astype(np.float32)
+    dark = (np.asarray(img.convert("L")) < DARK).astype(np.float32)
     draw = ImageDraw.Draw(img)
     for y, x0, x1 in thin_rules(dark):
         draw.line([(x0, y), (x1, y)], fill=(0, 90, 255), width=4)
