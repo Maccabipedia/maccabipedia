@@ -1,0 +1,92 @@
+<includeonly><!--
+
+הגדרת משתנים
+-->{{#vardefine: שם להצגה |{{{שם להצגה|}}} }}<!--
+
+-->{{#vardefine: הופעות |{{#invoke:FootballPlayerStats|value|שחקן={{#var: שם להצגה}}|קטגוריית מפעל={{{קטגוריית מפעל|}}}|תא=appearances}} }}<!--
+-->{{#vardefine: הופעות כמחליף |{{#invoke:FootballPlayerStats|value|שחקן={{#var: שם להצגה}}|קטגוריית מפעל={{{קטגוריית מפעל|}}}|תא=substitutions}} }}<!--
+
+-->{{#vardefine: שערים |{{#invoke:FootballPlayerStats|value|שחקן={{#var: שם להצגה}}|קטגוריית מפעל={{{קטגוריית מפעל|}}}|תא=goals}} }}<!--
+-->{{#vardefine: שערים בפנדל |{{#invoke:FootballPlayerStats|value|שחקן={{#var: שם להצגה}}|קטגוריית מפעל={{{קטגוריית מפעל|}}}|תא=penaltyGoals}} }}<!--
+
+-->{{#vardefine: בישולים |{{#invoke:FootballPlayerStats|value|שחקן={{#var: שם להצגה}}|קטגוריית מפעל={{{קטגוריית מפעל|}}}|תא=assists}} }}<!--
+-->{{#vardefine: בישולים-סחיטת פנדל |{{#invoke:FootballPlayerStats|value|שחקן={{#var: שם להצגה}}|קטגוריית מפעל={{{קטגוריית מפעל|}}}|תא=penaltiesWon}} }}<!--
+
+
+-->{{#תנאי: {{{האם שוער|}}} |<!--
+-->{{#vardefine: ספיגות |{{#invoke:FootballPlayerStats|value|שחקן={{#var: שם להצגה}}|קטגוריית מפעל={{{קטגוריית מפעל|}}}|תא=conceded}} }}<!--
+-->{{#vardefine: שער נקי |{{#invoke:FootballPlayerStats|value|שחקן={{#var: שם להצגה}}|קטגוריית מפעל={{{קטגוריית מפעל|}}}|תא=cleanSheets}} }}<!--
+-->{{#vardefine: ספיגות פנדלים |{{#invoke:FootballPlayerStats|value|שחקן={{#var: שם להצגה}}|קטגוריית מפעל={{{קטגוריית מפעל|}}}|תא=penaltiesConceded}} }}<!--
+-->{{#vardefine: הדיפות פנדלים |{{#invoke:FootballPlayerStats|value|שחקן={{#var: שם להצגה}}|קטגוריית מפעל={{{קטגוריית מפעל|}}}|תא=penaltySaves}} }}<!--
+-->}}<!--
+
+-->{{#vardefine: צהובים |{{#invoke:FootballPlayerStats|value|שחקן={{#var: שם להצגה}}|קטגוריית מפעל={{{קטגוריית מפעל|}}}|תא=yellows}} }}<!--
+-->{{#vardefine: אדומים |{{#invoke:FootballPlayerStats|value|שחקן={{#var: שם להצגה}}|קטגוריית מפעל={{{קטגוריית מפעל|}}}|תא=reds}} }}<!--
+
+-->{{#vardefine: ניצחונות |{{#invoke:FootballPlayerStats|value|שחקן={{#var: שם להצגה}}|קטגוריית מפעל={{{קטגוריית מפעל|}}}|תא=wins}} }}<!--
+-->{{#vardefine: תיקו |{{#invoke:FootballPlayerStats|value|שחקן={{#var: שם להצגה}}|קטגוריית מפעל={{{קטגוריית מפעל|}}}|תא=draws}} }}<!--
+-->{{#vardefine: הפסדים |{{#invoke:FootballPlayerStats|value|שחקן={{#var: שם להצגה}}|קטגוריית מפעל={{{קטגוריית מפעל|}}}|תא=losses}} }}<!--
+
+הצגת נתונים
+--><div class="text two-column"><!--
+
+--><div>
+<span class="describe">הופעות</span>
+<span class="info">{{#var: הופעות}} <span class="small">{{#var: הופעות כמחליף}} כמחליף</span></span>
+</div><!--
+
+-->{{#תנאי: {{{האם שוער|}}}|<div>
+<span class="describe">ספיגות</span>
+<span class="info">{{#תנאי: {{#var: ספיגות}} |{{#var: ספיגות}} |0}} <!--
+-->{{#ifexpr: {{#var: הופעות}} > 0 |<span class="small">{{#number_format: {{#expr: {{#var: ספיגות}} / {{#var: הופעות}} }} |2}} למשחק, {{#var: ספיגות פנדלים}} בפנדל</span>}}</span>
+</div><!--
+
+--><div>
+<span class="describe">שער נקי</span>
+<span class="info">{{#var: שער נקי}} {{#ifexpr: {{#var: הופעות}} > 0 |<span class="small">{{#number_format: {{סטטיסטיקה/אחוזים |{{#var: שער נקי}} |{{#var: הופעות}} }} |2}}%</span>}}</span>
+</div><!--
+
+--><div>
+<span class="describe">הדיפות פנדלים</span>
+<span class="info">{{#var: הדיפות פנדלים}} {{#ifexpr: {{#var: הופעות}} > 0 |<span class="small">{{#number_format: {{סטטיסטיקה/אחוזים |{{#var: הדיפות פנדלים}} |{{#var: הופעות}} }} |2}}%</span>}}</span>
+</div><!--
+-->}}<!--
+
+--><div>
+<span class="describe">שערים</span>
+<span class="info">{{#var: שערים}} {{#ifexpr: {{#var: הופעות}} > 0 |<span class="small">{{#number_format: {{#expr: {{#var: שערים}} / {{#var: הופעות}} }} |2}} למשחק, {{#var: שערים בפנדל}} בפנדל</span>}}</span>
+</div><!--
+
+--><div>
+<span class="describe">בישולים</span>
+<span class="info">{{#var: בישולים}} {{#ifexpr: {{#var: הופעות}} > 0 |<span class="small">{{#number_format: {{#expr: {{#var: בישולים}} / {{#var: הופעות}} }} |2}} למשחק, {{#var: בישולים-סחיטת פנדל}} סחיטות פנדל</span>}}</span>
+</div><!--
+
+--><div>
+<span class="describe">צהובים</span>
+<span class="info">{{#var: צהובים}} {{#ifexpr: {{#var: הופעות}} > 0 |<span class="small">{{#number_format: {{#expr: {{#var: צהובים}} / {{#var: הופעות}} }} |2}} למשחק</span>}}</span>
+</div><!--
+
+--><div>
+<span class="describe">אדומים</span>
+<span class="info">{{#var: אדומים}} {{#ifexpr: {{#var: הופעות}} > 0 |<span class="small">{{#number_format: {{#expr: {{#var: אדומים}} / {{#var: הופעות}} }} |2}} למשחק</span>}}</span>
+</div><!--
+
+--><div>
+<span class="describe">ניצחונות</span>
+<span class="info">{{#var: ניצחונות}} {{#ifexpr: {{#var: הופעות}} > 0 |<span class="small">{{#number_format: {{סטטיסטיקה/אחוזים |{{#var: ניצחונות}} |{{#var: הופעות}} }} |2}}%</span>}}</span>
+</div><!--
+
+--><div>
+<span class="describe">תיקו</span>
+<span class="info">{{#var: תיקו}} {{#ifexpr: {{#var: הופעות}} > 0 |<span class="small">{{#number_format: {{סטטיסטיקה/אחוזים |{{#var: תיקו}} |{{#var: הופעות}} }} |2}}%</span>}}</span>
+</div><!--
+
+--><div>
+<span class="describe">הפסדים</span>
+<span class="info">{{#var: הפסדים}} {{#ifexpr: {{#var: הופעות}} > 0 |<span class="small">{{#number_format: {{סטטיסטיקה/אחוזים |{{#var: הפסדים}} |{{#var: הופעות}} }} |2}}%</span>}}</span>
+</div><!--
+
+--></div><!--
+
+--></includeonly>
