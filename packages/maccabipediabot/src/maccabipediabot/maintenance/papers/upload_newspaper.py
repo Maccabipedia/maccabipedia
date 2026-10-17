@@ -334,10 +334,21 @@ def rename(old: str, new: str, game_page: str) -> None:
     from maccabipediabot.common.wiki_purge import purge_pages
 
     site = get_site()
-    pw.FilePage(site, f"File:{old}").move(f"File:{new}", reason="שם לפי המוסכמה, אחרי חיתוך לכתבה",
-                                          noredirect=True)
-    purge_pages(site, [game_page])
+    old_page = pw.FilePage(site, f"File:{old}")
+    old_page.move(f"File:{new}", reason="שם לפי המוסכמה, אחרי חיתוך לכתבה", noredirect=True)
     print(f"renamed:  {old}\n       -> https://www.maccabipedia.co.il/File:{new.replace(' ', '_')}")
+    # No redirect is left, so every page still pointing at the old name shows a red link.
+    # Pages that list the file through a query (season pages, date pages) heal on a purge;
+    # a page that types the name into its own text does not, and needs an edit.
+    users = _old_name_users(old_page)
+    purge_pages(site, [game_page, *users])
+    time.sleep(3)
+    for title in sorted(_old_name_users(old_page)):
+        print(f"FIX BY HAND: {title} still links the old name in its text")
+
+
+def _old_name_users(old_page) -> set[str]:
+    return {p.title() for p in old_page.using_pages()} | {p.title() for p in old_page.backlinks()}
 
 
 def image_bytes(args: argparse.Namespace, image: Image.Image) -> bytes:

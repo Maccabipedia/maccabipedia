@@ -161,7 +161,10 @@ same params.
   reader nothing. The `עמוד N` suffix belongs to the 2026-09 bot
   uploads of whole pages (the 2004 Final Four, 1967–1998 European basketball, the 1958
   IFK Göteborg friendly). Don't copy it: the page number tells the reader of a crop
-  nothing.
+  nothing. A rename leaves no redirect. The tool purges every page that still points at
+  the old name (season and date pages heal that way) and prints `FIX BY HAND` for a page
+  that types the old name into its own text, such as a quote box or a season summary;
+  edit those to the new name.
   The `<סיווג>` in the name is one of the template's values listed above (a reactions
   piece is still `סיקור משחק`; there is no `תגובות`. The word goes in the description
   instead). Spell the opponent exactly as the
