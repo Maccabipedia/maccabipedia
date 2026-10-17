@@ -61,7 +61,8 @@ def season_code_for(today: date) -> str:
 
 
 def fetch_json(url: str) -> Any:
-    resp = requests.get(url, timeout=30)
+    # The API negotiates JSON or XML; on 2026-10-08 it answered requests' default "*/*" with XML.
+    resp = requests.get(url, headers={"Accept": "application/json"}, timeout=30)
     if resp.status_code != 200 or "application/json" not in resp.headers.get("Content-Type", ""):
         raise RuntimeError(f"Unexpected EuroLeague API response for {url}: status={resp.status_code} "
                            f"ctype={resp.headers.get('Content-Type')}\n{resp.text[:300]}")

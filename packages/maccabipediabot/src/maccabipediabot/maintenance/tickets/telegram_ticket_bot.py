@@ -416,11 +416,18 @@ def main() -> None:
     args = parser.parse_args()
 
     setup_logging(level=logging.INFO)
-    # Comma-separated group ids (negative numbers). Unset means no group: nothing is read.
-    allowed_chat_ids = frozenset(
-        int(i) for i in os.environ.get("TELEGRAM_TICKETS_ALLOWED_CHAT_IDS", "").split(",") if i.strip())
+    allowed_chat_ids = parse_group_ids(os.environ.get("TELEGRAM_TICKETS_ALLOWED_CHAT_IDS", ""))
+    logger.info("Listening in %d whitelisted group(s)", len(allowed_chat_ids))
     api = TelegramApi(os.environ["TELEGRAM_TICKETS_BOT_TOKEN"])
     run(api, allowed_chat_ids, TicketUploader(args.dry_run), args.dry_run)
+
+
+def parse_group_ids(value: str) -> frozenset[int]:
+    """Comma-separated group ids; empty means no group, so nothing is read. Telegram group
+    ids are always negative, and a secret pasted without its minus sign silently matched
+    nothing (2026-10-01), so the sign is supplied here. Private chats stay out regardless:
+    they are filtered by chat type, and their ids are positive."""
+    return frozenset(-abs(int(i)) for i in value.split(",") if i.strip())
 
 
 if __name__ == "__main__":

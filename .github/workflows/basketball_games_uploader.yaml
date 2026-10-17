@@ -143,9 +143,12 @@ jobs:
           # Literal (non-regex) secret redaction via bash substitution: a quoted pattern is
           # matched verbatim, so embedded / . * etc. need no escaping.
           if [ -n "$BOT_PASSWORD" ]; then detail="${detail//"$BOT_PASSWORD"/[redacted]}"; fi
+          # Escaped twice: telegram-action runs html.UnescapeString on the message before
+          # sending, so a single &lt; reaches Telegram as a raw "<" (e.g. the traceback's
+          # "<frozen runpy>") and the send fails with "can't parse entities".
           detail="$(printf '%s' "$detail" \
             | sed -E 's#(https?://)[^/@[:space:]]+@#\1[redacted]@#g' \
-            | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g' \
+            | sed 's/&/\&amp;amp;/g; s/</\&amp;lt;/g; s/>/\&amp;gt;/g' \
             | tail -c 3000 || true)"
           {
             echo "detail<<TG_EOF_b9f3a2c1"

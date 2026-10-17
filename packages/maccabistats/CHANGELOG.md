@@ -1,3 +1,8 @@
+## Version 2.74 ##
+
+    The MaccabiPedia crawler retries the wiki host's 508 "Resource Limit Is Reached"
+    instead of failing the whole fetch, and caps its 4-hour Retry-After at 60 seconds.
+
 ## Version 2.73 ##
 
     Fixed the opponents join (it matched the canonical name), so 852 games that had no

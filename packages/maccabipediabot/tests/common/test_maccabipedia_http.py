@@ -47,6 +47,65 @@ def test_session_retries_on_edge_415():
     assert 415 in adapter.max_retries.status_forcelist
 
 
+def test_session_retries_on_host_resource_limit_508():
+    session = build_maccabipedia_session()
+    adapter = session.get_adapter("https://www.maccabipedia.co.il")
+    assert 508 in adapter.max_retries.status_forcelist
+
+
+def _urllib3_response(status, retry_after):
+    from urllib3 import HTTPResponse
+    return HTTPResponse(body=b"", status=status, headers={"Retry-After": retry_after})
+
+
+def test_host_508_retry_after_of_four_hours_is_capped():
+    retry = build_maccabipedia_session().get_adapter("https://www.maccabipedia.co.il").max_retries
+    assert retry.get_retry_after(_urllib3_response(508, "14400")) == 60
+
+
+def test_short_retry_after_is_obeyed_as_is():
+    retry = build_maccabipedia_session().get_adapter("https://www.maccabipedia.co.il").max_retries
+    assert retry.get_retry_after(_urllib3_response(429, "5")) == 5
+
+
+def test_capped_retry_survives_increment():
+    retry = build_maccabipedia_session().get_adapter("https://www.maccabipedia.co.il").max_retries
+    next_retry = retry.increment(method="GET", url="/", response=_urllib3_response(508, "14400"))
+    assert next_retry.get_retry_after(_urllib3_response(508, "14400")) == 60
+
+
+def test_session_rides_over_one_508_and_returns_the_rows(monkeypatch):
+    import threading
+    from http.server import BaseHTTPRequestHandler, HTTPServer
+    from maccabipediabot.common import maccabipedia_http
+
+    monkeypatch.setattr(maccabipedia_http, "_MAX_RETRY_AFTER_SECONDS", 0)
+    answers = [(508, "text/html", b"<HTML>Resource Limit Is Reached</HTML>"),
+               (200, "application/json", b'[{"_pageName": "x"}]')]
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            status, content_type, body = answers.pop(0)
+            self.send_response(status)
+            self.send_header("Content-Type", content_type)
+            self.send_header("Retry-After", "14400")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, *args):
+            pass
+
+    server = HTTPServer(("127.0.0.1", 0), Handler)
+    threading.Thread(target=server.handle_request, daemon=True).start()
+    threading.Thread(target=server.handle_request, daemon=True).start()
+    try:
+        response = build_maccabipedia_session().get(f"http://127.0.0.1:{server.server_port}/", timeout=10)
+    finally:
+        server.server_close()
+    assert parse_cargo_rows(response) == [{"_pageName": "x"}]
+
+
 # --- unexpected-response diagnostics ---------------------------------------------------
 # The WAF block that outlived the Accept fix answers 200 with a body that parses as a bare
 # JSON string. Those are the responses we must notice and dump.

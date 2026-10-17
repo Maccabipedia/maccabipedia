@@ -29,8 +29,21 @@ logger = logging.getLogger(__name__)
 MACCABIPEDIA_JSON_HEADERS = {"Accept": "application/json"}
 
 # maccabipedia's edge occasionally serves a transient 415 (openresty proxy) or 5xx;
-# retry across those blips instead of failing the daily job.
-_RETRYABLE_STATUSES = (408, 415, 429, 500, 502, 503, 504)
+# retry across those blips instead of failing the daily job. 508 is the shared host's
+# "Resource Limit Is Reached", which clears within seconds.
+_RETRYABLE_STATUSES = (408, 415, 429, 500, 502, 503, 504, 508)
+
+# The host's 508 carries `Retry-After: 14400`; obeying it would park a scheduled job for
+# four hours. Wait at most this long, and let the exponential backoff do the rest.
+_MAX_RETRY_AFTER_SECONDS = 60
+
+
+class _CappedRetryAfter(Retry):
+    def get_retry_after(self, response) -> float | None:
+        retry_after = super().get_retry_after(response)
+        if retry_after is None:
+            return None
+        return min(retry_after, _MAX_RETRY_AFTER_SECONDS)
 
 
 def build_maccabipedia_session() -> requests.Session:
@@ -38,7 +51,7 @@ def build_maccabipedia_session() -> requests.Session:
     ``Accept`` header + retry across the wiki's transient edge failures."""
     session = requests.Session()
     session.headers.update(MACCABIPEDIA_JSON_HEADERS)
-    retry = Retry(
+    retry = _CappedRetryAfter(
         total=5,
         backoff_factor=2,
         status_forcelist=_RETRYABLE_STATUSES,
