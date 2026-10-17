@@ -203,7 +203,8 @@ files (date first, opponent written `מכבי תל אביב נגד …`; don't c
   short Yedioth items of a few lines (`467x105`). Crops from a 200-dpi render will be larger.
   That is fine.
 - **Mix:** `סיקור משחק` 697, `טבלת ליגה` 235, `לקראת משחק` 97, `רגע ממשחק` 52. League tables
-  are common in volleyball. Per game: 283 games have 1–3 files and 101 already have more than the
+  are common in volleyball, but they have their own names (`טבלת ליגה לאחר מחזור N עונת
+  YYYY-YY.jpg`) and the tool refuses them; it uploads game clips only. Per game: 283 games have 1–3 files and 101 already have more than the
   regular cap of 3 (up to 9, on a 1989/90 game), so count first.
 - **Round-ups:** most volleyball coverage reports the whole playoff round or league round in
   one article, with a paragraph or a ratings box per game. Even when the headline names Maccabi,

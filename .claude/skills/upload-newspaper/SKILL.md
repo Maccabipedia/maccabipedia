@@ -64,7 +64,8 @@ uv run python -m maccabipediabot.maintenance.papers.upload_newspaper \
 - **REFUSED** means fix the spec or a param, then run again. Don't silence a check:
   - `--accept-edge` is only for an edge that really is a rule, a frame line or a seam.
   - `--blanks-read <edge>`, one per edge, is only after you've zoomed into what that blank covers.
-  - `--whole-page-because` is only for a page that is all Maccabi.
+  - `--whole-page-because` is only for a page that is all Maccabi, or a National Library
+    clip that is the Maccabi article itself (`rules.md`, "Volleyball").
 - Open the `.preview.jpg` and read it zoomed in: all four sides, and every blank.
 
 ## 5. Show the maintainer, then upload
