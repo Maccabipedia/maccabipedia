@@ -25,6 +25,20 @@ coverage is thin and not guaranteed. In the 1962–1964 issues read so far it sh
 up sometimes as a front-page box, sometimes as a page-3 sidebar or a photo caption,
 and some issues had none at all — so check every page, not just the front.
 
+### Volleyball press clips, sorted by game
+
+`מכביפדיה_ראשי/כדורעף/משחקים מהעיתונות/עונת YYYY-YY/<competition>/<stage - opponent - DD.MM.YYYY>/`
+(2026-10: seasons 1980-81, 1989-90, 2005-06 to 2009-10, ~200 game folders, ~290 PDFs).
+Each game folder holds the Yedioth single-page PDFs for that game, already picked out,
+named `<headline>_<paper>_<YYYY-MM-DD>.pdf`, so the PDF date is the publication date.
+`בעיה בארכיון ….txt` notes record a problem someone found (wrong time, game missing on the
+page). Read them before trusting the folder. A folder with no PDF means nothing was found,
+not that nothing was printed. The PDFs are whole pages, so crop them with the
+`upload-newspaper` skill.
+
+A maintainer may also share folders directly. A "Shared with me" folder does not reach the local Drive sync,
+so ask the Drive owner to add a shortcut to it under My Drive first.
+
 ## How to search
 
 1. **Text-layer search first (both Yedioth folders):**
