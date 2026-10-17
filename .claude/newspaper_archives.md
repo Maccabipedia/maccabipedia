@@ -27,15 +27,21 @@ and some issues had none at all — so check every page, not just the front.
 
 ### Volleyball press clips, sorted by game
 
-`מכביפדיה_ראשי/כדורעף/משחקים מהעיתונות/עונת YYYY-YY/<competition>/<stage - opponent - DD.MM.YYYY - בית/חוץ>/`
-(2026-10: 33 seasons, 1975-76 to 2009-10, ~950 game folders, 2,510 PDFs). Each game folder
-holds the PDFs already picked out for that game. The file name gives the publication date,
-in one of several shapes:
+`מכביפדיה_ראשי/כדורעף/משחקים מהעיתונות/עונת YYYY-YY/<competition>/<stage - opponent - DD.MM.YYYY[ - בית|חוץ|נייטרלי]>/`
+(2026-10: 33 seasons, 1975-76 to 2009-10, ~940 game folders, 2,510 PDFs). About 210 game
+folders have no venue suffix. A few other folders hold tables (`טבלאות`) or notes, not a
+game. Each game folder holds the PDFs already picked out for that game. The file name gives
+the publication date, in one of several shapes:
 - `<headline>_ידיעות אחרונות_<YYYY-MM-DD>.pdf` (~980), `YDT_<YYYY>_<MM>_<DD>_Page_<N>.pdf`,
   `ידיעות אחרונות_<YYYY-MM-DD>_ספורט_<N>.pdf`: Yedioth whole pages, so crop them.
-- `mar<YYYYMMDD>-….pdf` (475) and other National Library codes such as `ahr<YYYYMMDD>-…`:
-  one article per PDF, not a page (`upload-newspaper` rules, "Volleyball").
-- `עמ<N> <MM>-<DD>-<YYYY>.pdf`: **month first**. `03-11-1982` is 11 March, not 3 November.
+- National Library clips, `<code><YYYYMMDD>-….pdf`: `mar` (Maariv, 475), `ahr`, `dav` and
+  others. Each is one article, not a page (`upload-newspaper` rules, "Volleyball"). The
+  banner at the top names the paper, page and date (`ahr` is על המשמר); take `--paper`
+  from it.
+- `חדשות הספורט עמ<N> <MM>-<DD>-<YYYY>.pdf` (~150) and the bare `עמ<N> <MM>-<DD>-<YYYY>.pdf`:
+  **month first**. `03-11-1982` is 11 March, not 3 November. A few are day first
+  (`05-10-1975` for a game on 3.10.1975), so check every date against the folder's game date.
+  The bare `עמ` files don't name their paper; read the masthead before setting `--paper`.
 
 The `.txt` notes record what someone found, most of them `בעיה בארכיון …` (wrong time, the
 game is inside an article, missing on the page). Read them before trusting the folder. A

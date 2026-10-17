@@ -220,10 +220,14 @@ files (date first, opponent written `מכבי תל אביב נגד …`; don't c
   `.claude/newspaper_archives.md` ("Volleyball press clips, sorted by game"). A game folder
   can miss a piece (the Yedioth 7.4.1991 report was in the archive, not the folder), so still
   search the archive for the game's dates.
-- **Maariv clips from the National Library** come as one article per PDF, not a page. Take the
-  embedded image (`pdfimages -j`), cut off the download banner at the top (~45 px), and pass
-  `--whole-page-because` when the clip is the Maccabi article itself. A clip that is a round-up
-  still gets cut to the Maccabi part.
+- **National Library clips** (Maariv `mar…`, על המשמר `ahr…` and others) come as one article
+  per PDF, not a page. The banner at the top names the paper and the page. Take the embedded
+  image (`pdfimages -j`) and cut off that banner (~45 px). The tool treats a crop that keeps
+  more than half of its scan as a whole page, and a clip is not a page. So pass
+  `--whole-page-because`, saying what you kept:
+  - The clip is the Maccabi article itself: keep all of it.
+  - A round-up cut down to the Maccabi part that still keeps over half the clip: name what
+    was cut away.
 
 ## Limits enforced in code
 
