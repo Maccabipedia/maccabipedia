@@ -188,6 +188,47 @@ same params.
   link to a redirect (the old spaced title) passes them silently. That is why the tool
   refuses a redirect as the game page.
 
+## Volleyball
+
+Measured 2026-10-17 on all 1,082 files that carry `{{תיוג עיתוני כדורעף}}`: 1,001 are
+the main volleyball uploader's (2024 and 2026), 80 are another user's 2000s Yedioth and Israel Hayom
+files (date first, opponent written `מכבי תל אביב נגד …`; don't copy that form).
+- **Name:** the shape above with the sport word, as the tool builds it:
+  `מעריב 12-11-1989 סיקור משחק כדורעף אריס סלוניקי (11.11.1989).jpg`. 705 of the 733
+  files in the standard shape carry `כדורעף`. A photo or second piece gets a Hebrew
+  description, e.g. `... (23.09.1989) חסימה של מכבי.jpg`.
+- **Game page:** `כדורעף:DD-MM-YYYY <home> נגד <away> - <competition>`; the tool finds it
+  from `--sport כדורעף --game-date`. Opponent spelling comes from that title.
+- **Size:** median 0.45 MP, a bit smaller than football and basketball, because many are
+  short Yedioth items of a few lines (`467x105`). Crops from a 200-dpi render will be larger.
+  That is fine.
+- **Mix:** `סיקור משחק` 697, `טבלת ליגה` 235, `לקראת משחק` 97, `רגע ממשחק` 52. League tables
+  are common in volleyball, but they have their own names (`טבלת ליגה לאחר מחזור N עונת
+  YYYY-YY.jpg`) and the tool refuses them; it uploads game clips only. Per game: 283 games have 1–3 files and 101 already have more than the
+  regular cap of 3 (up to 9, on a 1989/90 game), so count first.
+- **Round-ups:** most volleyball coverage reports the whole playoff round or league round in
+  one article, with a paragraph or a ratings box per game. Even when the headline names Maccabi,
+  keep only the headline (and subhead or byline) plus the Maccabi paragraphs, stacked as pieces.
+  Drop the other games. The maintainer corrected exactly this on 2026-10-17 (Maariv 7.4.1991).
+  Women's results tacked onto the end of a men's item go too ("נשים, ליגה לאומית: …"): blank
+  them and keep the byline (Yedioth 12.4.1991).
+- **Categories:** don't type any. The template adds date, paper and classification, and its
+  per-game sub-template adds season, competition, opponent and win/loss from the
+  `Volleyball_Games` row. 44 of the main uploader's files also carry a hand-typed
+  `[[קטגוריה:עיתונות כדורעף עונת …]]`, which only repeats what the template adds.
+- **Source folder:** the pre-sorted volleyball press clips on the Drive are in
+  `.claude/newspaper_archives.md` ("Volleyball press clips, sorted by game"). A game folder
+  can miss a piece (the Yedioth 7.4.1991 report was in the archive, not the folder), so still
+  search the archive for the game's dates.
+- **National Library clips** (Maariv `mar…`, על המשמר `ahr…` and others) come as one article
+  per PDF, not a page. The banner at the top names the paper and the page. Take the embedded
+  image (`pdfimages -j`) and cut off that banner (~45 px). The tool treats a crop that keeps
+  more than half of its scan as a whole page, and a clip is not a page. So pass
+  `--whole-page-because`, saying what you kept:
+  - The clip is the Maccabi article itself: keep all of it.
+  - A round-up cut down to the Maccabi part that still keeps over half the clip: name what
+    was cut away.
+
 ## Limits enforced in code
 
 They are listed here so a reader knows they exist. Change them in the code and its tests.
