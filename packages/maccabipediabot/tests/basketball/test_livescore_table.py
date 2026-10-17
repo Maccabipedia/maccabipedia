@@ -1,8 +1,11 @@
-"""The season of a livescore stage decides which season's table template the scripts write."""
+"""The season of a livescore stage decides which season's table template the scripts write,
+and a game in play keeps them from writing at all."""
+from datetime import date
+
 import pytest
 
 from maccabipediabot.basketball import livescore_table
-from maccabipediabot.basketball.livescore_table import season_of_stage
+from maccabipediabot.basketball.livescore_table import games_in_play, season_of_stage
 
 
 def _stage(*starts: int) -> dict:
@@ -40,3 +43,34 @@ def test_season_of_stage_without_events_raises():
     """No dates means no season, and no template can be picked safely: fail, don't guess."""
     with pytest.raises(ValueError, match="no dated events"):
         season_of_stage({"Events": []})
+
+
+_GAME_DAY = date(2026, 10, 17)
+
+
+def _event(status: str, start: int = 20261017191500, home: str = "Hapoel Jerusalem",
+           away: str = "Hapoel Beer Sheva") -> dict:
+    return {"Eps": status, "Esd": start, "T1": [{"Nm": home}], "T2": [{"Nm": away}]}
+
+
+@pytest.mark.parametrize("status", ["NS", "FT", "AET", "AP", "AOT", "Postp.", "Canc."])
+def test_games_not_started_or_over_are_not_in_play(status):
+    assert games_in_play({"Events": [_event(status)]}, today=_GAME_DAY) == []
+
+
+@pytest.mark.parametrize("status", ["Q2", "HT", "45'", "90+3'"])
+def test_a_game_in_progress_is_in_play(status):
+    """2026-10-17: the table saved at 21:08 had Jerusalem - Beer Sheva at its second quarter."""
+    stage = {"Events": [_event("FT", 20261010191500), _event(status), _event("NS", 20261024191500)]}
+    assert games_in_play(stage, today=_GAME_DAY) == [f"Hapoel Jerusalem - Hapoel Beer Sheva ({status})"]
+
+
+@pytest.mark.parametrize("start", [20261016235959, 20261018000000])
+def test_a_game_a_day_from_today_still_counts(start):
+    """Esd is livescore's local time and the runner's day is UTC; a day either way covers it."""
+    assert games_in_play({"Events": [_event("Q2", start)]}, today=_GAME_DAY) != []
+
+
+def test_a_game_stuck_on_an_odd_status_stops_counting_after_a_day():
+    """An old game left on a status we do not know must not keep the table frozen."""
+    assert games_in_play({"Events": [_event("Int.", 20261015191500)]}, today=_GAME_DAY) == []

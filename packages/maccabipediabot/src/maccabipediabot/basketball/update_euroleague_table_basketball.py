@@ -2,7 +2,8 @@ import logging
 
 import mwparserfromhell
 
-from maccabipediabot.basketball.livescore_table import TABLE_TEMPLATE_NAME, fetch_stage, season_of_stage
+from maccabipediabot.basketball.livescore_table import (TABLE_TEMPLATE_NAME, fetch_stage, games_in_play,
+                                                     season_of_stage)
 from maccabipediabot.common.wiki_login import get_site
 
 # Filled with the season of the table livescore serves, e.g. "2026/27".
@@ -44,9 +45,15 @@ site = get_site()
 import pywikibot as pw
 
 
-def fetch_table_data() -> tuple[str, str]:
-    """The table rows as the template expects them, and the season they belong to."""
+def fetch_table_data() -> tuple[str, str] | None:
+    """The table rows as the template expects them, and the season they belong to.
+
+    None while a game is being played: the live table would save a result not yet final.
+    """
     stage = fetch_stage(TABLE_URL)
+    if in_play := games_in_play(stage):
+        logging.warning(f'Not updating the table, games in play: {in_play}')
+        return None
     stats = []
     for row in stage["LeagueTable"]["L"][0]["Tables"][0]["team"]:
         wins = int(row["winn"])
@@ -73,7 +80,10 @@ def fetch_table_data() -> tuple[str, str]:
 
 def update_table_status() -> None:
     logging.info(f'Fetching current table from: {TABLE_URL}')
-    table_data, season = fetch_table_data()
+    fetched = fetch_table_data()
+    if fetched is None:
+        return
+    table_data, season = fetched
 
     template_title = TABLE_TEMPLATE_ON_MACCABIPEDIA.format(season=season)
     table_template_page = pw.Page(site, template_title)

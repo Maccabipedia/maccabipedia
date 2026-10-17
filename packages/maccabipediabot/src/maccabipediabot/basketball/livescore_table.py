@@ -1,15 +1,22 @@
-"""Which season a livescore stage payload belongs to, so a table lands in that season's template.
+"""Reading a livescore stage payload: which season it belongs to, and whether a game is in play.
+
+The football, basketball and EuroLeague table scripts all read livescore stages.
+
+Which season, so a table lands in that season's template:
 
 The table scripts once named the template by a hard-coded season. When livescore rolled over to
 the new season, they kept writing it into last season's template, which wiped the final standings
 shown on last season's page. The payload carries no season label, but every event in it has a
 start date, and a basketball season starts in the autumn.
 """
-from datetime import datetime
+from datetime import date, datetime
 
 import requests
 
 _SEASON_START_MONTH = 7
+# livescore's `Eps` for a game not started, finished (after extra time / penalties / overtime),
+# or off. Anything else ("45'", "HT", "Q2", ...) is a game in play.
+_NOT_IN_PLAY_STATUSES = {"NS", "FT", "AET", "AP", "AOT", "Postp.", "Canc.", "Aband.", "Awrd."}
 # The template on each table page that holds the rows, e.g. {{טבלת כדורסל|טבלה=...}}.
 TABLE_TEMPLATE_NAME = "טבלת כדורסל"
 
@@ -21,6 +28,26 @@ def fetch_stage(url: str) -> dict:
         raise RuntimeError(f"Unexpected livescore response: status={resp.status_code} "
                            f"ctype={resp.headers.get('Content-Type')}\n{resp.text[:300]}")
     return resp.json()["Stages"][0]
+
+
+def games_in_play(stage: dict, today: date | None = None) -> list[str]:
+    """The games of a livescore stage still being played, as "home - away (status)".
+
+    livescore's table is live: a game in progress already counts in it, with its score at that
+    moment, so a table saved during one shows a result that has not happened yet. Any status
+    that is not a known "not started" or "over" one counts as in play. Only games dated within a
+    day of today count, so a game stuck on an odd status cannot hold the table back for good.
+    """
+    today = today or datetime.now().date()
+    in_play = []
+    for event in stage.get("Events", []):
+        if event.get("Eps") in _NOT_IN_PLAY_STATUSES or not event.get("Esd"):
+            continue
+        start_day = datetime.strptime(str(event["Esd"])[:8], "%Y%m%d").date()
+        if abs((start_day - today).days) > 1:
+            continue
+        in_play.append(f'{event["T1"][0]["Nm"]} - {event["T2"][0]["Nm"]} ({event.get("Eps")})')
+    return in_play
 
 
 def season_of_stage(stage: dict) -> str:
