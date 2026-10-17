@@ -59,6 +59,23 @@ That is the alternative football did **not** take: football hard-codes one name 
 season (below). If a third kind of football table is ever needed, copy basketball's
 `טבלה משתנה` route rather than adding another hard-coded name.
 
+## The current-season table bots save only between games (card #608, 2026-10-17)
+
+The `update_league_table_status` workflow (football, volleyball, basketball, EuroLeague) runs
+on `0 */8`, but GitHub starts it 2–3 h late, so one run a day lands around 21:00 Israel time,
+mid-game. livescore's table is **live**: a game in progress already counts in it at its
+current score. A run at 21:08 once saved a basketball game's second-quarter score. The
+livescore scripts now skip the save while `games_in_play(stage)` finds a game in play
+(`basketball/livescore_table.py`).
+
+- Decide by `Epr`, not `Eps`: 0 = not started, 2 = over. `Eps` is "FT", or "OT" for a game
+  *finished* after overtime. A guessed `Eps` list ("AOT") would have frozen the EuroLeague table.
+- `Esd` / `Edf` are Israel local time (they match the kickoff hours on game pages).
+- The basketball endpoint is a CDN (`prod-cdn-public-api`). At 21:08 it served a second-quarter
+  table (about 20:00) for a game whose `Edf` was 21:04, so a snapshot can be an hour stale. The
+  guard should still hold, because a stale snapshot's events are just as stale (unverified).
+- Volleyball reads the IVA site, not livescore, and has no such guard.
+
 ## Football's international group table (cards #540 / #161, 2026-09-22)
 
 `תבנית:טבלת בית בינלאומי כדורגל <season>` — one per season in which Maccabi played a
