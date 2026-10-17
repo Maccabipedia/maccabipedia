@@ -1,3 +1,4 @@
+from datetime import date
 from unittest.mock import MagicMock, patch
 
 from maccabipediabot.football import update_league_table
@@ -46,3 +47,15 @@ def test_deducted_team_sorts_below_teams_with_more_points():
         "בית\"ר ירושלים",
         "עירוני טבריה",
     ]
+
+
+def test_no_table_while_a_game_is_in_play():
+    """2026-10-17: a run at 21:08 saved Maccabi Haifa a win in a game that ended at 21:26."""
+    response = _fake_response([_team_row("Maccabi Haifa", win=1, drw=0, ptsn=3)])
+    response.json.return_value["Stages"][0]["Events"] = [
+        {"Eps": "80'", "Epr": 1, "Esd": int(date.today().strftime("%Y%m%d") + "193000"),
+         "T1": [{"Nm": "Maccabi Petach Tikva"}], "T2": [{"Nm": "Maccabi Haifa"}]},
+    ]
+
+    with patch.object(update_league_table.requests, "get", return_value=response):
+        assert update_league_table.fetch_league_table_data() is None

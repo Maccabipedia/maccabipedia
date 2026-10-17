@@ -3,6 +3,7 @@ import logging
 import mwparserfromhell
 import requests
 
+from maccabipediabot.basketball.livescore_table import games_in_play
 from maccabipediabot.common.wiki_login import get_site
 
 _LEAGUE_TABLE_TEMPLATE_ON_MACCABIPEDIA = 'תבנית:טבלת_ליגת_כדורגל_2026/27'
@@ -52,12 +53,20 @@ site = get_site()
 import pywikibot as pw
 
 
-def fetch_league_table_data():
+def fetch_league_table_data() -> str | None:
+    """The table rows as the template expects them.
+
+    None while a game is being played: the live table would save a result not yet final.
+    """
     stats = []
 
     for url in LINKS_TO_FETCH_LEAGUE_TABLE_FROM:
         resp = requests.get(url)
-        table = resp.json()["Stages"][0]["LeagueTable"]["L"][0]["Tables"][0]["team"]
+        stage = resp.json()["Stages"][0]
+        if in_play := games_in_play(stage):
+            logging.warning(f'Not updating the league table, games in play: {in_play}')
+            return None
+        table = stage["LeagueTable"]["L"][0]["Tables"][0]["team"]
         table_rows = []
         for row in table:
             points = row["win"] * 3 + row["drw"] - POINTS_DEDUCTIONS.get(row["Tnm"], 0)
@@ -89,6 +98,8 @@ def fetch_league_table_data():
 def update_league_table_status() -> None:
     logging.info(f'Fetching current league table from: {LINKS_TO_FETCH_LEAGUE_TABLE_FROM}')
     league_table_data = fetch_league_table_data()
+    if league_table_data is None:
+        return
 
     league_table_template_page = pw.Page(site, _LEAGUE_TABLE_TEMPLATE_ON_MACCABIPEDIA)
 
