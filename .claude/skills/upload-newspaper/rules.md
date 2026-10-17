@@ -36,12 +36,18 @@ same params.
   - **A full report:** the headline plus every column of the article. When the columns
     wrap around other stories, cut them out and stack them into one strip. One
     article means one headline. A piece with its own headline (and often its own
-    byline or frame) is a separate article and becomes its own image, even when it
-    sits inside the report's block: an interview box, a columnist's frame, reactions.
+    byline or frame) that sits in a different area of the page is a separate article
+    and becomes its own image: an interview box, a columnist's frame, reactions. When
+    it sits right beside the report in one block (e.g. an interview under the
+    report's banner), keep the block as one image.
     A box score, a side table or a photo caption has no headline of its own, so it
     stays with the report. The group or league table stays too, but a short item on
     another game in the group (e.g. Real–Bosna next to a Maccabi report) is blanked:
     keep the table, drop the other game.
+    Blank only along the crop's edge. A small box sitting inside the article, with
+    the article's own text around it (a teaser for another story, a small result
+    box), stays. Blanking a hole in the middle of the page makes the clip look
+    patched for no gain.
   - **A round-up or preview column** (all of the round's games in one item): crop just
     the Maccabi paragraph, with the column's headline above it when it fits. Oren
     often marks the Maccabi lines with a yellow highlighter.
@@ -77,7 +83,10 @@ same params.
   - Every waived check (`--accept-edge`, `--blanks-read`, `--whole-page-because`) is
     written into the upload summary and drawn in orange on the before/after. Waive only
     a real rule, frame line or seam. A blank whose edge sits on an ad's black frame
-    leaves the frame as a bar, so run the blank past it.
+    leaves the frame as a bar, so run the blank past it. A waiver also hides a real
+    cut: an edge waived as "on the frame" sat 30 px above it and cut the last line
+    (2026-10). Zoom in on every waived edge at full size, or move it until no waiver
+    is needed.
   Then confirm by eye. Separators don't bound everything, because an article can wrap
   around another story, so the reading order still decides which areas belong to it.
   **Find all of the game's coverage before you crop.** One game is often spread over
@@ -86,8 +95,9 @@ same params.
   - a continuation note at the end of a column: `(המשך בעמוד N)`, `(סוף בעמוד אחרון)`;
   - the facing page of a spread, which often holds a second piece on the same game,
     such as an analysis, player ratings or reactions under a different headline;
-  - a second headline inside the same block (quotes, reactions) is a separate area,
-    so crop it as its own image and don't hang it under the main report;
+  - a second headline set apart by its own rules or frame (quotes, reactions) is a
+    separate area, so crop it as its own image and don't hang it under the main
+    report; one that runs under the report's banner in the same block stays with it;
   - every other story on the same page or spread: read them all, because a story
     written from the opponent's side (their hotel, their ticket sales) is still about
     this game; check boxes right under your crop and items outside a frame;
@@ -119,7 +129,11 @@ same params.
   edges too: old scans are often tilted, so a column rule can drift 15 px or more
   down the page. A straight cut then shows slivers of the next column at one end and
   clips this article's letters at the other. Follow the rule, or cut the block into
-  slices. An article that runs onto a second
+  slices. A scan can also be sheared rather than rotated: the vertical rules lean
+  while the horizontal ones stay level, so rotating doesn't fix it. Straighten the
+  scan first (shear it back until the frame is square), then crop. A column that
+  ends mid-sentence usually goes on at the top of the next column to its left; read
+  that join before calling text missing or continued elsewhere. An article that runs onto a second
   page is two files, or one stacked image, never two whole pages.
 - **Existing scan:** add `סיווג` and `שיוך משחק` inside the template, and keep the
   rest of the page unchanged.
