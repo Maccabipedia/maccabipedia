@@ -48,29 +48,30 @@ def test_season_of_stage_without_events_raises():
 _GAME_DAY = date(2026, 10, 17)
 
 
-def _event(status: str, start: int = 20261017191500, home: str = "Hapoel Jerusalem",
+def _event(status: str, progress: int, start: int = 20261017191500, home: str = "Hapoel Jerusalem",
            away: str = "Hapoel Beer Sheva") -> dict:
-    return {"Eps": status, "Esd": start, "T1": [{"Nm": home}], "T2": [{"Nm": away}]}
+    return {"Eps": status, "Epr": progress, "Esd": start, "T1": [{"Nm": home}], "T2": [{"Nm": away}]}
 
 
-@pytest.mark.parametrize("status", ["NS", "FT", "AET", "AP", "AOT", "Postp.", "Canc."])
-def test_games_not_started_or_over_are_not_in_play(status):
-    assert games_in_play({"Events": [_event(status)]}, today=_GAME_DAY) == []
+# The (Eps, Epr) pairs of every event in the real payloads, fetched 2026-10-17.
+@pytest.mark.parametrize("status, progress", [("NS", 0), ("FT", 2), ("OT", 2)])
+def test_games_not_started_or_over_are_not_in_play(status, progress):
+    """"OT" is a EuroLeague game finished after overtime, not one still in it."""
+    assert games_in_play({"Events": [_event(status, progress)]}, today=_GAME_DAY) == []
 
 
-@pytest.mark.parametrize("status", ["Q2", "HT", "45'", "90+3'"])
-def test_a_game_in_progress_is_in_play(status):
+def test_a_game_in_progress_is_in_play():
     """2026-10-17: the table saved at 21:08 had Jerusalem - Beer Sheva at its second quarter."""
-    stage = {"Events": [_event("FT", 20261010191500), _event(status), _event("NS", 20261024191500)]}
-    assert games_in_play(stage, today=_GAME_DAY) == [f"Hapoel Jerusalem - Hapoel Beer Sheva ({status})"]
+    stage = {"Events": [_event("FT", 2, 20261010191500), _event("Q2", 1), _event("NS", 0, 20261024191500)]}
+    assert games_in_play(stage, today=_GAME_DAY) == ["Hapoel Jerusalem - Hapoel Beer Sheva (Q2)"]
 
 
 @pytest.mark.parametrize("start", [20261016235959, 20261018000000])
 def test_a_game_a_day_from_today_still_counts(start):
     """Esd is livescore's local time and the runner's day is UTC; a day either way covers it."""
-    assert games_in_play({"Events": [_event("Q2", start)]}, today=_GAME_DAY) != []
+    assert games_in_play({"Events": [_event("Q2", 1, start)]}, today=_GAME_DAY) != []
 
 
-def test_a_game_stuck_on_an_odd_status_stops_counting_after_a_day():
-    """An old game left on a status we do not know must not keep the table frozen."""
-    assert games_in_play({"Events": [_event("Int.", 20261015191500)]}, today=_GAME_DAY) == []
+def test_a_game_stuck_in_play_stops_counting_after_a_day():
+    """An old game left on an odd progress value must not keep the table frozen."""
+    assert games_in_play({"Events": [_event("Int.", 1, 20261015191500)]}, today=_GAME_DAY) == []

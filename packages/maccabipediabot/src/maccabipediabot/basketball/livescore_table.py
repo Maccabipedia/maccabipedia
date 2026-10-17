@@ -14,9 +14,10 @@ from datetime import date, datetime
 import requests
 
 _SEASON_START_MONTH = 7
-# livescore's `Eps` for a game not started, finished (after extra time / penalties / overtime),
-# or off. Anything else ("45'", "HT", "Q2", ...) is a game in play.
-_NOT_IN_PLAY_STATUSES = {"NS", "FT", "AET", "AP", "AOT", "Postp.", "Canc.", "Aband.", "Awrd."}
+# livescore's `Epr` (match progress): 0 not started, 2 over, whatever `Eps` says ("FT", or "OT"
+# after overtime). Checked on every event of the football, basketball and EuroLeague payloads,
+# 2026-10-17. Anything else is a game in play.
+_NOT_IN_PLAY_PROGRESS = {0, 2}
 # The template on each table page that holds the rows, e.g. {{טבלת כדורסל|טבלה=...}}.
 TABLE_TEMPLATE_NAME = "טבלת כדורסל"
 
@@ -34,14 +35,14 @@ def games_in_play(stage: dict, today: date | None = None) -> list[str]:
     """The games of a livescore stage still being played, as "home - away (status)".
 
     livescore's table is live: a game in progress already counts in it, with its score at that
-    moment, so a table saved during one shows a result that has not happened yet. Any status
-    that is not a known "not started" or "over" one counts as in play. Only games dated within a
-    day of today count, so a game stuck on an odd status cannot hold the table back for good.
+    moment, so a table saved during one shows a result that has not happened yet. Any progress
+    that is not "not started" or "over" counts as in play. Only games dated within a day of today
+    count, so a game stuck on an odd value cannot hold the table back for good.
     """
     today = today or datetime.now().date()
     in_play = []
     for event in stage.get("Events", []):
-        if event.get("Eps") in _NOT_IN_PLAY_STATUSES or not event.get("Esd"):
+        if event.get("Epr") in _NOT_IN_PLAY_PROGRESS or not event.get("Esd"):
             continue
         start_day = datetime.strptime(str(event["Esd"])[:8], "%Y%m%d").date()
         if abs((start_day - today).days) > 1:

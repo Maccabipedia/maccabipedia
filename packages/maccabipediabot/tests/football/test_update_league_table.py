@@ -53,7 +53,7 @@ def test_no_table_while_a_game_is_in_play():
     """2026-10-17: a run at 21:08 saved Maccabi Haifa a win in a game that ended at 21:26."""
     response = _fake_response([_team_row("Maccabi Haifa", win=1, drw=0, ptsn=3)])
     response.json.return_value["Stages"][0]["Events"] = [
-        {"Eps": "80'", "Esd": int(date.today().strftime("%Y%m%d") + "193000"),
+        {"Eps": "80'", "Epr": 1, "Esd": int(date.today().strftime("%Y%m%d") + "193000"),
          "T1": [{"Nm": "Maccabi Petach Tikva"}], "T2": [{"Nm": "Maccabi Haifa"}]},
     ]
 
