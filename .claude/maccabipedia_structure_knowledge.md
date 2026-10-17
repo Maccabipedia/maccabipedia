@@ -214,20 +214,22 @@ others. Both conventions stay, decided 2026-10-03: don't migrate football to pre
 **State measured 2026-10-03:** football had 227 pages with 230 links (4 one-way, 0 missing).
 Basketball had 10 linked pages out of 280 series games (games whose `Leg` holds `משחק N`).
 Volleyball had 294 pages (2 links to missing pages, 4 one-way).
-All were fixed on 2026-10-03. By 2026-10-10 every basketball series was linked: 115 series,
-342 games.
+All were fixed on 2026-10-03. By 2026-10-17 every basketball series was linked (155 series), and
+every official European basketball game had a stage label; only games not yet played lack one.
 
 ### Basketball stage labels (`שלב במפעל`) for series
 
 The series links come from the stage label: a game is found as part of a series only when its
-label reads `<round> - משחק N`. Rules settled 2026-10-10:
+label reads `<round> - משחק N`. Rules settled 2026-10-10 to 2026-10-17:
 
 | Games | Label |
 |---|---|
-| Regular-season rounds, any competition | `מחזור N`, and **only** these. Euroleague playoff games were labelled `מחזור 1…5` until 2026-10-10, which mixed them with the season's real rounds 1–5 |
+| Regular-season rounds | `מחזור N`, and **only** these. Euroleague playoff games were labelled `מחזור 1…5` until 2026-10-10, which mixed them with the season's real rounds 1–5 |
+| A group stage | `<stage> - מחזור N`, numbered by date within the stage: `טופ 16 - מחזור N`, `רבע גמר - מחזור N` / `חצי גמר - מחזור N` (the 1960s–80s quarter-final and semi-final groups), `שמינית גמר - מחזור N` (the 1990s main group), `שלב ראשון` / `שלב שני - מחזור N` (1996–2001), `שלב הבתים - מחזור N` (Korać). The ending tells a group round (`מחזור`) from a game in a tie (`משחק`). Seasons with two group stages are why the round stays in the label (football's `שלב הבתים` alone would be ambiguous) |
 | Euroleague playoffs, 2005/06 on, with or without groups | `הצלבה - משחק N` |
 | Euroleague play-in | `פליי-אין` (a single game, not a series) |
-| FIBA-era knockout rounds (1990s) and older two-legged ties | the round: `שמינית גמר - משחק N` or `רבע גמר - משחק N`. Name the round, because in some seasons Maccabi played both |
+| Final Four | `חצי גמר`, `גמר`, `משחק על המקום השלישי` (no `פיינל פור -` prefix) |
+| Knockout rounds before the groups and older ties | the round as linguasport names it: `סיבוב מוקדם`, `סיבוב ראשון`, `סיבוב שני`, `32 האחרונות`, `שמינית גמר`, `רבע גמר`, `חצי גמר`, `גמר`, `- משחק N`. Kept even where it isn't literal (a "1/8" round with 14 teams; Wikipedia calls it "Second round"): Roee's decision, 2026-10-16 |
 | A deciding game after a tied two-legged tie | the next number, `<round> - משחק 3`; the page's summary says it was a decider |
 
 **Proving the stage:** the Euroleague's official record names the phase of a game (checked for
@@ -238,7 +240,29 @@ lists each tie under its round heading (`1/8 FINAL`, `1/4 FINAL`).
 
 **Finding unlabelled series:** a series shows up as three or more games against one opponent in
 one competition within about 25 days. A round-robin group (`בית הגמר`) also matches that
-pattern but is not a series.
+pattern but is not a series. The threshold misses 2-game series: the 2004/05 quarter-final (best of
+3, won 2–0) was only found through the Euroleague record.
+
+**Home/away for a relocated game** follows the official designation, not where it was played.
+Maccabi's 2023/24 and 2024/25 Euroleague home games in Belgrade are `בית`; Brno and CSKA's 1977
+home games against Maccabi, played on Belgian courts (both clubs refused to play in Israel, so
+Maccabi's home games became technical wins), are `חוץ`, with the Belgian hall in `אצטדיון`. `נייטרלי` is for a genuinely neutral venue (Final Four, cup final).
+
+**Opponent names** use the club's own name, not a sponsor or temporary name: the 1999/00
+"Paf Wennington" games are `פורטיטודו בולוניה`; the club that played as Kingston in 1985/86 and
+1990/91 stays `גילפורד קינגס`. Check a club's existing spelling on the wiki before naming it
+(Spirou Charleroi was already `שרלרואה`).
+
+**Checking a European game, three sources** (each one wrong somewhere, so a fix needs two that agree):
+- **linguasport** season pages (cited on the game pages): round headings, pairings, scores home team
+  first, and footnotes (forfeits, neutral venues). Its dates are the round's reference date, so a
+  game may have been played a day or two earlier.
+- **English Wikipedia** season articles, read as raw text (`index.php?title=…&action=raw`). Its group
+  tables can be wrong (1978/79: 376–299 where the four games add to 347–294), and so can its leg
+  order (1967/68 Gießen). The "Maccabi Tel Aviv B.C. in international competitions" article lists
+  every game, with occasional score slips (Crystal Palace 1980: 83–74 for 83–75).
+- **Yedioth Ahronoth** scans (`.claude/newspaper_archives.md`), searched by exact score in the days
+  after the game: the primary source, and the one that settles a disagreement between the other two.
 
 ## 8. Non-Game Entities
 
