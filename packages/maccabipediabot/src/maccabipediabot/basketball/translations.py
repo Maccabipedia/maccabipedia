@@ -427,6 +427,43 @@ _PERSON_NAMES: dict[str, str] = {
     "Gentian Cici": "ג׳נטיאן סיסי",
     "Alberto Baena": "אלברטו באנה",
     "Mehdi Difallah": "מהדי דיפאללה",
+    # EuroLeague games 30/09-15/10/2026: names the crawler left in English, as the wiki
+    # editors translated them on the game pages.
+    "Zeljko Obradovic": "ז'ליקו אובראדוביץ'",
+    "Dusan Alimpijevic": "דושאן אלימפייביץ'",
+    "Aleksander Sekulic": "אלכסנדר סקוליץ'",
+    "Xavier Albert": "צ'אבי אלברט",
+    "Kerem Baki": "קרם באקי",
+    "Ioannis Tiganis": "יואניס טיגאניס",
+    "Ante Zizic": "אנטה ז'יז'יץ'",
+    "Anthony Brown": "אנטוני בראון",
+    "Berk Ugurlu": "ברק אוגורלו",
+    "Conor Morgan": "קונור מורגן",
+    "David Dejulius": "דייוויד דג'וליוס",
+    "Devon Dotson": "דבון דוטסון",
+    "Dimitris Moraitis": "דימיטריס מורייטיס",
+    "Eleftherios Mantzoukas": "לפטריס מנזוקאס",
+    "Furkan Korkmaz": "פורקאן קורקמז",
+    "Guerschon Yabusele": "גרשון יבוסלה",
+    "Jaylen Nowell": "ג'יילן נאוול",
+    "Mathias Lessort": "מתיאס לסור",
+    "Nigel Hayes-Davis": "נייג'ל הייז",
+    "Nikolaos Rogkavopoulos": "ניקוס רוגקאבופולוס",
+    "Scottie Wilbekin": "סקוטי ווילבקין",  # as his profile page, not the game page's "וילבקין"
+    "Jason Burnell": "ג'ייסון ברנל",
+    "Rj Cole": "אר. ג'י. קול",
+    "Ousmane Diop": "עוסמאן דיופ",
+    "Garrison Mathews": "גאריסון מת'יוז",
+    "Umoja Gibson": "אומוחה גיבסון",
+    "Tyrese Martin": "טייריס מרטין",
+    "Stanley Umude": "סטנלי אומודה",
+    "Agustin Ubal": "אגוסטין אובל",
+    "Olivier Nkamhoua": "אוליבייר נקמואה",
+    "Tosan Evbuomwan": "טוסאן אבואומוואן",
+    "Olek Balcerowski": "אולק בלצרובסקי",
+    "Alvaro Cardenas": "אלווארו קרדנס טורה",
+    "Gonzalo Corbalan": "גונזלו קורבלאן",
+    "Jasiel Rivero": "חסיאל ריברו",
 }
 
 _STADIUM_NAMES: dict[str, str] = {
@@ -777,6 +814,13 @@ _TEAM_RENAMES: dict[str, list[TeamRename]] = {
     "חובנטוד באדלונה": _all_years("חובנטוד בדאלונה"),
     "ז'אלגריס קובנה": _all_years("ז'לגיריס קובנה"),
     "אפס פילזן איסטנבול": _all_years("אפס פילזן"),
+    # 1959/60-1960/61 league opponents once named by settlement only; the wiki's
+    # game pages were renamed to the full club name.
+    "גבעת חיים": [TeamRename("הפועל גבעת חיים", 1959, 1961)],
+    "גבעת ברנר": [TeamRename("הפועל גבעת ברנר", 1959, 1961)],
+    "משמר העמק": [TeamRename("הפועל משמר העמק", 1959, 1961)],
+    "אשדות יעקב": [TeamRename("הפועל אשדות יעקב", 1959, 1961)],
+    "קרית מוצקין": [TeamRename("מכבי קרית מוצקין", 1959, 1961)],
     "מכבי רמת עמידר": [
         TeamRename("מכבי רמת עמידר", 1957, 2005),
         TeamRename("הכח עמידר רמת גן", 2005, 2100),
