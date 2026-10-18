@@ -814,8 +814,9 @@ _TEAM_RENAMES: dict[str, list[TeamRename]] = {
     "חובנטוד באדלונה": _all_years("חובנטוד בדאלונה"),
     "ז'אלגריס קובנה": _all_years("ז'לגיריס קובנה"),
     "אפס פילזן איסטנבול": _all_years("אפס פילזן"),
-    # 1959/60-1960/61 league opponents once named by settlement only; the wiki's
-    # game pages were renamed to the full club name.
+    # League opponents once named by settlement only, on games of 1959/60-1960/61; the
+    # wiki's game pages were renamed to the full club name. The window is calendar years
+    # 1959-1961, so it also reaches the edges of 1958/59 and 1961/62.
     "גבעת חיים": [TeamRename("הפועל גבעת חיים", 1959, 1961)],
     "גבעת ברנר": [TeamRename("הפועל גבעת ברנר", 1959, 1961)],
     "משמר העמק": [TeamRename("הפועל משמר העמק", 1959, 1961)],
