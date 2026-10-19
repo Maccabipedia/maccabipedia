@@ -57,6 +57,8 @@ def test_basket_co_il_competition_name(code, expected):
     ("שם לא ידוע", 2024, "שם לא ידוע"),                         # unknown → pass through
     ("מכבי רמת עמידר", 2000, "מכבי רמת עמידר"),                 # year-bounded, pre-2005
     ("מכבי רמת עמידר", 2010, "הכח עמידר רמת גן"),               # year-bounded, post-2005
+    ("קרית מוצקין", 1961, "מכבי קרית מוצקין"),                  # inside its window
+    ("קרית מוצקין", 1975, "קרית מוצקין"),                       # outside it → pass through
 ])
 def test_canonical_team_name(name, year, expected):
     assert canonical_team_name(name, datetime(year, 6, 1)) == expected
