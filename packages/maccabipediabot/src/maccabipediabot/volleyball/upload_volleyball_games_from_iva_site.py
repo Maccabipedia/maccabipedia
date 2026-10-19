@@ -31,7 +31,8 @@ def create_volleyball_game_from_dataframe_row(row: pd.Series) -> VolleyballGame:
     home_team_name = row["מארחת"].strip()
     logging.info(f'for game date: {game_date} ({home_team_name}), is_home_game: {is_home_game}')
     opponent_name = row["אורחת"] if is_home_game else row["מארחת"]
-    stadium = row["אולם"]
+    opponent_name = opponent_name.strip() if isinstance(opponent_name, str) else opponent_name
+    stadium = row["אולם"].strip() if isinstance(row["אולם"], str) else row["אולם"]
 
     # The result can be float (NaN) for future games, or string with "-" in case of a played game
     if isinstance(row["תוצאה"], str) and "-" in row["תוצאה"]:
@@ -48,9 +49,8 @@ def create_volleyball_game_from_dataframe_row(row: pd.Series) -> VolleyballGame:
     else:
         raise RuntimeError(f'Could not find matching competition: {row["מסגרת"]}')
 
-
     return VolleyballGame(date=game_date,
-                          fixture=fixture,
+                          fixture=fixture.strip(),
                           opponent=opponent_name,
                           home_game=is_home_game,
                           competition=competition,
