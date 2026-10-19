@@ -30,7 +30,8 @@ def create_volleyball_game_from_dataframe_row(row: pd.Series) -> VolleyballGame:
     is_home_game = row["מארחת"].strip() in MACCABI_NAMES
     home_team_name = row["מארחת"].strip()
     logging.info(f'for game date: {game_date} ({home_team_name}), is_home_game: {is_home_game}')
-    opponent_name = (row["אורחת"] if is_home_game else row["מארחת"]).strip()
+    opponent_name = row["אורחת"] if is_home_game else row["מארחת"]
+    opponent_name = opponent_name.strip() if isinstance(opponent_name, str) else opponent_name
     stadium = row["אולם"].strip() if isinstance(row["אולם"], str) else row["אולם"]
 
     # The result can be float (NaN) for future games, or string with "-" in case of a played game
