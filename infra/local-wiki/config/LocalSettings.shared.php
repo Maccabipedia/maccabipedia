@@ -140,8 +140,46 @@ $wgGroupPermissions['bot']['deletedhistory'] = true; // optional
 $wgAutoConfirmAge = 86400 * 14;   // 14 days
 $wgAutoConfirmCount = 3;
 
-# $wgEmailConfirmToEdit — set in LocalSettings.env.*.php (true on prod, false
-# locally where email is disabled and no address can be confirmed).
+# $wgEmailConfirmToEdit — set in LocalSettings.env.*.php. Prod does not set it
+# (it has only $wgEmailAuthentication, which gates the wiki's own emails, not
+# editing), so a new account can edit the moment it registers. Locally it is
+# false: email is disabled and no address can be confirmed.
+
+# Spambots register and, seconds later, save a user page linking a casino site
+# (Oct 2026: a dozen accounts in three days). The math captcha does not stop
+# them, so take away what they come for: until an account is autoconfirmed
+# (the age and edit count above), an edit may not add an external link the
+# page did not already have. Sysops and bots hold the 'autoconfirmed' right.
+$wgHooks['EditFilterMergedContent'][] = function ( $context, $content, $status, $summary, $user, $minoredit ) {
+	$permissionManager = MediaWiki\MediaWikiServices::getInstance()->getPermissionManager();
+	if ( $permissionManager->userHasRight( $user, 'autoconfirmed' ) || !( $content instanceof TextContent ) ) {
+		return true;
+	}
+
+	$externalLinkPattern = '/(?:' . wfUrlProtocols() . ')[^\s\[\]<>"|{}]+/i';
+	preg_match_all( $externalLinkPattern, $content->getText(), $newLinks );
+	$oldLinks = [ [] ];
+	$oldContent = $context->getWikiPage()->getContent();
+	if ( $oldContent instanceof TextContent ) {
+		preg_match_all( $externalLinkPattern, $oldContent->getText(), $oldLinks );
+	}
+	if ( !array_diff( $newLinks[0], $oldLinks[0] ) ) {
+		return true;
+	}
+
+	$status->fatal( new RawMessage(
+		'חשבונות חדשים לא יכולים להוסיף קישורים חיצוניים בשבועיים הראשונים. ' .
+		'אפשר לשמור את העריכה בלי הקישור, או לכתוב לנו דרך [[Special:Contact|צור קשר]].'
+	) );
+	return false;
+};
+
+# Keep user pages out of search engines, so spam that does get through earns
+# nothing. Listing the namespaces here also stops a page overriding the policy
+# with __INDEX__ (by default only $wgContentNamespaces are exempt).
+$wgNamespaceRobotPolicies[NS_USER] = 'noindex,nofollow';
+$wgNamespaceRobotPolicies[NS_USER_TALK] = 'noindex,nofollow';
+$wgExemptFromUserRobotsControl = [ NS_MAIN, NS_USER, NS_USER_TALK ];
 
 # Enable images lazy loading
 $wgNativeImageLazyLoading = true;
