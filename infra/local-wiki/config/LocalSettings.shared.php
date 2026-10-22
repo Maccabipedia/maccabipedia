@@ -149,28 +149,46 @@ $wgAutoConfirmCount = 3;
 # (Oct 2026: a dozen accounts in three days). The math captcha does not stop
 # them, so take away what they come for: until an account is autoconfirmed
 # (the age and edit count above), an edit may not add an external link the
-# page did not already have. Sysops and bots hold the 'autoconfirmed' right.
-$wgHooks['EditFilterMergedContent'][] = function ( $context, $content, $status, $summary, $user, $minoredit ) {
-	$permissionManager = MediaWiki\MediaWikiServices::getInstance()->getPermissionManager();
-	if ( $permissionManager->userHasRight( $user, 'autoconfirmed' ) || !( $content instanceof TextContent ) ) {
-		return true;
-	}
+# page did not already have, and an upload may not carry one in its
+# description. Sysops and bots hold the 'autoconfirmed' right.
+function efIsNewAccount( $user ) {
+	return !MediaWiki\MediaWikiServices::getInstance()->getPermissionManager()->userHasRight( $user, 'autoconfirmed' );
+}
 
-	$externalLinkPattern = '/(?:' . wfUrlProtocols() . ')[^\s\[\]<>"|{}]+/i';
-	preg_match_all( $externalLinkPattern, $content->getText(), $newLinks );
-	$oldLinks = [ [] ];
-	$oldContent = $context->getWikiPage()->getContent();
-	if ( $oldContent instanceof TextContent ) {
-		preg_match_all( $externalLinkPattern, $oldContent->getText(), $oldLinks );
-	}
-	if ( !array_diff( $newLinks[0], $oldLinks[0] ) ) {
-		return true;
-	}
+# Hosts, not whole URLs: editing text that touches an existing bare link must
+# not look like a new link, and spam always needs a new host.
+function efExternalLinkHosts( $wikitext ) {
+	preg_match_all( '/(?:' . wfUrlProtocols() . ')([a-z0-9.\-_@%]+)/i', $wikitext, $matches );
+	return array_unique( array_map( 'strtolower', $matches[1] ) );
+}
 
-	$status->fatal( new RawMessage(
+function efNewAccountLinkRefusal() {
+	return new RawMessage(
 		'חשבונות חדשים לא יכולים להוסיף קישורים חיצוניים בשבועיים הראשונים. ' .
-		'אפשר לשמור את העריכה בלי הקישור, או לכתוב לנו דרך [[Special:Contact|צור קשר]].'
-	) );
+		'אפשר לשמור בלי הקישור, או לכתוב לנו דרך [[Special:Contact|צור קשר]].'
+	);
+}
+
+$wgHooks['EditFilterMergedContent'][] = function ( $context, $content, $status, $summary, $user, $minoredit ) {
+	if ( !efIsNewAccount( $user ) || !( $content instanceof TextContent ) ) {
+		return true;
+	}
+	$oldContent = $context->getWikiPage()->getContent();
+	$oldHosts = $oldContent instanceof TextContent ? efExternalLinkHosts( $oldContent->getText() ) : [];
+	if ( !array_diff( efExternalLinkHosts( $content->getText() ), $oldHosts ) ) {
+		return true;
+	}
+	$status->fatal( efNewAccountLinkRefusal() );
+	return false;
+};
+
+# Uploads never reach EditFilterMergedContent, and the description page they
+# create would otherwise carry the link.
+$wgHooks['UploadVerifyUpload'][] = function ( $upload, $user, $props, $comment, $pageText, &$error ) {
+	if ( !efIsNewAccount( $user ) || !efExternalLinkHosts( $comment . "\n" . $pageText ) ) {
+		return true;
+	}
+	$error = efNewAccountLinkRefusal();
 	return false;
 };
 
