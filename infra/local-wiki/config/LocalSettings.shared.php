@@ -168,6 +168,14 @@ $wgHooks['getUserPermissionsErrors'][] = function ( $title, $user, $action, &$re
 $wgNamespaceRobotPolicies[NS_USER] = 'noindex,nofollow';
 $wgNamespaceRobotPolicies[NS_USER_TALK] = 'noindex,nofollow';
 $wgExemptFromUserRobotsControl = [ NS_MAIN, NS_USER, NS_USER_TALK ];
+# WikiSEO's {{#seo:|robots=...}} sets the policy again on BeforePageDisplay,
+# past the exemption above, and its handler runs after ours there. So write
+# the tag itself, once the head is built.
+$wgHooks['OutputPageAfterGetHeadLinksArray'][] = function ( &$tags, $out ) {
+	if ( $out->getTitle()->inNamespaces( NS_USER, NS_USER_TALK ) ) {
+		$tags['meta-robots'] = Html::element( 'meta', [ 'name' => 'robots', 'content' => 'noindex,nofollow' ] );
+	}
+};
 
 # Enable images lazy loading
 $wgNativeImageLazyLoading = true;
