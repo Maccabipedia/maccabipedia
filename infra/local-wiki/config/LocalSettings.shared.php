@@ -140,42 +140,15 @@ $wgGroupPermissions['bot']['deletedhistory'] = true; // optional
 $wgAutoConfirmAge = 86400 * 14;   // 14 days
 $wgAutoConfirmCount = 3;
 
-# $wgEmailConfirmToEdit — set in LocalSettings.env.*.php. Prod does not set it
-# (it has only $wgEmailAuthentication, which gates the wiki's own emails, not
-# editing); the hook below asks new accounts instead. Locally it is false:
-# email is disabled and no address can be confirmed.
+# $wgEmailConfirmToEdit — set in LocalSettings.env.*.php (true on prod, so
+# spambots cannot edit straight after registering; false locally, where email
+# is disabled). It applies to every account: one without a confirmed email
+# cannot edit.
 
-# Spambots register and, seconds later, save a user page linking a casino site
-# (Oct 2026: a dozen accounts in three days); the math captcha does not stop
-# them. So a new account must confirm its email address before it can edit.
-# Not $wgEmailConfirmToEdit: it has no exemption, and would also stop every
-# existing account, bots included, whose address was never confirmed. Here an
-# autoconfirmed account (the age and edit count above) is never asked.
-$wgHooks['getUserPermissionsErrors'][] = function ( $title, $user, $action, &$result ) {
-	if ( $action !== 'edit' || !$GLOBALS['wgEnableEmail'] || !$user->isRegistered() || $user->isEmailConfirmed() ) {
-		return true;
-	}
-	if ( MediaWiki\MediaWikiServices::getInstance()->getPermissionManager()->userHasRight( $user, 'autoconfirmed' ) ) {
-		return true;
-	}
-	$result = [ 'confirmedittext' ];
-	return false;
-};
-
-# Keep user pages out of search engines, so any spam that gets through earns
-# nothing. Listing the namespaces here also stops a page overriding the policy
-# with __INDEX__ (by default only $wgContentNamespaces are exempt).
+# Keep user pages out of search engines.
 $wgNamespaceRobotPolicies[NS_USER] = 'noindex,nofollow';
 $wgNamespaceRobotPolicies[NS_USER_TALK] = 'noindex,nofollow';
 $wgExemptFromUserRobotsControl = [ NS_MAIN, NS_USER, NS_USER_TALK ];
-# WikiSEO's {{#seo:|robots=...}} sets the policy again on BeforePageDisplay,
-# past the exemption above, and its handler runs after ours there. So write
-# the tag itself, once the head is built.
-$wgHooks['OutputPageAfterGetHeadLinksArray'][] = function ( &$tags, $out ) {
-	if ( $out->getTitle()->inNamespaces( NS_USER, NS_USER_TALK ) ) {
-		$tags['meta-robots'] = Html::element( 'meta', [ 'name' => 'robots', 'content' => 'noindex,nofollow' ] );
-	}
-};
 
 # Enable images lazy loading
 $wgNativeImageLazyLoading = true;
