@@ -140,8 +140,10 @@ $wgGroupPermissions['bot']['deletedhistory'] = true; // optional
 $wgAutoConfirmAge = 86400 * 14;   // 14 days
 $wgAutoConfirmCount = 3;
 
-# $wgEmailConfirmToEdit — set in LocalSettings.env.*.php (true on prod, false
-# locally where email is disabled and no address can be confirmed).
+# $wgEmailConfirmToEdit — set in LocalSettings.env.*.php (true on prod, so
+# spambots cannot edit straight after registering; false locally, where email
+# is disabled). It applies to every account: one without a confirmed email
+# cannot edit.
 
 # Enable images lazy loading
 $wgNativeImageLazyLoading = true;
