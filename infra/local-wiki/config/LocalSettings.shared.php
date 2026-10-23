@@ -145,11 +145,6 @@ $wgAutoConfirmCount = 3;
 # is disabled). It applies to every account: one without a confirmed email
 # cannot edit.
 
-# Keep user pages out of search engines.
-$wgNamespaceRobotPolicies[NS_USER] = 'noindex,nofollow';
-$wgNamespaceRobotPolicies[NS_USER_TALK] = 'noindex,nofollow';
-$wgExemptFromUserRobotsControl = [ NS_MAIN, NS_USER, NS_USER_TALK ];
-
 # Enable images lazy loading
 $wgNativeImageLazyLoading = true;
 
