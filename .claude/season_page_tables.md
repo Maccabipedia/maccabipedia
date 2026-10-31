@@ -84,7 +84,9 @@ livescore never applies IFA rulings: the 3:0 technical win for Netanya over Hapo
 takes W/D/L, goals, `adjust_points_XXX` and the order (`team_order=` or `teamN=`) from the
 `{{#invoke:Sports table}}` blocks of the season's English Wikipedia page
 (`football/wikipedia_league_table.py`), and keeps livescore as the guard: no save while a game
-is in play or while Wikipedia has fewer games than livescore; two games behind fails the run.
+is in play or while Wikipedia has fewer games than livescore. A game still missing from
+Wikipedia 3 days after kickoff fails the run, and the workflow's other sports run anyway
+(`if: !cancelled()`). Each team whose W/D/L differ between the two is logged as a warning.
 
 - Measured over the 56 games of rounds 1–8 of 2026-27: Wikipedia had a game a median 1.6 h after
   the final whistle (9 in 10 within 5.4 h, worst 29 h), and the ruling the same afternoon.

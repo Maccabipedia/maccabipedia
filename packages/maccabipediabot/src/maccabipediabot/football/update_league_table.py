@@ -1,5 +1,7 @@
 import logging
 from dataclasses import replace
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 
 import mwparserfromhell
 import requests
@@ -37,9 +39,11 @@ WIKIPEDIA_SEASON_PAGE = "2026–27 Israeli Premier League"
 WIKIPEDIA_TABLES = [0]
 
 # livescore only guards the timing: no table while a game is being played, none while Wikipedia
-# is still behind on games played. Wikipedia two games behind is no longer a lag but a page
-# nobody updates, and fails the run.
-_MAX_GAMES_WIKIPEDIA_MAY_LAG = 1
+# is still behind on games played. A game still missing from Wikipedia this long after kickoff
+# (worst lag measured: 29 h) is no longer a lag, and fails the run instead of freezing the table.
+_WIKIPEDIA_MAX_LAG = timedelta(days=3)
+_ISRAEL = ZoneInfo("Asia/Jerusalem")
+_LIVESCORE_GAME_OVER = 2
 
 LINKS_TO_FETCH_LEAGUE_TABLE_FROM = [
     # Playoff stages (top 6 + bottom 8). Swap with the regular-season URL below
@@ -59,9 +63,12 @@ site = get_site()
 import pywikibot as pw
 
 
-def fetch_livescore_rows() -> dict[str, TeamRow] | None:
-    """livescore's row per team, by Hebrew name. None while a game is being played."""
-    rows = {}
+def fetch_livescore_rows() -> tuple[dict[str, TeamRow], dict[str, datetime]] | None:
+    """livescore's row per team and the kickoff of its last finished game, by Hebrew name.
+
+    None while a game is being played.
+    """
+    rows, last_kickoffs = {}, {}
     for url in LINKS_TO_FETCH_LEAGUE_TABLE_FROM:
         stage = requests.get(url, timeout=30).json()["Stages"][0]
         if in_play := games_in_play(stage):
@@ -70,10 +77,18 @@ def fetch_livescore_rows() -> dict[str, TeamRow] | None:
         for row in stage["LeagueTable"]["L"][0]["Tables"][0]["team"]:
             name = OPPONENTS_NAMES_TO_UNICODE.get(row["Tnm"], row["Tnm"])
             rows[name] = TeamRow(name, row["win"], row["drw"], row["lst"], row["gf"], row["ga"], row["win"] * 3 + row["drw"])
-    return rows
+        for event in stage.get("Events", []):
+            if event.get("Epr") != _LIVESCORE_GAME_OVER or not event.get("Esd"):
+                continue
+            kickoff = datetime.strptime(str(event["Esd"]), "%Y%m%d%H%M%S").replace(tzinfo=_ISRAEL)
+            for side in ("T1", "T2"):
+                name = OPPONENTS_NAMES_TO_UNICODE.get(event[side][0]["Nm"], event[side][0]["Nm"])
+                last_kickoffs[name] = max(kickoff, last_kickoffs.get(name, kickoff))
+    return rows, last_kickoffs
 
 
-def merge_tables(wikipedia_rows: list[TeamRow], livescore_rows: dict[str, TeamRow]) -> list[TeamRow] | None:
+def merge_tables(wikipedia_rows: list[TeamRow], livescore_rows: dict[str, TeamRow],
+                 last_kickoffs: dict[str, datetime], now: datetime) -> list[TeamRow] | None:
     """Wikipedia's table, or None while Wikipedia has not caught up with livescore's games.
 
     Where both agree on a team's wins, draws and losses no ruling touched it, and livescore's
@@ -86,10 +101,10 @@ def merge_tables(wikipedia_rows: list[TeamRow], livescore_rows: dict[str, TeamRo
                          f'{sorted(wikipedia_names - set(livescore_rows))}, only on livescore '
                          f'{sorted(set(livescore_rows) - wikipedia_names)}')
 
-    behind = {row.name: livescore_rows[row.name].played - row.played
-              for row in wikipedia_rows if row.played < livescore_rows[row.name].played}
-    if behind and max(behind.values()) > _MAX_GAMES_WIKIPEDIA_MAY_LAG:
-        raise RuntimeError(f'Wikipedia is games behind livescore, is {WIKIPEDIA_SEASON_PAGE!r} still updated? {behind}')
+    behind = [row.name for row in wikipedia_rows if row.played < livescore_rows[row.name].played]
+    if stale := [name for name in behind if name not in last_kickoffs or now - last_kickoffs[name] > _WIKIPEDIA_MAX_LAG]:
+        raise RuntimeError(f'Wikipedia still misses a game of {stale} played over {_WIKIPEDIA_MAX_LAG} ago; '
+                           f'is {WIKIPEDIA_SEASON_PAGE!r} still updated, or does livescore count an annulled game?')
     if behind:
         logging.warning(f'Not updating the league table, Wikipedia has not caught up yet: {behind}')
         return None
@@ -99,17 +114,22 @@ def merge_tables(wikipedia_rows: list[TeamRow], livescore_rows: dict[str, TeamRo
         livescore = livescore_rows[row.name]
         if (row.win, row.draw, row.loss) == (livescore.win, livescore.draw, livescore.loss):
             row = replace(row, goals_for=livescore.goals_for, goals_against=livescore.goals_against)
+        else:
+            # A ruling, or a Wikipedia mistake: the run log is where to tell them apart.
+            logging.warning(f'{row.name}: Wikipedia {row.as_template_row()} and livescore '
+                            f'{livescore.as_template_row()} disagree on results; saving Wikipedia\'s')
         merged.append(row)
     return merged
 
 
 def fetch_league_table_data() -> str | None:
     """The table rows as the template expects them, or None when this run should not save."""
-    livescore_rows = fetch_livescore_rows()
-    if livescore_rows is None:
+    livescore = fetch_livescore_rows()
+    if livescore is None:
         return None
+    livescore_rows, last_kickoffs = livescore
     wikipedia_rows = parse_league_tables(fetch_season_wikitext(WIKIPEDIA_SEASON_PAGE), WIKIPEDIA_TABLES)
-    merged = merge_tables(wikipedia_rows, livescore_rows)
+    merged = merge_tables(wikipedia_rows, livescore_rows, last_kickoffs, datetime.now(_ISRAEL))
     if merged is None:
         return None
 

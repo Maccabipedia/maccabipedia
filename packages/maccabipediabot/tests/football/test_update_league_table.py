@@ -1,5 +1,6 @@
-from datetime import date
+from datetime import date, datetime, timedelta
 from unittest.mock import MagicMock, patch
+from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -14,15 +15,18 @@ _NETANYA_LIVESCORE = TeamRow("מכבי נתניה", 2, 4, 2, 9, 8, 10)
 _HPT_LIVESCORE = TeamRow("הפועל פתח תקווה", 1, 1, 6, 3, 12, 4)
 
 
-def _livescore(*rows):
-    return {row.name: row for row in rows}
+_LAST_ROUND = datetime(2026, 10, 24, 20, 0, tzinfo=ZoneInfo("Asia/Jerusalem"))
+_LAST_KICKOFFS = {"מכבי נתניה": _LAST_ROUND, "הפועל פתח תקווה": _LAST_ROUND}
+
+
+def _merge(wikipedia_rows, *livescore_rows, now=_LAST_ROUND + timedelta(hours=3)):
+    return update_league_table.merge_tables(wikipedia_rows, {row.name: row for row in livescore_rows},
+                                            _LAST_KICKOFFS, now)
 
 
 def test_the_ruling_comes_from_wikipedia():
-    merged = update_league_table.merge_tables([_NETANYA_WIKIPEDIA, _HPT_WIKIPEDIA],
-                                              _livescore(_NETANYA_LIVESCORE, _HPT_LIVESCORE))
-
-    assert merged == [_NETANYA_WIKIPEDIA, _HPT_WIKIPEDIA]
+    assert _merge([_NETANYA_WIKIPEDIA, _HPT_WIKIPEDIA], _NETANYA_LIVESCORE, _HPT_LIVESCORE) == [
+        _NETANYA_WIKIPEDIA, _HPT_WIKIPEDIA]
 
 
 def test_goals_come_from_livescore_when_the_results_agree():
@@ -30,27 +34,34 @@ def test_goals_come_from_livescore_when_the_results_agree():
     wikipedia = TeamRow("מכבי תל אביב", 19, 9, 8, 72, 46, 66)
     livescore = TeamRow("מכבי תל אביב", 19, 9, 8, 75, 46, 66)
 
-    assert update_league_table.merge_tables([wikipedia], _livescore(livescore)) == [livescore]
+    assert _merge([wikipedia], livescore) == [livescore]
+
+
+def test_a_deduction_stays_when_the_goals_come_from_livescore():
+    """Ironi Tiberias 2026-27: livescore has the same results, but never the 6 points taken off."""
+    wikipedia = TeamRow("עירוני טבריה", 2, 2, 4, 8, 12, 2)
+    livescore = TeamRow("עירוני טבריה", 2, 2, 4, 8, 12, 8)
+
+    assert _merge([wikipedia], livescore) == [wikipedia]
 
 
 def test_no_table_while_wikipedia_is_a_game_behind():
     wikipedia_before_the_game = TeamRow("מכבי נתניה", 2, 3, 2, 8, 7, 9)
 
-    assert update_league_table.merge_tables([wikipedia_before_the_game, _HPT_WIKIPEDIA],
-                                            _livescore(_NETANYA_LIVESCORE, _HPT_LIVESCORE)) is None
+    assert _merge([wikipedia_before_the_game, _HPT_WIKIPEDIA], _NETANYA_LIVESCORE, _HPT_LIVESCORE) is None
 
 
-def test_wikipedia_two_games_behind_fails_the_run():
-    wikipedia_abandoned = TeamRow("מכבי נתניה", 2, 2, 2, 8, 7, 8)
+def test_a_game_missing_from_wikipedia_for_days_fails_the_run():
+    wikipedia_before_the_game = TeamRow("מכבי נתניה", 2, 3, 2, 8, 7, 9)
 
-    with pytest.raises(RuntimeError, match="behind"):
-        update_league_table.merge_tables([wikipedia_abandoned, _HPT_WIKIPEDIA],
-                                         _livescore(_NETANYA_LIVESCORE, _HPT_LIVESCORE))
+    with pytest.raises(RuntimeError, match="still misses a game"):
+        _merge([wikipedia_before_the_game, _HPT_WIKIPEDIA], _NETANYA_LIVESCORE, _HPT_LIVESCORE,
+               now=_LAST_ROUND + timedelta(days=4))
 
 
 def test_different_teams_fail_the_run():
     with pytest.raises(ValueError, match="different teams"):
-        update_league_table.merge_tables([_NETANYA_WIKIPEDIA], _livescore(_HPT_LIVESCORE))
+        _merge([_NETANYA_WIKIPEDIA], _HPT_LIVESCORE)
 
 
 def test_no_table_while_a_game_is_in_play():
