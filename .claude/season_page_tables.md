@@ -76,6 +76,28 @@ livescore scripts now skip the save while `games_in_play(stage)` finds a game in
   guard should still hold, because a stale snapshot's events are just as stale (unverified).
 - Volleyball reads the IVA site, not livescore, and has no such guard.
 
+## Football's league table numbers come from English Wikipedia (card #612, 2026-10-31)
+
+livescore never applies IFA rulings: the 3:0 technical win for Netanya over Hapoel Petah Tikva
+(1:1 on the pitch, ruled 28.10.2026) stayed a draw there, as do points deductions. The IFA site
+(`football.org.il`) answers a Cloudflare captcha to scripts. So `football/update_league_table.py`
+takes W/D/L, goals, `adjust_points_XXX` and the order (`team_order=` or `teamN=`) from the
+`{{#invoke:Sports table}}` blocks of the season's English Wikipedia page
+(`football/wikipedia_league_table.py`), and keeps livescore as the guard: no save while a game
+is in play or while Wikipedia has fewer games than livescore; two games behind fails the run.
+
+- Measured over the 56 games of rounds 1–8 of 2026-27: Wikipedia had a game a median 1.6 h after
+  the final whistle (9 in 10 within 5.4 h, worst 29 h), and the ruling the same afternoon.
+- Wikipedia's goal totals can be wrong while every result is right: 2025-26 left Maccabi Tel
+  Aviv's 3:0 technical derby win out of the goals (72, IFA 75). Where both sources agree on a
+  team's W/D/L, livescore's goals are used.
+- Tables are picked by position on the page (`WIKIPEDIA_TABLES`: `[0]` regular season,
+  `[1, 2]` championship + relegation round), not by `section=`: editors misspell it
+  ("Relegations round", 2025-26). The playoff tables hold full-season totals.
+- Season rollover: bump `WIKIPEDIA_SEASON_PAGE` with the template name and the livescore URL. A
+  promoted team whose Wikipedia article is not in `WIKIPEDIA_TEAM_ARTICLE_TO_HEBREW` fails the
+  run by name, rather than writing an English name.
+
 ## Football's international group table (cards #540 / #161, 2026-09-22)
 
 `תבנית:טבלת בית בינלאומי כדורגל <season>` — one per season in which Maccabi played a

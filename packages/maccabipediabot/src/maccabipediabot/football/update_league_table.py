@@ -1,10 +1,12 @@
 import logging
+from dataclasses import replace
 
 import mwparserfromhell
 import requests
 
 from maccabipediabot.basketball.livescore_table import games_in_play
 from maccabipediabot.common.wiki_login import get_site
+from maccabipediabot.football.wikipedia_league_table import TeamRow, fetch_season_wikitext, parse_league_tables
 
 _LEAGUE_TABLE_TEMPLATE_ON_MACCABIPEDIA = 'תבנית:טבלת_ליגת_כדורגל_2026/27'
 _TABLE_STATUS_KEY = 'טבלה'
@@ -27,13 +29,17 @@ OPPONENTS_NAMES_TO_UNICODE = {"FC Ashdod": "\u05de.\u05e1. \u05d0\u05e9\u05d3\u0
                               "Ironi Tiberias": "עירוני טבריה", "Hapoel Ironi Kiryat Shmona": "עירוני קריית שמונה",
                               "Hapoel Ramat Gan": "הפועל רמת גן"}
 
-# The source site (livescore.com) does not follow Israeli Football Association
-# disciplinary rulings, so points deductions must be applied here explicitly -
-# keyed by the source's English team name (row["Tnm"]), same as OPPONENTS_NAMES_TO_UNICODE.
-# Update this each season to match the "הערות" section of the league table template.
-POINTS_DEDUCTIONS = {
-    "Ironi Tiberias": 6,
-}
+# The numbers come from English Wikipedia, which follows IFA rulings (technical wins, points
+# deductions) that livescore never applies; see wikipedia_league_table. Bump the page each season.
+WIKIPEDIA_SEASON_PAGE = "2026–27 Israeli Premier League"
+# Which of the page's league tables, by position: [0] is the regular season. Once the playoffs
+# begin, switch to [1, 2] (championship round, relegation round), together with the URLs below.
+WIKIPEDIA_TABLES = [0]
+
+# livescore only guards the timing: no table while a game is being played, none while Wikipedia
+# is still behind on games played. Wikipedia two games behind is no longer a lag but a page
+# nobody updates, and fails the run.
+_MAX_GAMES_WIKIPEDIA_MAY_LAG = 1
 
 LINKS_TO_FETCH_LEAGUE_TABLE_FROM = [
     # Playoff stages (top 6 + bottom 8). Swap with the regular-season URL below
@@ -53,44 +59,61 @@ site = get_site()
 import pywikibot as pw
 
 
-def fetch_league_table_data() -> str | None:
-    """The table rows as the template expects them.
-
-    None while a game is being played: the live table would save a result not yet final.
-    """
-    stats = []
-
+def fetch_livescore_rows() -> dict[str, TeamRow] | None:
+    """livescore's row per team, by Hebrew name. None while a game is being played."""
+    rows = {}
     for url in LINKS_TO_FETCH_LEAGUE_TABLE_FROM:
-        resp = requests.get(url)
-        stage = resp.json()["Stages"][0]
+        stage = requests.get(url, timeout=30).json()["Stages"][0]
         if in_play := games_in_play(stage):
             logging.warning(f'Not updating the league table, games in play: {in_play}')
             return None
-        table = stage["LeagueTable"]["L"][0]["Tables"][0]["team"]
-        table_rows = []
-        for row in table:
-            points = row["win"] * 3 + row["drw"] - POINTS_DEDUCTIONS.get(row["Tnm"], 0)
-            row_line = "^".join(
-                [
-                    OPPONENTS_NAMES_TO_UNICODE.get(row["Tnm"], row["Tnm"]),
-                    str(row["pld"]),
-                    row["winn"],
-                    row["drwn"],
-                    row["lstn"],
-                    str(row["gf"]),
-                    str(row["ga"]),
-                    str(points),
-                ]
-            )
-            table_rows.append((points, row_line))
+        for row in stage["LeagueTable"]["L"][0]["Tables"][0]["team"]:
+            name = OPPONENTS_NAMES_TO_UNICODE.get(row["Tnm"], row["Tnm"])
+            rows[name] = TeamRow(name, row["win"], row["drw"], row["lst"], row["gf"], row["ga"], row["win"] * 3 + row["drw"])
+    return rows
 
-        # Deductions can drop a team's real points below the source's own
-        # (undeducted) sort order, so re-sort within this stage rather than
-        # trusting the fetched row order for standings position.
-        table_rows.sort(key=lambda item: item[0], reverse=True)
-        stats.extend(row_line for _, row_line in table_rows)
-    prettified_result = ",\n".join(stats)
 
+def merge_tables(wikipedia_rows: list[TeamRow], livescore_rows: dict[str, TeamRow]) -> list[TeamRow] | None:
+    """Wikipedia's table, or None while Wikipedia has not caught up with livescore's games.
+
+    Where both agree on a team's wins, draws and losses no ruling touched it, and livescore's
+    goals win: Wikipedia's editors once left a 3:0 technical win out of the goal totals
+    (Maccabi Tel Aviv 2025-26: 72 for, where the IFA had 75) while getting every result right.
+    """
+    wikipedia_names = {row.name for row in wikipedia_rows}
+    if wikipedia_names != set(livescore_rows):
+        raise ValueError(f'Wikipedia and livescore list different teams: only on Wikipedia '
+                         f'{sorted(wikipedia_names - set(livescore_rows))}, only on livescore '
+                         f'{sorted(set(livescore_rows) - wikipedia_names)}')
+
+    behind = {row.name: livescore_rows[row.name].played - row.played
+              for row in wikipedia_rows if row.played < livescore_rows[row.name].played}
+    if behind and max(behind.values()) > _MAX_GAMES_WIKIPEDIA_MAY_LAG:
+        raise RuntimeError(f'Wikipedia is games behind livescore, is {WIKIPEDIA_SEASON_PAGE!r} still updated? {behind}')
+    if behind:
+        logging.warning(f'Not updating the league table, Wikipedia has not caught up yet: {behind}')
+        return None
+
+    merged = []
+    for row in wikipedia_rows:
+        livescore = livescore_rows[row.name]
+        if (row.win, row.draw, row.loss) == (livescore.win, livescore.draw, livescore.loss):
+            row = replace(row, goals_for=livescore.goals_for, goals_against=livescore.goals_against)
+        merged.append(row)
+    return merged
+
+
+def fetch_league_table_data() -> str | None:
+    """The table rows as the template expects them, or None when this run should not save."""
+    livescore_rows = fetch_livescore_rows()
+    if livescore_rows is None:
+        return None
+    wikipedia_rows = parse_league_tables(fetch_season_wikitext(WIKIPEDIA_SEASON_PAGE), WIKIPEDIA_TABLES)
+    merged = merge_tables(wikipedia_rows, livescore_rows)
+    if merged is None:
+        return None
+
+    prettified_result = ",\n".join(row.as_template_row() for row in merged)
     logging.info(f'Fetched league table data: {prettified_result}')
     return prettified_result
 
