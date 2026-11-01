@@ -11,9 +11,11 @@
 #   <!-- visual-pages
 #   תארים (כדורגל)
 #   -->
+#
+# Not here: ליגת העל and אצטדיון בלומפילד. Their Cargo leaderboards order tied
+# rows differently from render to render, so they come out unstable on every
+# run and could never show a change.
 משחק:04-04-2023 מכבי תל אביב נגד מכבי חיפה - ליגת העל
 דן ביטון
-ליגת העל
-אצטדיון בלומפילד
 עונות
 חיפוש משחק

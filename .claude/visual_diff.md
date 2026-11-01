@@ -8,8 +8,10 @@ comment is edited in place on each push, so there is only ever one.
 
 ## Which pages
 
-- `infra/visual_diff/pages.txt`: the defaults. A game page, a player, a competition,
-  a stadium, the seasons hub, game search, all in the CI snapshot.
+- `infra/visual_diff/pages.txt`: the defaults. A game page, a player, the seasons
+  hub and game search, all in the CI snapshot. The competition and stadium pages
+  were dropped: tied rows in their Cargo leaderboards reorder between renders, so
+  they were unstable on every run.
 - The PR's own pages, in a hidden block anywhere in the description (editing the
   description re-runs the job):
 
