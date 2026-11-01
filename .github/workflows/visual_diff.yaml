@@ -1,0 +1,105 @@
+name: Before / after screenshots
+
+# Every pull request that can change how the site looks gets one comment with
+# screenshots of the same pages before and after the change, so a reviewer
+# sees the change instead of reading LESS. The comment is updated in place on
+# every push.
+#
+# It boots the local wiki (infra/local-wiki/) with the committed snapshot,
+# shoots the pages on the PR's base commit and on the PR, and compares them
+# pixel by pixel. Pages: infra/visual_diff/pages.txt plus a hidden block in
+# the PR description:
+#   <!-- visual-pages
+#   תארים (כדורגל)
+#   -->
+# A listed page the snapshot lacks is downloaded from production, read only.
+# Details and limits: .claude/visual_diff.md.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+    paths:
+      - 'skins/Maccabipedia/**'
+      - 'infra/lua_modules/**'
+      - 'infra/local-wiki/config/**'
+      - 'infra/visual_diff/**'
+      - '.github/workflows/visual_diff.yaml'
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  shoot:
+    # An edit re-runs only when the description changed (it may list pages).
+    if: github.event.action != 'edited' || github.event.changes.body != null
+    # On the job, under the `if`: at workflow level a title edit would cancel a
+    # real run and then skip its own.
+    concurrency:
+      group: visual-diff-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      # The merge commit and its first parent, the base it was merged onto:
+      # "after" is master with this PR, "before" is master without it.
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 2
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - uses: astral-sh/setup-uv@v7
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Browser
+        run: uv run --with playwright python -m playwright install --with-deps chromium
+
+      - name: Boot the local wiki
+        run: docker compose -f infra/local-wiki/docker-compose.yml -f infra/visual_diff/compose.no-foreign-images.yml up -d --build
+
+      - name: Wait for the wiki
+        run: |
+          for _ in $(seq 1 90); do
+            if curl -fsS -o /dev/null http://localhost:8080/; then exit 0; fi
+            sleep 5
+          done
+          docker compose -f infra/local-wiki/docker-compose.yml logs --tail 80
+          exit 1
+
+      - name: Restore the database snapshot
+        run: bash infra/local-wiki/scripts/restore-db.sh
+
+      - name: Shoot before and after
+        env:
+          # Through env, never ${{ }} inside the script: the description is
+          # text anyone with a PR can write.
+          PR_BODY: ${{ github.event.pull_request.body }}
+          IMAGE_BASE: https://raw.githubusercontent.com/${{ github.repository }}/visual-diffs/pr-${{ github.event.pull_request.number }}/${{ github.run_id }}-${{ github.run_attempt }}
+          HEADER: "Base `${{ github.event.pull_request.base.ref }}` → this PR at ${{ github.event.pull_request.head.sha }}"
+        run: >-
+          uv run --with playwright python infra/visual_diff/run.py
+          --base HEAD^1 --out "$RUNNER_TEMP/visual"
+          --image-base "$IMAGE_BASE" --header "$HEADER"
+
+      - name: Keep the shots
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: visual-diff
+          path: ${{ runner.temp }}/visual
+          retention-days: 14
+
+      # A fork's token cannot push or comment; its shots stay in the artifact.
+      - name: Post the comment
+        if: github.event.pull_request.head.repo.full_name == github.repository
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          uv run python infra/visual_diff/publish.py "$RUNNER_TEMP/visual/images"
+          "pr-${{ github.event.pull_request.number }}/${{ github.run_id }}-${{ github.run_attempt }}"
+          "${{ github.event.pull_request.number }}"
+
+      - name: Wiki logs on failure
+        if: failure()
+        run: docker compose -f infra/local-wiki/docker-compose.yml logs --tail 200

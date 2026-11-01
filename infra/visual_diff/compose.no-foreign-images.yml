@@ -1,0 +1,11 @@
+# Compose override for the before/after job: no image lookups on production.
+#
+# The local wiki resolves every file through production's api.php, uncached.
+# From GitHub's runners those lookups hang (the first CI run timed out after
+# 90 s on one game page), and on any machine they load production on every
+# render. Images are then missing on both sides, which a before/after
+# comparison of the skin does not need.
+services:
+  mediawiki:
+    environment:
+      MW_DISABLE_FOREIGN_IMAGES: "1"

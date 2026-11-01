@@ -1,0 +1,21 @@
+# Pages shot on every visual pull request, before and after the change.
+# One title per line; blank lines and '#' lines are ignored.
+#
+# Each must exist in the CI snapshot (infra/local-wiki/fixtures/), so nothing is
+# fetched to render them. Keep the list short and keep whole season pages off
+# it: the local wiki looks up every image on production, uncached, and a
+# season's games list is thousands of lookups per render
+# (.claude/visual_diff.md).
+#
+# A pull request adds pages of its own with a hidden block in its description:
+#   <!-- visual-pages
+#   תארים (כדורגל)
+#   -->
+#
+# Not here: ליגת העל and אצטדיון בלומפילד. Their Cargo leaderboards order tied
+# rows differently from render to render, so they come out unstable on every
+# run and could never show a change.
+משחק:04-04-2023 מכבי תל אביב נגד מכבי חיפה - ליגת העל
+דן ביטון
+עונות
+חיפוש משחק
