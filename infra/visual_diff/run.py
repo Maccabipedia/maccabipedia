@@ -26,7 +26,6 @@ import requests
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import compare  # noqa: E402
-import shoot  # noqa: E402
 
 API = 'http://localhost:8080/api.php'
 COMPOSE = ['docker', 'compose', '-f', 'infra/local-wiki/docker-compose.yml']
@@ -113,6 +112,8 @@ def main() -> None:
     parser.add_argument('--image-base', default='.')
     parser.add_argument('--header', default='')
     options = parser.parse_args()
+
+    import shoot  # here, not at the top: it needs playwright, the tests do not
 
     if git('status', '--porcelain', '--', *RENDERED_FROM):
         raise SystemExit(f'uncommitted changes under {RENDERED_FROM}; commit them first')

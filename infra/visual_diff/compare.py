@@ -9,6 +9,7 @@ report.json into the output directory; comment() builds the markdown.
 """
 import json
 from pathlib import Path
+from urllib.parse import quote
 
 from PIL import Image, ImageChops
 
@@ -18,17 +19,32 @@ MARKER = '<!-- visual-diff -->'
 THRESHOLD = 0.0005
 
 
-def changed_share(first: Path, second: Path) -> float:
+def padded(image: Image.Image, size: tuple[int, int]) -> Image.Image:
+    canvas = Image.new('RGB', size, 'white')
+    canvas.paste(image, (0, 0))
+    return canvas
+
+
+def changed_pixels(first: Path, second: Path) -> tuple[float, Image.Image, Image.Image]:
+    """Share of pixels that differ, the mask of them, and `second` on the
+    common canvas. Shots of different heights are compared on a canvas that
+    fits both, so a page that grew counts its new part as changed."""
     a, b = Image.open(first).convert('RGB'), Image.open(second).convert('RGB')
-    if a.size != b.size:
-        return 1.0
-    diff = ImageChops.difference(a, b).convert('L').point(lambda v: 255 if v > 16 else 0)
-    histogram = diff.histogram()
-    return histogram[255] / (a.size[0] * a.size[1])
+    size = (max(a.width, b.width), max(a.height, b.height))
+    a, b = padded(a, size), padded(b, size)
+    mask = ImageChops.difference(a, b).convert('L').point(lambda v: 255 if v > 16 else 0)
+    return mask.histogram()[255] / (size[0] * size[1]), mask, b
 
 
-def save_jpeg(source: Path, target: Path) -> None:
-    Image.open(source).convert('RGB').save(target, 'JPEG', quality=85, optimize=True)
+def changes_image(mask: Image.Image, after: Image.Image) -> Image.Image:
+    """The after shot faded to grey, with every changed pixel in red."""
+    faded = Image.blend(after.convert('L').convert('RGB'),
+                        Image.new('RGB', after.size, 'white'), 0.65)
+    return Image.composite(Image.new('RGB', after.size, (220, 0, 0)), faded, mask)
+
+
+def save_jpeg(image: Image.Image, target: Path) -> None:
+    image.convert('RGB').save(target, 'JPEG', quality=85, optimize=True)
 
 
 def compare(before: Path, after: Path, again: Path, out: Path) -> list[dict]:
@@ -39,8 +55,8 @@ def compare(before: Path, after: Path, again: Path, out: Path) -> list[dict]:
     results = []
     for shot in shots:
         name = shot['file']
-        noise = changed_share(before / name, again / name)
-        share = changed_share(before / name, after / name)
+        noise, _, _ = changed_pixels(before / name, again / name)
+        share, mask, after_canvas = changed_pixels(before / name, after / name)
         if noise > THRESHOLD:
             verdict = 'unstable'
         elif share > THRESHOLD:
@@ -49,8 +65,9 @@ def compare(before: Path, after: Path, again: Path, out: Path) -> list[dict]:
             verdict = 'same'
         stem = name.removesuffix('.png')
         if verdict != 'same':
-            save_jpeg(before / name, out / f'{stem}-before.jpg')
-            save_jpeg(after / name, out / f'{stem}-after.jpg')
+            save_jpeg(Image.open(before / name), out / f'{stem}-before.jpg')
+            save_jpeg(Image.open(after / name), out / f'{stem}-after.jpg')
+            save_jpeg(changes_image(mask, after_canvas), out / f'{stem}-changes.jpg')
         results.append({**shot, 'stem': stem, 'verdict': verdict,
                         'share': round(share, 4), 'noise': round(noise, 4),
                         'before_status': before_status.get(name)})
@@ -60,12 +77,13 @@ def compare(before: Path, after: Path, again: Path, out: Path) -> list[dict]:
 
 
 def pair_table(result: dict, image_base: str) -> str:
-    before = f'{image_base}/{result["stem"]}-before.jpg'
-    after = f'{image_base}/{result["stem"]}-after.jpg'
-    width = 420 if result['viewport'] == 'desktop' else 260
-    return ('| Before | After |\n|---|---|\n'
-            f'| <a href="{before}"><img src="{before}" width="{width}"></a> '
-            f'| <a href="{after}"><img src="{after}" width="{width}"></a> |\n')
+    width = 300 if result['viewport'] == 'desktop' else 200
+    cells = []
+    for kind in ('before', 'after', 'changes'):
+        url = f'{image_base}/{quote(result["stem"])}-{kind}.jpg'
+        cells.append(f'<a href="{url}"><img src="{url}" width="{width}"></a>')
+    return ('| Before | After | Changes (red) |\n|---|---|---|\n| '
+            + ' | '.join(cells) + ' |\n')
 
 
 def comment(results: list[dict], image_base: str, header: str) -> str:
