@@ -14,9 +14,13 @@ from urllib.parse import quote
 from PIL import Image, ImageChops
 
 MARKER = '<!-- visual-diff -->'
-# Share of pixels that must differ before a shot counts as changed. Anti-aliasing
-# alone moves a few pixels between identical renders.
-THRESHOLD = 0.0005
+# A shot counts as changed when more pixels than this differ. A count, not a
+# share of the image: a swapped 20x20 icon must show on a 6000px-tall page too.
+# Two renders of the same code matched pixel for pixel when this was measured;
+# the margin is for stray anti-aliasing.
+MIN_CHANGED_PIXELS = 20
+# How far one colour channel must move for a pixel to count as changed.
+CHANNEL_DELTA = 16
 
 
 def padded(image: Image.Image, size: tuple[int, int]) -> Image.Image:
@@ -25,15 +29,20 @@ def padded(image: Image.Image, size: tuple[int, int]) -> Image.Image:
     return canvas
 
 
-def changed_pixels(first: Path, second: Path) -> tuple[float, Image.Image, Image.Image]:
-    """Share of pixels that differ, the mask of them, and `second` on the
-    common canvas. Shots of different heights are compared on a canvas that
-    fits both, so a page that grew counts its new part as changed."""
+def changed_pixels(first: Path, second: Path) -> tuple[int, float, Image.Image, Image.Image]:
+    """How many pixels differ and what share that is, the mask of them, and
+    `second` on the common canvas. Shots of different heights are compared on a
+    canvas that fits both, so a page that grew counts its new part as changed.
+    A pixel differs when any one channel moves: a greyscale difference would
+    weight blue at 0.11 and miss a recoloured link."""
     a, b = Image.open(first).convert('RGB'), Image.open(second).convert('RGB')
     size = (max(a.width, b.width), max(a.height, b.height))
     a, b = padded(a, size), padded(b, size)
-    mask = ImageChops.difference(a, b).convert('L').point(lambda v: 255 if v > 16 else 0)
-    return mask.histogram()[255] / (size[0] * size[1]), mask, b
+    red, green, blue = ImageChops.difference(a, b).split()
+    largest = ImageChops.lighter(ImageChops.lighter(red, green), blue)
+    mask = largest.point(lambda v: 255 if v > CHANNEL_DELTA else 0)
+    count = mask.histogram()[255]
+    return count, count / (size[0] * size[1]), mask, b
 
 
 def changes_image(mask: Image.Image, after: Image.Image) -> Image.Image:
@@ -55,11 +64,11 @@ def compare(before: Path, after: Path, again: Path, out: Path) -> list[dict]:
     results = []
     for shot in shots:
         name = shot['file']
-        noise, _, _ = changed_pixels(before / name, again / name)
-        share, mask, after_canvas = changed_pixels(before / name, after / name)
-        if noise > THRESHOLD:
+        noise, _, _, _ = changed_pixels(before / name, again / name)
+        count, share, mask, after_canvas = changed_pixels(before / name, after / name)
+        if noise > MIN_CHANGED_PIXELS:
             verdict = 'unstable'
-        elif share > THRESHOLD:
+        elif count > MIN_CHANGED_PIXELS:
             verdict = 'changed'
         else:
             verdict = 'same'
@@ -69,7 +78,7 @@ def compare(before: Path, after: Path, again: Path, out: Path) -> list[dict]:
             save_jpeg(Image.open(after / name), out / f'{stem}-after.jpg')
             save_jpeg(changes_image(mask, after_canvas), out / f'{stem}-changes.jpg')
         results.append({**shot, 'stem': stem, 'verdict': verdict,
-                        'share': round(share, 4), 'noise': round(noise, 4),
+                        'pixels': count, 'share': round(share, 4), 'noise_pixels': noise,
                         'before_status': before_status.get(name)})
     (out / 'report.json').write_text(json.dumps(results, ensure_ascii=False, indent=1),
                                      encoding='utf-8')
@@ -100,7 +109,7 @@ def comment(results: list[dict], image_base: str, header: str) -> str:
         lines.append(f'**No visual change** in any of the {len(results)} shots.\n')
     for result in changed:
         lines.append(f'<details open><summary><b>{result["title"]}</b> · '
-                     f'{result["viewport"]} · {result["share"]:.1%} of pixels'
+                     f'{result["viewport"]} · {result["pixels"]:,} pixels changed ({result["share"]:.1%})'
                      '</summary>\n')
         lines.append(pair_table(result, image_base))
         lines.append('</details>\n')

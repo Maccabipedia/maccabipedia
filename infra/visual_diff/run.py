@@ -85,10 +85,17 @@ def wait_for_wiki() -> None:
     raise SystemExit('the local wiki did not come back after the restart')
 
 
+def restore_paths(ref: str) -> None:
+    """Make RENDERED_FROM exactly as `ref` has it. The index moves too: with
+    --worktree alone a file only the base has is left untracked, and the way
+    back to HEAD (which removes only tracked files) would keep it."""
+    git('restore', f'--source={ref}', '--staged', '--worktree', '--', *RENDERED_FROM)
+
+
 def switch_to(ref: str, titles: list[str], lua_changed: bool) -> None:
     """Make the wiki render from `ref`: files, then caches, then modules."""
     print(f'== rendering from {ref[:10]}')
-    git('restore', f'--source={ref}', '--worktree', '--', *RENDERED_FROM)
+    restore_paths(ref)
     # A restart drops APCu and OPcache, so no skin.json, PHP or ResourceLoader
     # state from the other commit survives the switch.
     subprocess.run([*COMPOSE, 'restart', 'mediawiki'], check=True, capture_output=True)

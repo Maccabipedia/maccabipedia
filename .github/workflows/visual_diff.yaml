@@ -24,10 +24,6 @@ on:
       - 'infra/visual_diff/**'
       - '.github/workflows/visual_diff.yaml'
 
-concurrency:
-  group: visual-diff-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
-
 permissions:
   contents: write
   pull-requests: write
@@ -36,6 +32,11 @@ jobs:
   shoot:
     # An edit re-runs only when the description changed (it may list pages).
     if: github.event.action != 'edited' || github.event.changes.body != null
+    # On the job, under the `if`: at workflow level a title edit would cancel a
+    # real run and then skip its own.
+    concurrency:
+      group: visual-diff-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -95,7 +96,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: >-
-          bash infra/visual_diff/publish.sh "$RUNNER_TEMP/visual/images"
+          uv run python infra/visual_diff/publish.py "$RUNNER_TEMP/visual/images"
           "pr-${{ github.event.pull_request.number }}/${{ github.run_id }}-${{ github.run_attempt }}"
           "${{ github.event.pull_request.number }}"
 

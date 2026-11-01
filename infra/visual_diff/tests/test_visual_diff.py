@@ -77,6 +77,18 @@ def test_anti_aliasing_below_the_threshold_is_the_same(tmp_path):
     assert result['verdict'] == 'same'
 
 
+def test_a_blue_only_recolour_is_a_change(tmp_path):
+    result = verdict_of(tmp_path, page(box=(10, 10, 40, 40), colour=(26, 95, 180)),
+                        page(box=(10, 10, 40, 40), colour=(26, 95, 212)))
+    assert result['verdict'] == 'changed'
+
+
+def test_a_small_icon_on_a_very_tall_page_is_a_change(tmp_path):
+    result = verdict_of(tmp_path, page(height=6000, box=(10, 10, 20, 20)),
+                        page(height=6000, box=(10, 10, 20, 20), colour=(220, 180, 0)))
+    assert result['verdict'] == 'changed'
+
+
 def test_comment_lists_changed_pages_with_quoted_image_urls(tmp_path):
     result = verdict_of(tmp_path, page(box=(10, 10, 30, 30)), page(box=(14, 10, 34, 30)))
     text = compare.comment([result], 'https://example.org/run', 'base → head')

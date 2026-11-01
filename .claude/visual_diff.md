@@ -39,15 +39,20 @@ because a purge means re-rendering, which means image lookups on production.
 
 The base is shot twice. A shot that differs between those two is **unstable**
 (random box, slider), shown collapsed, and never counted as a change. A shot counts
-as **changed** when more than 0.05% of its pixels differ by more than 16 levels.
+as **changed** when more than 20 pixels differ, a pixel differing when any one
+colour channel moves by more than 16. A count rather than a share of the image, so a
+swapped icon shows on a tall page, and per channel, so a blue-only recolour shows.
+(Two renders of the same code matched pixel for pixel when measured.)
 
 ## Where the images live
 
-GitHub has no API for attaching an image to a comment. `publish.sh` commits each
+GitHub has no API for attaching an image to a comment. `publish.py` commits each
 run's JPEGs to the orphan branch `visual-diffs` under `pr-<n>/<run>-<attempt>/`
 and the comment links their raw URLs. The branch is only appended to, so old
-comments keep their images. About 4 MB a run when the skin changes everywhere. A
-fork's PR cannot push or comment: its shots are only in the run's artifact.
+comments keep their images. About 4 MB a run when the skin changes everywhere.
+It commits through the Git Data API, never a clone: a clone of a branch that only
+grows, even a shallow one, would download every image ever posted on every run.
+A fork's PR cannot push or comment: its shots are only in the run's artifact.
 
 ## Run it locally
 
