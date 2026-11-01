@@ -87,7 +87,9 @@ def pair_table(result: dict, image_base: str) -> str:
 
 
 def comment(results: list[dict], image_base: str, header: str) -> str:
-    changed = [r for r in results if r['verdict'] == 'changed']
+    order = list(dict.fromkeys(r['title'] for r in results))
+    results = sorted(results, key=lambda r: order.index(r['title']))  # a page's widths together
+    changed =[r for r in results if r['verdict'] == 'changed']
     unstable = [r for r in results if r['verdict'] == 'unstable']
     same = [r for r in results if r['verdict'] == 'same']
     lines = [MARKER, '## Before / after', '', header, '']

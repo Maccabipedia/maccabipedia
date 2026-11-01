@@ -72,6 +72,10 @@ touched. Do not use `/code-review`; it fans out dozens of agents for a one-line 
 
 - Title = the outcome, in plain words. Squash merges make it the line in history everyone
   reads. Good: "Season pages show the coach for every game". Bad: "fix(season): coach col".
+- Changes how the site looks (skin, Lua modules, LocalSettings)? CI posts a before/after
+  screenshot comment on the PR by itself. Name the pages your change is for in a
+  `<!-- visual-pages -->` block in the description, or the comment shows only the
+  defaults (`.claude/visual_diff.md`). Look at it before asking anyone to review.
 - Description, first five lines: what changes, what could break, the local-wiki evidence,
   what you need from a maintainer (nothing / look at canary / deploy). Details below that.
   It is read on a phone.
