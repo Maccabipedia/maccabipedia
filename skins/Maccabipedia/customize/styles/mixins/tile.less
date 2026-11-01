@@ -153,16 +153,15 @@
     }
 }
 
-.small-tiles-list-container() {
+.small-tiles-list-container(@minTileWidth: 9rem; @minTileWidthWide: 10rem) {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(@minTileWidth, 1fr));
     gap: @space-large;
 
-    padding: @space-regular;
-    margin-top: @space-regular;
+    margin-block-start: @space-regular;
 
     .viewport-wide-start-from(@viewport-regular; {
-            grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(@minTileWidthWide, 1fr));
         });
 }
 

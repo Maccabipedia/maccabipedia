@@ -1,0 +1,308 @@
+.branch-trophies-details-page {
+    .page-container();
+
+    .page-banner {
+        .flex-center-center(true);
+        gap: @space-xxLarge;
+
+        color: @white;
+        text-shadow: 1px 1px 1px @black;
+        padding: @space-regular;
+
+        .viewport-wide-start-from(@viewport-large; {
+                min-height: 15rem;
+            });
+
+        .title {
+            border-radius: @border-radius-regular-rem;
+            background-color: fade(@black, 65%);
+            font-size: @font-size-xxLarge-rem;
+            font-weight: bold;
+            text-align: center;
+            padding: @space-regular;
+
+            .count {
+                color: @text-secondary;
+            }
+        }
+
+        .win-list-by-type {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: @space-small;
+
+            .trophy p {
+                .flex-center-center(true);
+
+                border-radius: @border-radius-regular-rem;
+                background-color: fade(@black, 65%);
+                font-weight: bold;
+                line-height: 1;
+                padding: @space-xSmall;
+                margin: 0;
+
+                .count {
+                    font-size: @font-size-large-rem;
+                    color: @text-secondary;
+                }
+
+                .name {
+                    font-size: @font-size-small-rem;
+                }
+            }
+        }
+    }
+
+    .trophy-section {
+        .viewport-wide-up-to(@viewport-large; {
+                margin-block-end: @space-regular;
+            });
+
+        .title {
+            display: flex;
+            flex-wrap: wrap;
+
+            border-block-end: 2px solid @yellow-regular;
+            padding-block-end: @space-xSmall;
+
+            .describe {
+                display: flex;
+                gap: @space-regular;
+
+                .infographic {
+                    .flex-center-center(true);
+
+                    .icon img {
+                        border-radius: 50%;
+                        background-color: @background-contrast-regular;
+                        padding: @space-xSmall;
+                        height: 2rem;
+                        width: 2rem;
+                    }
+
+                    .count {
+                        border-radius: @border-radius-large-rem;
+                        background-color: @background-primary-darker;
+                        color: @text-secondary;
+                        font-size: @font-size-xLarge-rem;
+                        font-weight: bold;
+                        line-height: 1.2;
+                        padding-inline: @space-xLarge;
+                    }
+                }
+
+                .trophy-name {
+                    color: @text-emphasis;
+                    font-size: @font-size-xLarge-rem;
+                    font-weight: bold;
+                    min-width: 10rem;
+
+                    .viewport-wide-start-from(@viewport-regular; {
+                            align-self: flex-end;
+                        });
+                }
+            }
+
+            .info {
+                flex-grow: 1;
+                align-content: flex-end;
+                justify-content: flex-end;
+
+                display: flex;
+                gap: @space-regular;
+                flex-wrap: wrap;
+
+                .phase {
+                    display: flex;
+                    font-size: @font-size-small-rem;
+
+                    .info-title {
+                        font-weight: bold;
+
+                        &::after {
+                            content: ":";
+                            margin-inline-end: @space-xSmall;
+                        }
+                    }
+                }
+            }
+        }
+
+        .season-list {
+            .small-tiles-list-container(5rem; 6rem);
+
+            padding-block-end: @space-regular;
+
+            .item {
+                .season-list-chips-item();
+
+                text-align: center;
+
+                .season {
+                    justify-content: center;
+                }
+            }
+        }
+    }
+
+    .extra-numbers-section {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: @space-large;
+
+        padding-block-start: @space-regular;
+
+        .viewport-wide-start-from(@viewport-small; {
+                grid-template-columns: repeat(2, 1fr);
+            });
+
+        .viewport-wide-start-from(@viewport-regular; {
+                grid-template-columns: repeat(4, 1fr);
+            });
+
+        .item {
+            border: 1px solid @gray-lighter;
+            border-radius: @border-radius-regular-rem;
+            overflow: hidden;
+
+            .title-container {
+                .flex-column();
+                border-block-end: 1px solid @gray-lighter;
+                background-color: @background-secondary-lighter;
+                padding: @space-small;
+
+                .viewport-wide-start-from(@viewport-regular; {
+                        height: calc(@font-size-regular-rem + @space-small*4 + @font-size-small-rem);
+                    });
+
+                .title {
+                    color: @text-emphasis;
+                    font-weight: bold;
+                }
+
+                .description {
+                    font-size: @font-size-small-rem;
+                }
+            }
+
+            .content {
+                overflow-y: auto;
+                max-height: 10rem;
+
+                .viewport-wide-up-to(@viewport-regular; {
+                        min-height: 5rem;
+                    });
+
+                &.double-season-list {
+                    padding: @space-small;
+
+
+                    .list {
+                        display: grid;
+                        grid-template-columns: repeat(auto-fill, minmax(4rem, 1fr));
+                        gap: @space-small;
+
+                        .season {
+                            position: relative;
+
+                            border-radius: @border-radius-small-rem;
+                            border: 1px solid @gray-lighter;
+                            font-size: @font-size-small-rem;
+                            font-weight: bold;
+                            text-align: center;
+
+                            a {
+                                .absolute-full-container-link();
+                            }
+                        }
+                    }
+                }
+
+                &.multiple-trophies-seasons {
+                    .season-container {
+                        display: grid;
+                        grid-template-columns: 1fr auto;
+
+                        padding: @space-small;
+
+                        &:nth-of-type(even) {
+                            background-color: @background-secondary-lighter;
+                        }
+
+                        .season-link {
+                            font-size: @font-size-small-rem;
+                            font-weight: bold;
+                        }
+
+                        .count {
+                            color: @text-emphasis;
+                            font-weight: bold;
+                        }
+
+                        .titles {
+                            grid-column: ~"1/-1";
+                            grid-row: ~"2/3";
+
+                            font-size: @font-size-small-rem;
+                        }
+                    }
+                }
+
+                &.top-winners {
+                    .record {
+                        display: grid;
+                        grid-template-columns: 1fr auto;
+
+                        padding: @space-small;
+                        padding-block-end: @space-regular;
+
+                        &:nth-of-type(even) {
+                            background-color: @background-secondary-lighter;
+                        }
+                    }
+
+                    .name {
+                        font-size: @font-size-small-rem;
+                        font-weight: bold;
+                    }
+
+                    .count {
+                        font-weight: bold;
+                    }
+
+                    .bar {
+                        grid-column: ~"1/-1";
+                        grid-row: ~"2/3";
+
+                        position: relative;
+
+                        border-radius: @border-radius-xLarge-rem;
+                        background-color: @gray-lighter;
+                        height: 2px;
+                        overflow: hidden;
+
+                        .progress {
+                            position: absolute;
+                            left: 0;
+
+                            border-radius: @border-radius-xLarge-rem;
+                            background-color: @background-primary;
+                            height: 100%;
+
+                            .progress-width(@percent) when (@percent > 0) {
+                                &[class~="@{percent}"] {
+                                    width:~"@{percent}%";
+                                }
+
+                                .progress-width(@percent - 1);
+                            }
+
+                            .progress-width(100);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
