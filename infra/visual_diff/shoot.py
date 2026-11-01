@@ -12,6 +12,7 @@ import re
 from pathlib import Path
 from urllib.parse import quote
 
+from playwright.sync_api import TimeoutError as PlaywrightTimeout
 from playwright.sync_api import sync_playwright
 
 BASE = 'http://localhost:8080'
@@ -35,7 +36,11 @@ def shoot(titles: list[str], out: Path) -> list[dict]:
             page = browser.new_page(viewport={'width': width, 'height': height})
             for title in titles:
                 url = f'{BASE}/{quote(title.replace(" ", "_"))}'
-                response = page.goto(url, wait_until='networkidle', timeout=90000)
+                response = page.goto(url, wait_until='load', timeout=90000)
+                try:  # late scripts and fonts; never wait forever on a stray request
+                    page.wait_for_load_state('networkidle', timeout=15000)
+                except PlaywrightTimeout:
+                    print(f'  (network never went idle: {title})')
                 status = response.status if response else 0
                 page.wait_for_timeout(500)
                 full_height = page.evaluate('document.documentElement.scrollHeight')

@@ -56,7 +56,7 @@ jobs:
         run: uv run --with playwright python -m playwright install --with-deps chromium
 
       - name: Boot the local wiki
-        run: docker compose -f infra/local-wiki/docker-compose.yml up -d --build
+        run: docker compose -f infra/local-wiki/docker-compose.yml -f infra/visual_diff/compose.no-foreign-images.yml up -d --build
 
       - name: Wait for the wiki
         run: |

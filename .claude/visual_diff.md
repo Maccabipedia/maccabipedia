@@ -24,7 +24,14 @@ comment is edited in place on each push, so there is only ever one.
 - A listed page missing from the snapshot is downloaded from production with its
   templates (`download_pages_from_prod.py`, read only). Its **Cargo rows are not**,
   so query-driven numbers can be empty or wrong. Layout and styling still show.
-  Images not on the local wiki are missing on both sides.
+- **No images in CI.** The job runs the wiki with `MW_DISABLE_FOREIGN_IMAGES=1`
+  (`infra/visual_diff/compose.no-foreign-images.yml`). From GitHub's runners every
+  image lookup to production hangs: the first run's game page never returned
+  (Apache logged the page request and nothing after it for 90 s). So pictures are
+  missing on both sides and file links, like the game page's event icons, show as
+  red `קובץ:` text, which makes the page taller than on the site. Both sides render
+  the same content, so a skin change still compares fairly. A local run uses
+  whatever your wiki was started with.
 - At most 20 pages. Never list whole season pages: the local wiki looks up every
   image on production, uncached, and a season's games list is thousands of lookups
   per render.
