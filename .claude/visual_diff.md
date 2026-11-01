@@ -44,8 +44,12 @@ then MediaWiki is restarted so no APCu/OPcache/ResourceLoader state survives. Lu
 modules are deployed and the pages purged only when `infra/lua_modules/` differs,
 because a purge means re-rendering, which means image lookups on production.
 
-The base is shot twice. A shot that differs between those two is **unstable**
-(random box, slider), shown collapsed, and never counted as a change. A shot counts
+Each state is shot twice, in the order before, after, before, after, with a switch
+and a restart before every pass. A shot that differs from its own repeat is
+**unstable**, shown collapsed, and never counted as a change. Two shots in a row with
+no switch between them are not enough. On the stadium page, tied leaderboard rows
+came out in another order after a switch, and the first version reported that as
+the PR's change on a PR that touched no skin. A shot counts
 as **changed** when more than 20 pixels differ, a pixel differing when any one
 colour channel moves by more than 16. A count rather than a share of the image, so a
 swapped icon shows on a tall page, and per channel, so a blue-only recolour shows.

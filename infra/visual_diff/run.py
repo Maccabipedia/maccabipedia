@@ -31,6 +31,7 @@ API = 'http://localhost:8080/api.php'
 COMPOSE = ['docker', 'compose', '-f', 'infra/local-wiki/docker-compose.yml']
 RENDERED_FROM = ['skins/Maccabipedia', 'infra/lua_modules', 'infra/local-wiki/config']
 BODY_BLOCK = re.compile(r'<!--\s*visual-pages\s*\n(.*?)-->', re.S)
+CODE_FENCE = re.compile(r'^```.*?^```', re.S | re.M)
 MAX_PAGES = 20
 
 
@@ -46,7 +47,9 @@ def titles_from(text: str) -> list[str]:
 
 def wanted_titles(extra: list[str]) -> list[str]:
     titles = titles_from((HERE / 'pages.txt').read_text(encoding='utf-8'))
-    body = BODY_BLOCK.search(os.environ.get('PR_BODY', '').replace('\r\n', '\n'))
+    description = os.environ.get('PR_BODY', '').replace('\r\n', '\n')
+    # A block inside a code fence is an example (this feature's own PR shows one).
+    body = BODY_BLOCK.search(CODE_FENCE.sub('', description))
     if body:
         titles += titles_from(body.group(1))
     titles += extra
@@ -138,16 +141,22 @@ def main() -> None:
         if still_missing:
             print(f'not on production either, skipped: {", ".join(still_missing)}')
 
+    # Before, after, before, after - a switch (and a restart) before each. A page
+    # that renders differently from one switch to the next (ties in a Cargo
+    # leaderboard came out in another order) then differs from ITSELF, and is
+    # reported as unstable instead of as the PR's change. Two shots in a row
+    # with no switch between them matched and missed exactly that.
     try:
-        switch_to(base, titles, lua_changed)
-        shoot.shoot(titles, options.out / 'before')
-        shoot.shoot(titles, options.out / 'again')
+        for state, ref in (('before', base), ('after', head),
+                           ('before-again', base), ('after-again', head)):
+            switch_to(ref, titles, lua_changed)
+            shoot.shoot(titles, options.out / state)
     finally:
-        switch_to(head, titles, lua_changed)
-    shoot.shoot(titles, options.out / 'after')
+        restore_paths('HEAD')
 
     results = compare.compare(options.out / 'before', options.out / 'after',
-                              options.out / 'again', options.out / 'images')
+                              options.out / 'before-again', options.out / 'after-again',
+                              options.out / 'images')
     text = compare.comment(results, options.image_base.rstrip('/'),
                            options.header or f'`{base[:7]}` → `{head[:7]}`')
     (options.out / 'images' / 'comment.md').write_text(text, encoding='utf-8')

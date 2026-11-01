@@ -1,8 +1,10 @@
 """Compare before/after screenshots and write the PR comment (used by run.py).
 
-`again` is a second shot of the BEFORE state. A page that differs between
-two shots of the same code (a random box, a clock, a slider) is reported as
-unstable rather than as changed, so its noise cannot pass for the PR's change.
+`before_again` and `after_again` are second shots of each state, taken after
+switching away and back. A page that differs between two shots of the same
+code (a random box, a slider, ties in a leaderboard ordered differently by
+another render) is reported as unstable rather than as changed, so its noise
+cannot pass for the PR's change.
 
 Writes the images the comment shows (only for shots that differ) and
 report.json into the output directory; comment() builds the markdown.
@@ -56,7 +58,8 @@ def save_jpeg(image: Image.Image, target: Path) -> None:
     image.convert('RGB').save(target, 'JPEG', quality=85, optimize=True)
 
 
-def compare(before: Path, after: Path, again: Path, out: Path) -> list[dict]:
+def compare(before: Path, after: Path, before_again: Path, after_again: Path,
+            out: Path) -> list[dict]:
     out.mkdir(parents=True, exist_ok=True)
     shots = json.loads((after / 'shots.json').read_text(encoding='utf-8'))
     before_status = {s['file']: s['status'] for s in
@@ -64,7 +67,8 @@ def compare(before: Path, after: Path, again: Path, out: Path) -> list[dict]:
     results = []
     for shot in shots:
         name = shot['file']
-        noise, _, _, _ = changed_pixels(before / name, again / name)
+        noise = max(changed_pixels(before / name, before_again / name)[0],
+                    changed_pixels(after / name, after_again / name)[0])
         count, share, mask, after_canvas = changed_pixels(before / name, after / name)
         if noise > MIN_CHANGED_PIXELS:
             verdict = 'unstable'

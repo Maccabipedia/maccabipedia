@@ -29,12 +29,14 @@ def page(height=200, box=None, colour=(0, 80, 160)):
     return image
 
 
-def verdict_of(tmp_path, before, after, again=None):
+def verdict_of(tmp_path, before, after, again=None, after_again=None):
     write_shot(tmp_path / 'before', before)
     write_shot(tmp_path / 'after', after)
-    write_shot(tmp_path / 'again', again or before)
+    write_shot(tmp_path / 'before-again', again or before)
+    write_shot(tmp_path / 'after-again', after_again or after)
     [result] = compare.compare(tmp_path / 'before', tmp_path / 'after',
-                               tmp_path / 'again', tmp_path / 'out')
+                               tmp_path / 'before-again', tmp_path / 'after-again',
+                               tmp_path / 'out')
     return result
 
 
@@ -72,6 +74,14 @@ def test_noise_between_two_base_shots_is_unstable_not_changed(tmp_path):
     assert result['verdict'] == 'unstable'
 
 
+def test_noise_only_in_the_after_state_is_unstable_too(tmp_path):
+    # The stadium page: tied leaderboard rows came out in another order on a
+    # later render of the same code, while the base shots matched each other.
+    result = verdict_of(tmp_path, page(box=(10, 10, 30, 30)), page(box=(50, 50, 70, 70)),
+                        after_again=page(box=(52, 50, 72, 70)))
+    assert result['verdict'] == 'unstable'
+
+
 def test_anti_aliasing_below_the_threshold_is_the_same(tmp_path):
     result = verdict_of(tmp_path, page(height=400), page(height=400, box=(0, 0, 1, 1)))
     assert result['verdict'] == 'same'
@@ -102,6 +112,7 @@ def test_comment_lists_changed_pages_with_quoted_image_urls(tmp_path):
     ('no block here', []),
     ('intro\r\n<!-- visual-pages\r\nתארים (כדורגל)\r\n\r\n# a note\r\nעונות\r\n-->\r\n',
      ['תארים (כדורגל)', 'עונות']),
+    ('how to use it:\n```\n<!-- visual-pages\nתארים (כדורגל)\n-->\n```\n', []),
 ])
 def test_pages_come_from_the_pr_description_block(monkeypatch, body, expected):
     monkeypatch.setenv('PR_BODY', body)
