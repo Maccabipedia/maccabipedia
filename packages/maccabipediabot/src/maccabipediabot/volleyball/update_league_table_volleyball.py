@@ -85,8 +85,20 @@ def parse_team_record(raw_team_record: pd.Series) -> VolleyballTableTeamRecord:
     games = find_column(raw_team_record, ["מש", "משחקים", "games"])
     wins = find_column(raw_team_record, ["נצ", "נצחונות", "wins"])
     losses = find_column(raw_team_record, ["הפ", "הפסדים", "losses"])
+    # Since October 2026 IVA shows "for" and "against" in separate columns
+    # ('זכו'/'חובה', 'סטים זכו'/'סטים חובה'); before that each pair was one "against-for" string.
+    if 'זכו' in raw_team_record.index:
+        points_in_game_for = raw_team_record['זכו']
+        points_in_game_against = raw_team_record['חובה']
+        sets_for = raw_team_record['סטים זכו']
+        sets_against = raw_team_record['סטים חובה']
+        return VolleyballTableTeamRecord(name=team_name, games=games, wins=wins, losses=losses,
+                                         points_in_game_for=points_in_game_for,
+                                         points_in_game_against=points_in_game_against, sets_for=sets_for,
+                                         sets_against=sets_against, points=raw_team_record["נקודות"])
+
     points_str = find_column(raw_team_record, ["סה", "סה כ נקודות", "סה כ נקודות"])
-    
+
     # Handle splitting with better error handling
     points_parts = str(points_str).split("-")
     if len(points_parts) == 2:
@@ -95,10 +107,10 @@ def parse_team_record(raw_team_record: pd.Series) -> VolleyballTableTeamRecord:
         logging.warning(f"Points string '{points_str}' doesn't have expected format (expected 'X-Y'). Available: {points_parts}")
         points_in_game_against = points_parts[0] if points_parts else 0
         points_in_game_for = points_parts[1] if len(points_parts) > 1 else 0
-    
+
     sets_str = find_column(raw_team_record, ["סטים", "sets"])
     logging.debug(f"Sets string value: '{sets_str}'")
-    
+
     sets_parts = str(sets_str).split("-")
     if len(sets_parts) == 2:
         sets_against, sets_for = sets_parts
@@ -106,7 +118,7 @@ def parse_team_record(raw_team_record: pd.Series) -> VolleyballTableTeamRecord:
         logging.warning(f"Sets string '{sets_str}' doesn't have expected format (expected 'X-Y'). Available: {sets_parts}")
         sets_against = sets_parts[0] if sets_parts else 0
         sets_for = sets_parts[1] if len(sets_parts) > 1 else 0
-    
+
     points = raw_team_record["נקודות"]
     return VolleyballTableTeamRecord(name=team_name, games=games, wins=wins, losses=losses,
                                      points_in_game_for=points_in_game_for,
