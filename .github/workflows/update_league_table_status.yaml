@@ -22,19 +22,23 @@ jobs:
           MACCABIPEDIA_BOT_USERNAME: ${{ secrets.MACCABIPEDIA_BOT_USERNAME }}
           MACCABIPEDIA_BOT_PASSWORD: ${{ secrets.MACCABIPEDIA_BOT_PASSWORD }}
         run: uv run python -m maccabipediabot.football.update_league_table
+      # Each sport's table updates even when an earlier one fails; the job still goes red.
       - name: Fetch Volleyball league table and update MaccabiPedia
+        if: ${{ !cancelled() }}
         env:
           PYWIKIBOT_DIR: packages/maccabipediabot/src/maccabipediabot/pywikibot_configs/
           MACCABIPEDIA_BOT_USERNAME: ${{ secrets.MACCABIPEDIA_BOT_USERNAME }}
           MACCABIPEDIA_BOT_PASSWORD: ${{ secrets.MACCABIPEDIA_BOT_PASSWORD }}
         run: uv run python -m maccabipediabot.volleyball.update_league_table_volleyball
       - name: Fetch Basketball league table and update MaccabiPedia
+        if: ${{ !cancelled() }}
         env:
           PYWIKIBOT_DIR: packages/maccabipediabot/src/maccabipediabot/pywikibot_configs/
           MACCABIPEDIA_BOT_USERNAME: ${{ secrets.MACCABIPEDIA_BOT_USERNAME }}
           MACCABIPEDIA_BOT_PASSWORD: ${{ secrets.MACCABIPEDIA_BOT_PASSWORD }}
         run: uv run python -m maccabipediabot.basketball.update_league_table_basketball
       - name: Fetch Basketball euroleague table and update MaccabiPedia
+        if: ${{ !cancelled() }}
         env:
           PYWIKIBOT_DIR: packages/maccabipediabot/src/maccabipediabot/pywikibot_configs/
           MACCABIPEDIA_BOT_USERNAME: ${{ secrets.MACCABIPEDIA_BOT_USERNAME }}
