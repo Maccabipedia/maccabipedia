@@ -1,0 +1,67 @@
+name: Alert on workflow failure
+
+# One watcher instead of a Telegram step copied into every workflow. When a watched
+# run ends red outside a pull request (schedule, workflow_dispatch, repository_dispatch,
+# push to master), post the workflow, the failed job and step, the log lines before it
+# died, and the run link to the error channel. update_league_table_status was red for
+# three weeks before this existed and nobody heard.
+#
+# Pull-request runs are left out: they already show on the PR.
+#
+# Not watched, on purpose (tests/test_workflow_failure_alerts.py fails on any workflow
+# that is in neither list):
+#   - Upload Basketball Games To MaccabiPedia, Upload Tickets From Telegram: they send
+#     their own failure alert with a richer message; watching them would alert twice.
+#   - Skin version bump, Before / after screenshots: pull_request only.
+#
+# workflow_run reads this file from the default branch only, so a change here takes
+# effect after it merges. The names below are the `name:` of each workflow, not its file.
+on:
+  workflow_run:
+    workflows:
+      - Find Broken Videos
+      - Find Illegal Player Events
+      - Find MaccabiPedia Errors
+      - Football Lua (real wiki)
+      - Notify Euroleague Proxy Failure
+      - Purge Main Page
+      - Refresh player profiles
+      - Sync navigation categories
+      - Tests
+      - Update league table status
+      - Update MaccabiPedia Calendar (Football)
+      - Update MaccabiPedia Calendar (Volleyball)
+      - Upload Last Game To MaccabiPedia
+      - Upload Volleyball Games To MaccabiPedia
+    types: [completed]
+  # Re-send the alert for one past run by hand: to test the channel end to end
+  # against a known failure, or to repeat an alert someone missed.
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: Run id to alert about (the number in the run URL)
+        required: true
+
+permissions:
+  actions: read
+
+jobs:
+  alert:
+    if: >-
+      github.event_name == 'workflow_dispatch' || (
+        github.event.workflow_run.event != 'pull_request' &&
+        contains(fromJSON('["failure", "timed_out", "startup_failure"]'), github.event.workflow_run.conclusion)
+      )
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          sparse-checkout: .github/scripts
+      - name: Send failure alert to the error channel
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TELEGRAM_TOKEN: ${{ secrets.MACCABIPEDIA_ERRORS_TELEGRAM_TOKEN }}
+          TELEGRAM_TO: ${{ secrets.MACCABIPEDIA_ERRORS_TELEGRAM_TO }}
+          # Through env, not interpolated into the command: run_id is typed by hand.
+          RUN_ID: ${{ inputs.run_id || github.event.workflow_run.id }}
+        run: python3 .github/scripts/alert_workflow_failure.py "$RUN_ID"
