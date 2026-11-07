@@ -13,6 +13,17 @@ def test_parses_separate_for_and_against_columns():
     assert record.adapt_to_mediawiki_code() == 'מכבי יעדים תל אביב^2^1^1^187^160^5^3^4'
 
 
+def test_parses_renamed_for_and_against_columns():
+    # The IVA 2026/27 table as of 2026-10-23: same split, different column names
+    row = pd.Series({'מקום': 2, 'קבוצה': 'מכבי יעדים תל אביב', 'משחקים': 2, 'ניצחונות': 1, 'הפסדים': 1,
+                     'נק׳ זכות': 187, 'נק׳ חובה': 160, 'יחס נקודות': 1.169, 'מערכות זכות': 5,
+                     'מערכות חובה': 3, 'יחס מערכות': 1.667, 'נקודות': 4})
+
+    record = parse_team_record(row)
+
+    assert record.adapt_to_mediawiki_code() == 'מכבי יעדים תל אביב^2^1^1^187^160^5^3^4'
+
+
 def test_parses_combined_against_for_columns():
     # The layout IVA showed until 2026-10-19: each pair is one "against-for" string
     row = pd.Series({'נקודות': 4, 'יחס סטים': 1.67, 'סטים': '3-5', 'יחס נקודות': 1.17,

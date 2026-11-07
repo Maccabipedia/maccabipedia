@@ -83,15 +83,25 @@ def parse_team_record(raw_team_record: pd.Series) -> VolleyballTableTeamRecord:
     team_name = raw_team_record['קבוצה']  # This should be consistent
     # Be more flexible with column name patterns - handle different quote types
     games = find_column(raw_team_record, ["מש", "משחקים", "games"])
-    wins = find_column(raw_team_record, ["נצ", "נצחונות", "wins"])
+    wins = find_column(raw_team_record, ["נצ", "ניצ", "wins"])
     losses = find_column(raw_team_record, ["הפ", "הפסדים", "losses"])
-    # Since October 2026 IVA shows "for" and "against" in separate columns
-    # ('זכו'/'חובה', 'סטים זכו'/'סטים חובה'); before that each pair was one "against-for" string.
-    if 'זכו' in raw_team_record.index:
-        points_in_game_for = raw_team_record['זכו']
-        points_in_game_against = raw_team_record['חובה']
-        sets_for = raw_team_record['סטים זכו']
-        sets_against = raw_team_record['סטים חובה']
+    # Since October 2026 IVA shows "for" and "against" in separate columns, renamed more than once
+    # ('זכו'/'חובה' then 'נק׳ זכות'/'נק׳ חובה', 'סטים זכו' then 'מערכות זכות'), so match by keyword.
+    # Before that each pair was one "against-for" string.
+    for_against_columns = [col for col in raw_team_record.index if 'זכו' in str(col) or 'חובה' in str(col)]
+    if for_against_columns:
+        def for_against_value(is_sets: bool, side: str):
+            matches = [col for col in for_against_columns
+                       if side in str(col) and any(word in str(col) for word in ('סט', 'מערכות')) == is_sets]
+            if len(matches) != 1:
+                raise KeyError(f"Expected one {side} column (sets={is_sets}), found {matches} "
+                               f"in {list(raw_team_record.index)}")
+            return raw_team_record[matches[0]]
+
+        points_in_game_for = for_against_value(is_sets=False, side='זכו')
+        points_in_game_against = for_against_value(is_sets=False, side='חובה')
+        sets_for = for_against_value(is_sets=True, side='זכו')
+        sets_against = for_against_value(is_sets=True, side='חובה')
         return VolleyballTableTeamRecord(name=team_name, games=games, wins=wins, losses=losses,
                                          points_in_game_for=points_in_game_for,
                                          points_in_game_against=points_in_game_against, sets_for=sets_for,
