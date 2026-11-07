@@ -76,29 +76,32 @@ livescore scripts now skip the save while `games_in_play(stage)` finds a game in
   guard should still hold, because a stale snapshot's events are just as stale (unverified).
 - Volleyball reads the IVA site, not livescore, and has no such guard.
 
-## Football's league table numbers come from English Wikipedia (card #612, 2026-10-31)
+## Football's league table numbers come from football.co.il (card #612, 2026-11-07)
 
 livescore never applies IFA rulings: the 3:0 technical win for Netanya over Hapoel Petah Tikva
 (1:1 on the pitch, ruled 28.10.2026) stayed a draw there, as do points deductions. The IFA site
-(`football.org.il`) answers a Cloudflare captcha to scripts. So `football/update_league_table.py`
-takes W/D/L, goals, `adjust_points_XXX` and the order (`team_order=` or `teamN=`) from the
-`{{#invoke:Sports table}}` blocks of the season's English Wikipedia page
-(`football/wikipedia_league_table.py`), and keeps livescore as the guard: no save while a game
-is in play or while Wikipedia has fewer games than livescore. A game still missing from
-Wikipedia 3 days after kickoff fails the run, and the workflow's other sports run anyway
-(`if: !cancelled()`). Each team whose W/D/L differ between the two is logged as a warning.
+(`football.org.il`) answers a Cloudflare captcha to scripts. The league's own site,
+`football.co.il/stats/`, applies both, and its page loads the table from a plain JSON API
+(not in the page's HTML — look at the network calls, not the source):
+`https://cdnapi.bamboo-cloud.com/api/football/standings?format=json&iid=573881b7181f46ae4c8b4567&returnZeros=true&filter={"tournamentId":902,"seasonName":"26/27"}`
+(902 = Ligat HaAl, 719 = Leumit). `football/football_co_il_table.py` reads it;
+`football/update_league_table.py` saves it. livescore stays only as the "game in play" check.
+(PR #278 first took the numbers from English Wikipedia; the owner preferred the official site.)
 
-- Measured over the 56 games of rounds 1–8 of 2026-27: Wikipedia had a game a median 1.6 h after
-  the final whistle (9 in 10 within 5.4 h, worst 29 h), and the ruling the same afternoon.
-- Wikipedia's goal totals can be wrong while every result is right: 2025-26 left Maccabi Tel
-  Aviv's 3:0 technical derby win out of the goals (72, IFA 75). Where both sources agree on a
-  team's W/D/L, livescore's goals are used.
-- Tables are picked by position on the page (`WIKIPEDIA_TABLES`: `[0]` regular season,
-  `[1, 2]` championship + relegation round), not by `section=`: editors misspell it
-  ("Relegations round", 2025-26). The playoff tables hold full-season totals.
-- Season rollover: bump `WIKIPEDIA_SEASON_PAGE` with the template name and the livescore URL. A
-  promoted team whose Wikipedia article is not in `WIKIPEDIA_TEAM_ARTICLE_TO_HEBREW` fails the
-  run by name, rather than writing an English name.
+- Teams are matched by the site's `id` (`TEAM_ID_TO_HEBREW`), stable across seasons; its `name`
+  is English one season and a Hebrew short form ("מכבי ת\"א") another. An unknown id fails the run.
+- `points` already includes deductions; `penaltyPoints` stays 0 (Tiberias 2026-27: 2-4-4, 4 pts).
+- Stages: `RegularSeason`, then `ChampionshipRound` + `RelegationRound` with full-season totals
+  (2024/25: 6 + 8, 36 / 33 games). The bot switches to the playoff rounds by itself once they
+  have games — no manual swap for football.co.il (the livescore URLs still swap).
+- The archive is not always sane: 2025/26 shows Netanya in both playoff rounds with 98 games and
+  an all-zero regular season. So a run fails on W+D+L ≠ games, more than 36 games, not 14
+  different teams, or fewer games for any team than the table already on the wiki.
+- Its games endpoint (`/api/football/game`) answered empty, so it cannot replace livescore's
+  in-play check.
+- The workflow's other sports run when football fails (`if: !cancelled()`).
+- Season rollover: bump `FOOTBALL_CO_IL_SEASON` with the template name and the livescore URL;
+  add any promoted team's id.
 
 ## Football's international group table (cards #540 / #161, 2026-09-22)
 

@@ -1,51 +1,20 @@
 import logging
-from dataclasses import replace
-from datetime import datetime, timedelta
-from zoneinfo import ZoneInfo
 
 import mwparserfromhell
 import requests
 
 from maccabipediabot.basketball.livescore_table import games_in_play
 from maccabipediabot.common.wiki_login import get_site
-from maccabipediabot.football.wikipedia_league_table import TeamRow, fetch_season_wikitext, parse_league_tables
+from maccabipediabot.football.football_co_il_table import TeamRow, fetch_standings, league_table
 
+# Bump both each season.
 _LEAGUE_TABLE_TEMPLATE_ON_MACCABIPEDIA = 'תבנית:טבלת_ליגת_כדורגל_2026/27'
+FOOTBALL_CO_IL_SEASON = "26/27"
 _TABLE_STATUS_KEY = 'טבלה'
 
-OPPONENTS_NAMES_TO_UNICODE = {"FC Ashdod": "\u05de.\u05e1. \u05d0\u05e9\u05d3\u05d5\u05d3",
-                              "Bnei Sakhnin": "\u05d1\u05e0\u05d9 \u05e1\u05db\u05e0\u05d9\u05df",
-                              "Hapoel Hadera": "\u05d4\u05e4\u05d5\u05e2\u05dc \u05d7\u05d3\u05e8\u05d4",
-                              "Beitar Jerusalem": "\u05d1\u05d9\u05ea\"\u05e8 \u05d9\u05e8\u05d5\u05e9\u05dc\u05d9\u05dd",
-                              "Hapoel Tel Aviv": "\u05d4\u05e4\u05d5\u05e2\u05dc \u05ea\u05dc \u05d0\u05d1\u05d9\u05d1",
-                              "Maccabi Bnei Reineh": "\u05de\u05db\u05d1\u05d9 \u05d1\u05e0\u05d9 \u05e8\u05d9\u05d9\u05e0\u05d4",
-                              "Hapoel Jerusalem": "\u05d4\u05e4\u05d5\u05e2\u05dc \u05d9\u05e8\u05d5\u05e9\u05dc\u05d9\u05dd",
-                              "Ironi Kiryat Shmona": "\u05e2\u05d9\u05e8\u05d5\u05e0\u05d9 \u05e7\u05e8\u05d9\u05ea \u05e9\u05de\u05d5\u05e0\u05d4",
-                              "Sektzia Nes Tziona": "\u05e1\u05e7\u05e6\u05d9\u05d4 \u05e0\u05e1 \u05e6\u05d9\u05d5\u05e0\u05d4",
-                              "Hapoel Beer Sheva": "\u05d4\u05e4\u05d5\u05e2\u05dc \u05d1\u05d0\u05e8 \u05e9\u05d1\u05e2",
-                              "Maccabi Haifa": "\u05de\u05db\u05d1\u05d9 \u05d7\u05d9\u05e4\u05d4",
-                              "Maccabi Netanya": "\u05de\u05db\u05d1\u05d9 \u05e0\u05ea\u05e0\u05d9\u05d4",
-                              "Hapoel Haifa": "\u05d4\u05e4\u05d5\u05e2\u05dc \u05d7\u05d9\u05e4\u05d4",
-                              "Maccabi Tel Aviv": "\u05de\u05db\u05d1\u05d9 \u05ea\u05dc \u05d0\u05d1\u05d9\u05d1",
-                              "Maccabi Petach Tikva": "מכבי פתח תקווה", "Hapoel Petah Tikva": "הפועל פתח תקווה",
-                              "Ironi Tiberias": "עירוני טבריה", "Hapoel Ironi Kiryat Shmona": "עירוני קריית שמונה",
-                              "Hapoel Ramat Gan": "הפועל רמת גן"}
-
-# The numbers come from English Wikipedia, which follows IFA rulings (technical wins, points
-# deductions) that livescore never applies; see wikipedia_league_table. Bump the page each season.
-WIKIPEDIA_SEASON_PAGE = "2026–27 Israeli Premier League"
-# Which of the page's league tables, by position: [0] is the regular season. Once the playoffs
-# begin, switch to [1, 2] (championship round, relegation round), together with the URLs below.
-WIKIPEDIA_TABLES = [0]
-
-# livescore only guards the timing: no table while a game is being played, none while Wikipedia
-# is still behind on games played. A game still missing from Wikipedia this long after kickoff
-# (worst lag measured: 29 h) is no longer a lag, and fails the run instead of freezing the table.
-_WIKIPEDIA_MAX_LAG = timedelta(days=3)
-_ISRAEL = ZoneInfo("Asia/Jerusalem")
-_LIVESCORE_GAME_OVER = 2
-
-LINKS_TO_FETCH_LEAGUE_TABLE_FROM = [
+# The numbers come from football.co.il, the league's own site (see football_co_il_table).
+# livescore only says whether a game is being played right now: no table is saved then.
+LIVESCORE_STAGES_TO_CHECK_FOR_GAMES_IN_PLAY = [
     # Playoff stages (top 6 + bottom 8). Swap with the regular-season URL below
     # at the start of each season, then back once playoffs begin.
     #"https://prod-public-api.livescore.com/v1/api/app/stage/soccer/israel/premier-league-championship-group/3",
@@ -63,91 +32,46 @@ site = get_site()
 import pywikibot as pw
 
 
-def fetch_livescore_rows() -> tuple[dict[str, TeamRow], dict[str, datetime]] | None:
-    """livescore's row per team and the kickoff of its last finished game, by Hebrew name.
-
-    None while a game is being played.
-    """
-    rows, last_kickoffs = {}, {}
-    for url in LINKS_TO_FETCH_LEAGUE_TABLE_FROM:
+def a_game_is_in_play() -> bool:
+    for url in LIVESCORE_STAGES_TO_CHECK_FOR_GAMES_IN_PLAY:
         stage = requests.get(url, timeout=30).json()["Stages"][0]
         if in_play := games_in_play(stage):
             logging.warning(f'Not updating the league table, games in play: {in_play}')
-            return None
-        for row in stage["LeagueTable"]["L"][0]["Tables"][0]["team"]:
-            name = OPPONENTS_NAMES_TO_UNICODE.get(row["Tnm"], row["Tnm"])
-            rows[name] = TeamRow(name, row["win"], row["drw"], row["lst"], row["gf"], row["ga"], row["win"] * 3 + row["drw"])
-        for event in stage.get("Events", []):
-            if event.get("Epr") != _LIVESCORE_GAME_OVER or not event.get("Esd"):
-                continue
-            kickoff = datetime.strptime(str(event["Esd"]), "%Y%m%d%H%M%S").replace(tzinfo=_ISRAEL)
-            for side in ("T1", "T2"):
-                name = OPPONENTS_NAMES_TO_UNICODE.get(event[side][0]["Nm"], event[side][0]["Nm"])
-                last_kickoffs[name] = max(kickoff, last_kickoffs.get(name, kickoff))
-    return rows, last_kickoffs
+            return True
+    return False
 
 
-def merge_tables(wikipedia_rows: list[TeamRow], livescore_rows: dict[str, TeamRow],
-                 last_kickoffs: dict[str, datetime], now: datetime) -> list[TeamRow] | None:
-    """Wikipedia's table, or None while Wikipedia has not caught up with livescore's games.
-
-    Where both agree on a team's wins, draws and losses no ruling touched it, and livescore's
-    goals win: Wikipedia's editors once left a 3:0 technical win out of the goal totals
-    (Maccabi Tel Aviv 2025-26: 72 for, where the IFA had 75) while getting every result right.
-    """
-    wikipedia_names = {row.name for row in wikipedia_rows}
-    if wikipedia_names != set(livescore_rows):
-        raise ValueError(f'Wikipedia and livescore list different teams: only on Wikipedia '
-                         f'{sorted(wikipedia_names - set(livescore_rows))}, only on livescore '
-                         f'{sorted(set(livescore_rows) - wikipedia_names)}')
-
-    behind = [row.name for row in wikipedia_rows if row.played < livescore_rows[row.name].played]
-    if stale := [name for name in behind if name not in last_kickoffs or now - last_kickoffs[name] > _WIKIPEDIA_MAX_LAG]:
-        raise RuntimeError(f'Wikipedia still misses a game of {stale} played over {_WIKIPEDIA_MAX_LAG} ago; '
-                           f'is {WIKIPEDIA_SEASON_PAGE!r} still updated, or does livescore count an annulled game?')
-    if behind:
-        logging.warning(f'Not updating the league table, Wikipedia has not caught up yet: {behind}')
-        return None
-
-    merged = []
-    for row in wikipedia_rows:
-        livescore = livescore_rows[row.name]
-        if (row.win, row.draw, row.loss) == (livescore.win, livescore.draw, livescore.loss):
-            row = replace(row, goals_for=livescore.goals_for, goals_against=livescore.goals_against)
-        else:
-            # A ruling, or a Wikipedia mistake: the run log is where to tell them apart.
-            logging.warning(f'{row.name}: Wikipedia {row.as_template_row()} and livescore '
-                            f'{livescore.as_template_row()} disagree on results; saving Wikipedia\'s')
-        merged.append(row)
-    return merged
+def games_played_on_the_wiki(table_rows: str) -> dict[str, int]:
+    """Games played per team in a saved |טבלה= value (rows "name^played^...", comma-separated)."""
+    played = {}
+    for row in table_rows.split(","):
+        fields = row.strip().split("^")
+        if len(fields) > 1 and fields[1].strip().isdigit():
+            played[fields[0].strip()] = int(fields[1])
+    return played
 
 
-def fetch_league_table_data() -> str | None:
-    """The table rows as the template expects them, or None when this run should not save."""
-    livescore = fetch_livescore_rows()
-    if livescore is None:
-        return None
-    livescore_rows, last_kickoffs = livescore
-    wikipedia_rows = parse_league_tables(fetch_season_wikitext(WIKIPEDIA_SEASON_PAGE), WIKIPEDIA_TABLES)
-    merged = merge_tables(wikipedia_rows, livescore_rows, last_kickoffs, datetime.now(_ISRAEL))
-    if merged is None:
-        return None
-
-    prettified_result = ",\n".join(row.as_template_row() for row in merged)
-    logging.info(f'Fetched league table data: {prettified_result}')
-    return prettified_result
+def check_no_team_goes_back(rows: list[TeamRow], saved_played: dict[str, int]) -> None:
+    """A table with fewer games than the one on the wiki is a broken one (football.co.il's
+    2025/26 archive has an all-zero regular season), never a newer one."""
+    if behind := [f'{row.name} {saved_played[row.name]}→{row.played}' for row in rows
+                  if row.played < saved_played.get(row.name, 0)]:
+        raise ValueError(f'football.co.il has fewer games than the wiki for {behind}; not saving')
 
 
 def update_league_table_status() -> None:
-    logging.info(f'Fetching current league table from: {LINKS_TO_FETCH_LEAGUE_TABLE_FROM}')
-    league_table_data = fetch_league_table_data()
-    if league_table_data is None:
+    if a_game_is_in_play():
         return
+    rows = league_table(fetch_standings(FOOTBALL_CO_IL_SEASON))
 
     league_table_template_page = pw.Page(site, _LEAGUE_TABLE_TEMPLATE_ON_MACCABIPEDIA)
-
     parsed_mw_text = mwparserfromhell.parse(league_table_template_page.text)
     table_template = parsed_mw_text.filter_templates(_LEAGUE_TABLE_TEMPLATE_ON_MACCABIPEDIA)[0]
+    if table_template.has(_TABLE_STATUS_KEY):
+        check_no_team_goes_back(rows, games_played_on_the_wiki(str(table_template.get(_TABLE_STATUS_KEY).value)))
+
+    league_table_data = ",\n".join(row.as_template_row() for row in rows)
+    logging.info(f'Fetched league table data from football.co.il: {league_table_data}')
     table_template.add(_TABLE_STATUS_KEY, league_table_data)
 
     league_table_template_page.text = parsed_mw_text
