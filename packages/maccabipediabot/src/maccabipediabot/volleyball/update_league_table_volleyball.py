@@ -83,10 +83,32 @@ def parse_team_record(raw_team_record: pd.Series) -> VolleyballTableTeamRecord:
     team_name = raw_team_record['קבוצה']  # This should be consistent
     # Be more flexible with column name patterns - handle different quote types
     games = find_column(raw_team_record, ["מש", "משחקים", "games"])
-    wins = find_column(raw_team_record, ["נצ", "נצחונות", "wins"])
+    wins = find_column(raw_team_record, ["נצ", "ניצ", "wins"])
     losses = find_column(raw_team_record, ["הפ", "הפסדים", "losses"])
+    # Since October 2026 IVA shows "for" and "against" in separate columns, renamed more than once
+    # ('זכו'/'חובה' then 'נק׳ זכות'/'נק׳ חובה', 'סטים זכו' then 'מערכות זכות'), so match by keyword.
+    # Before that each pair was one "against-for" string.
+    for_against_columns = [col for col in raw_team_record.index if 'זכו' in str(col) or 'חובה' in str(col)]
+    if for_against_columns:
+        def for_against_value(is_sets: bool, side: str):
+            matches = [col for col in for_against_columns
+                       if side in str(col) and any(word in str(col) for word in ('סט', 'מערכות')) == is_sets]
+            if len(matches) != 1:
+                raise KeyError(f"Expected one {side} column (sets={is_sets}), found {matches} "
+                               f"in {list(raw_team_record.index)}")
+            return raw_team_record[matches[0]]
+
+        points_in_game_for = for_against_value(is_sets=False, side='זכו')
+        points_in_game_against = for_against_value(is_sets=False, side='חובה')
+        sets_for = for_against_value(is_sets=True, side='זכו')
+        sets_against = for_against_value(is_sets=True, side='חובה')
+        return VolleyballTableTeamRecord(name=team_name, games=games, wins=wins, losses=losses,
+                                         points_in_game_for=points_in_game_for,
+                                         points_in_game_against=points_in_game_against, sets_for=sets_for,
+                                         sets_against=sets_against, points=raw_team_record["נקודות"])
+
     points_str = find_column(raw_team_record, ["סה", "סה כ נקודות", "סה כ נקודות"])
-    
+
     # Handle splitting with better error handling
     points_parts = str(points_str).split("-")
     if len(points_parts) == 2:
@@ -95,10 +117,10 @@ def parse_team_record(raw_team_record: pd.Series) -> VolleyballTableTeamRecord:
         logging.warning(f"Points string '{points_str}' doesn't have expected format (expected 'X-Y'). Available: {points_parts}")
         points_in_game_against = points_parts[0] if points_parts else 0
         points_in_game_for = points_parts[1] if len(points_parts) > 1 else 0
-    
+
     sets_str = find_column(raw_team_record, ["סטים", "sets"])
     logging.debug(f"Sets string value: '{sets_str}'")
-    
+
     sets_parts = str(sets_str).split("-")
     if len(sets_parts) == 2:
         sets_against, sets_for = sets_parts
@@ -106,7 +128,7 @@ def parse_team_record(raw_team_record: pd.Series) -> VolleyballTableTeamRecord:
         logging.warning(f"Sets string '{sets_str}' doesn't have expected format (expected 'X-Y'). Available: {sets_parts}")
         sets_against = sets_parts[0] if sets_parts else 0
         sets_for = sets_parts[1] if len(sets_parts) > 1 else 0
-    
+
     points = raw_team_record["נקודות"]
     return VolleyballTableTeamRecord(name=team_name, games=games, wins=wins, losses=losses,
                                      points_in_game_for=points_in_game_for,
