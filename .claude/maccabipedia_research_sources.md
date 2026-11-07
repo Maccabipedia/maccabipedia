@@ -91,6 +91,7 @@ that misses items.
 - RSSSF top scorers: http://www.rsssf.com/tablesi/isratops.html
 - RSSSF Israel in European Cups: https://www.rsssf.org/tablesi/isra-ec.html
 - Football Association Archive: http://archive.football.org.il/
+- football.co.il (the league's own site): https://www.football.co.il/stats/ — current tables with IFA rulings and deductions applied; the data is a JSON API with no captcha (`.claude/season_page_tables.md`). Its archive is unreliable (2025/26 broken), so prefer it for the current season only
 - WildStat: http://wildstat.com/p/5015/club/ISR_Maccabi_Tel_Aviv
 - Transfermarkt: https://www.transfermarkt.us/maccabi-tel-aviv/startseite/verein/119 — squads, transfers, market values, all seasons
 - FBref: https://fbref.com/en/squads/04c011d8/history/Maccabi-Tel-Aviv-FC-Stats-and-History — advanced stats (xG etc.) from 1992-93
