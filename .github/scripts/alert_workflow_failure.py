@@ -62,52 +62,65 @@ def failure_tail(log):
     return tail[-TAIL_MAX_CHARS:]
 
 
+# A job that hits its timeout (timeout-minutes, or GitHub's 6-hour default) ends
+# "cancelled", not "timed_out": the football calendar hung that way on 2026-11-02.
+# No watched workflow cancels its own superseded runs, so a cancel is a hang or a
+# person pressing Cancel; both are worth a line in the channel.
+_FAILED = ("failure", "timed_out", "cancelled")
+
+
 def failed_steps(jobs):
     """(job, step name or None) for every failed job; None when no step is marked."""
     failures = []
     for job in jobs:
-        if job.get("conclusion") not in ("failure", "timed_out"):
+        if job.get("conclusion") not in _FAILED:
             continue
-        steps = [s["name"] for s in job.get("steps", []) if s.get("conclusion") == "failure"]
+        steps = [s["name"] for s in job.get("steps", []) if s.get("conclusion") in _FAILED]
         failures.append((job, steps[0] if steps else None))
     return failures
 
 
 def build_message(run, failures, tails_by_job_id):
-    """Telegram HTML message. Everything from the run is escaped once (Bot API direct)."""
+    """Telegram HTML message. Everything from the run is escaped once (Bot API direct).
+
+    The tails share one budget, so a run with several failed jobs (Tests has two)
+    still fits Telegram's 4096-character limit.
+    """
     branch = run.get("head_branch") or "?"
+    outcome = "cancelled (timed out, or cancelled by hand)" if run["conclusion"] == "cancelled" else "failed"
     lines = [
-        f"❌ <b>{html.escape(run['name'], quote=False)}</b> failed "
+        f"❌ <b>{html.escape(run['name'], quote=False)}</b> {outcome} "
         f"({html.escape(run['event'], quote=False)}, {html.escape(branch, quote=False)})"
     ]
     if not failures:
         lines.append(f"No failed step recorded (conclusion: {html.escape(run['conclusion'], quote=False)}).")
+    tail_budget = TAIL_MAX_CHARS // max(1, len(failures))
     for job, step in failures:
         step_text = html.escape(step, quote=False) if step else "(no step marked failed: setup or timeout)"
         lines.append(f"Failed step: {html.escape(job['name'], quote=False)} › {step_text}")
-        tail = tails_by_job_id.get(job["id"])
+        tail = tails_by_job_id.get(job["id"], "")[-tail_budget:]
         if tail:
             lines.append(f"<pre>{html.escape(tail, quote=False)}</pre>")
     lines.append(f"Run: {run['html_url']}")
     return "\n".join(lines)
 
 
-def send_telegram(token, chat_id, message):
-    body = urllib.parse.urlencode(
-        {"chat_id": chat_id, "text": message, "parse_mode": "HTML",
-         "disable_web_page_preview": "true"}
-    ).encode()
+def send_telegram(token, chat_id, message, parse_mode="HTML"):
+    """Send one message; return None on success, else Telegram's reason."""
+    fields = {"chat_id": chat_id, "text": message, "disable_web_page_preview": "true"}
+    if parse_mode:
+        fields["parse_mode"] = parse_mode
     request = urllib.request.Request(
-        f"https://api.telegram.org/bot{token}/sendMessage", data=body
+        f"https://api.telegram.org/bot{token}/sendMessage",
+        data=urllib.parse.urlencode(fields).encode(),
     )
     try:
         with urllib.request.urlopen(request, timeout=30) as response:
             reply = json.loads(response.read())
     except urllib.error.HTTPError as error:
         # The URL carries the bot token: report the status and Telegram's reason only.
-        sys.exit(f"Telegram refused the alert: HTTP {error.code} {error.read().decode()[:300]}")
-    if not reply.get("ok"):
-        sys.exit(f"Telegram refused the alert: {reply}")
+        return f"HTTP {error.code} {error.read().decode()[:300]}"
+    return None if reply.get("ok") else str(reply)[:300]
 
 
 def main():
@@ -132,8 +145,21 @@ def main():
     if args.dry_run:
         print(message)
         return
-    send_telegram(os.environ["TELEGRAM_TOKEN"], os.environ["TELEGRAM_TO"], message)
-    print("alert sent")
+    token, chat_id = os.environ["TELEGRAM_TOKEN"], os.environ["TELEGRAM_TO"]
+    refusal = send_telegram(token, chat_id, message)
+    if refusal is None:
+        print("alert sent")
+        return
+    # Nothing watches this workflow, so a refused alert would be silent. Fall back to
+    # plain text with no log, which has nothing left for Telegram to reject.
+    print(f"Telegram refused the full alert: {refusal}", file=sys.stderr)
+    fallback = (
+        f"❌ {run['name']} {run['conclusion']} ({run['event']}). "
+        f"The detailed alert was refused by Telegram: {refusal[:200]}\nRun: {run['html_url']}"
+    )
+    second_refusal = send_telegram(token, chat_id, fallback, parse_mode=None)
+    sys.exit("sent the short alert instead" if second_refusal is None
+             else f"short alert refused too: {second_refusal}")
 
 
 if __name__ == "__main__":

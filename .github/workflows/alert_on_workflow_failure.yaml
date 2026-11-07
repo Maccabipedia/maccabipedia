@@ -44,13 +44,14 @@ on:
 
 permissions:
   actions: read
+  contents: read
 
 jobs:
   alert:
     if: >-
       github.event_name == 'workflow_dispatch' || (
         github.event.workflow_run.event != 'pull_request' &&
-        contains(fromJSON('["failure", "timed_out", "startup_failure"]'), github.event.workflow_run.conclusion)
+        contains(fromJSON('["failure", "timed_out", "cancelled", "startup_failure"]'), github.event.workflow_run.conclusion)
       )
     runs-on: ubuntu-latest
     steps:

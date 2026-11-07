@@ -116,6 +116,29 @@ def test_job_that_failed_without_a_failed_step_still_alerts():
     assert "Failed step: build › (no step marked failed" in message
 
 
+def test_two_failed_jobs_with_long_logs_fit_one_telegram_message():
+    jobs = [
+        {"id": job_id, "name": name, "conclusion": "failure",
+         "steps": [{"name": "Install dependencies", "conclusion": "failure"}]}
+        for job_id, name in ((1, "test"), (2, "lua"))
+    ]
+    long_tail = "x" * alert.TAIL_MAX_CHARS
+    message = alert.build_message(RUN, alert.failed_steps(jobs), {1: long_tail, 2: long_tail})
+    assert message.count("<pre>") == 2
+    assert len(message) < 4096
+
+
+def test_hung_job_killed_at_timeout_alerts_as_cancelled():
+    # Shape of run 41391378152: the football calendar hung 6 hours and GitHub killed it.
+    jobs = [{"id": 3, "name": "update-maccabipedia-calendar", "conclusion": "cancelled", "steps": [
+        {"name": "Install dependencies", "conclusion": "success"},
+        {"name": "Update MaccabiPedia Calendar", "conclusion": "cancelled"},
+    ]}]
+    message = alert.build_message({**RUN, "conclusion": "cancelled"}, alert.failed_steps(jobs), {})
+    assert "cancelled (timed out, or cancelled by hand)" in message
+    assert "› Update MaccabiPedia Calendar" in message
+
+
 def test_run_with_no_jobs_says_so():
     message = alert.build_message({**RUN, "conclusion": "startup_failure"}, [], {})
     assert "No failed step recorded (conclusion: startup_failure)" in message
