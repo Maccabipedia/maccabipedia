@@ -31,14 +31,31 @@ TAIL_MAX_CHARS = 2500  # Telegram caps a message at 4096; leave room for the hea
 
 _TIMESTAMP = re.compile(r"^\d{4}-\d\d-\d\dT[\d:.]+Z ")
 _URL_CREDENTIALS = re.compile(r"(https?://)[^/@\s]+@")
+_ANSI = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
 
 
-def gh_api(path, raw=False):
-    """GET a GitHub API path through the gh CLI; JSON unless raw."""
+def gh_api(path):
+    """GET a GitHub API path through the gh CLI, parsed as JSON."""
     completed = subprocess.run(
         ["gh", "api", path], capture_output=True, text=True, check=True
     )
-    return completed.stdout if raw else json.loads(completed.stdout)
+    return json.loads(completed.stdout)
+
+
+def job_log(repo, job_id):
+    """A job's plain-text log.
+
+    Not through `gh api`: logs carry color codes, and newer gh refuses to print
+    them without a flag older gh does not know. The endpoint redirects to a signed
+    storage URL; the token is an unredirected header so it is not sent there.
+    """
+    token = os.environ.get("GH_TOKEN") or subprocess.run(
+        ["gh", "auth", "token"], capture_output=True, text=True, check=True
+    ).stdout.strip()
+    request = urllib.request.Request(f"https://api.github.com/repos/{repo}/actions/jobs/{job_id}/logs")
+    request.add_unredirected_header("Authorization", f"Bearer {token}")
+    with urllib.request.urlopen(request, timeout=60) as response:
+        return response.read().decode("utf-8", errors="replace")
 
 
 def failure_tail(log):
@@ -48,7 +65,7 @@ def failure_tail(log):
     already masks registered secrets in stored logs; this covers user:pass@ URLs a
     script may build itself.
     """
-    lines = [_TIMESTAMP.sub("", line) for line in log.splitlines()]
+    lines = [_TIMESTAMP.sub("", _ANSI.sub("", line)) for line in log.splitlines()]
     error_at = next(
         (i for i, line in enumerate(lines) if line.startswith("##[error]")), len(lines)
     )
@@ -136,10 +153,11 @@ def main():
     tails = {}
     for job, _ in failures:
         try:
-            tails[job["id"]] = failure_tail(gh_api(f"repos/{repo}/actions/jobs/{job['id']}/logs", raw=True))
-        except subprocess.CalledProcessError as error:
+            tails[job["id"]] = failure_tail(job_log(repo, job["id"]))
+        except (OSError, subprocess.CalledProcessError) as error:
             # A missing log must not cost the alert itself: send the step and link anyway.
-            print(f"could not read log of job {job['id']}: {error.stderr.strip()}", file=sys.stderr)
+            # (urllib's HTTPError/URLError are OSErrors.)
+            print(f"could not read log of job {job['id']}: {error}", file=sys.stderr)
     message = build_message(run, failures, tails)
 
     if args.dry_run:
