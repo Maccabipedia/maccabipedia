@@ -225,13 +225,29 @@ label reads `<round> - משחק N`. Rules settled 2026-10-10 to 2026-10-17:
 | Games | Label |
 |---|---|
 | Regular-season rounds | `מחזור N`, and **only** these. Euroleague playoff games were labelled `מחזור 1…5` until 2026-10-10, which mixed them with the season's real rounds 1–5 |
-| A group stage | `<stage> - מחזור N`, numbered by date within the stage: `טופ 16 - מחזור N`, `רבע גמר - מחזור N` / `חצי גמר - מחזור N` (the quarter-final and semi-final groups, 1967–1991), `שמינית גמר - מחזור N` (the 1991–1996 main group), `שלב ראשון` / `שלב שני - מחזור N` (1996–2001), `שלב הבתים - מחזור N` (Korać), `32 האחרונות - מחזור N` (EuroCup). The ending tells a group round (`מחזור`) from a game in a tie (`משחק`). Seasons with two group stages are why the round stays in the label (football's `שלב הבתים` alone would be ambiguous) |
+| A group stage | `<stage> - מחזור N`, numbered by date within the stage: `טופ 16 - מחזור N`, the Israeli press name where the press had one (see below), `שלב ראשון` / `שלב שני - מחזור N` (1996–2001), `שלב הבתים - מחזור N` (Korać), `32 האחרונות - מחזור N` (EuroCup). The ending tells a group round (`מחזור`) from a game in a tie (`משחק`). Seasons with two group stages are why the round stays in the label (football's `שלב הבתים` alone would be ambiguous) |
 | Euroleague playoffs, 2004/05 on, with or without groups | `הצלבה - משחק N` |
 | Knockout series after a group stage, before the Euroleague era (1991/92, the 1996–2001 eighth-finals and quarter-finals, the 1993/94 Korać quarter-final) | the round: `שמינית גמר - משחק N`, `רבע גמר - משחק N`. Name the round, because in some seasons Maccabi played both |
 | Euroleague play-in | `פליי-אין` (a single game, not a series) |
 | Final Four | `חצי גמר`, `גמר`, `משחק על המקום השלישי` (no `פיינל פור -` prefix) |
 | Knockout rounds before the groups and older ties | the round as linguasport names it: `סיבוב מוקדם`, `סיבוב ראשון`, `סיבוב שני`, `32 האחרונות`, `שמינית גמר`, `רבע גמר`, `חצי גמר`, `גמר`, `- משחק N`. Kept even where it isn't literal (a "1/8" round with 14 teams; Wikipedia calls it "Second round"): the owner's decision, 2026-10-16 |
 | A deciding game after a tied two-legged tie | the next number, `<round> - משחק 3`; the page's summary says it was a decider |
+
+**European Cup groups, 1967–1996: the name the Israeli press used.** Linguasport's names
+(quarter-final group, semi-final group, "1/8") are not what readers here knew. The owner chose
+the press name on 2026-11-07, after Oren relabelled 1976/77, from one Yedioth clipping per season:
+
+| Seasons | Label |
+|---|---|
+| 1967/68, 1968/69, 1972/73–1975/76 | `רבע גמר - מחזור N` (the press also said "רבע הגמר"; 1967/68's press said "שלב חצי הגמר", still open) |
+| 1976/77–1990/91, the final group | `בית הגמר - מחזור N` |
+| 1978/79–1981/82, the first of two groups | `הבית המוקדם - מחזור N` |
+| 1991/92, 1994/95, 1995/96 (two groups of 8) | `בית הגמר - מחזור N` |
+| 1992/93 | `שמינית גמר - מחזור N`, unchanged: its headlines say "בית רבע-הגמר", its text "בית-הגמר" |
+
+The season pages already said "בית הגמר" in their Euroleague table titles and achievements lists.
+To check another season, search the Yedioth single pages (`.claude/newspaper_archives.md`) for
+`בית\W{0,3}ה?גמר` in both word orders; the text layer is mirrored.
 
 **Proving the stage:** the Euroleague's official record names the phase of a game (checked for
 2003/04–2023/24; `api-live.euroleague.net/v1/games?seasonCode=E2011&gameCode=179` gives
