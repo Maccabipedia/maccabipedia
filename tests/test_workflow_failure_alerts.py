@@ -80,6 +80,11 @@ def test_tail_stops_at_the_error_and_drops_markers_and_timestamps():
     ]
 
 
+def test_tail_drops_terminal_color_codes():
+    log = "2026-11-07T20:22:17.0Z \x1b[36;1mKeyError\x1b[0m: boom\n2026-11-07T20:22:17.1Z ##[error]exit 1\n"
+    assert alert.failure_tail(log) == "KeyError: boom"
+
+
 def test_tail_without_error_marker_keeps_the_end():
     log = "\n".join(f"2026-11-07T20:22:11.0Z line {i}" for i in range(40))
     assert alert.failure_tail(log).splitlines() == [f"line {i}" for i in range(25, 40)]
