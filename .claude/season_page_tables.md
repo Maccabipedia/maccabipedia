@@ -93,15 +93,20 @@ livescore never applies IFA rulings: the 3:0 technical win for Netanya over Hapo
 - `points` already includes deductions; `penaltyPoints` stays 0 (Tiberias 2026-27: 2-4-4, 4 pts).
 - Stages: `RegularSeason`, then `ChampionshipRound` + `RelegationRound` with full-season totals
   (2024/25: 6 + 8, 36 / 33 games). The bot switches to the playoff rounds by itself once they
-  have games — no manual swap for football.co.il (the livescore URLs still swap).
+  have games — no manual swap. Rows are ordered by `position`, not by the answer's order.
 - The archive is not always sane: 2025/26 shows Netanya in both playoff rounds with 98 games and
-  an all-zero regular season. So a run fails on W+D+L ≠ games, more than 36 games, not 14
-  different teams, or fewer games for any team than the table already on the wiki.
+  an all-zero regular season. So a run fails on W+D+L ≠ games, more than 36 games, points above
+  3·W+D, not 14 different teams, teams other than those already on the wiki page, or fewer
+  games for any team than the page has. A really annulled game needs that team's games lowered
+  once by hand on the wiki; the error says so.
 - Its games endpoint (`/api/football/game`) answered empty, so it cannot replace livescore's
-  in-play check.
+  in-play check. The bot checks all three livescore stages (regular, championship, relegation)
+  all season — `games_in_play` only counts games dated within a day — and fails if a stage
+  answers without `Events`, so the check cannot pass on an empty answer.
 - The workflow's other sports run when football fails (`if: !cancelled()`).
-- Season rollover: bump `FOOTBALL_CO_IL_SEASON` with the template name and the livescore URL;
-  add any promoted team's id.
+- Season rollover: bump `SEASON` only (the template name and football.co.il's "26/27" both come
+  from it); add any promoted team's id. A new season page starts without `|טבלה=` rows, or the
+  "same teams" check fails on last season's teams.
 
 ## Football's international group table (cards #540 / #161, 2026-09-22)
 

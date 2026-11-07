@@ -2,7 +2,7 @@
 
 The site's stats page loads its table from the bamboo-cloud API below. Unlike livescore, it
 follows IFA rulings: technical wins and points deductions are already in its numbers.
-Its archive is not always sane (2025/26 shows a team with 97 games and an all-zero regular
+Its archive is not always sane (2025/26 shows a team with 98 games and an all-zero regular
 season), so every table is checked before it is used.
 """
 import json
@@ -79,16 +79,21 @@ def _team_row(row: dict) -> TeamRow:
                          f"add it to TEAM_ID_TO_HEBREW")
     team = TeamRow(TEAM_ID_TO_HEBREW[row["id"]], row["gamesCount"], row["wins"], row["draws"], row["losses"],
                    row["goalsScored"], row["goalsReceived"], row["points"])
-    if team.win + team.draw + team.loss != team.played or team.played > _MAX_GAMES_IN_SEASON:
+    # A deduction can only lower the points, never raise them.
+    if (team.win + team.draw + team.loss != team.played or team.played > _MAX_GAMES_IN_SEASON
+            or team.points > team.win * 3 + team.draw):
         raise ValueError(f"football.co.il row does not add up: {team.as_template_row()}")
     return team
 
 
 def league_table(standings: dict[str, list[dict]]) -> list[TeamRow]:
     """The table to show, in the site's order: both playoff rounds once they started, else the regular season."""
-    playoffs = [row for stage in _PLAYOFF_STAGES for row in standings.get(stage, [])]
+    def by_position(stage: str) -> list[dict]:
+        return sorted(standings.get(stage, []), key=lambda row: row["position"])
+
+    playoffs = [row for stage in _PLAYOFF_STAGES for row in by_position(stage)]
     started = any(row["gamesCount"] for row in playoffs)
-    rows = [_team_row(row) for row in (playoffs if started else standings.get(_REGULAR_SEASON, []))]
+    rows = [_team_row(row) for row in (playoffs if started else by_position(_REGULAR_SEASON))]
     names = [row.name for row in rows]
     if len(rows) != _TEAMS_IN_LEAGUE or len(set(names)) != len(names):
         raise ValueError(f"football.co.il table should list {_TEAMS_IN_LEAGUE} different teams, got {names}")

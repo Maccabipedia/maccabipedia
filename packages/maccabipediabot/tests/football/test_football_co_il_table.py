@@ -23,14 +23,29 @@ _ROUND_10 = [
 ]
 
 
-def _row(team_id, name, played, win, draw, loss, goals_for, goals_against, points):
-    return {"id": team_id, "name": name, "hebrewName": "", "gamesCount": played, "wins": win, "draws": draw,
+def _row(team_id, name, played, win, draw, loss, goals_for, goals_against, points, position=0):
+    return {"id": team_id, "position": position, "name": name, "hebrewName": "", "gamesCount": played, "wins": win, "draws": draw,
             "losses": loss, "goalsScored": goals_for, "goalsReceived": goals_against, "points": points,
             "penaltyPoints": 0}
 
 
 def _regular_season(rows=_ROUND_10):
-    return {"RegularSeason": [_row(*row) for row in rows]}
+    return {"RegularSeason": [_row(*row, position=position) for position, row in enumerate(rows, start=1)]}
+
+
+def test_rows_follow_the_sites_positions_not_the_answers_order():
+    standings = _regular_season()
+    standings["RegularSeason"].reverse()
+
+    assert league_table(standings)[0].name == "מכבי תל אביב"
+
+
+def test_more_points_than_the_results_give_fails():
+    rows = list(_ROUND_10)
+    rows[13] = (12039, "Ironi Tiberias FC", 10, 2, 4, 4, 10, 14, 11)
+
+    with pytest.raises(ValueError, match="does not add up"):
+        league_table(_regular_season(rows))
 
 
 def test_the_ruling_and_the_deduction_come_with_the_table():
