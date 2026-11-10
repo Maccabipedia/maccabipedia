@@ -10,6 +10,9 @@ checked 2026-10, see `.claude/skills/upload-newspaper/rules.md`):
   game-date brackets, never a number: ``... (29.10.1998) תגובות קטש וג'אקוביץ'.jpg``
 * page: ``{{תיוג עיתונים}}`` / ``{{תיוג עיתוני כדורסל}}`` / ``{{תיוג עיתוני כדורעף}}`` with
   שם עיתון, תאריך פרסום (DD-MM-YYYY), סיווג and שיוך משחק (the exact game page title).
+* a volleyball league table is named by its game alone, ``טבלה לאחר משחק כדורעף <DD-MM-YYYY>.jpg``
+  (238 of the 239 files in ``קטגוריה:עיתונות כדורעף/טבלאות ליגה``, 2026-11), with the same page
+  text and סיווג=טבלת ליגה. It does not count against the game's cap.
 """
 from __future__ import annotations
 
@@ -51,6 +54,10 @@ MAX_DAYS_AFTER_GAME = 14
 
 MAX_FILE_NAME_BYTES = 240  # MediaWiki's title limit is 255 bytes, minus "File:" and slack
 
+# A volleyball league table after a game: "טבלה לאחר משחק כדורעף 16-10-1990.jpg". Tables sit
+# outside the per-game cap: 40 volleyball games carry one on top of exactly 3 clips (2026-11).
+VOLLEYBALL_TABLE_PREFIX = "טבלה לאחר משחק כדורעף "
+
 _FORBIDDEN_IN_NAME = re.compile(r'["/\\:#<>\[\]|{}*?~\t\n\r\u00a0\u200e\u200f\u202a-\u202e]')
 _HEBREW = re.compile(r"[א-ת]")
 
@@ -74,7 +81,13 @@ class NewspaperClip:
         validate(self)
 
     @property
+    def is_table(self) -> bool:
+        return self.sport is Sport.VOLLEYBALL and self.classification == "טבלת ליגה"
+
+    @property
     def file_name(self) -> str:
+        if self.is_table:
+            return f"{VOLLEYBALL_TABLE_PREFIX}{self.game_date:%d-%m-%Y}.jpg"
         # Football names carry no sport word (nor competition or venue mark); basketball and
         # volleyball say which sport, as their existing files do.
         sport = "" if self.sport is Sport.FOOTBALL else f"{self.sport.value} "
@@ -101,11 +114,13 @@ def validate(clip: NewspaperClip) -> None:
     if clip.classification not in CLASSIFICATIONS:
         raise NewspaperClipError(f"סיווג {clip.classification!r} is not a template value; "
                                  f"use one of: {', '.join(CLASSIFICATIONS)}")
-    if clip.classification in ("טבלת ליגה", "טבלת גביע"):
-        raise NewspaperClipError(f"{clip.classification} files use their own names "
-                                 f"('טבלת ליגה לאחר מחזור N עונת YYYY-YY.jpg', 294 files); this tool "
-                                 f"does game clips only")
+    if clip.classification in ("טבלת ליגה", "טבלת גביע") and not clip.is_table:
+        raise NewspaperClipError(f"{clip.classification} for {clip.sport.value} is not uploaded by this tool; "
+                                 f"it does volleyball league tables (טבלת ליגה) and game clips only")
     _check_text("opponent", clip.opponent)
+    if clip.is_table and clip.description:
+        raise NewspaperClipError("a league table is one file per game, named by the game date alone; "
+                                 "drop --description")
     if clip.description:
         _check_text("description", clip.description)
         if re.fullmatch(r"\(?\d+\)?|עיתון\s*\d+|עמוד\s*\d+", clip.description.strip()):
@@ -136,6 +151,10 @@ def _check_dates(clip: NewspaperClip) -> None:
     if clip.classification in ("סיקור משחק", "רגע ממשחק") and not 0 <= days <= MAX_DAYS_AFTER_GAME:
         raise NewspaperClipError(f"a report must be published on the game day or up to "
                                  f"{MAX_DAYS_AFTER_GAME} days after it, not {days:+d} days")
+    if clip.is_table and not 0 <= days <= MAX_DAYS_AFTER_GAME:
+        raise NewspaperClipError(f"the table after a game is published on the game day or up to "
+                                 f"{MAX_DAYS_AFTER_GAME} days after it, not {days:+d} days; a table "
+                                 f"printed before the game belongs to the previous game")
 
 
 def _check_game_page(clip: NewspaperClip) -> None:
@@ -177,6 +196,11 @@ def game_opponents(game_page: str) -> set[str]:
 def game_page_title(cargo_page_name: str) -> str:
     """Cargo returns titles HTML-escaped (בית&quot;ר); the wiki title has the real quote."""
     return html.unescape(cargo_page_name)
+
+
+def is_table_file(title: str) -> bool:
+    """A league-table file, which the per-game cap does not count."""
+    return re.sub(r"^(?:File|קובץ):", "", title).startswith(VOLLEYBALL_TABLE_PREFIX)
 
 
 def game_cap(tier: str) -> int:

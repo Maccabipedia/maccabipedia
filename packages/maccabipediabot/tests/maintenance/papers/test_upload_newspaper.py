@@ -98,6 +98,30 @@ def test_new_upload_over_the_cap_is_refused(wiki):
     assert any("up to 3" in p for p in problems)
 
 
+VB_GAME = "כדורעף:16-10-1990 מכבי תל אביב נגד אליצור חולון - הליגה הלאומית"
+VB_CLIP = dict(paper="ידיעות אחרונות", publish_date=date(1990, 10, 17), sport=Sport.VOLLEYBALL,
+               opponent="אליצור חולון", game_date=date(1990, 10, 16), game_page=VB_GAME)
+THREE_CLIPS = ["קובץ:א.jpg", "קובץ:ב.jpg", "קובץ:ג.jpg"]
+
+
+def test_a_table_goes_up_on_a_game_at_its_cap(wiki):
+    wiki()
+    table = NewspaperClip(classification="טבלת ליגה", **VB_CLIP)
+    assert tool.upload_problems(args(), table, table.file_name, VB_GAME, THREE_CLIPS,
+                                Image.new("RGB", (300, 350)), DATA) == []
+
+
+def test_a_linked_table_does_not_use_up_a_clip_slot(wiki):
+    wiki()
+    report = NewspaperClip(classification="סיקור משחק", **VB_CLIP)
+    linked = ["קובץ:א.jpg", "קובץ:ב.jpg", "קובץ:טבלה לאחר משחק כדורעף 16-10-1990.jpg"]
+    assert tool.upload_problems(args(), report, report.file_name, VB_GAME, linked,
+                                Image.new("RGB", (800, 600)), DATA) == []
+    problems = tool.upload_problems(args(), report, report.file_name, VB_GAME, THREE_CLIPS,
+                                    Image.new("RGB", (800, 600)), DATA)
+    assert any("up to 3" in p for p in problems)
+
+
 def test_new_upload_refuses_taken_deleted_or_duplicate(wiki):
     wiki(files={CLIP.file_name: TEXT}, deleted=[CLIP.file_name], same_bytes=["קובץ:עותק.jpg"])
     problems = " ".join(tool.upload_problems(args(), CLIP, CLIP.file_name, GAME, [],

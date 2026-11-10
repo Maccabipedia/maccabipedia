@@ -1,6 +1,6 @@
 ---
 name: upload-newspaper
-description: Use whenever a newspaper scan goes up on MaccabiPedia, in any sport. That covers a new clip for a game, a new version of an uploaded file (a better crop), or several pieces for one game. You crop the Maccabi article by eye, never a whole page. The upload_newspaper tool builds the name and page text from strict params and refuses a cut edge, a broken cap or a bad date. Nothing goes up before the maintainer has seen the before/after.
+description: Use whenever a newspaper scan goes up on MaccabiPedia, in any sport. That covers a new clip for a game, a volleyball league table after a game, a new version of an uploaded file (a better crop), or several pieces for one game. You crop the Maccabi article by eye, never a whole page. The upload_newspaper tool builds the name and page text from strict params and refuses a cut edge, a broken cap or a bad date. Nothing goes up before the maintainer has seen the before/after.
 ---
 
 # Upload a newspaper clip
@@ -35,6 +35,10 @@ doesn't have.
 - **One image per article.** Anything with its own headline is its own file. A box
   score, a table or a photo caption stays with its report. Keep the group table, but
   blank the items about other games in the group.
+- **Volleyball league table:** a file of its own, outside the cap, from the paper of the day
+  after the game: `--classification "טבלת ליגה"`, which the tool names
+  `טבלה לאחר משחק כדורעף DD-MM-YYYY.jpg`. Cut it inside the box's frame, from the `הטבלה` bar to
+  the last row (`rules.md`, "Volleyball", "League tables").
 
 ## 3. Crop by eye, into a spec
 

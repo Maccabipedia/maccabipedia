@@ -51,7 +51,8 @@ same params.
   - **A round-up or preview column** (all of the round's games in one item): crop just
     the Maccabi paragraph, with the column's headline above it when it fits. Oren
     often marks the Maccabi lines with a yellow highlighter.
-  - **A table:** the table and its header only (`טבלת ליגה`, `טבלה לאחר משחק …`).
+  - **A table:** the table and its header only (`טבלת ליגה`, `טבלה לאחר משחק …`). Volleyball
+    league tables have their own name and cut ("Volleyball", "League tables").
   - **A photo:** the photo with its caption (`רגע ממשחק`).
   - **The only time a whole page is right:** a page or spread that is entirely the
     game's coverage under one frame or banner (and even then a separately headlined
@@ -202,10 +203,32 @@ files (date first, opponent written `מכבי תל אביב נגד …`; don't c
 - **Size:** median 0.45 MP, a bit smaller than football and basketball, because many are
   short Yedioth items of a few lines (`467x105`). Crops from a 200-dpi render will be larger.
   That is fine.
-- **Mix:** `סיקור משחק` 697, `טבלת ליגה` 235, `לקראת משחק` 97, `רגע ממשחק` 52. League tables
-  are common in volleyball, but they have their own names (`טבלת ליגה לאחר מחזור N עונת
-  YYYY-YY.jpg`) and the tool refuses them; it uploads game clips only. Per game: 283 games have 1–3 files and 101 already have more than the
-  regular cap of 3 (up to 9, on a 1989/90 game), so count first.
+- **Mix:** `סיקור משחק` 697, `טבלת ליגה` 235, `לקראת משחק` 97, `רגע ממשחק` 52. Per game: 283
+  games have 1–3 files and 101 already have more than the regular cap of 3 (up to 9, on a
+  1989/90 game), so count first. Those counts include league tables, which the cap skips (below).
+- **League tables** (`--classification "טבלת ליגה"`): one file per game, the standings printed
+  after it. The tool uploads them like a clip, through the same crop spec, edge check and
+  before/after.
+  - **Name:** `טבלה לאחר משחק כדורעף DD-MM-YYYY.jpg`, with the *game* date. 238 of the 239 files
+    in `קטגוריה:עיתונות כדורעף/טבלאות ליגה` use it (measured 2026-11-10; the other is a typo).
+    `תאריך פרסום` is the paper's date, as for any clip (`קובץ:טבלה לאחר משחק כדורעף 28-11-1989.jpg`
+    is the model). The tool builds both. `--opponent` is still checked against the game page, and
+    `--description` is refused, since a game has one table. The 834 `טבלת ליגה לאחר מחזור N עונת
+    YYYY-YY.jpg` files are a different set: no tagged volleyball table is named that way.
+  - **Where:** in the paper of the day after the game, a small box headed `הטבלה` beside the
+    round's report (Yedioth 1990/91: pages 10, 11 or 14), sometimes printed over a corner of the
+    photo. A Maariv clip of the report usually has no table. A table printed before the game
+    belongs to the previous game, so the tool refuses one published before the game date.
+    Check the games-played column: it goes up by one each round.
+  - **Cut:** inside the box's frame, from the top of the black `הטבלה` bar down to just under the
+    last row. No frame line, no photo, and not the `שישיית המחזור` box that often sits right
+    below. When the header is a dotted box instead of a black bar (Yedioth 7.11.1990), cut just
+    inside the thin frame. Take the coordinates from a `--step 10` page map. A top edge on the
+    bar reads `on_rule`, and the others `gutter`.
+  - **Cap:** a table does not count. 40 games carry one on top of exactly 3 clips. The tool
+    leaves linked tables out of the count and never refuses a table for the cap.
+  - **Check first:** a game may already have its table (13-11-1990 did). The tool refuses a
+    name that exists. For a better crop, use `--replace`.
 - **Round-ups:** most volleyball coverage reports the whole playoff round or league round in
   one article, with a paragraph or a ratings box per game. Even when the headline names Maccabi,
   keep only the headline (and subhead or byline) plus the Maccabi paragraphs, stacked as pieces.
@@ -232,10 +255,11 @@ files (date first, opponent written `מכבי תל אביב נגד …`; don't c
 ## Limits enforced in code
 
 They are listed here so a reader knows they exist. Change them in the code and its tests.
-- Preview published 0–7 days before the game; report or photo 0–14 days after it
-  (`newspaper_names.py`).
+- Preview published 0–7 days before the game; report, photo or volleyball league table 0–14
+  days after it (`newspaper_names.py`).
 - Cap by `--tier`: regular 3, iconic 6, legendary 9 newspaper files per game, counting files linked through
-  redirects too.
+  redirects too. A volleyball league table neither counts nor is capped.
+- Tables: only volleyball `טבלת ליגה`. Other sports' tables and `טבלת גביע` are refused.
 - Whole page: the crop keeps more than 50% of one page (a landscape scan counts as a
   two-page spread), or a finished `--image` is over 4 MP. Either needs
   `--whole-page-because`.

@@ -3,7 +3,7 @@ from datetime import date
 import pytest
 
 from maccabipediabot.maintenance.papers.newspaper_names import (
-    NewspaperClip, NewspaperClipError, check_cap, game_opponents, game_page_title,
+    NewspaperClip, NewspaperClipError, check_cap, game_opponents, game_page_title, is_table_file,
 )
 from maccabipediabot.maintenance.tickets.ticket_names import Sport
 
@@ -89,9 +89,43 @@ def test_too_long_file_name_is_refused():
 
 
 @pytest.mark.parametrize("table", ["טבלת ליגה", "טבלת גביע"])
-def test_tables_are_not_named_like_game_clips(table):
-    with pytest.raises(NewspaperClipError, match="own names"):
+def test_basketball_tables_are_refused(table):
+    with pytest.raises(NewspaperClipError, match="not uploaded by this tool"):
         clip(classification=table)
+
+
+HOLON = dict(
+    paper="ידיעות אחרונות", publish_date=date(1990, 10, 17), classification="טבלת ליגה",
+    sport=Sport.VOLLEYBALL, opponent="אליצור חולון", game_date=date(1990, 10, 16),
+    game_page="כדורעף:16-10-1990 מכבי תל אביב נגד אליצור חולון - הליגה הלאומית",
+)
+
+
+def table(**changes):
+    return NewspaperClip(**{**HOLON, **changes})
+
+
+def test_volleyball_table_is_named_by_its_game_date_alone():
+    assert table().file_name == "טבלה לאחר משחק כדורעף 16-10-1990.jpg"
+    assert is_table_file("קובץ:" + table().file_name) and is_table_file(table().file_name)
+    assert not is_table_file(clip().file_name)
+
+
+def test_volleyball_table_page_text_is_a_league_table_of_its_game():
+    assert table().page_text == (
+        "{{תיוג עיתוני כדורעף\n|שם עיתון=ידיעות אחרונות\n|תאריך פרסום=17-10-1990\n"
+        "|סיווג=טבלת ליגה\n|שיוך משחק=כדורעף:16-10-1990 מכבי תל אביב נגד אליצור חולון - הליגה הלאומית\n}}")
+
+
+@pytest.mark.parametrize("changes, reason", [
+    (dict(description="טבלה שנייה"), "drop --description"),
+    (dict(publish_date=date(1990, 10, 15)), "previous game"),
+    (dict(publish_date=date(1990, 11, 1)), "previous game"),
+    (dict(classification="טבלת גביע"), "not uploaded by this tool"),
+])
+def test_volleyball_table_refusals(changes, reason):
+    with pytest.raises(NewspaperClipError, match=reason):
+        table(**changes)
 
 
 def test_slash_in_a_team_name_is_written_as_a_dash():
