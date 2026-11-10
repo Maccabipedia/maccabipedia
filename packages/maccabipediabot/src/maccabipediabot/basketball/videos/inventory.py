@@ -5,8 +5,8 @@ Two sources, one shape:
 * yt-dlp, for the one-off backfill run from a workstation. It can list the channel's
   playlists, which is the only way to learn which season a video belongs to, and it
   reports durations.
-* RSS feeds (see rss.py), for the scheduled job. No key and no blocking, but only the
-  15 newest items per feed and no durations.
+* the YouTube Data API (see youtube_api.py), for the scheduled job. Needs a key, but
+  is not blocked from datacenter IPs; it gives no durations.
 
 The result is cached as JSON so matching and reporting can be re-run without touching
 YouTube again.
