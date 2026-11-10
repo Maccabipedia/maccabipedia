@@ -225,7 +225,11 @@ files (date first, opponent written `מכבי תל אביב נגד …`; don't c
     missing one (500+ on 2026-11-10).
   - **Where:** in the paper of the day after the game, a small box headed `הטבלה` beside the
     round's report (Yedioth 1990/91: pages 10, 11 or 14), sometimes printed over a corner of the
-    photo. A Maariv clip of the report usually has no table. The tool takes a table published
+    photo. A Maariv clip of the report usually has no table, but Maariv sometimes printed the
+    table as its own item a few days later ("הליגה בכדורעף", 5.12.1990): when Yedioth has none,
+    look at the folder's later Maariv clips. Such a clip is a blurry upscale (2348x3068 for an
+    11-row table): shrink the scan first (30%, LANCZOS) and crop the small copy with the tool,
+    so the edge check still runs on the file that goes up. The tool takes a table published
     1–7 days after the game (1–6 in a sample of 50). One printed by the game day shows the
     previous round, and one later may show the next. Inside that window, still check the
     games-played column: it goes up by one each round.
