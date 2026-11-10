@@ -162,7 +162,29 @@ def test_every_playlist_failing_is_an_error_not_an_empty_run(monkeypatch):
         youtube_api.collect_from_api("UC123", {"2025/26": ["PL1"]}, SECRET_KEY)
 
 
+def test_a_private_season_playlist_only_warns(monkeypatch):
+    """403 playlistItemsNotAccessible is about one playlist the club made private, not
+    the key: the uploads and the other playlists must still be read."""
+    def answer(url, params, timeout):
+        if params["playlistId"] == "PL1":
+            return api_error(403, "playlistItemsNotAccessible")
+        return FakeResponse(200, {**PAGE, "nextPageToken": None})
+
+    monkeypatch.setattr(youtube_api.requests, "get", answer)
+    entries = youtube_api.collect_from_api("UC123", {"2025/26": ["PL1"]}, SECRET_KEY)
+    assert {e.video_id for e in entries} == {"tHNmlqoPQEs", "dRsHKQtTRBM"}
+
+
+def test_null_snippet_fields_are_skipped_not_a_crash():
+    payload = {"items": [{"snippet": None}, {"snippet": {"resourceId": None, "title": "x"}},
+                         {"snippet": {"resourceId": {"videoId": "v"}, "title": "t"},
+                          "contentDetails": None}]}
+    entries = youtube_api.parse_playlist_items(payload, "2025/26", "PL1")
+    assert [(e.video_id, e.published) for e in entries] == [("v", None)]
+
+
 @pytest.mark.parametrize("status,reason", [
+    (400, "badRequest"),            # what an invalid key actually answers
     (400, "keyInvalid"), (403, "accessNotConfigured"), (403, "quotaExceeded")])
 def test_a_refused_key_stops_the_run_at_the_first_call(monkeypatch, status, reason):
     """A bad key, the API off on the project, or the quota spent fail every call the same

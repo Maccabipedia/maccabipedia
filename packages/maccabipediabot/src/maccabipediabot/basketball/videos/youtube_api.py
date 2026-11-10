@@ -28,6 +28,10 @@ _REQUEST_TIMEOUT_SECONDS = 30
 _MAX_PAGES_PER_PLAYLIST = 20
 # Titles YouTube gives a video that is in the playlist but cannot be shown.
 _UNAVAILABLE_TITLES = {"Private video", "Deleted video"}
+# 4xx reasons about ONE playlist (gone, or made private). Every other 400/401/403 is
+# about the key, the project or the quota, and another playlist would fail the same
+# way — an invalid key itself comes back as 400 "badRequest".
+_PER_PLAYLIST_REASONS = {"playlistNotFound", "playlistItemsNotAccessible"}
 
 # A basketball season turns over between the finals and the next pre-season.
 SEASON_ROLLOVER_MONTH = 8
@@ -63,8 +67,8 @@ def parse_playlist_items(payload: dict, season: str, playlist: str) -> list[Vide
     """Turn one page of `playlistItems.list` into entries. Durations are not listed."""
     entries = []
     for item in payload.get("items", []):
-        snippet = item.get("snippet", {})
-        video_id = snippet.get("resourceId", {}).get("videoId")
+        snippet = item.get("snippet") or {}
+        video_id = (snippet.get("resourceId") or {}).get("videoId")
         title = (snippet.get("title") or "").strip()
         if not video_id or not title or title in _UNAVAILABLE_TITLES:
             continue
@@ -76,7 +80,7 @@ def parse_playlist_items(payload: dict, season: str, playlist: str) -> list[Vide
             playlist=playlist,
             # videoPublishedAt is when the video went up; snippet.publishedAt is only
             # when it was added to this playlist, which can be months later.
-            published=item.get("contentDetails", {}).get("videoPublishedAt"),
+            published=(item.get("contentDetails") or {}).get("videoPublishedAt"),
             description=snippet.get("description") or "",
         ))
     return entries
@@ -95,9 +99,9 @@ def fetch_playlist(playlist_id: str, api_key: str, season: str, playlist: str,
                    max_pages: int = _MAX_PAGES_PER_PLAYLIST) -> list[VideoEntry]:
     """Every item of one playlist, up to `max_pages` pages of 50.
 
-    Raises ApiKeyRejected on 400/401/403: a bad key, the API not enabled on the project,
-    or the day's quota spent — none of which another playlist would answer differently.
-    Raises requests.HTTPError for anything else, a 404 for a missing playlist included.
+    Raises ApiKeyRejected on a 400/401/403 about the key, the project or the quota —
+    none of which another playlist would answer differently. Raises requests.HTTPError
+    for anything else, a missing or private playlist included.
     """
     entries: list[VideoEntry] = []
     page_token = None
@@ -108,17 +112,21 @@ def fetch_playlist(playlist_id: str, api_key: str, season: str, playlist: str,
             params["pageToken"] = page_token
         response = requests.get(PLAYLIST_ITEMS_URL, params=params,
                                 timeout=_REQUEST_TIMEOUT_SECONDS)
-        if response.status_code in (400, 401, 403):
-            raise ApiKeyRejected(f"YouTube Data API refused the request: HTTP "
-                                 f"{response.status_code} {_error_reason(response)}")
         if response.status_code != 200:
+            reason = _error_reason(response)
+            if response.status_code in (400, 401, 403) and reason not in _PER_PLAYLIST_REASONS:
+                raise ApiKeyRejected(f"YouTube Data API refused the request: HTTP "
+                                     f"{response.status_code} {reason}")
             # Built by hand: requests' own message carries the URL, and the URL the key.
-            raise requests.HTTPError(f"HTTP {response.status_code} {_error_reason(response)}")
+            raise requests.HTTPError(f"HTTP {response.status_code} {reason}")
         payload = response.json()
         entries.extend(parse_playlist_items(payload, season, playlist))
         page_token = payload.get("nextPageToken")
         if not page_token:
-            break
+            return entries
+    if max_pages > 1:
+        logger.warning("Playlist %s has more than %d pages; read only the first %d",
+                       playlist, max_pages, max_pages)
     return entries
 
 

@@ -145,7 +145,8 @@ plus every page of the wanted seasons' playlists. That costs about 1 quota unit 
 videos, a few dozen units a run out of 10,000 a day. A playlist item already carries the
 title, description and publish time, so no watch page is fetched.
 - A refused key (bad key, API off, quota spent) stops at the first call with the API's
-  reason code. A missing playlist (404) only warns. If nothing could be read, the run raises
+  reason code. A missing or private playlist (`playlistNotFound`,
+  `playlistItemsNotAccessible`) only warns. If nothing could be read, the run raises
   `NoVideosAvailable` instead of passing as "no new videos".
 - requests puts the full URL, key included, in its error messages, so `youtube_api.py`
   never logs a raw exception. The failure alert redacts the key as well.
