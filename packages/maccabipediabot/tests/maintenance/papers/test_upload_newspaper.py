@@ -122,6 +122,20 @@ def test_a_linked_table_does_not_use_up_a_clip_slot(wiki):
     assert any("up to 3" in p for p in problems)
 
 
+def test_a_taken_table_name_points_to_replace_not_description(wiki):
+    table = NewspaperClip(classification="טבלת ליגה", **VB_CLIP)
+    wiki(files={table.file_name: "{{תיוג עיתוני כדורעף}}"})
+    problems = " ".join(tool.upload_problems(args(), table, table.file_name, VB_GAME, [],
+                                             Image.new("RGB", (300, 350)), DATA))
+    assert "--replace" in problems and "--description" not in problems
+
+
+def test_basketball_tables_leave_room_for_clips(wiki):
+    wiki()
+    linked = ["קובץ:א.jpg", "קובץ:ב.jpg", "קובץ:טבלת משחק כדורסל 29-10-1998.jpg"]
+    assert tool.upload_problems(args(), CLIP, CLIP.file_name, GAME, linked, Image.new("RGB", (800, 600)), DATA) == []
+
+
 def test_new_upload_refuses_taken_deleted_or_duplicate(wiki):
     wiki(files={CLIP.file_name: TEXT}, deleted=[CLIP.file_name], same_bytes=["קובץ:עותק.jpg"])
     problems = " ".join(tool.upload_problems(args(), CLIP, CLIP.file_name, GAME, [],

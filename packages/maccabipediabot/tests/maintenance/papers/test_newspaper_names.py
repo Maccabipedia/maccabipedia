@@ -109,6 +109,8 @@ def test_volleyball_table_is_named_by_its_game_date_alone():
     assert table().file_name == "טבלה לאחר משחק כדורעף 16-10-1990.jpg"
     assert is_table_file("קובץ:" + table().file_name) and is_table_file(table().file_name)
     assert not is_table_file(clip().file_name)
+    assert is_table_file("קובץ:טבלת משחק כדורסל 01-04-1960.jpg")  # basketball's tables, same tagging
+    assert table(publish_date=date(1990, 10, 23)).file_name  # a week later still passes
 
 
 def test_volleyball_table_page_text_is_a_league_table_of_its_game():
@@ -119,8 +121,9 @@ def test_volleyball_table_page_text_is_a_league_table_of_its_game():
 
 @pytest.mark.parametrize("changes, reason", [
     (dict(description="טבלה שנייה"), "drop --description"),
-    (dict(publish_date=date(1990, 10, 15)), "previous game"),
-    (dict(publish_date=date(1990, 11, 1)), "previous game"),
+    (dict(publish_date=date(1990, 10, 15)), "previous round"),
+    (dict(publish_date=date(1990, 10, 16)), "previous round"),
+    (dict(publish_date=date(1990, 10, 24)), "next"),
     (dict(classification="טבלת גביע"), "not uploaded by this tool"),
 ])
 def test_volleyball_table_refusals(changes, reason):

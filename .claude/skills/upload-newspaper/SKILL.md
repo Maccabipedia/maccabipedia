@@ -35,8 +35,8 @@ doesn't have.
 - **One image per article.** Anything with its own headline is its own file. A box
   score, a table or a photo caption stays with its report. Keep the group table, but
   blank the items about other games in the group.
-- **Volleyball league table:** a file of its own, outside the cap, from the paper of the day
-  after the game: `--classification "טבלת ליגה"`, which the tool names
+- **Volleyball league table:** the exception, a file of its own outside the cap (crop it out
+  of the report's clip). It comes from the paper of the day after the game: `--classification "טבלת ליגה"`, which the tool names
   `טבלה לאחר משחק כדורעף DD-MM-YYYY.jpg`. Cut it inside the box's frame, from the `הטבלה` bar to
   the last row (`rules.md`, "Volleyball", "League tables").
 

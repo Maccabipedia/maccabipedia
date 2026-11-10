@@ -33,7 +33,7 @@ from maccabipediabot.maintenance.papers.newspaper_crop import (
 )
 from maccabipediabot.maintenance.papers.newspaper_names import (
     GAME_CAPS, TEMPLATES, NewspaperClip, NewspaperClipError, check_cap, game_cap, game_page_title,
-    is_table_file,
+    is_table_file, taken_name_hint,
 )
 from maccabipediabot.maintenance.tickets.ticket_names import Sport
 
@@ -254,8 +254,7 @@ def main(argv: list[str] | None = None) -> int:
             print(f"AT CAP:    no room for a new file; a swap needs the maintainer's choice"
                   f" ({args.tier}; ask whether the game is a higher --tier)")
         if not args.replace and file_text(file_name) is not None:
-            print(f"EXISTS:    {file_name} is already on the wiki; "
-                  + ("the game has its table already" if clip.is_table else "another piece needs its own --description"))
+            print(f"EXISTS:    {file_name} is already on the wiki; {taken_name_hint(clip)}")
         if not (args.orig or args.image):
             if args.rename_only:
                 return rename_only(args, clip, game_page)
@@ -310,7 +309,7 @@ def rename_only(args: argparse.Namespace, clip: NewspaperClip, game_page: str) -
     if not target:
         problems.append(f"{args.replace} has no 'עמוד N' to fix, or already has the convention name")
     elif file_text(target) is not None:
-        problems.append(f"{target} is taken; give this piece its own --description")
+        problems.append(f"{target} is taken; {taken_name_hint(clip)}")
     if problems:
         print("REFUSED:\n  " + "\n  ".join(problems))
         return 2
@@ -378,13 +377,10 @@ def upload_problems(args: argparse.Namespace, clip: NewspaperClip, file_name: st
         target = rename_target(args.replace, clip, args.rename)
         if target and file_text(target) is not None:
             problems.append(f"after the new version, {args.replace} would be renamed to {target}, which is "
-                            f"taken; give this piece its own --description")
+                            f"taken; {taken_name_hint(clip)}")
     else:
         if file_text(file_name) is not None:
-            problems.append(f"{file_name} already exists with a different image; "
-                            + ("the game has its table already: open it, and use --replace for a better crop"
-                               if clip.is_table else "if this is another piece from the same paper and day, "
-                               "give it its own --description"))
+            problems.append(f"{file_name} already exists with a different image; {taken_name_hint(clip)}")
         if was_deleted(file_name):
             problems.append(f"{file_name} was deleted by an admin before; ask before uploading it again")
         if not clip.is_table:

@@ -54,9 +54,16 @@ MAX_DAYS_AFTER_GAME = 14
 
 MAX_FILE_NAME_BYTES = 240  # MediaWiki's title limit is 255 bytes, minus "File:" and slack
 
-# A volleyball league table after a game: "טבלה לאחר משחק כדורעף 16-10-1990.jpg". Tables sit
-# outside the per-game cap: 40 volleyball games carry one on top of exactly 3 clips (2026-11).
+# A volleyball league table after a game: "טבלה לאחר משחק כדורעף 16-10-1990.jpg". The game
+# template finds it by this exact name and keeps it out of the newspaper gallery, so tables
+# sit outside the per-game cap: 40 volleyball games carry one on top of exactly 3 clips
+# (2026-11). Basketball's 117 tables ("טבלת משחק כדורסל 01-04-1960.jpg", same tagging) are
+# left out of the cap too, though this tool does not upload them.
 VOLLEYBALL_TABLE_PREFIX = "טבלה לאחר משחק כדורעף "
+TABLE_FILE_PREFIXES = (VOLLEYBALL_TABLE_PREFIX, "טבלת משחק כדורסל ")
+# A table goes with the round's report, in the next days' paper: 1-6 days in a sample of
+# 50 volleyball tables. Later than a week it may already show the next round.
+TABLE_DAYS_AFTER_GAME = (1, 7)
 
 _FORBIDDEN_IN_NAME = re.compile(r'["/\\:#<>\[\]|{}*?~\t\n\r\u00a0\u200e\u200f\u202a-\u202e]')
 _HEBREW = re.compile(r"[א-ת]")
@@ -151,10 +158,11 @@ def _check_dates(clip: NewspaperClip) -> None:
     if clip.classification in ("סיקור משחק", "רגע ממשחק") and not 0 <= days <= MAX_DAYS_AFTER_GAME:
         raise NewspaperClipError(f"a report must be published on the game day or up to "
                                  f"{MAX_DAYS_AFTER_GAME} days after it, not {days:+d} days")
-    if clip.is_table and not 0 <= days <= MAX_DAYS_AFTER_GAME:
-        raise NewspaperClipError(f"the table after a game is published on the game day or up to "
-                                 f"{MAX_DAYS_AFTER_GAME} days after it, not {days:+d} days; a table "
-                                 f"printed before the game belongs to the previous game")
+    first, last = TABLE_DAYS_AFTER_GAME
+    if clip.is_table and not first <= days <= last:
+        raise NewspaperClipError(f"the table after a game is published {first}-{last} days after it, not "
+                                 f"{days:+d} days: one printed by the game day shows the previous round, "
+                                 f"and one a week later may show the next")
 
 
 def _check_game_page(clip: NewspaperClip) -> None:
@@ -200,7 +208,14 @@ def game_page_title(cargo_page_name: str) -> str:
 
 def is_table_file(title: str) -> bool:
     """A league-table file, which the per-game cap does not count."""
-    return re.sub(r"^(?:File|קובץ):", "", title).startswith(VOLLEYBALL_TABLE_PREFIX)
+    return re.sub(r"^(?:File|קובץ):", "", title).startswith(TABLE_FILE_PREFIXES)
+
+
+def taken_name_hint(clip: NewspaperClip) -> str:
+    """What to do when the clip's file name is taken."""
+    if clip.is_table:
+        return "the game has its table already: open it, and use --replace for a better crop"
+    return "if this is another piece from the same paper and day, give it its own --description"
 
 
 def game_cap(tier: str) -> int:
