@@ -9,7 +9,10 @@ A spec (JSON), all coordinates in ORIGINAL scan pixels:
                  "blank": [[x0, y0, x1, y1], ...]}],       # relative to the piece
      "wipe": [[[x, y], [x, y], ...]]}                       # polygons, e.g. a slanted rule
 
-``pieces`` are pasted onto a white canvas (stack columns that wrap around another story);
+``pieces`` are pasted onto a white canvas. On one page, use a single piece around the
+article and keep the page's layout: items are never moved, only blanked (rules.md, "Keep
+the page's layout"). Several pieces are for slices of a tilted block, each pasted at its
+own offset, or for an article that continues on another page of the same scan.
 ``blank`` paints a neighbouring story white; ``wipe`` paints a polygon white.
 
 The edge check finds the page's thin rules (solid or dotted: dark along their length,

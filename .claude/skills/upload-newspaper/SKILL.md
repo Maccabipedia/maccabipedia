@@ -45,9 +45,10 @@ original-scan pixels:
 - Get the coordinates from a page map. It draws the detected rules in blue over a grid
   in scan pixels, and `--region` zooms in on one area:
   `uv run python -m maccabipediabot.maintenance.papers.newspaper_pagemap scan.jpg map.jpg --step 50 --region x0 y0 x1 y1`
-- Cut along the page's own rules and gutters. Stack an article's columns when they wrap
-  around another story. Blank the neighbouring stories along the rules that bound them.
-  Use `wipe` polygons for slanted rules.
+- Cut along the page's own rules and gutters. Keep the page's layout: one box around the
+  article, and every column, photo, table and paragraph stays where it is on the page.
+  Remove what isn't Maccabi by blanking it along the rules that bound it, never by moving
+  a piece (`rules.md`, "Keep the page's layout"). Use `wipe` polygons for slanted rules.
 - Only when the whole page is the Maccabi story, keep the whole page, minus ads.
 
 ## 4. Dry run, until the tool passes
@@ -76,4 +77,4 @@ uv run python -m maccabipediabot.maintenance.papers.upload_newspaper \
 2. After their OK: `--apply` on **one** file. Open it on the wiki.
 3. Then the rest, one run per file. To fix a file the bot already uploaded, use
    `--replace "<existing name>"`, which uploads a new version under the same name.
-4. Tell Oren what changed (CLAUDE.md, "Telling Oren What Changed").
+4. Tell Oren what changed (CLAUDE.md, "Telling the Updates Group What Changed").

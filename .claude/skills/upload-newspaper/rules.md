@@ -34,9 +34,9 @@ same params.
   old papers usually come out 350–850 px wide. Measured 2026-10 on every file that
   carries the three tagging templates. The shapes they use:
   - **A full report:** the headline plus every column of the article. When the columns
-    wrap around other stories, cut them out and stack them into one strip. One
-    article means one headline. A piece with its own headline (and often its own
-    byline or frame) that sits in a different area of the page is a separate article
+    wrap around other stories, blank those stories and leave every column where it
+    is (see "Keep the page's layout" below). One article means one headline. A piece
+    with its own headline (and often its own byline or frame) that sits in a different area of the page is a separate article
     and becomes its own image: an interview box, a columnist's frame, reactions. When
     it sits right beside the report in one block (e.g. an interview under the
     report's banner), keep the block as one image.
@@ -44,13 +44,16 @@ same params.
     stays with the report. The group or league table stays too, but a short item on
     another game in the group (e.g. Real–Bosna next to a Maccabi report) is blanked:
     keep the table, drop the other game.
-    Blank only along the crop's edge. A small box sitting inside the article, with
-    the article's own text around it (a teaser for another story, a small result
-    box), stays. Blanking a hole in the middle of the page makes the clip look
-    patched for no gain.
-  - **A round-up or preview column** (all of the round's games in one item): crop just
-    the Maccabi paragraph, with the column's headline above it when it fits. Oren
-    often marks the Maccabi lines with a yellow highlighter.
+    A small box sitting inside the article, with the article's own text around it (a
+    teaser for another story, a small result box), stays. A whole other story inside
+    the box (one the columns wrap around, or the other games between a round-up's
+    headline and its Maccabi paragraph) is blanked where it sits. The hole that leaves
+    is accepted, and it is never a reason to move a piece.
+  - **A round-up or preview column** (all of the round's games in one item): one box
+    from the column's headline down to the Maccabi paragraph, with the games in
+    between blanked. When the headline sits far above, ask the maintainer whether to
+    take that tall clip or the Maccabi paragraph alone. Oren often marks the Maccabi
+    lines with a yellow highlighter.
   - **A table:** the table and its header only (`טבלת ליגה`, `טבלה לאחר משחק …`).
   - **A photo:** the photo with its caption (`רגע ממשחק`).
   - **The only time a whole page is right:** a page or spread that is entirely the
@@ -65,6 +68,19 @@ same params.
   wide and under 1 MB, far below a full spread's 3,850 px. Find the
   article with the text layer (`pdftotext -bbox`, see `.claude/newspaper_archives.md`),
   then open the crop and read it before uploading.
+  **Keep the page's layout.** Every kept item stays where it was on the page: the
+  columns, the photo, the table, the box score, the ratings line that runs on into the
+  next column. Build the crop as one box around the article and remove the rest by
+  blanking it. Never move a piece to a new spot on the canvas to close a gap or make the
+  clip more compact. That holds even inside one column: a round-up's Maccabi paragraph
+  stays at its own height under the headline, with the other games blanked above it. The
+  maintainer asked for this on 2026-11-11, after a Yedioth round-up came out with the
+  photo moved beside the text and the ratings tail moved under its column ("we keep the
+  original place of the items, just cut out stuff"). Two cases use more than one piece,
+  and neither moves anything: slices of a tilted block (each pasted at its own offset),
+  and an article that runs onto another page. The tool crops every piece from one
+  `--orig` scan, so the two pages go into one stacked image only when both are in the
+  same scan (a Yedioth spread); otherwise they are two files.
   **Cut along the page's own separators.** A newspaper page is divided into areas by
   solid rules, dotted or dashed rules, photo frames, boxes and the white gutters
   between columns. Find those first, then build the crop from whole areas: the
@@ -120,7 +136,7 @@ same params.
   2. Does the article continue past this edge? Look across it: a column may run on
      below the cut, a section such as `נקמה` may follow under its own subhead, or a
      second piece on the same game (reactions, quotes) may sit right underneath. If
-     it does, extend the crop or add a stacked piece.
+     it does, extend the crop to take it in, where it stands.
   Before trusting a blank, read the text it covers. Twice a blanked block turned out
   to be part of the article, not a neighbouring story. The edge review found
   something on 8 of the first 12 crops (2026-10). Check the bottom edge: the crop ends
@@ -208,8 +224,10 @@ files (date first, opponent written `מכבי תל אביב נגד …`; don't c
   regular cap of 3 (up to 9, on a 1989/90 game), so count first.
 - **Round-ups:** most volleyball coverage reports the whole playoff round or league round in
   one article, with a paragraph or a ratings box per game. Even when the headline names Maccabi,
-  keep only the headline (and subhead or byline) plus the Maccabi paragraphs, stacked as pieces.
-  Drop the other games. The maintainer corrected exactly this on 2026-10-17 (Maariv 7.4.1991).
+  keep only the headline (and subhead or byline) plus the Maccabi paragraphs. Blank the other
+  games: the maintainer corrected exactly this on 2026-10-17 (Maariv 7.4.1991). Each kept part
+  stays where it stands on the page; don't move the Maccabi paragraph up to close the gap
+  (2026-11-11, "Keep the page's layout").
   Women's results tacked onto the end of a men's item go too ("נשים, ליגה לאומית: …"): blank
   them and keep the byline (Yedioth 12.4.1991).
 - **Categories:** don't type any. The template adds date, paper and classification, and its
