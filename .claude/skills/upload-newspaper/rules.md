@@ -36,7 +36,8 @@ same params.
   - **A full report:** the headline plus every column of the article. When the columns
     wrap around other stories, blank those stories and leave every column where it
     is (see "Keep the page's layout" below). One article means one headline. A piece
-    with its own headline (and often its own byline or frame) that sits in a different area of the page is a separate article
+    with its own headline (and often its own byline or frame) that sits in a different
+    area of the page is a separate article
     and becomes its own image: an interview box, a columnist's frame, reactions. When
     it sits right beside the report in one block (e.g. an interview under the
     report's banner), keep the block as one image.
@@ -76,10 +77,11 @@ same params.
   stays at its own height under the headline, with the other games blanked above it. The
   maintainer asked for this on 2026-11-11, after a Yedioth round-up came out with the
   photo moved beside the text and the ratings tail moved under its column ("we keep the
-  original place of the items, just cut out stuff"). Two cases use more than one piece,
-  and neither moves anything: slices of a tilted block (each pasted at its own offset),
-  and an article that runs onto another page. The tool crops every piece from one
-  `--orig` scan, so the two pages go into one stacked image only when both are in the
+  original place of the items, just cut out stuff"). Two cases use more than one piece.
+  Slices of a tilted block follow the drifting rule, each pasted at its own offset, so
+  the layout still holds. An article that runs onto another page is the one exception
+  to the rule: its two parts share no position, so they may be stacked. The tool crops
+  every piece from one `--orig` scan, so that works only when both pages are in the
   same scan (a Yedioth spread); otherwise they are two files.
   **Cut along the page's own separators.** A newspaper page is divided into areas by
   solid rules, dotted or dashed rules, photo frames, boxes and the white gutters
@@ -150,7 +152,8 @@ same params.
   scan first (shear it back until the frame is square), then crop. A column that
   ends mid-sentence usually goes on at the top of the next column to its left; read
   that join before calling text missing or continued elsewhere. An article that runs onto a second
-  page is two files, or one stacked image, never two whole pages.
+  page is two files, or one stacked image when both pages are in one scan, never two
+  whole pages.
 - **Existing scan:** add `סיווג` and `שיוך משחק` inside the template, and keep the
   rest of the page unchanged.
 - **`סיווג`:** the template accepts `טבלת ליגה`, `טבלת גביע`, `לקראת משחק`,
