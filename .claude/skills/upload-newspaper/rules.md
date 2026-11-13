@@ -50,13 +50,29 @@ same params.
     the box (one the columns wrap around, or the other games between a round-up's
     headline and its Maccabi paragraph) is blanked where it sits. The hole that leaves
     is accepted, and it is never a reason to move a piece.
+    Bullets and sub-headlines under the article's own headline (same frame or byline)
+    are part of it and stay. A list stops before the next bullet on another sport.
+    A wide headline over the article and unrelated items: keep the headline and the
+    article, blank the rest, even when that leaves a large white area. An L-shaped
+    article with a blanked corner is fine.
+    An article on another game that names Maccabi only in its results line is kept
+    whole. A few Maccabi lines inside another sport's box: that item only. A
+    multi-sport schedule box: the box title and the Maccabi sport's paragraph only.
+    **A frame shared with a foreign item** (one red frame around the report and an
+    NBA item beside it): cut around the article along the gutter between them, so the
+    frame stays open on the side where it runs on. Never keep the whole frame with the
+    foreign item blanked; that file comes out mostly white.
   - **A round-up or preview column** (all of the round's games in one item): one box
     from the column's headline down to the Maccabi paragraph, with the games in
     between blanked. When the headline sits far above, ask the maintainer whether to
     take that tall clip or the Maccabi paragraph alone. Oren often marks the Maccabi
-    lines with a yellow highlighter.
+    lines with a yellow highlighter. A photo inside the round-up stays, even one of
+    another team.
   - **A table:** the table and its header only (`טבלת ליגה`, `טבלה לאחר משחק …`).
-  - **A photo:** the photo with its caption (`רגע ממשחק`).
+  - **A photo:** the photo with its caption (`רגע ממשחק`). A game photo that stands
+    apart from the article (another spot on the page, or another library clip) is its
+    own file, even when the article went up from the same paper and day (Maariv
+    8.11.1976, uploaded that way by `אורן המתעפץ`).
   - **The only time a whole page is right:** a page or spread that is entirely the
     game's coverage under one frame or banner (and even then a separately headlined
     piece inside it can still go up on its own when the cap allows), of any era: a
@@ -79,10 +95,12 @@ same params.
   photo moved beside the text and the ratings tail moved under its column ("we keep the
   original place of the items, just cut out stuff"). Two cases use more than one piece.
   Slices of a tilted block follow the drifting rule, each pasted at its own offset, so
-  the layout still holds. An article that runs onto another page is the one exception
-  to the rule: its two parts share no position, so they may be stacked. The tool crops
-  every piece from one `--orig` scan, so that works only when both pages are in the
-  same scan (a Yedioth spread); otherwise they are two files.
+  the layout still holds. An article that runs onto another page (`(סוף בעמוד אחרון)`,
+  `(המשך מעמוד ראשון)`) is two files: the first part is the report, and the
+  continuation gets a description (`המשך מעמוד ראשון`), even when both pages are in one
+  scan. The continuation carries its own headline, and stacked, the two parts read as
+  two clips glued together (maintainer, 2026-11-13, Hadashot HaSport 8.11.1976). Both
+  files count against the game's cap.
   **Cut along the page's own separators.** A newspaper page is divided into areas by
   solid rules, dotted or dashed rules, photo frames, boxes and the white gutters
   between columns. Find those first, then build the crop from whole areas: the
@@ -147,13 +165,15 @@ same params.
   edges too: old scans are often tilted, so a column rule can drift 15 px or more
   down the page. A straight cut then shows slivers of the next column at one end and
   clips this article's letters at the other. Follow the rule, or cut the block into
-  slices. A scan can also be sheared rather than rotated: the vertical rules lean
+  slices. A scan that came in sideways or upside down (a Hadashot HaSport issue
+  scanned as a sideways spread) is turned upright first (`convert -rotate 90`) and
+  cropped from that; the file always goes up upright. A file name's page number can
+  be wrong too (`עמ2` holding page 11): trust the page itself. A scan can also be sheared rather than rotated: the vertical rules lean
   while the horizontal ones stay level, so rotating doesn't fix it. Straighten the
   scan first (shear it back until the frame is square), then crop. A column that
   ends mid-sentence usually goes on at the top of the next column to its left; read
   that join before calling text missing or continued elsewhere. An article that runs onto a second
-  page is two files, or one stacked image when both pages are in one scan, never two
-  whole pages.
+  page is two files (see "Keep the page's layout"), never two whole pages.
 - **Existing scan:** add `סיווג` and `שיוך משחק` inside the template, and keep the
   rest of the page unchanged.
 - **`סיווג`:** the template accepts `טבלת ליגה`, `טבלת גביע`, `לקראת משחק`,
@@ -249,6 +269,12 @@ files (date first, opponent written `מכבי תל אביב נגד …`; don't c
   - The clip is the Maccabi article itself: keep all of it.
   - A round-up cut down to the Maccabi part that still keeps over half the clip: name what
     was cut away.
+  A clip stays as the library arranged it. An article and its photo that the library saved
+  as two clips are two files (על המשמר 20.6.1976): the page they came from is not in the
+  archive, so stacking them would invent a layout. A clip that mixes another item with a
+  Maccabi photo keeps the photo and caption only (Maariv 8.11.1976).
+  When a clip's PDF has a text layer, `pdfimages` returns only its photo; render it with
+  `pdftoppm -r 200` instead.
 
 ## Limits enforced in code
 
