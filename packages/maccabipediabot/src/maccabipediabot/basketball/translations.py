@@ -464,6 +464,21 @@ _PERSON_NAMES: dict[str, str] = {
     "Alvaro Cardenas": "אלווארו קרדנס טורה",
     "Gonzalo Corbalan": "גונזלו קורבלאן",
     "Jasiel Rivero": "חסיאל ריברו",
+    # Later games: names an editor translated on the 29/10 and 06/11/2026 pages, and three
+    # players the crawler still left in English although the wiki already spells them in Hebrew.
+    "Maxime Lefevre": "מקסים לפבר",
+    "Tyson Etienne": "טייסון אטיין",
+    "Alize Johnson": "אליזה ג'ונסון",
+    "Ethan Thompson": "אית'ן תומפסון",
+    "Antonio Reeves": "אנטוניו ריבס",
+    "Carlik Jones": "קרליק ג׳ונס",  # the wiki writes him with ׳ on all his games
+    "Mario Nakic": "מריו נאקיץ'",
+    "Robert Franks": "רוברט פרנקס",
+    "Nikola Tanaskovic": "ניקולה טנסקוביץ'",
+    "Joffrey Lauvergne": "ז'ופרי לוברן",
+    "Nick Weiler-Babb": "ניק ויילר-באב",
+    "Amir Coffey": "אמיר קופי",
+    "Eugene German": "יוג'ין ג'רמן",
 }
 
 _STADIUM_NAMES: dict[str, str] = {
@@ -814,14 +829,6 @@ _TEAM_RENAMES: dict[str, list[TeamRename]] = {
     "חובנטוד באדלונה": _all_years("חובנטוד בדאלונה"),
     "ז'אלגריס קובנה": _all_years("ז'לגיריס קובנה"),
     "אפס פילזן איסטנבול": _all_years("אפס פילזן"),
-    # League opponents once named by settlement only, on games of 1959/60-1960/61; the
-    # wiki's game pages were renamed to the full club name. The window is calendar years
-    # 1959-1961, so it also reaches the edges of 1958/59 and 1961/62.
-    "גבעת חיים": [TeamRename("הפועל גבעת חיים", 1959, 1961)],
-    "גבעת ברנר": [TeamRename("הפועל גבעת ברנר", 1959, 1961)],
-    "משמר העמק": [TeamRename("הפועל משמר העמק", 1959, 1961)],
-    "אשדות יעקב": [TeamRename("הפועל אשדות יעקב", 1959, 1961)],
-    "קרית מוצקין": [TeamRename("מכבי קרית מוצקין", 1959, 1961)],
     "מכבי רמת עמידר": [
         TeamRename("מכבי רמת עמידר", 1957, 2005),
         TeamRename("הכח עמידר רמת גן", 2005, 2100),
