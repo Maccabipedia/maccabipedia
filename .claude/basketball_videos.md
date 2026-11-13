@@ -97,7 +97,7 @@ one: a video posted within ten days of exactly one candidate settles it.
 | `basketball/videos/euroleague_title.py` | EuroLeague titles |
 | `basketball/videos/aliases.py` | opponent name comparison |
 | `basketball/videos/matcher.py` | buckets and slot assignment |
-| `basketball/videos/inventory.py`, `rss.py` | the two ways of listing videos |
+| `basketball/videos/inventory.py`, `youtube_api.py` | the two ways of listing videos (yt-dlp for the backfill, the Data API for the scheduled run) |
 | `basketball/videos/season_token.py` | maps a channel playlist title to the wiki's season label |
 | `basketball/videos/watch_page.py` | bulk upload-date + description fetch, one GET per video |
 | `basketball/videos/played_date.py` | parses a played date out of an archive video's description |
@@ -133,11 +133,32 @@ Add `--write` to edit pages, `--dry-run` to see what it would do, `--pages FILE`
 restrict the run to named pages, `--purge` to refresh the season pages afterwards.
 Progress is recorded per video, so a killed run resumes without re-editing.
 
-The scheduled run in `basketball_games_uploader.yaml` uses `--source rss --seasons
+The scheduled run in `basketball_games_uploader.yaml` uses `--source api --seasons
 current,previous --write --purge --min-confidence 9` (the same 9 that's the CLI's own
-default, spelled out explicitly in the workflow file). It needs no API key: YouTube's feed endpoint answers
-datacenter IPs, unlike yt-dlp. **Annual maintenance:** add the new season's playlist ids
-to `SEASON_PLAYLIST_IDS`; the run warns when the current season is missing.
+default, spelled out explicitly in the workflow file). A manual run of the workflow with
+`videos_dry_run` ticked logs what this step would write and writes nothing.
+
+It reads the YouTube Data API v3 with the `YOUTUBE_API_KEY` repo secret, a key in the
+Google Cloud project `maccabivideos` restricted to that API. Locally, put the same key in
+`YOUTUBE_API_KEY`. Each run reads the newest 50 uploads (the channel's `UU…` playlist)
+plus every page of the wanted seasons' playlists. That costs about 1 quota unit per 50
+videos, a few dozen units a run out of 10,000 a day. A playlist item already carries the
+title, description and publish time, so no watch page is fetched.
+- A refused key (bad key, API off, quota spent) stops at the first call with the API's
+  reason code. A missing or private playlist (`playlistNotFound`,
+  `playlistItemsNotAccessible`) only warns. If nothing could be read, the run raises
+  `NoVideosAvailable` instead of passing as "no new videos".
+- requests puts the full URL, key included, in its error messages, so `youtube_api.py`
+  never logs a raw exception. The failure alert redacts the key as well.
+
+**Why not the RSS feeds:** this step used to read `feeds/videos.xml`. From late 2026 that
+endpoint answered 404/500 for every channel, YouTube's own included, for hours almost every
+night, while the site and the watch pages answered 200. 17 of 26 failures in 200 runs,
+nightly from 2026-10-28. Other feed readers (newsboat, miniflux, n8n) reported the same, and
+nothing on the caller's side (headers, IPv4, other feed forms) got through.
+
+**Annual maintenance:** add the new season's playlist ids to `SEASON_PLAYLIST_IDS`; the
+run warns when the current season is missing.
 
 ## Slots
 

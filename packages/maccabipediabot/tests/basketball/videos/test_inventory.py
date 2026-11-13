@@ -1,4 +1,4 @@
-"""Tests for building the video inventory from yt-dlp output and from RSS feeds."""
+"""Tests for building the video inventory from yt-dlp output."""
 from pathlib import Path
 
 import pytest
@@ -11,13 +11,6 @@ from maccabipediabot.basketball.videos.inventory import (
     split_playlist_count,
     yt_dlp_command,
 )
-from maccabipediabot.basketball.videos.rss import (
-    channel_feed_url,
-    parse_feed,
-    playlist_feed_url,
-)
-
-CHANNEL_FEED = Path(__file__).parent / "fixtures" / "channel_feed.xml"
 
 
 def test_parse_yt_dlp_line():
@@ -65,22 +58,6 @@ def test_inventory_round_trip(tmp_path: Path):
     assert load_inventory(path) == entries
 
 
-def test_parse_feed_reads_ids_titles_and_publish_dates():
-    entries = parse_feed(CHANNEL_FEED.read_text(encoding="utf-8"), season="2026/27", playlist="channel")
-    assert len(entries) == 15
-    assert all(entry.video_id for entry in entries)
-    assert all(entry.published for entry in entries)
-    assert all(entry.season == "2026/27" for entry in entries)
-    # The feed carries no duration, and the matcher must tolerate that.
-    assert all(entry.duration_seconds is None for entry in entries)
-
-
-def test_parse_feed_unescapes_titles():
-    entries = parse_feed(CHANNEL_FEED.read_text(encoding="utf-8"), season="2026/27", playlist="channel")
-    assert not any("&quot;" in entry.title for entry in entries)
-    assert any('ת"א' in entry.title for entry in entries)
-
-
 @pytest.mark.parametrize("line,count,rest", [
     ("508|Some title|abc123|177", 508, "Some title|abc123|177"),
     ("NA|Some title|abc123|177", None, "Some title|abc123|177"),
@@ -97,8 +74,3 @@ def test_yt_dlp_command_is_overridable(monkeypatch):
     assert yt_dlp_command() == ["yt-dlp"]
     monkeypatch.setenv("YT_DLP_COMMAND", "uvx yt-dlp@latest")
     assert yt_dlp_command() == ["uvx", "yt-dlp@latest"]
-
-
-def test_feed_urls():
-    assert playlist_feed_url("PLabc") == "https://www.youtube.com/feeds/videos.xml?playlist_id=PLabc"
-    assert channel_feed_url("UCxyz") == "https://www.youtube.com/feeds/videos.xml?channel_id=UCxyz"

@@ -3,7 +3,7 @@
 Two uses, one entry point:
 
 * the one-off backfill, reading an inventory built by yt-dlp over every season;
-* the scheduled job, reading YouTube's RSS feeds for the current and previous season.
+* the scheduled job, reading the YouTube Data API for the current and previous season.
 
 Nothing is written without --write, and --write only ever fills a template parameter
 that is empty. Run --report first and read the result.
@@ -11,10 +11,11 @@ that is empty. Run --report first and read the result.
 import argparse
 import csv
 import logging
+import os
 from datetime import date
 from pathlib import Path
 
-from maccabipediabot.basketball.videos import rss
+from maccabipediabot.basketball.videos import youtube_api
 from maccabipediabot.basketball.videos.cargo import fetch_basketball_game_rows
 from maccabipediabot.basketball.videos.confidence import MAX_SCORE, score_all
 from maccabipediabot.basketball.videos.inventory import (
@@ -51,8 +52,8 @@ logger = logging.getLogger(__name__)
 # scheduled job, so a game whose video appears late is still caught.
 _SEASON_ROLLOVER_MONTH = 8
 
-# Playlist ids for the RSS path, which cannot discover them itself. Only the current
-# and previous season are needed; the channel feed still works without them, at lower
+# Playlist ids for the API path, which does not discover them itself. Only the current
+# and previous season are needed; the channel's uploads still work without them, at lower
 # signal density. Add the new season here once a year — the run warns when it is missing.
 SEASON_PLAYLIST_IDS: dict[str, list[str]] = {
     # The 2026/27 playlist is named just "2026-27" on the channel, with no
@@ -117,29 +118,29 @@ def build_inventories(inventory_path: Path | None, euroleague_path: Path | None,
         logger.info("EuroLeague: %d videos -> %s", len(entries), euroleague_path)
 
 
-def collect_entries_from_rss(seasons: list[str]) -> list[VideoEntry]:
-    """One pass over the channel feed plus the playlist feeds of the wanted seasons.
+def collect_entries_from_api(seasons: list[str], api_key: str) -> list[VideoEntry]:
+    """One pass over the channel's uploads plus the playlists of the wanted seasons.
 
-    Deliberately NOT once per season: the channel feed is the same document each time,
-    and its videos carry their own publish date, from which the season is derived.
+    Deliberately NOT once per season: the uploads are the same list each time, and each
+    video carries its own publish date, from which the season is derived.
     """
     playlist_ids_by_season = {}
     for season in seasons:
         playlist_ids = SEASON_PLAYLIST_IDS.get(season)
         if playlist_ids is None:
             logger.warning(
-                "No playlist ids for season %s: that season relies on the channel feed "
-                "alone. Add them to SEASON_PLAYLIST_IDS for denser coverage.", season)
+                "No playlist ids for season %s: that season relies on the channel's "
+                "uploads alone. Add them to SEASON_PLAYLIST_IDS for denser coverage.", season)
             continue
         playlist_ids_by_season[season] = playlist_ids
 
-    entries = rss.collect_from_feeds(MACCABI_CHANNEL_ID, playlist_ids_by_season)
+    entries = youtube_api.collect_from_api(MACCABI_CHANNEL_ID, playlist_ids_by_season, api_key)
     wanted = set(seasons)
     kept = [entry for entry in entries if entry.season in wanted]
-    logger.info("RSS: %d of %d videos fall in %s", len(kept), len(entries), sorted(wanted))
-    # A feed carries no description, and the description is where the club states the
-    # date the game was played. One extra GET per new video buys evidence the feed and
-    # the title cannot give, and a feed holds at most 15 items.
+    logger.info("YouTube API: %d of %d videos fall in %s",
+                len(kept), len(entries), sorted(wanted))
+    # The API already gives each video's description and publish time, so this fetches
+    # a watch page only for the rare item that came back without a publish time.
     return with_watch_page_facts(kept)
 
 
@@ -168,8 +169,9 @@ def log_bucket_counts(matches) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--source", choices=("file", "rss"), default="file",
-                        help="file: a yt-dlp inventory JSON. rss: YouTube's public feeds.")
+    parser.add_argument("--source", choices=("file", "api"), default="file",
+                        help="file: a yt-dlp inventory JSON. api: the YouTube Data API, "
+                             "with the key in YOUTUBE_API_KEY.")
     parser.add_argument("--inventory", type=Path,
                         help="Club-channel inventory JSON (required for --source file).")
     parser.add_argument("--euroleague-inventory", type=Path,
@@ -216,10 +218,11 @@ def main() -> None:
         build_inventories(args.inventory, args.euroleague_inventory, seasons)
         return
 
-    if args.source == "rss":
+    if args.source == "api":
         if seasons is None:
-            raise SystemExit("--source rss needs --seasons (feeds carry only recent videos)")
-        entries = collect_entries_from_rss(seasons)
+            raise SystemExit("--source api needs --seasons (it reads only the listed "
+                             "seasons' playlists and the newest uploads)")
+        entries = collect_entries_from_api(seasons, os.environ.get("YOUTUBE_API_KEY", ""))
     else:
         if args.inventory is None:
             raise SystemExit("--source file needs --inventory")

@@ -1,0 +1,55 @@
+{
+  "kind": "youtube#playlistItemListResponse",
+  "nextPageToken": "EAAaBlBUOkNESQ",
+  "pageInfo": {"totalResults": 4, "resultsPerPage": 50},
+  "items": [
+    {
+      "kind": "youtube#playlistItem",
+      "id": "VVVxeE5vSTg1Nl",
+      "snippet": {
+        "publishedAt": "2026-09-12T08:00:00Z",
+        "channelId": "UCqxNoI856R_vgs7aQolQhlg",
+        "title": "מבט לתוך האימון בקפריסין 👀",
+        "description": "",
+        "resourceId": {"kind": "youtube#video", "videoId": "tHNmlqoPQEs"}
+      },
+      "contentDetails": {"videoId": "tHNmlqoPQEs", "videoPublishedAt": "2026-09-11T10:52:14Z"}
+    },
+    {
+      "kind": "youtube#playlistItem",
+      "id": "VVVxeE5vSTg1N2",
+      "snippet": {
+        "publishedAt": "2025-03-01T08:00:00Z",
+        "channelId": "UCqxNoI856R_vgs7aQolQhlg",
+        "title": "תקציר המשחק: מכבי Rapyd ת\"א - מילאנו 102:88",
+        "description": "המשחק נערך ב-27.02.2025",
+        "resourceId": {"kind": "youtube#video", "videoId": "dRsHKQtTRBM"}
+      },
+      "contentDetails": {"videoId": "dRsHKQtTRBM", "videoPublishedAt": "2025-02-27T22:10:00Z"}
+    },
+    {
+      "kind": "youtube#playlistItem",
+      "id": "VVVxeE5vSTg1N3",
+      "snippet": {
+        "publishedAt": "2025-03-02T08:00:00Z",
+        "channelId": "UCqxNoI856R_vgs7aQolQhlg",
+        "title": "Private video",
+        "description": "This video is private.",
+        "resourceId": {"kind": "youtube#video", "videoId": "PrivateVid1"}
+      },
+      "contentDetails": {"videoId": "PrivateVid1"}
+    },
+    {
+      "kind": "youtube#playlistItem",
+      "id": "VVVxeE5vSTg1N4",
+      "snippet": {
+        "publishedAt": "2025-03-03T08:00:00Z",
+        "channelId": "UCqxNoI856R_vgs7aQolQhlg",
+        "title": "Deleted video",
+        "description": "This video is unavailable.",
+        "resourceId": {"kind": "youtube#video", "videoId": "DeletedVid1"}
+      },
+      "contentDetails": {"videoId": "DeletedVid1"}
+    }
+  ]
+}

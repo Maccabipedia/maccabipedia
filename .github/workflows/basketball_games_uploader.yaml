@@ -3,6 +3,11 @@ on:
   schedule:
     - cron: '0 10,15,21 * * *'  # 1pm, 6pm, midnight IDT (UTC+3)
   workflow_dispatch:
+    inputs:
+      videos_dry_run:
+        description: "Attach game videos: log what would be written, write nothing"
+        type: boolean
+        default: false
   repository_dispatch:
     types: [zapier_trigger_basketball_upload_game]
 
@@ -90,19 +95,21 @@ jobs:
 
       # Videos appear on the club's YouTube channel hours to days after the game, so this
       # cannot run at upload time — it revisits games of the current and previous season
-      # whose video parameters are still empty and fills whatever it can match. Reads
-      # YouTube's public RSS feeds: no API key, no proxy, and unlike yt-dlp they answer
-      # datacenter IPs.
+      # whose video parameters are still empty and fills whatever it can match. Reads the
+      # YouTube Data API (key: YOUTUBE_API_KEY, project maccabivideos). It replaced the
+      # public RSS feeds, which answered 404 for every channel most nights from late 2026.
       - name: Attach game videos from the official channel
         id: attach_videos
         env:
           PYWIKIBOT_DIR: packages/maccabipediabot/src/maccabipediabot/pywikibot_configs/
           MACCABIPEDIA_BOT_USERNAME: ${{ secrets.MACCABIPEDIA_BOT_USERNAME }}
           MACCABIPEDIA_BOT_PASSWORD: ${{ secrets.MACCABIPEDIA_BOT_PASSWORD }}
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+          VIDEOS_DRY_RUN: ${{ inputs.videos_dry_run && '--dry-run' || '' }}
         run: |
           set -o pipefail
           uv run python -m maccabipediabot.basketball.videosbot_basketball \
-            --source rss --seasons current,previous --write --purge --min-confidence 9 \
+            --source api --seasons current,previous --write --purge --min-confidence 9 $VIDEOS_DRY_RUN \
             --report /tmp/basketball_videos_report.html 2>&1 | tee -a /tmp/uploader.log
 
       # Matches scored below the write floor are held back on purpose, but without this
@@ -128,6 +135,7 @@ jobs:
         id: failure_detail
         env:
           BOT_PASSWORD: ${{ secrets.MACCABIPEDIA_BOT_PASSWORD }}
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
         run: |
           if   [ "${{ steps.crawl_basket.outcome }}" = "failure" ]; then failed_step="Crawl basket.co.il"
           elif [ "${{ steps.upload_basket.outcome }}" = "failure" ]; then failed_step="Upload basket.co.il games"
@@ -143,6 +151,7 @@ jobs:
           # Literal (non-regex) secret redaction via bash substitution: a quoted pattern is
           # matched verbatim, so embedded / . * etc. need no escaping.
           if [ -n "$BOT_PASSWORD" ]; then detail="${detail//"$BOT_PASSWORD"/[redacted]}"; fi
+          if [ -n "$YOUTUBE_API_KEY" ]; then detail="${detail//"$YOUTUBE_API_KEY"/[redacted]}"; fi
           # Escaped twice: telegram-action runs html.UnescapeString on the message before
           # sending, so a single &lt; reaches Telegram as a raw "<" (e.g. the traceback's
           # "<frozen runpy>") and the send fails with "can't parse entities".
