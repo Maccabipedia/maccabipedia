@@ -47,16 +47,34 @@ same params.
     keep the table, drop the other game.
     A small box sitting inside the article, with the article's own text around it (a
     teaser for another story, a small result box), stays. A whole other story inside
-    the box (one the columns wrap around, or the other games between a round-up's
-    headline and its Maccabi paragraph) is blanked where it sits. The hole that leaves
+    the box (one with its own headline that the columns wrap around) is blanked where
+    it sits. The hole that leaves
     is accepted, and it is never a reason to move a piece.
-  - **A round-up or preview column** (all of the round's games in one item): one box
-    from the column's headline down to the Maccabi paragraph, with the games in
-    between blanked. When the headline sits far above, ask the maintainer whether to
-    take that tall clip or the Maccabi paragraph alone. Oren often marks the Maccabi
-    lines with a yellow highlighter.
+    Bullets and sub-headlines under the article's own headline (same frame or byline)
+    are part of it and stay. A list stops before the next bullet on another sport.
+    A wide headline over the article and unrelated items: keep the headline and the
+    article, blank the rest, even when that leaves a large white area. An L-shaped
+    article with a blanked corner is fine.
+    An article on another game that names Maccabi only in its results line is kept
+    whole. A few Maccabi lines inside another sport's box: that item only. A
+    multi-sport schedule box: the box title and the Maccabi sport's paragraph only.
+    **A frame shared with a foreign item** (one red frame around the report and an
+    NBA item beside it): cut around the article along the gutter between them, so the
+    frame stays open on the side where it runs on. Never keep the whole frame with the
+    foreign item blanked; that file comes out mostly white.
+  - **A round-up or preview column** (all of the round's games in one item): the whole
+    item, every game in it, from its headline to its end, with its photo (even one of
+    another team), table and team-of-the-round box. Blank only what has its own
+    headline or belongs to another sport or to the women's league. The maintainer chose
+    this on 2026-11-13 over cutting down to the Maccabi paragraph, after seeing five
+    round-ups cut both ways. When the headline sits far above, ask the maintainer
+    whether to take that tall clip. Oren often marks the Maccabi lines with a yellow
+    highlighter.
   - **A table:** the table and its header only (`טבלת ליגה`, `טבלה לאחר משחק …`).
-  - **A photo:** the photo with its caption (`רגע ממשחק`).
+  - **A photo:** the photo with its caption (`רגע ממשחק`). A game photo that stands
+    apart from the article (another spot on the page, or another library clip) is its
+    own file, even when the article went up from the same paper and day (Maariv
+    8.11.1976, uploaded that way by `אורן המתעפץ`).
   - **The only time a whole page is right:** a page or spread that is entirely the
     game's coverage under one frame or banner (and even then a separately headlined
     piece inside it can still go up on its own when the cap allows), of any era: a
@@ -73,16 +91,18 @@ same params.
   columns, the photo, the table, the box score, the ratings line that runs on into the
   next column. Build the crop as one box around the article and remove the rest by
   blanking it. Never move a piece to a new spot on the canvas to close a gap or make the
-  clip more compact. That holds even inside one column: a round-up's Maccabi paragraph
-  stays at its own height under the headline, with the other games blanked above it. The
+  clip more compact. That holds even inside one column: a paragraph stays at its own
+  height under the headline, with a blanked item above it. The
   maintainer asked for this on 2026-11-11, after a Yedioth round-up came out with the
   photo moved beside the text and the ratings tail moved under its column ("we keep the
-  original place of the items, just cut out stuff"). Two cases use more than one piece.
-  Slices of a tilted block follow the drifting rule, each pasted at its own offset, so
-  the layout still holds. An article that runs onto another page is the one exception
-  to the rule: its two parts share no position, so they may be stacked. The tool crops
-  every piece from one `--orig` scan, so that works only when both pages are in the
-  same scan (a Yedioth spread); otherwise they are two files.
+  original place of the items, just cut out stuff"). One case uses more than one piece:
+  slices of a tilted block follow the drifting rule, each pasted at its own offset, so
+  the layout still holds. An article that runs onto another page (`(סוף בעמוד אחרון)`,
+  `(המשך מעמוד ראשון)`) is two files, with or without a headline on the continuation,
+  and even when both pages are in one scan: the first part is the report, and the
+  continuation gets a description (`המשך מעמוד ראשון`). Stacked, the two parts read as
+  two clips glued together (maintainer, 2026-11-13, Hadashot HaSport 8.11.1976). Both
+  files count against the game's cap.
   **Cut along the page's own separators.** A newspaper page is divided into areas by
   solid rules, dotted or dashed rules, photo frames, boxes and the white gutters
   between columns. Find those first, then build the crop from whole areas: the
@@ -147,13 +167,15 @@ same params.
   edges too: old scans are often tilted, so a column rule can drift 15 px or more
   down the page. A straight cut then shows slivers of the next column at one end and
   clips this article's letters at the other. Follow the rule, or cut the block into
-  slices. A scan can also be sheared rather than rotated: the vertical rules lean
+  slices. A scan that came in sideways or upside down (a Hadashot HaSport issue
+  scanned as a sideways spread) is turned upright first (`convert -rotate 90`, `-90` or `180`, whichever makes the text read straight) and
+  cropped from that; the file always goes up upright. A file name's page number can
+  be wrong too (`עמ2` holding page 11): trust the page itself. A scan can also be sheared rather than rotated: the vertical rules lean
   while the horizontal ones stay level, so rotating doesn't fix it. Straighten the
   scan first (shear it back until the frame is square), then crop. A column that
   ends mid-sentence usually goes on at the top of the next column to its left; read
   that join before calling text missing or continued elsewhere. An article that runs onto a second
-  page is two files, or one stacked image when both pages are in one scan, never two
-  whole pages.
+  page is two files (see "Keep the page's layout"), never two whole pages.
 - **Existing scan:** add `סיווג` and `שיוך משחק` inside the template, and keep the
   rest of the page unchanged.
 - **`סיווג`:** the template accepts `טבלת ליגה`, `טבלת גביע`, `לקראת משחק`,
@@ -226,11 +248,11 @@ files (date first, opponent written `מכבי תל אביב נגד …`; don't c
   YYYY-YY.jpg`) and the tool refuses them; it uploads game clips only. Per game: 283 games have 1–3 files and 101 already have more than the
   regular cap of 3 (up to 9, on a 1989/90 game), so count first.
 - **Round-ups:** most volleyball coverage reports the whole playoff round or league round in
-  one article, with a paragraph or a ratings box per game. Even when the headline names Maccabi,
-  keep only the headline (and subhead or byline) plus the Maccabi paragraphs. Blank the other
-  games: the maintainer corrected exactly this on 2026-10-17 (Maariv 7.4.1991). Each kept part
-  stays where it stands on the page; don't move the Maccabi paragraph up to close the gap
-  (2026-11-11, "Keep the page's layout").
+  one article, with a paragraph or a ratings box per game. Keep the whole article, every game
+  in it (see "A round-up or preview column" above). This reverses the 2026-10-17 correction
+  (Maariv 7.4.1991: headline plus the Maccabi paragraph only). On 2026-11-13 the maintainer
+  saw five round-ups cut both ways and chose the whole article. The 1990-91 files cut the old
+  way, the Maariv 7.4.1991 file among them, can be redone with `--replace`.
   Women's results tacked onto the end of a men's item go too ("נשים, ליגה לאומית: …"): blank
   them and keep the byline (Yedioth 12.4.1991).
 - **Categories:** don't type any. The template adds date, paper and classification, and its
@@ -247,8 +269,14 @@ files (date first, opponent written `מכבי תל אביב נגד …`; don't c
   more than half of its scan as a whole page, and a clip is not a page. So pass
   `--whole-page-because`, saying what you kept:
   - The clip is the Maccabi article itself: keep all of it.
-  - A round-up cut down to the Maccabi part that still keeps over half the clip: name what
-    was cut away.
+  - A clip with another item in it (another sport, the women's league) that still keeps
+    over half the clip: name what was blanked.
+  A clip stays as the library arranged it. An article and its photo that the library saved
+  as two clips are two files (על המשמר 20.6.1976): the page they came from is not in the
+  archive, so stacking them would invent a layout. A clip that mixes another item with a
+  Maccabi photo keeps the photo and caption only (Maariv 8.11.1976).
+  When a clip's PDF has a text layer, `pdfimages` returns only its photo; render it with
+  `pdftoppm -r 200` instead.
 
 ## Limits enforced in code
 
