@@ -93,12 +93,12 @@ same params.
   stays at its own height under the headline, with the other games blanked above it. The
   maintainer asked for this on 2026-11-11, after a Yedioth round-up came out with the
   photo moved beside the text and the ratings tail moved under its column ("we keep the
-  original place of the items, just cut out stuff"). Two cases use more than one piece.
-  Slices of a tilted block follow the drifting rule, each pasted at its own offset, so
+  original place of the items, just cut out stuff"). One case uses more than one piece:
+  slices of a tilted block follow the drifting rule, each pasted at its own offset, so
   the layout still holds. An article that runs onto another page (`(סוף בעמוד אחרון)`,
-  `(המשך מעמוד ראשון)`) is two files: the first part is the report, and the
-  continuation gets a description (`המשך מעמוד ראשון`), even when both pages are in one
-  scan. The continuation carries its own headline, and stacked, the two parts read as
+  `(המשך מעמוד ראשון)`) is two files, with or without a headline on the continuation,
+  and even when both pages are in one scan: the first part is the report, and the
+  continuation gets a description (`המשך מעמוד ראשון`). Stacked, the two parts read as
   two clips glued together (maintainer, 2026-11-13, Hadashot HaSport 8.11.1976). Both
   files count against the game's cap.
   **Cut along the page's own separators.** A newspaper page is divided into areas by
@@ -166,7 +166,7 @@ same params.
   down the page. A straight cut then shows slivers of the next column at one end and
   clips this article's letters at the other. Follow the rule, or cut the block into
   slices. A scan that came in sideways or upside down (a Hadashot HaSport issue
-  scanned as a sideways spread) is turned upright first (`convert -rotate 90`) and
+  scanned as a sideways spread) is turned upright first (`convert -rotate 90`, `-90` or `180`, whichever makes the text read straight) and
   cropped from that; the file always goes up upright. A file name's page number can
   be wrong too (`עמ2` holding page 11): trust the page itself. A scan can also be sheared rather than rotated: the vertical rules lean
   while the horizontal ones stay level, so rotating doesn't fix it. Straighten the
