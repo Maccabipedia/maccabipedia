@@ -41,20 +41,34 @@ per request, and every original has its own thumb folder. A one-off DirectAdmin 
 Thumbnails are written when a page **parses** (`$wgGenerateThumbnailOnParse`, default on)
 and kept forever. Every distinct width is another file.
 
-- **Rolled back 2026-11-14, not live.** The first deploy of the hook below (PR #294) took prod
-  down: from 13:08 to 13:12 UTC many pages (main page, season pages) answered HTTP 500 with a
-  TypeError. The closure declared `array &$linkAttribs`, and core passes `false` for an image
-  without a link (`|link=`). The local test had no such image. Hooks in `shared.php` take
-  untyped parameters, and the local test must render the main page and a season page, not only
-  hand-written image shapes. The hook is out of `shared.php` until a fixed version is deployed.
-- **2x copy only, no 1.5x** (card #626, design). Core's `$wgResponsiveImages` wrote a 1.5x and a 2x
+- **The first version took prod down.** Deployed 2026-11-14 (PR #294), it made many pages
+  (main page, season pages) answer HTTP 500 with a TypeError from 13:08 to 13:12 UTC, until the
+  previous file went back up. The closure declared `array &$linkAttribs`, and core passes `false`
+  for an image without a link (`|link=`); the local test had no such image. The current version
+  takes untyped parameters and runs its body in `try/catch (Throwable)`: whatever fails, the image
+  keeps its plain thumbnail and the page renders.
+- **Testing it:** `infra/local-wiki/tests/test_retina_thumbnails.py` (pytest, against a running
+  local wiki, `MACCABIPEDIA_LOCAL_URL`) renders 4 images x 10 shapes x 5 link forms, 7 gallery
+  modes, a missing file, `thumb=`, `Media:`/`:File:` links, the file lists and the file history,
+  and requires a 2x wherever core gave one (the hook swallows its errors, so a silent failure
+  must still fail a test). It fails against the version that took prod down (67 cases, the
+  TypeError), a hook that throws on every image (13), and core's old setting (94). Before a deploy,
+  also render real pages with their real images, old setting vs new (no errors, same 1x, same 2x
+  file, no new files).
+- **2x copy only, no 1.5x** (card #626). Core's `$wgResponsiveImages` wrote a 1.5x and a 2x
   copy of every image shown in an article, gallery or File page, created during the parse
   whatever the HTML used. They were 65% of all thumbnails. `LocalSettings.shared.php` turns
   the setting off and a `ThumbnailBeforeProduceHTML` hook adds the 2x copy itself:
   - only where core used to (caller of `toHtml` is `Linker`, `TraditionalImageGallery` or
     `ImagePage`). File history, Special:ListFiles and search results never had copies, and
     crawlers reach them, so a 2x there would add files;
-  - never for files that must be rendered (SVG, TIFF) or paged files (PDF);
+  - never for files the handler must render (WebP, JPEGs rotated by EXIF, SVG, TIFF), paged
+    files (PDF), or files from another repository (prod has none; the local wiki shows prod's
+    images through one). Those keep the plain thumb: fewer files, a little softer on phones;
+  - when the 2x is the original file itself (images shown near their full size, like template
+    icons), it uses core's label `1.5x`, so the HTML stays identical to core's. Core judged that
+    from the requested box and the hook from the thumb, so a few height-limited images get a
+    different label (83 of 37k simulated cases); the file is the same either way;
   - it tries both shapes core could have asked for (width x2; height x2 when height was the
     limit) and reuses the 2x file that exists, because the two can round 1px apart. Measured on
     the local wiki: against core's existing files it wrote none; a fresh page wrote 31 files where
