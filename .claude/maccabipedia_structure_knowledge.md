@@ -140,6 +140,7 @@ under `/images/thumb/` on the game page with `curl -w "%{http_code}"`. To fix a
 missing size, request it: `api.php?action=query&prop=imageinfo&iiprop=url&iiurlwidth=338&titles=קובץ:<name>`
 generates the file and the URL returns 200 right away.
 
+
 **`|טבלת ליגה=<file>` on a game page is a standings scan, and a primary source.**
 `תבנית:קטלוג משחקים` takes it, and 72 European group games carry a newspaper/UEFA
 table "after matchday N" (search the parameter allowing a space before `=`) — for the last matchday, the final table. Checked in
