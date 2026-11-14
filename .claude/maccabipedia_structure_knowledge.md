@@ -305,26 +305,38 @@ The result may be empty (`גביע המדינה^`) while the competition is stil
 
 - **The page shows the entries in the order they are written.** The display templates
   (`עונת כדורגל/הצגת הישגים עונתיים`, `עונת כדורסל/הצגת הישגים עונתיים`, `עונת כדורעף/הישגים`)
-  print the array as is, with no sort. The same pass stores each entry as a row of
-  `Achievements` / `Basketball_Achievements` / `Volleyball_Achievements` (`Season`,
-  `Competition`, `Achievement`); row order there carries no meaning.
+  print the array as is, with no sort. In a separate pass over the same list, the same
+  templates store each entry as a row of `Achievements` / `Basketball_Achievements` /
+  `Volleyball_Achievements` (`Season`, `Competition`, `Achievement`). Football strips quote
+  characters from `Competition` before storing it (`המרות/שם ללא גרש וגרשיים`). Row order in
+  those tables carries no meaning.
 - **Order is by importance, the same every season** (agreed by the team 2026-11-14):
-  league → State Cup (Mandate era: the Eretz Israel Cup) → league cup (Toto in football;
-  Winner/Chance in basketball) → Super Cup → other domestic cups (Leibowitz Cup, Shimshon
-  Shield, Federation Shield, …) → Europe (Champions League / EuroLeague → Europa League /
-  UEFA Cup → Conference League → the rest) → other international
-  (Asian Cup, Adriatic League, Intercontinental Cup). Within one group the existing order stays.
+  1. league
+  2. State Cup (Mandate era: the Eretz Israel Cup)
+  3. league cup (Toto in football; Winner/Chance in basketball)
+  4. Super Cup
+  5. other domestic cups (Leibowitz Cup, Shimshon Shield, Federation Shield, …)
+  6. Europe, by tier: the champions' competition (Champions League / European Cup / EuroLeague)
+     → Cup Winners' Cup → the next cups (Europa League / UEFA Cup, CEV Cup, Korać Cup, EuroCup)
+     → Conference League, Challenge Cup, Intertoto
+  7. other international (Asian Cup, Adriatic League, Intercontinental Cup)
+
+  Inside every group except Europe, the existing order stays.
   **Not by date:** sorting by Maccabi's last game in each competition would move a cup to a
   different place each season, depending on the round Maccabi went out in. The game tables
   hold only Maccabi's games, so the date of a competition's real final isn't available for any
   competition Maccabi was knocked out of.
-- When this was measured (2026-11-14), 219 of 227 pages were already in this order. A new
-  season should be entered in this order from the start.
-- **Football 1966/68 has no `|הישגים=`.** It renders its titles from its own template,
-  `עונת כדורגל/הצגת הישגים עונת 1966/68`.
+- **A competition that starts later goes in at its rank, not at the end.** That's how pages
+  fall out of order. Basketball 2025/26 and 2026/27 listed the Winner Cup and Super Cup (played
+  first) and then added the State Cup and the league after them.
+- On 2026-11-14, 8 of the 226 pages with the field were out of order (all three sports), and
+  they are reordered in a follow-up step.
+- **Football 1966/68 has no `|הישגים=`.** `{{עונת כדורגל}}` checks the season name and renders
+  that season's titles from its own template, `עונת כדורגל/הצגת הישגים עונת 1966/68`.
 - **The competition is shown as written, but linked through its main name.** The display
-  template looks the name up in `מפעל <sport>/קבל שם מרכז` and links to that page, so a
-  spelling variant still links. For example, `CEV CUP` on 4 volleyball seasons links to
+  template looks the name up in `מפעל <sport>/קבל שם מרכז` and links to that page. If the
+  lookup doesn't know a variant, it links to the name as written, and shows plain text when
+  no such page exists. For example, `CEV CUP` on 4 volleyball seasons links to
   `כדורעף:CEV Cup`, but the page shows the variant text.
 
 ## 9. Football Player Events (`|אירועי שחקנים=`)
