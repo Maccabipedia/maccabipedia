@@ -194,6 +194,23 @@ $wgExpensiveParserFunctionLimit = 10000; 						# Enable 10000 Expensive Parser F
 $wgMaxArticleSize = 8192;  // This is to avoid the "<!-- WARNING: template omitted, post-expand include size too large -->" msg (caused atleast in שרן ייני page).
 
 $wgMaxImageArea = 2.5e7;  # Allow to show preview of image up to 36 million pixels or 6000×6000, https://www.mediawiki.org/wiki/Manual:$wgMaxImageArea
+// High-density screens get one extra thumbnail (2x), not two (1.5x and 2x).
+// The host caps the account's file count, and with $wgResponsiveImages every image shown
+// on a page wrote two extra thumbnail files. MediaWiki 1.39 creates both copies while
+// parsing (Linker::processResponsiveImages), so the built-in option is switched off and
+// this hook creates and links the 2x copy alone. Paged files (PDF) keep the plain thumb.
+$wgResponsiveImages = false;
+$wgHooks['ThumbnailBeforeProduceHTML'][] = static function ( $thumbnail, array &$attribs, array &$linkAttribs ) {
+	$file = $thumbnail->getFile();
+	if ( isset( $attribs['srcset'] ) || !$file || $file->isMultipage() || !$thumbnail->getWidth() ) {
+		return;
+	}
+	$retina = $file->transform( [ 'width' => $thumbnail->getWidth() * 2 ] );
+	if ( $retina && !$retina->isError() && $retina->getUrl() !== $thumbnail->getUrl() ) {
+		$attribs['srcset'] = Html::srcSet( [ '2' => $retina->getUrl() ] );
+	}
+};
+
 $wgMaxShellMemory = 512000;  # Use up to 512MIB of virtual memory, https://www.mediawiki.org/wiki/Manual:$wgMaxShellMemory
 $wgMemoryLimit = 268435456; # https://www.mediawiki.org/wiki/Manual:$wgMemoryLimit
 
