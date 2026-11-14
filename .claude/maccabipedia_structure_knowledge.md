@@ -140,19 +140,6 @@ under `/images/thumb/` on the game page with `curl -w "%{http_code}"`. To fix a
 missing size, request it: `api.php?action=query&prop=imageinfo&iiprop=url&iiurlwidth=338&titles=קובץ:<name>`
 generates the file and the URL returns 200 right away.
 
-**Thumbnails count against the server's file cap.** The hosting account allows 250,000
-files (inodes, shown in DirectAdmin); disk space is unlimited. In November 2026, 162k of the
-~221k files were thumbnails, and 65% of those were high-density copies. With MediaWiki's
-`$wgResponsiveImages` every image shown in an article, gallery or File page wrote two extra
-files (1.5x and 2x), created while the page parses, whatever the HTML ends up using. So
-`LocalSettings.shared.php` turns that setting off and a `ThumbnailBeforeProduceHTML` hook
-writes the 2x copy alone (card #626). The hook acts only where core used to add the copies
-(the caller of `toHtml` is `Linker`, `TraditionalImageGallery` or `ImagePage`). File
-history, Special:ListFiles and search results never had them, and a 2x there would add
-files. Before deleting thumbnails in bulk, wait out the 24h parser cache: a page whose
-stored HTML still points at a deleted thumb shows a broken image (above). Prod has no
-404 handler that recreates a missing thumb, on purpose: one would let anyone create
-thumbnails at any width.
 
 **`|טבלת ליגה=<file>` on a game page is a standings scan, and a primary source.**
 `תבנית:קטלוג משחקים` takes it, and 72 European group games carry a newspaper/UEFA
