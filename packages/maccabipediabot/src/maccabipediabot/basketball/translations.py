@@ -469,6 +469,7 @@ _PERSON_NAMES: dict[str, str] = {
     "Maxime Lefevre": "מקסים לפבר",
     "Tyson Etienne": "טייסון אטיין",
     "Alize Johnson": "אליזה ג'ונסון",
+    "Maozinha Pereira": "ז'ואאו קרדוסו",  # João "Maozinha" Cardoso Pereira; the editor kept this form
     "Ethan Thompson": "אית'ן תומפסון",
     "Antonio Reeves": "אנטוניו ריבס",
     "Carlik Jones": "קרליק ג׳ונס",  # the wiki writes him with ׳ on all his games
