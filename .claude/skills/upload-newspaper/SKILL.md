@@ -32,6 +32,8 @@ doesn't have.
 - **Cap by tier** (`--tier`, the maintainer decides): regular **3**, iconic **6**,
   legendary **9**. More candidates than room? Show them to the maintainer as pictures
   and let them choose, or ask whether the game is a higher tier.
+- **Volleyball league table:** a file of its own, outside the cap
+  (`--classification "טבלת ליגה"`; `rules.md`, "Volleyball", "League tables").
 - **One image per article.** Anything with its own headline in another area of the
   page is its own file; sub-headlines under the article's own headline stay with it. A box
   score, a table or a photo caption stays with its report. Keep the group table, but

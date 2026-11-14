@@ -33,12 +33,14 @@ from maccabipediabot.maintenance.papers.newspaper_crop import (
 )
 from maccabipediabot.maintenance.papers.newspaper_names import (
     GAME_CAPS, TEMPLATES, NewspaperClip, NewspaperClipError, check_cap, game_cap, game_page_title,
+    counted_for_cap,
 )
 from maccabipediabot.maintenance.tickets.ticket_names import Sport
 
 API_URL = "https://www.maccabipedia.co.il/api.php"
 MAX_MEGAPIXELS = 4.0  # a finished --image above this is treated as a whole page
 MAX_KEPT_SHARE = 0.5  # a crop keeping more than half the scan is a whole page
+TAKEN_HINT = "--replace it for a better version, or give another piece its own --description"
 _SPORTS = {s.value: s for s in Sport}
 _session = build_maccabipedia_session()
 
@@ -241,18 +243,21 @@ def main(argv: list[str] | None = None) -> int:
                              classification=args.classification, sport=sport, opponent=args.opponent,
                              game_date=args.game_date, game_page=game_page, description=args.description)
         file_name = args.replace or clip.file_name
-        existing = linked_newspaper_files(game_page)
+        linked = linked_newspaper_files(game_page)
+        existing = counted_for_cap(clip, linked)
         print(f"game page: {game_page}\nfile:      {file_name}")
         if args.replace and not args.rename_only and rename_target(args.replace, clip, args.rename):
             print(f"rename to: {rename_target(args.replace, clip, args.rename)}  (after the new version)")
         print(file_text(file_name) if args.replace else clip.page_text)
-        print(f"linked:    {len(existing)} newspaper file(s) on this game (cap "
-              f"{game_cap(args.tier)}){''.join(chr(10) + '           ' + f for f in existing)}")
+        cap_note = ("a table is outside the cap" if clip.is_table
+                    else f"{len(existing)} count toward the cap of {game_cap(args.tier)}; tables don't")
+        print(f"linked:    {len(linked)} newspaper file(s) on this game ({cap_note})"
+              f"{''.join(chr(10) + '           ' + f for f in linked)}")
         if not args.replace and len(existing) >= game_cap(args.tier):
             print(f"AT CAP:    no room for a new file; a swap needs the maintainer's choice"
                   f" ({args.tier}; ask whether the game is a higher --tier)")
         if not args.replace and file_text(file_name) is not None:
-            print(f"EXISTS:    {file_name} is already on the wiki; another piece needs its own --description")
+            print(f"EXISTS:    {file_name} is already on the wiki; {TAKEN_HINT}")
         if not (args.orig or args.image):
             if args.rename_only:
                 return rename_only(args, clip, game_page)
@@ -378,8 +383,7 @@ def upload_problems(args: argparse.Namespace, clip: NewspaperClip, file_name: st
                             f"taken; give this piece its own --description")
     else:
         if file_text(file_name) is not None:
-            problems.append(f"{file_name} already exists with a different image; if this is another piece "
-                            f"from the same paper and day, give it its own --description")
+            problems.append(f"{file_name} already exists with a different image; {TAKEN_HINT}")
         if was_deleted(file_name):
             problems.append(f"{file_name} was deleted by an admin before; ask before uploading it again")
         try:

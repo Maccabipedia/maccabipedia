@@ -3,7 +3,7 @@ from datetime import date
 import pytest
 
 from maccabipediabot.maintenance.papers.newspaper_names import (
-    NewspaperClip, NewspaperClipError, check_cap, game_opponents, game_page_title,
+    NewspaperClip, NewspaperClipError, check_cap, counted_for_cap, game_opponents, game_page_title,
 )
 from maccabipediabot.maintenance.tickets.ticket_names import Sport
 
@@ -89,9 +89,45 @@ def test_too_long_file_name_is_refused():
 
 
 @pytest.mark.parametrize("table", ["טבלת ליגה", "טבלת גביע"])
-def test_tables_are_not_named_like_game_clips(table):
-    with pytest.raises(NewspaperClipError, match="own names"):
+def test_basketball_tables_are_refused(table):
+    with pytest.raises(NewspaperClipError, match="volleyball league tables only"):
         clip(classification=table)
+
+
+HOLON_TABLE = dict(
+    paper="ידיעות אחרונות", publish_date=date(1990, 10, 17), classification="טבלת ליגה",
+    sport=Sport.VOLLEYBALL, opponent="אליצור חולון", game_date=date(1990, 10, 16),
+    game_page="כדורעף:16-10-1990 מכבי תל אביב נגד אליצור חולון - הליגה הלאומית",
+)
+
+
+def table(**changes):
+    return NewspaperClip(**{**HOLON_TABLE, **changes})
+
+
+def test_volleyball_table_is_named_by_its_game_date():
+    assert table().file_name == "טבלה לאחר משחק כדורעף 16-10-1990.jpg"
+    assert "|סיווג=טבלת ליגה\n" in table().page_text
+
+
+@pytest.mark.parametrize("published, ok", [(16, False), (17, True), (23, True), (24, False)])
+def test_table_runs_one_to_seven_days_after_the_game(published, ok):
+    if ok:
+        table(publish_date=date(1990, 10, published))
+        return
+    with pytest.raises(NewspaperClipError, match="1-7 days"):
+        table(publish_date=date(1990, 10, published))
+
+
+def test_table_takes_no_description():
+    with pytest.raises(NewspaperClipError, match="drop --description"):
+        table(description="טבלה שנייה")
+
+
+def test_cap_skips_tables_and_never_caps_a_table():
+    linked = ["קובץ:א.jpg", "קובץ:טבלה לאחר משחק כדורעף 16-10-1990.jpg", "קובץ:טבלת משחק כדורסל 01-04-1960.jpg"]
+    assert counted_for_cap(clip(), linked) == ["קובץ:א.jpg"]
+    assert counted_for_cap(table(), ["קובץ:א.jpg", "קובץ:ב.jpg", "קובץ:ג.jpg"]) == []
 
 
 def test_slash_in_a_team_name_is_written_as_a_dash():
