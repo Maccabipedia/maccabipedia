@@ -42,7 +42,7 @@ Thumbnails are written when a page **parses** (`$wgGenerateThumbnailOnParse`, de
 and kept forever. Every distinct width is another file.
 
 - **Rolled back 2026-11-14, not live.** The first deploy of the hook below (PR #294) took prod
-  down: from 13:08 to ~13:40 UTC many pages (main page, season pages) answered HTTP 500 with a
+  down: from 13:08 to 13:12 UTC many pages (main page, season pages) answered HTTP 500 with a
   TypeError. The closure declared `array &$linkAttribs`, and core passes `false` for an image
   without a link (`|link=`). The local test had no such image. Hooks in `shared.php` take
   untyped parameters, and the local test must render the main page and a season page, not only
