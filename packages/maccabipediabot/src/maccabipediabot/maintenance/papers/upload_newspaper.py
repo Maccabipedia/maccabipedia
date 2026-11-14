@@ -40,9 +40,14 @@ from maccabipediabot.maintenance.tickets.ticket_names import Sport
 API_URL = "https://www.maccabipedia.co.il/api.php"
 MAX_MEGAPIXELS = 4.0  # a finished --image above this is treated as a whole page
 MAX_KEPT_SHARE = 0.5  # a crop keeping more than half the scan is a whole page
-TAKEN_HINT = "--replace it for a better version, or give another piece its own --description"
 _SPORTS = {s.value: s for s in Sport}
 _session = build_maccabipedia_session()
+
+
+def taken_hint(clip: NewspaperClip) -> str:
+    """What to do when the clip's name is taken: a table is one per game, so only --replace."""
+    hint = "--replace it for a better version"
+    return hint if clip.is_table else f"{hint}, or give another piece its own --description"
 
 
 class WikiCheckError(RuntimeError):
@@ -257,7 +262,7 @@ def main(argv: list[str] | None = None) -> int:
             print(f"AT CAP:    no room for a new file; a swap needs the maintainer's choice"
                   f" ({args.tier}; ask whether the game is a higher --tier)")
         if not args.replace and file_text(file_name) is not None:
-            print(f"EXISTS:    {file_name} is already on the wiki; {TAKEN_HINT}")
+            print(f"EXISTS:    {file_name} is already on the wiki; {taken_hint(clip)}")
         if not (args.orig or args.image):
             if args.rename_only:
                 return rename_only(args, clip, game_page)
@@ -383,7 +388,7 @@ def upload_problems(args: argparse.Namespace, clip: NewspaperClip, file_name: st
                             f"taken; give this piece its own --description")
     else:
         if file_text(file_name) is not None:
-            problems.append(f"{file_name} already exists with a different image; {TAKEN_HINT}")
+            problems.append(f"{file_name} already exists with a different image; {taken_hint(clip)}")
         if was_deleted(file_name):
             problems.append(f"{file_name} was deleted by an admin before; ask before uploading it again")
         try:
