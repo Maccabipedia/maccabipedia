@@ -295,6 +295,48 @@ use. The club that played as Kingston in 1985/86 and 1990/91 stays `גילפור
 
 **SEO / OpenGraph metadata** (WikiSEO): the only `{{#seo:}}` call is in `תבנית:מטה נתונים על העמוד` (title in `title_mode=replace`, description, keywords, image). Per-entity wrappers call it: `שיר/מטה נתונים על העמוד` (from `{{שיר}}`; title `שיר: <name> – מכביפדיה`, image always the default logo), `פרופיל/מטה נתונים על העמוד` (from `{{פרופיל}}`), `קטלוג משחקים/מטה נתונים על העמוד`. **`פרופיל כדורגל` (football player pages) never calls it** — those pages get only WikiSEO defaults (page title, logo, no description). Pages with no `#seo` call still get og tags from the defaults. To check what a page sets, `action=parse&prop=properties` lists the `title`/`description`/`keywords` page props; `prop=headhtml` does NOT include WikiSEO's tags — fetch the rendered page for those.
 
+## 8b. Season Pages: the Titles Section (`|הישגים=`)
+
+All three sports keep a season's titles in one parameter of the season template
+(`{{עונת כדורגל}}` / `{{עונת כדורסל}}` / `{{עונת כדורעף}}`), comma-separated, each entry
+`Competition^result`:
+`|הישגים=ליגת העל^זכיה, גביע המדינה^גמר, גביע הטוטו^חצי גמר, אלוף האלופים^זכיה, ליגת האלופות^שלב הבתים`.
+The result may be empty (`גביע המדינה^`) while the competition is still running.
+
+- **The page shows the entries in the order they are written.** The display templates
+  (`עונת כדורגל/הצגת הישגים עונתיים`, `עונת כדורסל/הצגת הישגים עונתיים`, `עונת כדורעף/הישגים`)
+  print the array as is, with no sort. In a separate pass over the same list, the same
+  templates store each entry as a row of `Achievements` / `Basketball_Achievements` /
+  `Volleyball_Achievements` (`Season`, `Competition`, `Achievement`). Football strips quote
+  characters from `Competition` before storing it (`המרות/שם ללא גרש וגרשיים`). Row order in
+  those tables carries no meaning.
+- **Order is by importance, the same every season** (agreed by the team 2026-11-14):
+  1. league
+  2. State Cup (Mandate era: the Eretz Israel Cup)
+  3. league cup (Toto in football; Winner/Chance in basketball)
+  4. Super Cup
+  5. other domestic cups (Leibowitz Cup, Shimshon Shield, Federation Shield, …)
+  6. Europe, by tier: the champions' competition (Champions League / European Cup / EuroLeague)
+     → Cup Winners' Cup → the next cups (Europa League / UEFA Cup, CEV Cup, Korać Cup, EuroCup)
+     → Conference League, Challenge Cup, Intertoto
+  7. other international (Asian Cup, Adriatic League, Intercontinental Cup)
+
+  Inside every group except Europe, the existing order stays.
+  **Not by date:** sorting by Maccabi's last game in each competition would move a cup to a
+  different place each season, depending on the round Maccabi went out in. The game tables
+  hold only Maccabi's games, so the date of a competition's real final isn't available for any
+  competition Maccabi was knocked out of.
+- **A competition that starts later goes in at its rank, not at the end.** That's how pages
+  fall out of order: the cups played early in the season are entered first, and the league is
+  then appended after them.
+- **Football 1966/68 has no `|הישגים=`.** `{{עונת כדורגל}}` checks the season name and renders
+  that season's titles from its own template, `עונת כדורגל/הצגת הישגים עונת 1966/68`.
+- **The competition is shown as written, but linked through its main name.** The display
+  template looks the name up in `מפעל <sport>/קבל שם מרכז` and links to that page. If the
+  lookup doesn't know a variant, it links to the name as written, and shows plain text when
+  no such page exists. For example, `CEV CUP` on 4 volleyball seasons links to
+  `כדורעף:CEV Cup`, but the page shows the variant text.
+
 ## 9. Football Player Events (`|אירועי שחקנים=`)
 
 Each event is one pipe-separated entry in the `|אירועי שחקנים=` parameter of `קטלוג משחקים`.
