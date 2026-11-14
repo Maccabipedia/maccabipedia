@@ -41,7 +41,13 @@ per request, and every original has its own thumb folder. A one-off DirectAdmin 
 Thumbnails are written when a page **parses** (`$wgGenerateThumbnailOnParse`, default on)
 and kept forever. Every distinct width is another file.
 
-- **2x copy only, no 1.5x** (card #626). Core's `$wgResponsiveImages` wrote a 1.5x and a 2x
+- **Rolled back 2026-11-14, not live.** The first deploy of the hook below (PR #294) took prod
+  down: from 13:08 to ~13:40 UTC many pages (main page, season pages) answered HTTP 500 with a
+  TypeError. The closure declared `array &$linkAttribs`, and core passes `false` for an image
+  without a link (`|link=`). The local test had no such image. Hooks in `shared.php` take
+  untyped parameters, and the local test must render the main page and a season page, not only
+  hand-written image shapes. The hook is out of `shared.php` until a fixed version is deployed.
+- **2x copy only, no 1.5x** (card #626, design). Core's `$wgResponsiveImages` wrote a 1.5x and a 2x
   copy of every image shown in an article, gallery or File page, created during the parse
   whatever the HTML used. They were 65% of all thumbnails. `LocalSettings.shared.php` turns
   the setting off and a `ThumbnailBeforeProduceHTML` hook adds the 2x copy itself:
