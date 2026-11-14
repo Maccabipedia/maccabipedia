@@ -199,10 +199,25 @@ $wgMaxImageArea = 2.5e7;  # Allow to show preview of image up to 36 million pixe
 // on a page wrote two extra thumbnail files. MediaWiki 1.39 creates both copies while
 // parsing (Linker::processResponsiveImages), so the built-in option is switched off and
 // this hook creates and links the 2x copy alone. Paged files (PDF) keep the plain thumb.
+// It acts only where core used to add the copies: images in articles (Linker), galleries,
+// and the File page's main image. File history, Special:ListFiles and search results never
+// had them, and crawlers reach those pages, so a 2x there would add files, not remove them.
 $wgResponsiveImages = false;
 $wgHooks['ThumbnailBeforeProduceHTML'][] = static function ( $thumbnail, array &$attribs, array &$linkAttribs ) {
 	$file = $thumbnail->getFile();
-	if ( isset( $attribs['srcset'] ) || !$file || $file->isMultipage() || !$thumbnail->getWidth() ) {
+	if ( isset( $attribs['srcset'] ) || !$file || !$file->canRender() || $file->isMultipage() || !$thumbnail->getWidth() ) {
+		return;
+	}
+	$caller = '';
+	$sawToHtml = false;
+	foreach ( debug_backtrace( DEBUG_BACKTRACE_IGNORE_ARGS, 12 ) as $frame ) {
+		if ( $sawToHtml ) {
+			$caller = $frame['class'] ?? '';
+			break;
+		}
+		$sawToHtml = ( $frame['function'] ?? '' ) === 'toHtml';
+	}
+	if ( !in_array( $caller, [ 'Linker', 'TraditionalImageGallery', 'ImagePage' ], true ) ) {
 		return;
 	}
 	$retina = $file->transform( [ 'width' => $thumbnail->getWidth() * 2 ] );
