@@ -198,14 +198,16 @@ $wgMaxImageArea = 2.5e7;  # Allow to show preview of image up to 36 million pixe
 // The host caps the account's file count, and with $wgResponsiveImages every image shown
 // on a page wrote two extra thumbnail files. MediaWiki 1.39 creates both copies while
 // parsing (Linker::processResponsiveImages), so the built-in option is switched off and
-// this hook creates and links the 2x copy alone. Paged files (PDF) keep the plain thumb.
+// this hook creates and links the 2x copy alone. Files that must be rendered (SVG, TIFF)
+// and paged files (PDF) keep the plain thumb: their 2x would be a new rendered file.
 // It acts only where core used to add the copies: images in articles (Linker), galleries,
 // and the File page's main image. File history, Special:ListFiles and search results never
 // had them, and crawlers reach those pages, so a 2x there would add files, not remove them.
 $wgResponsiveImages = false;
 $wgHooks['ThumbnailBeforeProduceHTML'][] = static function ( $thumbnail, array &$attribs, array &$linkAttribs ) {
 	$file = $thumbnail->getFile();
-	if ( isset( $attribs['srcset'] ) || !$file || !$file->canRender() || $file->isMultipage() || !$thumbnail->getWidth() ) {
+	$width = $thumbnail->getWidth();
+	if ( isset( $attribs['srcset'] ) || !$file || !$width || !$file->canRender() || $file->mustRender() || $file->isMultipage() ) {
 		return;
 	}
 	$caller = '';
@@ -220,7 +222,22 @@ $wgHooks['ThumbnailBeforeProduceHTML'][] = static function ( $thumbnail, array &
 	if ( !in_array( $caller, [ 'Linker', 'TraditionalImageGallery', 'ImagePage' ], true ) ) {
 		return;
 	}
-	$retina = $file->transform( [ 'width' => $thumbnail->getWidth() * 2 ] );
+	// Core asked for the box doubled (width x2, height x2). The box is gone by now, and when
+	// height was the limit, doubling the width alone can round to a name 1px off. So try
+	// both shapes and reuse the 2x file that already exists; only a new image writes one.
+	$byWidth = [ 'width' => $width * 2 ];
+	$byHeight = [ 'width' => $file->getWidth(), 'height' => $thumbnail->getHeight() * 2 ];
+	$params = $byWidth;
+	foreach ( [ $byWidth, $byHeight ] as $candidate ) {
+		$normalised = $candidate;
+		if ( $file->getHandler()->normaliseParams( $file, $normalised )
+			&& $file->getRepo()->fileExists( $file->getThumbPath( $file->thumbName( $normalised ) ) )
+		) {
+			$params = $candidate;
+			break;
+		}
+	}
+	$retina = $file->transform( $params );
 	if ( $retina && !$retina->isError() && $retina->getUrl() !== $thumbnail->getUrl() ) {
 		$attribs['srcset'] = Html::srcSet( [ '2' => $retina->getUrl() ] );
 	}
