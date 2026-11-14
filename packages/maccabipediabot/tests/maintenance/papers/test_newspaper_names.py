@@ -88,10 +88,16 @@ def test_too_long_file_name_is_refused():
         clip(description=" ".join(["תגובות"] * 20))
 
 
-@pytest.mark.parametrize("table", ["טבלת ליגה", "טבלת גביע"])
-def test_basketball_tables_are_refused(table):
-    with pytest.raises(NewspaperClipError, match="volleyball league tables only"):
-        clip(classification=table)
+def test_cup_and_football_tables_are_refused():
+    with pytest.raises(NewspaperClipError, match="league tables only"):
+        clip(classification="טבלת גביע")
+    with pytest.raises(NewspaperClipError, match="league tables only"):
+        clip(classification="טבלת ליגה", sport=Sport.FOOTBALL, opponent="IFK גטבורג",
+             game_page="משחק:29-10-1998 מכבי תל אביב נגד IFK גטבורג - ידידות")
+
+
+def test_basketball_table_is_named_by_its_game_date():
+    assert clip(classification="טבלת ליגה").file_name == "טבלת משחק כדורסל 29-10-1998.jpg"
 
 
 HOLON_TABLE = dict(
