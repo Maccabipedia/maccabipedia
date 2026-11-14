@@ -49,6 +49,13 @@ GAME_CAPS = {"regular": 3, "iconic": 6, "legendary": 9}
 MAX_DAYS_BEFORE_GAME = 7
 MAX_DAYS_AFTER_GAME = 14
 
+# A league table is named for its game: the volleyball and basketball game templates find it
+# by this exact name and show it apart from the newspaper gallery, so a table is outside the
+# cap. It runs 1-7 days after the game (109 of 116 basketball tables: 1-3 days); later, it
+# may show the next round. Football links a table from the game page instead (|טבלת ליגה=).
+TABLE_PREFIXES = {Sport.VOLLEYBALL: "טבלה לאחר משחק כדורעף ", Sport.BASKETBALL: "טבלת משחק כדורסל "}
+TABLE_DAYS_AFTER_GAME = (1, 7)
+
 MAX_FILE_NAME_BYTES = 240  # MediaWiki's title limit is 255 bytes, minus "File:" and slack
 
 _FORBIDDEN_IN_NAME = re.compile(r'["/\\:#<>\[\]|{}*?~\t\n\r\u00a0\u200e\u200f\u202a-\u202e]')
@@ -74,7 +81,13 @@ class NewspaperClip:
         validate(self)
 
     @property
+    def is_table(self) -> bool:
+        return self.sport in TABLE_PREFIXES and self.classification == "טבלת ליגה"
+
+    @property
     def file_name(self) -> str:
+        if self.is_table:
+            return f"{TABLE_PREFIXES[self.sport]}{self.game_date:%d-%m-%Y}.jpg"
         # Football names carry no sport word (nor competition or venue mark); basketball and
         # volleyball say which sport, as their existing files do.
         sport = "" if self.sport is Sport.FOOTBALL else f"{self.sport.value} "
@@ -101,10 +114,11 @@ def validate(clip: NewspaperClip) -> None:
     if clip.classification not in CLASSIFICATIONS:
         raise NewspaperClipError(f"סיווג {clip.classification!r} is not a template value; "
                                  f"use one of: {', '.join(CLASSIFICATIONS)}")
-    if clip.classification in ("טבלת ליגה", "טבלת גביע"):
-        raise NewspaperClipError(f"{clip.classification} files use their own names "
-                                 f"('טבלת ליגה לאחר מחזור N עונת YYYY-YY.jpg', 294 files); this tool "
-                                 f"does game clips only")
+    if clip.classification in ("טבלת ליגה", "טבלת גביע") and not clip.is_table:
+        raise NewspaperClipError(f"{clip.classification} in {clip.sport.value}: this tool uploads game "
+                                 f"clips and volleyball and basketball league tables only")
+    if clip.is_table and clip.description:
+        raise NewspaperClipError("a game has one league table, named by its date; drop --description")
     _check_text("opponent", clip.opponent)
     if clip.description:
         _check_text("description", clip.description)
@@ -136,6 +150,10 @@ def _check_dates(clip: NewspaperClip) -> None:
     if clip.classification in ("סיקור משחק", "רגע ממשחק") and not 0 <= days <= MAX_DAYS_AFTER_GAME:
         raise NewspaperClipError(f"a report must be published on the game day or up to "
                                  f"{MAX_DAYS_AFTER_GAME} days after it, not {days:+d} days")
+    first, last = TABLE_DAYS_AFTER_GAME
+    if clip.is_table and not first <= days <= last:
+        raise NewspaperClipError(f"a league table runs {first}-{last} days after the game, not {days:+d} "
+                                 f"days; outside that it shows another round")
 
 
 def _check_game_page(clip: NewspaperClip) -> None:
@@ -181,6 +199,14 @@ def game_page_title(cargo_page_name: str) -> str:
 
 def game_cap(tier: str) -> int:
     return GAME_CAPS[tier]
+
+
+def counted_for_cap(clip: NewspaperClip, linked_files: list[str]) -> list[str]:
+    """The game's files the cap counts: tables named for their game are outside it, and a
+    table itself is never refused for it."""
+    if clip.is_table:
+        return []
+    return [f for f in linked_files if not f.split(":", 1)[-1].startswith(tuple(TABLE_PREFIXES.values()))]
 
 
 def check_cap(existing_files: list[str], new_files: int, tier: str) -> None:
