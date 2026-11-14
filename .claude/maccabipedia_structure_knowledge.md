@@ -327,10 +327,8 @@ The result may be empty (`גביע המדינה^`) while the competition is stil
   hold only Maccabi's games, so the date of a competition's real final isn't available for any
   competition Maccabi was knocked out of.
 - **A competition that starts later goes in at its rank, not at the end.** That's how pages
-  fall out of order. Basketball 2025/26 and 2026/27 listed the Winner Cup and Super Cup (played
-  first) and then added the State Cup and the league after them.
-- On 2026-11-14, 8 of the 226 pages with the field were out of order (all three sports), and
-  they are reordered in a follow-up step.
+  fall out of order: the cups played early in the season are entered first, and the league is
+  then appended after them.
 - **Football 1966/68 has no `|הישגים=`.** `{{עונת כדורגל}}` checks the season name and renders
   that season's titles from its own template, `עונת כדורגל/הצגת הישגים עונת 1966/68`.
 - **The competition is shown as written, but linked through its main name.** The display
