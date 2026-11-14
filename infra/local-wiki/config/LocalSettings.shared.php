@@ -198,8 +198,9 @@ $wgMaxImageArea = 2.5e7;  # Allow to show preview of image up to 36 million pixe
 // The host caps the account's file count, and with $wgResponsiveImages every image shown
 // on a page wrote two extra thumbnail files. MediaWiki 1.39 creates both copies while
 // parsing (Linker::processResponsiveImages), so the built-in option is switched off and
-// this hook creates and links the 2x copy alone. Files that must be rendered (SVG, TIFF)
-// and paged files (PDF) keep the plain thumb: their 2x would be a new rendered file.
+// this hook creates and links the 2x copy alone. Files the handler must render (WebP,
+// JPEGs rotated by EXIF, SVG, TIFF) and paged files (PDF) keep the plain thumb, as do files
+// from another repository: fewer files, slightly softer on high-density screens.
 // It acts only where core used to add the copies: images in articles (Linker), galleries,
 // and the File page's main image. File history, Special:ListFiles and search results never
 // had them, and crawlers reach those pages, so a 2x there would add files, not remove them.
@@ -209,22 +210,9 @@ $wgMaxImageArea = 2.5e7;  # Allow to show preview of image up to 36 million pixe
 // an image answered HTTP 500 (2026-11-14). For the same reason the body runs inside
 // try/catch: whatever fails, the image keeps its plain thumbnail and the page renders.
 $wgResponsiveImages = false;
-$wgHooks['ThumbnailBeforeProduceHTML'][] = static function ( $thumbnail, &$attribs, &$linkAttribs ) {
-	try {
-		$srcset = mpRetinaSrcset( $thumbnail, $attribs );
-		if ( $srcset !== null ) {
-			$attribs['srcset'] = $srcset;
-		}
-	} catch ( Throwable $error ) {
-		wfDebugLog( 'thumbnails', 'retina srcset skipped: ' . $error->getMessage() );
-	}
-};
-
-/**
- * The srcset value with the 2x copy for one thumbnail, or null when it gets none.
- * Only the hook above calls it.
- */
-function mpRetinaSrcset( $thumbnail, $attribs ) {
+// The srcset value with the 2x copy for one thumbnail, or null when it gets none. A closure,
+// not a named function, so the file declares no global name that a second load could clash with.
+$mpRetinaSrcset = static function ( $thumbnail, $attribs ) {
 	if ( !is_array( $attribs ) || isset( $attribs['srcset'] ) || !( $thumbnail instanceof ThumbnailImage ) ) {
 		return null;
 	}
@@ -264,11 +252,23 @@ function mpRetinaSrcset( $thumbnail, $attribs ) {
 	if ( !$retina || $retina->isError() || $retina->getUrl() === $thumbnail->getUrl() ) {
 		return null;
 	}
-	// When the 2x is the original file itself, core's 1.5x was the original too and core
-	// listed it once as "1.5x" (Html::srcSet keeps one entry per URL). Same label, same HTML.
+	// When the 2x is the original file itself, core's 1.5x was usually the original too, and
+	// core listed it once as "1.5x" (Html::srcSet keeps one entry per URL); same label here.
+	// Core measured from the requested box, this from the thumb, so a few height-limited
+	// images get a different label than core would give. Only the label differs, never a file.
 	$density = ( $retina->getUrl() === $file->getUrl() && round( $width * 1.5 ) >= $file->getWidth() ) ? '1.5' : '2';
 	return Html::srcSet( [ $density => $retina->getUrl() ] );
-}
+};
+$wgHooks['ThumbnailBeforeProduceHTML'][] = static function ( $thumbnail, &$attribs, &$linkAttribs ) use ( $mpRetinaSrcset ) {
+	try {
+		$srcset = $mpRetinaSrcset( $thumbnail, $attribs );
+		if ( $srcset !== null ) {
+			$attribs['srcset'] = $srcset;
+		}
+	} catch ( Throwable $error ) {
+		wfDebugLog( 'thumbnails', 'retina srcset skipped: ' . $error->getMessage() );
+	}
+};
 
 $wgMaxShellMemory = 512000;  # Use up to 512MIB of virtual memory, https://www.mediawiki.org/wiki/Manual:$wgMaxShellMemory
 $wgMemoryLimit = 268435456; # https://www.mediawiki.org/wiki/Manual:$wgMemoryLimit

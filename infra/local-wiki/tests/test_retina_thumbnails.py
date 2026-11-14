@@ -93,19 +93,34 @@ def test_image_smaller_than_the_thumb_gets_no_2x(api: str) -> None:
     assert _srcsets(_parse(api, f"[[File:{GIF}|120px]]")) == []
 
 
-def test_bitmap_thumb_gets_a_2x(api: str) -> None:
-    """The hook is actually on: without this, every other test passes vacuously."""
-    assert len(_srcsets(_parse(api, f"[[File:{LANDSCAPE}|120px|link=]]"))) == 1
+def _page(base_url: str, title: str) -> str:
+    """A page's HTML; a 500 must fail here, since the local wiki does not print PHP errors."""
+    response = requests.get(f"{base_url}/index.php", params={"title": title}, timeout=60)
+    assert response.status_code == 200, f"{title} answered {response.status_code}"
+    assert "internal_api_error" not in response.text and "MWException" not in response.text
+    return response.text
+
+
+# Where core gave a 2x, the hook must too. The hook swallows its own errors, so without these
+# a hook that failed on every image would pass every test above.
+@pytest.mark.parametrize("wikitext", [
+    f"[[File:{LANDSCAPE}|120px|link=]]", f"[[File:{LANDSCAPE}|120px]]", f"[[File:{LANDSCAPE}|thumb]]",
+    f"[[File:{PORTRAIT}|x90px]]", f"[[File:{PORTRAIT}|thumb|upright]]",
+    f"<gallery>\nFile:{LANDSCAPE}\n</gallery>", f"<gallery>\nFile:{PORTRAIT}|link=\n</gallery>",
+    f"<gallery mode=packed>\nFile:{PORTRAIT}\n</gallery>",
+])
+def test_images_core_gave_a_2x_still_get_one(api: str, wikitext: str) -> None:
+    srcsets = _srcsets(_parse(api, wikitext))
+    assert len(srcsets) == 1 and srcsets[0].endswith(" 2x") and "/thumb/" in srcsets[0], f"{wikitext!r}: {srcsets}"
 
 
 @pytest.mark.parametrize("special", ["Special:ListFiles", "Special:NewFiles"])
 def test_file_lists_render(base_url: str, api: str, special: str) -> None:
-    html = requests.get(f"{base_url}/index.php", params={"title": special}, timeout=60).text
-    assert not PHP_ERROR_RE.search(html)
+    _page(base_url, special)
 
 
-def test_file_page_history_thumb_has_no_2x(base_url: str, api: str) -> None:
-    html = requests.get(f"{base_url}/index.php", params={"title": f"File:{LANDSCAPE}"}, timeout=60).text
-    assert not PHP_ERROR_RE.search(html)
-    history = html.split('id="filehistory"', 1)[-1]
+def test_file_page_main_image_2x_and_history_without(base_url: str, api: str) -> None:
+    main, _, history = _page(base_url, f"File:{LANDSCAPE}").partition('id="filehistory"')
+    assert history, "no file history table on the File page"
+    assert len(_srcsets(main.split('id="file"', 1)[-1])) == 1, "the File page's main image lost its 2x"
     assert _srcsets(history) == [], "the file history table never had 2x copies on prod"
