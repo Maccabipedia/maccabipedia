@@ -53,6 +53,10 @@ original-scan pixels:
   Remove what isn't Maccabi by blanking it along the rules that bound it, never by moving
   a piece (`rules.md`, "Keep the page's layout"). Use `wipe` polygons for slanted rules.
 - Only when the whole page is the Maccabi story, keep the whole page, minus ads.
+- When Maccabi gets fewer than 3 sentences in a round-up, too few to crop on their own,
+  keep the item and mark the Maccabi text with a yellow highlighter: the spec's
+  `highlight` key, one stroke per line, built with `newspaper_lines` (`rules.md`, "A
+  short Maccabi item inside a round-up").
 
 ## 4. Dry run, until the tool passes
 
