@@ -18,8 +18,8 @@ own offset, or for an article that continues on another page of the same scan.
 ``highlight`` marks the Maccabi lines of a short item the way the maintainer does by hand:
 a yellow highlighter (#ffdd00 at 25%), one stroke per line with a white gap between lines,
 multiplied in so the ink stays black (rules.md, "A short Maccabi item inside a round-up").
-Each stroke is the band the marker covers, in scan pixels; ``newspaper_lines`` prints each
-line's ink box and word gaps to build it from.
+Each stroke is the band the marker covers, in scan pixels, both ends included (unlike a
+piece's box); ``newspaper_lines`` prints each line's ink box and word gaps to build it from.
 
 The edge check finds the page's thin rules (solid or dotted: dark along their length,
 light a few px to either side) and reports each cut edge:
@@ -52,7 +52,9 @@ _CROSS_PAD = 6  # px either side of a crossing rule that are not counted as cut 
 # on a greyer scan too.
 MARKER_COLOR = (255, 221, 0)
 MARKER_OPACITY = 0.25
-_MARKER_MAX_STROKE = 80  # px; a taller stroke covers more than one line
+# px; a guard against one box over a whole paragraph. It cannot tell one line from two
+# (two 200-dpi lines fit under it), so reading the preview stays the real check.
+_MARKER_MAX_STROKE = 80
 
 
 @dataclass(frozen=True)
@@ -133,12 +135,24 @@ def validate_spec(size: tuple[int, int], spec: dict) -> None:
     if (used_w, used_h) != (spec["width"], spec["height"]):
         raise CropSpecError(f"canvas is {spec['width']}x{spec['height']} but the pieces fill {used_w}x{used_h}; "
                             f"set width/height to match")
-    _validate_highlight(spec.get("highlight", []), sources)
+    _validate_highlight(size, spec)
 
 
-def _validate_highlight(strokes, sources: list[tuple[int, int, int, int]]) -> None:
+def _stroke_piece(stroke, spec: dict) -> dict | None:
+    """The piece a stroke lies in. Strokes are inclusive boxes, pieces exclusive at x1/y1."""
+    x0, y0, x1, y1 = stroke
+    for piece in spec["pieces"]:
+        b0, b1, b2, b3 = piece["box"]
+        if b0 <= x0 and b1 <= y0 and x1 < b2 and y1 < b3:
+            return piece
+    return None
+
+
+def _validate_highlight(size: tuple[int, int], spec: dict) -> None:
+    strokes = spec.get("highlight", [])
     if not isinstance(strokes, list):
         raise CropSpecError("'highlight' is a list of [x0, y0, x1, y1] strokes")
+    keep = _keep_mask(size, spec) if strokes else None
     for i, stroke in enumerate(strokes):
         if not (isinstance(stroke, list) and len(stroke) == 4 and all(isinstance(v, int) for v in stroke)):
             raise CropSpecError(f"highlight {i} {stroke!r} is not [x0, y0, x1, y1] in scan pixels")
@@ -146,42 +160,56 @@ def _validate_highlight(strokes, sources: list[tuple[int, int, int, int]]) -> No
         if not (x0 < x1 and y0 < y1):
             raise CropSpecError(f"highlight {i} {stroke} is empty")
         if y1 - y0 > _MARKER_MAX_STROKE:
-            raise CropSpecError(f"highlight {i} is {y1 - y0} px tall; mark one text line per stroke")
-        if not any(b[0] <= x0 and b[1] <= y0 and x1 <= b[2] and y1 <= b[3] for b in sources):
+            raise CropSpecError(f"highlight {i} is {y1 - y0} px tall, a block and not a line; "
+                                f"give each text line its own stroke")
+        if _stroke_piece(stroke, spec) is None:
             raise CropSpecError(f"highlight {i} {stroke} is not inside a kept piece")
+        if not keep[y0:y1 + 1, x0:x1 + 1].all():
+            raise CropSpecError(f"highlight {i} {stroke} runs under a blank or wipe, where it would vanish")
 
 
-def marker(img: Image.Image, strokes: list[list[int]]) -> Image.Image:
+def marker(img: Image.Image, spec: dict) -> Image.Image:
     """Paint highlighter strokes: row by row a little stronger or weaker, ragged ends, soft edges.
 
-    Seeded by the strokes, so the same spec always gives the same bytes.
+    Each piece is painted on its own, inside its box, so a stroke never bleeds into a
+    neighbouring slice. Seeded by the strokes, so the same spec gives the same bytes (with
+    the same NumPy and Pillow).
     """
+    strokes = spec.get("highlight", [])
+    img = img.convert("RGB")
     if not strokes:
         return img
     rng = np.random.default_rng([v for stroke in strokes for v in stroke])
-    width, height = img.size
-    alpha = np.zeros((height, width))
-    for x0, y0, x1, y1 in strokes:
-        for y in range(y0, y1 + 1):
-            if not 0 <= y < height:
-                continue
-            a = max(0, x0 + int(rng.integers(-2, 3)))
-            b = min(width - 1, x1 + int(rng.integers(-2, 3)))
-            xs = np.arange(a, b + 1)
-            wobble = 1 + 0.08 * np.sin(xs / rng.uniform(9, 17) + rng.uniform(0, 6))
-            edge = 0.6 if y in (y0, y1) else 1.0
-            row = MARKER_OPACITY * rng.uniform(0.8, 1.15) * edge * wobble
-            alpha[y, a:b + 1] = np.maximum(alpha[y, a:b + 1], row)
-    soft = Image.fromarray((np.clip(alpha, 0, 1) * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(0.7))
-    a = np.asarray(soft, dtype=np.float64)[..., None] / 255
-    base = np.asarray(img.convert("RGB"), dtype=np.float64)
     tint = np.array(MARKER_COLOR, dtype=np.float64) / 255
-    return Image.fromarray((base * (1 - a + a * tint)).round().astype(np.uint8))
+    out = img.copy()
+    for piece in spec["pieces"]:
+        mine = [s for s in strokes if _stroke_piece(s, spec) is piece]
+        if not mine:
+            continue
+        b0, b1, b2, b3 = piece["box"]
+        pad = 4  # room for the ragged ends and the blur
+        rx0, ry0 = max(b0, min(s[0] for s in mine) - pad), max(b1, min(s[1] for s in mine) - pad)
+        rx1, ry1 = min(b2, max(s[2] for s in mine) + pad + 1), min(b3, max(s[3] for s in mine) + pad + 1)
+        alpha = np.zeros((ry1 - ry0, rx1 - rx0))
+        for x0, y0, x1, y1 in mine:
+            for y in range(y0, y1 + 1):
+                a = max(rx0, x0 + int(rng.integers(-2, 3)))
+                b = min(rx1 - 1, x1 + int(rng.integers(-2, 3)))
+                xs = np.arange(a, b + 1)
+                wobble = 1 + 0.08 * np.sin(xs / rng.uniform(9, 17) + rng.uniform(0, 6))
+                edge = 0.6 if y in (y0, y1) else 1.0
+                row = MARKER_OPACITY * rng.uniform(0.8, 1.15) * edge * wobble
+                alpha[y - ry0, a - rx0:b - rx0 + 1] = np.maximum(alpha[y - ry0, a - rx0:b - rx0 + 1], row)
+        soft = Image.fromarray((np.clip(alpha, 0, 1) * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(0.7))
+        a = np.asarray(soft, dtype=np.float64)[..., None] / 255
+        base = np.asarray(img.crop((rx0, ry0, rx1, ry1)), dtype=np.float64)
+        out.paste(Image.fromarray((base * (1 - a + a * tint)).round().astype(np.uint8)), (rx0, ry0))
+    return out
 
 
 def compose(orig: Image.Image, spec: dict) -> Image.Image:
     validate_spec(orig.size, spec)
-    orig = marker(orig.convert("RGB"), spec.get("highlight", []))
+    orig = marker(orig, spec)
     canvas = Image.new("RGB", (spec["width"], spec["height"]), "white")
     for piece in spec["pieces"]:
         part = orig.crop(tuple(piece["box"]))

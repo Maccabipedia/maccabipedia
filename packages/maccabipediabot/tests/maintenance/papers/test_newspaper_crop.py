@@ -170,6 +170,22 @@ def test_bad_highlight_strokes_are_refused(strokes):
         compose(page(), {**MARKED, "highlight": strokes})
 
 
+def test_bad_highlight_under_a_blank_is_refused():
+    spec = {**MARKED, "pieces": [{"box": [0, 0, 600, 200], "at": [0, 0], "blank": [[0, 0, 600, 50]]}]}
+    with pytest.raises(CropSpecError):
+        compose(page(), spec)
+
+
+def test_marker_stays_inside_its_piece():
+    # Two slices meeting at y=100; the stroke ends on the first slice's last row.
+    spec = {"width": 600, "height": 200,
+            "pieces": [{"box": [0, 0, 600, 100], "at": [0, 0]}, {"box": [0, 100, 600, 200], "at": [0, 100]}],
+            "highlight": [[30, 85, 570, 99]]}
+    out = np.asarray(compose(page(), spec)).astype(int)
+    assert out[99, 51, 2] < 230               # the stroke reaches the slice's last row
+    assert (out[100, 51] == 255).all()        # and not a pixel of the next slice
+
+
 def test_text_lines_finds_each_line_and_its_words():
     gray = np.asarray(page(), dtype=np.int32)
     lines = text_lines(gray, (20, 30, 580, 190))
