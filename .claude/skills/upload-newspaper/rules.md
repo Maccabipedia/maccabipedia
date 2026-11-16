@@ -71,6 +71,33 @@ same params.
     round-ups cut both ways. When the headline sits far above, ask the maintainer
     whether to take that tall clip. Oren often marks the Maccabi lines with a yellow
     highlighter.
+  - **A short Maccabi item inside a round-up** (fewer than 3 sentences on Maccabi, too
+    short to find at a glance in the clip): mark the Maccabi text with the highlighter,
+    through the spec's `highlight` key. That is what Oren did by hand in Photoshop:
+    brush `#ffdd00` at 20% opacity (Davar 08-04-1955, `לקראת משחק כדורסל מכבי חיפה
+    (09.04.1955)`, the reference file). The tool's marker matches it: 25% multiplied,
+    which comes to the same RGB(253, 246, 195) on a greyer scan and keeps the ink black.
+    Approved by Oren 2026-11-16 on `ידיעות אחרונות 28-04-1963 סיקור משחק כדורסל כפר
+    מנחם (26.04.1963)`.
+    - **What to mark:** the Maccabi text only, from the first Maccabi word to the end of
+      its sentence. Start at the sentence that names the club ("מכבי תל-אביב …"), not at
+      a later "התל-אביבים", so a reader sees the name in yellow. Leave the next item
+      unmarked even when it shares the line ("27:101. | בני משמר העמק").
+    - **One stroke per text line**, with a thin white gap between lines. A single box
+      over the paragraph reads as a patch, not a marker.
+    - **Building the strokes:** `uv run python -m maccabipediabot.maintenance.papers.newspaper_lines scan.jpg x0 y0 x1 y1`
+      on the column prints each line's ink box, a ready `stroke`, and its words as x
+      ranges. Copy the strokes of the marked lines. Hebrew runs right to left, so on the
+      first line, set the stroke's right end (x1) in the gap just right of the first
+      Maccabi word. On the last line, set its left end (x0) in the gap after the last
+      Maccabi word (the full stop included).
+    - **Check it** in the `.preview.jpg` zoomed in: the stroke starts and stops between
+      words, and every marked line has its own band.
+    - **Adding a marker to a file already on the wiki:** use the wiki file as `--orig`
+      with one piece covering all of it, plus the `highlight` key, and `--replace` it.
+      That keeps 100% of the "scan", so give `--whole-page-because` (the file is already
+      the cropped item; only the marker is added) and a `--comment` saying a marker was
+      added, since the default comment says it was re-cropped.
   - **A table:** the table and its header only (`טבלת ליגה`, `טבלה לאחר משחק …`).
   - **A photo:** the photo with its caption (`רגע ממשחק`). A game photo that stands
     apart from the article (another spot on the page, or another library clip) is its

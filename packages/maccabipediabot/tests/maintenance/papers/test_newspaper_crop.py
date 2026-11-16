@@ -6,6 +6,7 @@ import pytest
 from maccabipediabot.maintenance.papers.newspaper_crop import (
     CropSpecError, check_edges, compose, kept_fraction, load_scan,
 )
+from maccabipediabot.maintenance.papers.newspaper_lines import text_lines
 
 # A synthetic page: two text blocks of 6 px "letters" separated by a 2 px rule at y=200.
 W, H = 600, 400
@@ -139,3 +140,57 @@ def test_compose_stacks_pieces_and_blanks():
     out = compose(page(), spec)
     assert out.size == (300, 200)
     assert out.convert("L").crop((0, 100, 300, 200)).getextrema() == (255, 255)
+
+
+# The first text line of page() is ink rows 40-54; its letters sit at x 40+14k .. 48+14k.
+MARKED = {"width": 600, "height": 200, "pieces": [{"box": [0, 0, 600, 200], "at": [0, 0]}],
+          "highlight": [[30, 41, 570, 56]]}
+
+
+def test_marker_tints_the_paper_and_keeps_the_ink_black():
+    out = np.asarray(compose(page(), MARKED)).astype(int)
+    paper = out[48, 51]                       # the gap between two letters, inside the stroke
+    assert paper[0] >= 250 and 180 <= paper[2] <= 205  # #ffdd00 at ~25%: yellow, not white
+    assert out[48, 44].max() < 10             # a letter under the stroke stays black
+    assert (out[100, 51] == 255).all()        # paper outside the stroke is untouched
+
+
+def test_marker_is_the_same_on_every_run():
+    assert compose(page(), MARKED).tobytes() == compose(page(), MARKED).tobytes()
+
+
+@pytest.mark.parametrize("strokes", [
+    [[30, 150, 570, 230]],     # leaves the kept piece
+    [[30, 20, 570, 120]],      # taller than a line
+    [[30, 41, 570]],           # malformed
+    [[300, 41, 30, 56]],       # empty
+])
+def test_bad_highlight_strokes_are_refused(strokes):
+    with pytest.raises(CropSpecError):
+        compose(page(), {**MARKED, "highlight": strokes})
+
+
+def test_bad_highlight_under_a_blank_is_refused():
+    spec = {**MARKED, "pieces": [{"box": [0, 0, 600, 200], "at": [0, 0], "blank": [[0, 0, 600, 50]]}]}
+    with pytest.raises(CropSpecError):
+        compose(page(), spec)
+
+
+def test_marker_stays_inside_its_piece():
+    # Two slices meeting at y=100; the stroke ends on the first slice's last row.
+    spec = {"width": 600, "height": 200,
+            "pieces": [{"box": [0, 0, 600, 100], "at": [0, 0]}, {"box": [0, 100, 600, 200], "at": [0, 100]}],
+            "highlight": [[30, 85, 570, 99]]}
+    out = np.asarray(compose(page(), spec)).astype(int)
+    assert out[99, 51, 2] < 230               # the stroke reaches the slice's last row
+    assert (out[100, 51] == 255).all()        # and not a pixel of the next slice
+
+
+def test_text_lines_finds_each_line_and_its_words():
+    gray = np.asarray(page(), dtype=np.int32)
+    lines = text_lines(gray, (20, 30, 580, 190))
+    assert [line["ink"][1] for line in lines] == [40, 64, 88, 112, 136]
+    first = lines[0]
+    assert first["ink"] == [40, 40, 566, 54]
+    assert first["stroke"] == [35, 41, 571, 56]
+    assert len(first["words"]) == 38 and first["words"][0] == (40, 48)
