@@ -37,7 +37,8 @@ Windows-1255 never matches (`QUERY_STRING` and `THE_REQUEST` stay percent-encode
 crawler hitting the IP block (section 6). They cost nothing.
 
 `.htaccess` serves every file that exists in `public_html` as-is, so anything left there is public
-unless a rule refuses it. Sections 4c and 7 refuse `MyLogs/` and every `*.log` in any folder:
+unless a rule refuses it. Sections 4c and 7 refuse `MyLogs/` and, in any folder, every `*.log`,
+its rotated copies (`.log.1`, `.log.gz`, ...) and PHP's `error_log`:
 MediaWiki writes its DB error log to `MyLogs/` and the job cron writes `run_jobs.log` in the wiki
 root, and both used to download for anyone (DB user and host, server paths, stack traces). Never
 write a log, dump or backup into `public_html` without a rule that refuses it.

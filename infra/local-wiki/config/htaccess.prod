@@ -96,12 +96,15 @@ RewriteRule . /index.php [L]
 </IfModule>
 
 # ------------------------------------------
-# 7. Any file ending in .log, in any folder, is refused (see 4c).
+# 7. Log files are refused in every folder (see 4c): *.log, its rotated
+#    copies (.log.1, .log.gz, .log.old, .log.bak, .log~) and PHP's own
+#    error_log / php_errorlog. The suffixes are listed one by one, because
+#    a looser ".log." would also catch mediawiki.log.js in core.
 #    FilesMatch reaches subfolders even when they have their own
 #    .htaccess with RewriteEngine On, which a RewriteRule here does not.
 # ------------------------------------------
 <IfModule mod_authz_core.c>
-<FilesMatch "(?i)\.log$">
+<FilesMatch "(?i)(\.log(\.[0-9]+|\.gz|\.old|\.bak|~)?|^error_log|^php_errorlog)$">
     Require all denied
 </FilesMatch>
 </IfModule>
