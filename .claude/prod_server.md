@@ -28,10 +28,12 @@ has a per-minute table: `EP` A/L/F is active/limit/faults, and `SPEED` is CPU, c
 A request that `.htaccess` refuses never starts PHP, so it takes no slot. That makes
 `public_html/.htaccess` the cheapest defence against crawler floods. It is versioned as
 `infra/local-wiki/config/htaccess.prod`: edit it there, then upload it over FTP. Section 4b
-refuses filtered `Drilldown` to anyone without a login cookie. A botnet on residential IPs,
+refuses `Drilldown` with any query string (filters, paging, even `?utm_`) to anyone without
+a login cookie; `load.php`/`api.php` are exempt, because the page loads its own CSS/JS as
+`load.php?modules=ext.cargo.drilldown`. A botnet on residential IPs,
 using browser User-Agents, held all 60 slots with random filter combinations until 4b went
-up. The file must stay UTF-8: mod_rewrite matches the decoded URL, so a Hebrew pattern in
-Windows-1255 never matches. `AH01630 ... 57.141.x` lines in the error log are Meta's
+up. The file must stay UTF-8: mod_rewrite matches the path decoded, so a Hebrew path pattern in
+Windows-1255 never matches (`QUERY_STRING` and `THE_REQUEST` stay percent-encoded). `AH01630 ... 57.141.x` lines in the error log are Meta's
 crawler hitting the IP block (section 6). They cost nothing.
 
 ## The file cap (inodes)

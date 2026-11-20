@@ -2,8 +2,9 @@
 # This file is the source of truth: edit it here, then upload it over FTP.
 # It is NOT mounted into the local wiki (that uses ./htaccess): section 1
 # would redirect localhost to www.
-# Keep it UTF-8. mod_rewrite matches the decoded URL, so a Hebrew literal
-# in a pattern only works in UTF-8 (the server copy was once Windows-1255).
+# Keep it UTF-8. REQUEST_URI is matched decoded, so a Hebrew literal in a
+# path pattern only works in UTF-8 (the server copy was once Windows-1255).
+# QUERY_STRING and THE_REQUEST stay percent-encoded: use %D7.. there.
 
 # ==========================================
 # .htaccess - MaccabiPedia
@@ -51,11 +52,14 @@ RewriteCond %{QUERY_STRING} (^|&)title=Special: [NC]
 RewriteRule .* - [F,L]
 
 # ------------------------------------------
-# 4b. Drilldown with filters - logged-out visitors get 403.
+# 4b. Drilldown with any query string - logged-out visitors get 403.
 #     Botnet on residential IPs, browser User-Agent, random filter
 #     combinations (Nov 2026). Blocked before PHP, so it costs no
 #     entry process. Logged-in users (UserID cookie) still pass.
+#     load.php/api.php are exempt: the page loads its own CSS/JS as
+#     load.php?modules=ext.cargo.drilldown.
 # ------------------------------------------
+RewriteCond %{REQUEST_URI} !^/(load|api)\.php$ [NC]
 RewriteCond %{THE_REQUEST} Drilldown [NC]
 RewriteCond %{QUERY_STRING} .
 RewriteCond %{HTTP_COOKIE} !UserID= [NC]
