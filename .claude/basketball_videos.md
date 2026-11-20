@@ -88,6 +88,61 @@ per video, which is minutes for the whole channel where yt-dlp would be hours. T
 also why the date can be used to CHOOSE between candidate games, not merely to confirm
 one: a video posted within ten days of exactly one candidate settles it.
 
+## Deciding a match the matcher calls uncertain
+
+A maintainer set these rules while reviewing an archive channel row by row (oren211180,
+see `.claude/maccabipedia_research_sources.md`), checking the doubtful rows by opening the
+videos. They are for matching videos to game pages. They are a reviewer's calls, not the
+matcher's: a video they settle still scores low on the 1-10 scale above (a date that
+disagrees still gives it 2), so it goes in through a reviewed write, never by lowering
+`--min-confidence` for a whole run.
+
+- **When the date disagrees or is missing, the stage decides.** The description date is
+  the first key when it agrees. But season + opponent + score + the same stage as the
+  page's `Leg` (`בית הגמר - מחזור 9`, `גמר - משחק 2`) means the same game, even when the
+  description date is days off the page or missing. Look for the stage in the
+  description as well as the title: archive uploads often put `גביע אירופה לאלופות,הבית
+  המוקדם,מחזור 3` there. Hebrew ordinals count (`משחק ראשון` = game 1).
+- **A wrong score in the title does not reject a match.** When season + opponent +
+  competition + stage point to exactly one game on the wiki, the title's score can be off,
+  even by ten points. Titles carry typos (104 for 106), and the page's own score can be
+  the wrong one too. A small difference is high confidence and a large one medium, and
+  both get written once a reviewer accepts them.
+- **The English line in a description is a cross-check, not a vote.** When the Hebrew
+  title's score matches the page, an English line that disagrees is the error.
+- **Home/away reversed in a title is a title error**, not a different game. The order is
+  arbitrary for finals and neutral venues anyway.
+- **A round off by one can be a numbering shift.** Two 1980/81 European Champions Cup
+  final-group games carry a round number one lower in their titles than on their pages
+  (title 7 / page 8, title 8 / page 9). A game against CSKA explains the shift. Before
+  calling a one-round gap a conflict, check the page's other games in that group.
+- **The only game against that opponent that season with that score is the game**, even
+  when the title names no stage or date. List every game against the opponent that season,
+  and the season either side when a bare year is ambiguous, before deciding.
+
+Two more come from the same review, but from the matcher's own results rather than the
+maintainer's calls:
+
+- The score rule above is basketball only, because in football a one-goal difference is
+  a different result.
+- Never take "same score, any opponent". Every time it was tried it named the wrong game.
+
+Which field a video takes:
+
+- A video under an hour labelled a full game goes into `משחק מלא` when the page has no
+  full game. An edited broadcast is better there than nothing, and a reader can move it.
+- A single half (`מחצית ראשונה/שנייה`) goes into `משחק מלא`, or into `משחק מלא2` when the
+  first is taken. When both are taken it is not written. Never use the third or fourth
+  slot (see Slots).
+- Another highlights clip for a game that already has one goes into `תקציר וידאו2`.
+- Review order: games with no video at all first, then the first video of a kind (a full
+  game for a game that has only highlights), then extra highlights.
+
+Videos the matcher could not tie to a single game are part of the review, not
+leftovers. For each, list the candidate wiki games by opponent, year, score and
+home/away. Show only the videos that would give a candidate its first video of that kind:
+a highlights clip whose candidates all have highlights already can wait.
+
 ## Where things live
 
 | Path | What |
