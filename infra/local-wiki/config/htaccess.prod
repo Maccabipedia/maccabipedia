@@ -1,0 +1,87 @@
+# Production .htaccess for www.maccabipedia.co.il (public_html/.htaccess).
+# This file is the source of truth: edit it here, then upload it over FTP.
+# It is NOT mounted into the local wiki (that uses ./htaccess): section 1
+# would redirect localhost to www.
+# Keep it UTF-8. REQUEST_URI is matched decoded, so a Hebrew literal in a
+# path pattern only works in UTF-8 (the server copy was once Windows-1255).
+# QUERY_STRING and THE_REQUEST stay percent-encoded: use %D7.. there.
+
+# ==========================================
+# .htaccess - MaccabiPedia
+# ==========================================
+
+<IfModule mod_rewrite.c>
+RewriteEngine On
+
+# ------------------------------------------
+# 1. הפניה ל-www (הקוד המקורי שלך)
+# ------------------------------------------
+RewriteCond "%{HTTP_HOST}" "!^www\." [NC]
+RewriteCond "%{HTTP_HOST}" "!^$"
+RewriteRule "^/?(.*)"      "https://www.%{HTTP_HOST}/$1" [L,R=301,NE]
+
+RewriteBase /
+
+# ------------------------------------------
+# 2. חסימת סורק ה-AI של Meta לחלוטין
+#    (לא פוגע ב-facebookexternalhit שאחראי
+#     על תצוגות מקדימות של קישורים)
+# ------------------------------------------
+RewriteCond %{HTTP_USER_AGENT} meta-externalagent [NC,OR]
+RewriteCond %{HTTP_USER_AGENT} FacebookBot [NC]
+RewriteRule .* - [F,L]
+
+# ------------------------------------------
+# 3. חסימת סורקי AI ידועים נוספים (אופציונלי,
+#    מחק שורות אם אתה רוצה לאפשר חלק מהם)
+# ------------------------------------------
+RewriteCond %{HTTP_USER_AGENT} (GPTBot|CCBot|Bytespider|ClaudeBot|Amazonbot|PetalBot|DataForSeoBot) [NC]
+RewriteRule .* - [F,L]
+
+# ------------------------------------------
+# 4. חסימת כל בוט (לפי User-Agent של בוטים
+#    מוכרים) מדפים דינמיים כבדים:
+#    - כל בקשה ל-index.php עם query string
+#    - דפי "מיוחד:" / Special:
+#    גולשים אנושיים לא נחסמים.
+# ------------------------------------------
+RewriteCond %{HTTP_USER_AGENT} (bot|crawler|spider|facebookexternalhit) [NC]
+RewriteCond %{REQUEST_URI}?%{QUERY_STRING} (index\.php\?.+|/Special:|/%D7%9E%D7%99%D7%95%D7%97%D7%93:|/מיוחד:) [NC,OR]
+RewriteCond %{QUERY_STRING} (^|&)title=%D7%9E%D7%99%D7%95%D7%97%D7%93 [NC,OR]
+RewriteCond %{QUERY_STRING} (^|&)title=Special: [NC]
+RewriteRule .* - [F,L]
+
+# ------------------------------------------
+# 4b. Drilldown with any query string - logged-out visitors get 403.
+#     Botnet on residential IPs, browser User-Agent, random filter
+#     combinations (Nov 2026). Blocked before PHP, so it costs no
+#     entry process. Logged-in users (UserID cookie) still pass.
+#     load.php/api.php are exempt: the page loads its own CSS/JS as
+#     load.php?modules=ext.cargo.drilldown.
+# ------------------------------------------
+RewriteCond %{REQUEST_URI} !^/(load|api)\.php$ [NC]
+RewriteCond %{THE_REQUEST} Drilldown [NC]
+RewriteCond %{QUERY_STRING} .
+RewriteCond %{HTTP_COOKIE} !UserID= [NC]
+RewriteRule .* - [F,L]
+
+# ------------------------------------------
+# 5. הכלל המקורי של MediaWiki (כתובות נקיות)
+#    חייב להישאר אחרון!
+# ------------------------------------------
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule . /index.php [L]
+</IfModule>
+
+# ------------------------------------------
+# 6. חסימת טווח ה-IP של הסורק שתפסת בלוגים
+#    (Meta AS32934). הסר את הבלוק הזה אחרי
+#    שה-robots.txt ייקלט, אם תרצה.
+# ------------------------------------------
+<IfModule mod_authz_core.c>
+<RequireAll>
+    Require all granted
+    Require not ip 57.141.0.0/16
+</RequireAll>
+</IfModule>
