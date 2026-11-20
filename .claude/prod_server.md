@@ -16,6 +16,23 @@ the `deploy-localsettings` skill and `infra/local-wiki/README.md`.
   `abuse.spd.co.il` from the host's firewall, which looks like an outage and is not.
 - Reading through FTP is fine. Deleting, moving or uploading anything on the server needs
   the owner's OK for that action.
+- Python's `ftplib` gets `425 Unable to build data connection` on any listing or download;
+  `lftp` works.
+
+## Entry processes and the `.htaccess` guard
+
+The account runs at most **60 PHP requests at once** (CloudLinux "Entry Processes"). The
+61st gets a 507/508, and the error log fills with `MHL-E2BIG`. DirectAdmin → Resource Usage
+has a per-minute table: `EP` A/L/F is active/limit/faults, and `SPEED` is CPU, capped at 400%.
+
+A request that `.htaccess` refuses never starts PHP, so it takes no slot. That makes
+`public_html/.htaccess` the cheapest defence against crawler floods. It is versioned as
+`infra/local-wiki/config/htaccess.prod`: edit it there, then upload it over FTP. Section 4b
+refuses filtered `Drilldown` to anyone without a login cookie. A botnet on residential IPs,
+using browser User-Agents, held all 60 slots with random filter combinations until 4b went
+up. The file must stay UTF-8: mod_rewrite matches the decoded URL, so a Hebrew pattern in
+Windows-1255 never matches. `AH01630 ... 57.141.x` lines in the error log are Meta's
+crawler hitting the IP block (section 6). They cost nothing.
 
 ## The file cap (inodes)
 
