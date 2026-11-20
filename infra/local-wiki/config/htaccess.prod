@@ -66,6 +66,15 @@ RewriteCond %{HTTP_COOKIE} !UserID= [NC]
 RewriteRule .* - [F,L]
 
 # ------------------------------------------
+# 4c. Server logs are never served. MediaWiki writes its DB error log to
+#     MyLogs/ and the job cron writes run_jobs.log in the wiki root; both
+#     used to download for anyone (DB user, paths, stack traces). The
+#     *.log files are refused by the FilesMatch block at the bottom, in
+#     every folder; this rule also closes MyLogs/ itself.
+# ------------------------------------------
+RewriteRule ^MyLogs(/|$) - [F,L]
+
+# ------------------------------------------
 # 5. הכלל המקורי של MediaWiki (כתובות נקיות)
 #    חייב להישאר אחרון!
 # ------------------------------------------
@@ -84,4 +93,15 @@ RewriteRule . /index.php [L]
     Require all granted
     Require not ip 57.141.0.0/16
 </RequireAll>
+</IfModule>
+
+# ------------------------------------------
+# 7. Any file ending in .log, in any folder, is refused (see 4c).
+#    FilesMatch reaches subfolders even when they have their own
+#    .htaccess with RewriteEngine On, which a RewriteRule here does not.
+# ------------------------------------------
+<IfModule mod_authz_core.c>
+<FilesMatch "(?i)\.log$">
+    Require all denied
+</FilesMatch>
 </IfModule>

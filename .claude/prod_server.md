@@ -36,6 +36,12 @@ up. The file must stay UTF-8: mod_rewrite matches the path decoded, so a Hebrew 
 Windows-1255 never matches (`QUERY_STRING` and `THE_REQUEST` stay percent-encoded). `AH01630 ... 57.141.x` lines in the error log are Meta's
 crawler hitting the IP block (section 6). They cost nothing.
 
+`.htaccess` serves every file that exists in `public_html` as-is, so anything left there is public
+unless a rule refuses it. Sections 4c and 7 refuse `MyLogs/` and every `*.log` in any folder:
+MediaWiki writes its DB error log to `MyLogs/` and the job cron writes `run_jobs.log` in the wiki
+root, and both used to download for anyone (DB user and host, server paths, stack traces). Never
+write a log, dump or backup into `public_html` without a rule that refuses it.
+
 ## The file cap (inodes)
 
 The account allows **250,000 files and folders** (DirectAdmin: Inodes). Disk space and
@@ -109,5 +115,12 @@ and kept forever. Every distinct width is another file.
   `skins/Maccabipedia_old`, ~2.3k files. Proof that nothing used them: the live
   `siteinfo&siprop=extensions` versions matched the live folders, not the copies; `shared.php`
   loads every extension by folder name; 5 days of access logs had no request into them.
+- 2026-11-20: the owner deleted the old DB error log in `MyLogs/`, `_LocalSettings.shared.php`
+  (a September copy), `.htaccess__`, `.htupdate.log`, `cargo_recreate.log`, `inode_report.txt`,
+  `MaccabiPedia.games` (read only by the dead Telegram bot) and `spd.php` (the host's timezone
+  test). Still undecided: `VB/` (a 2020 volleyball-site mock-up with a mail script), `testing/`
+  (`testing.maccabipedia.co.il` resolves, so it may be a subdomain's folder), `export.zip`, the
+  two Brothers 1906 campaign pages, and the 1.31-era leftovers `profileinfo.php`, `Gruntfile.js`,
+  `StartProfiler.sample`, `serialized/`.
 - About 23 extensions sit in `extensions/` without being loaded (AbuseFilter, Math, OATHAuth,
   SpamBlacklist, ...). The owner chose to keep them.
