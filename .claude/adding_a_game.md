@@ -60,6 +60,39 @@ none there (see step 7).
   referee, crowd, stadium. When papers disagree (e.g. crowd 14,000 vs "about
   13,000"), take the match report and tell the maintainer about the other figure.
 
+## 3b. Settle every uncertain field in the issues around the game
+
+Applies to every game whose source is the press, in any sport and any decade (in
+practice everything before online box scores, from the 1930s on). One match report
+is not enough for a field you are unsure of: round name, date, home/away, venue,
+opponent name, a player's identity.
+
+- Read the issues **before** the game too, not only after. Previews and fixture
+  lists ("בליל שבת יערכו...", the draw, "המשחקים:") name the round and the venue,
+  list the home side first, and give the day. Reports often skip all three.
+- Search a window of about a week each side
+  (`search_newspaper_archive.py --before 7 --after 3`), in every archive that covers
+  the date (Yedioth single pages, Yedioth full issues, Hadashot HaSport up to 1984).
+- A secondary source (a results doc, a book, a fan list) gives a good date, opponent
+  and score, but its labels are its own shorthand. Take the round name from the press.
+  Example: a hand-kept results doc called the 26.6.1964 basketball cup game "גביע מוקדם";
+  Yedioth's preview of 22.6.1964 says "הסבוב ה-4", so the page says `סיבוב רביעי`.
+- Round numbering changed from season to season (the basketball cup's early rounds
+  were "סיבוב שלישי" in 1963, "הסבוב ה-4" in 1964). Never carry a round name over
+  from another season.
+- Two papers that disagree on a field: write the one the match report or the preview
+  states outright, and tell the maintainer about the other.
+- A results box ("אמש בגביע הכדורסל") lists the home side first in every line. A
+  drawn host whose game moved to the bigger hall (Yad Eliyahu) is still the host:
+  the page says `חוץ` with `אולם=יד אליהו`. Check the box's other lines against their
+  venues before trusting the order.
+- The text and the box score can disagree on a score (97:78 in the text, scorers
+  adding up to 77). Take the score the box score and a second source agree on, and
+  tell the maintainer. A box score that adds up 2 short of the final stays as printed.
+- Yedioth's text layer is unreadable for roughly 1977–1980, so text search finds
+  nothing there. Search for the score from a secondary source instead, then read the
+  pages by eye.
+
 ## 4. Resolve every name — never invent
 
 - Maccabi: season squad = the sport's player-events table (see the table) joined
@@ -68,8 +101,19 @@ none there (see step 7).
 - Guests / loanees: the same events table wiki-wide, `PlayerName LIKE '%<surname>%'`.
 - Referee: the games table's referee column (see the table) `LIKE '%<surname>%'`.
   Maccabi coach: a nearby game's `CoachMaccabi` (same column in all three sports).
-- Opponent players: surname exactly as printed. Flag unclear ones for the maintainer instead
-  of "correcting" them from memory.
+- Opponent players: the same events table joined to the games table, `Team=0`,
+  same season and same opponent. Surname → full name only when exactly one rostered
+  player matches; the press spells foreign names loosely (מדרמן = דן פדרמן,
+  גברסון = קרל נברסון), so a near match goes to the maintainer, not into the page.
+  No roster (a club the wiki has no games against that season): surname exactly as
+  printed. Flag unclear ones for the maintainer instead of "correcting" them from
+  memory.
+- Opponent club: the press, the federation and a results doc can each name one club
+  differently in the same season (יגור/העמק, גבת-יגור, יגור = the wiki's "הפועל גבת"
+  in 1978/79). Prove it is one club from its league games that season (same score
+  lines, same players, same coach), then use the name the wiki gives it that season.
+  A club the wiki has never played gets a new name from the press, after the
+  maintainer agrees. A slash in the name becomes "-" in file names.
 - Anything no source gives stays **blank**: kickoff time, the opponent's coach,
   kit, substitution minutes.
 
