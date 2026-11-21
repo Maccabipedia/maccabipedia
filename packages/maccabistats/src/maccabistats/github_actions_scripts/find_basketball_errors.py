@@ -25,14 +25,14 @@ def main() -> None:
     remove_live_logging()
 
     basketball_games = load_basketball_from_maccabipedia()
-    results = BasketballErrorsFinder(basketball_games.games).find_all()
+    results = BasketballErrorsFinder(basketball_games.games, basketball_games.player_rows_without_game).find_all()
 
     with args.out.open("w", encoding="utf-8-sig", newline="") as out_file:
         writer = csv.writer(out_file, delimiter="\t")
         writer.writerow(["check", "season", "page", "detail"])
         for findings in results.values():
             for finding in findings:
-                writer.writerow([finding.check, finding.game.season, finding.game.page_name, finding.detail])
+                writer.writerow([finding.check, finding.season, finding.page_name, finding.detail])
 
     logger.info(f"{len(basketball_games)} games checked")
     for name, findings in results.items():

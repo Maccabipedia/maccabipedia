@@ -1,13 +1,15 @@
 """Load every basketball game from MaccabiPedia's Cargo tables."""
 import logging
 from datetime import date
-from typing import Dict, List
+from collections import defaultdict
+from typing import Dict, List, Tuple
 
 from maccabistats.basketball.models import (
     MACCABI_NAME,
     BasketballCompetitionFlags,
     BasketballGameData,
     BasketballGameVideos,
+    BasketballPlayerInGame,
     BasketballTeamInGame,
 )
 from maccabistats.basketball.stats import BasketballGamesStats
@@ -30,6 +32,22 @@ _GAMES_FIELDS = ",".join(
     + [f"{period}OvertimePoints{side}" for period in _PERIODS for side in _SIDES]
 )
 _COMPETITIONS_FIELDS = "_pageName,OriginalName,CurrentName,League,International,Trophy,Official"
+_PLAYERS_TABLE = "Basketball_Player_Game_Events_Summary"
+# The model's field for each Cargo column. FieldGoals are the two-point shots.
+_PLAYER_STATS_COLUMNS = {
+    "minutes": "MinutesPlayed", "points": "TotalPoints",
+    "two_points_scored": "FieldGoalsScored", "two_points_attempts": "FieldGoalsAttempts",
+    "three_points_scored": "ThreePointsScored", "three_points_attempts": "ThreePointsAttempts",
+    "free_throws_scored": "FreeThrowsScored", "free_throws_attempts": "FreeThrowsAttempts",
+    "rebounds": "TotalRebounds", "offensive_rebounds": "OffensiveRebounds", "defensive_rebounds": "DefensiveRebounds",
+    "assists": "Assists", "steals": "Steals", "blocks": "Blocks", "turnovers": "Turnovers",
+    "personal_fouls": "TotalPersonalFouls", "technical_fouls": "TechnicalPersonalFouls",
+}
+_PLAYERS_FIELDS = ",".join(["_ID", "_pageName", "PlayerName", "PlayerNumber", "IsCaptain", "IsStartingFive",
+                            "IsPlayed", "Team"] + list(_PLAYER_STATS_COLUMNS.values()))
+# The Team column of a player row
+_MACCABI_TEAM = 1
+_OPPONENT_TEAM = 0
 # Smaller than Cargo's 5000 on purpose: the rows are wide and the shared host answers 508 under load.
 _ROWS_PER_REQUEST = 2500
 _REQUEST_TIMEOUT_SECONDS = 120
@@ -59,7 +77,20 @@ def _flag(raw: Dict, field: str) -> bool:
     return raw.get(field) in (1, "1", True)
 
 
-def _team_from_cargo(raw: Dict, side: str, name: str | None) -> BasketballTeamInGame:
+def player_from_cargo(raw: Dict) -> BasketballPlayerInGame:
+    """:param raw: One Basketball_Player_Game_Events_Summary row as the crawler yields it"""
+    return BasketballPlayerInGame(
+        name=_text(raw, "PlayerName"),
+        number=raw.get("PlayerNumber"),
+        is_captain=_flag(raw, "IsCaptain"),
+        is_starting_five=_flag(raw, "IsStartingFive"),
+        is_played=_flag(raw, "IsPlayed"),
+        **{stat: raw.get(column) for stat, column in _PLAYER_STATS_COLUMNS.items()},
+    )
+
+
+def _team_from_cargo(raw: Dict, side: str, name: str | None,
+                     players: Tuple[BasketballPlayerInGame, ...]) -> BasketballTeamInGame:
     return BasketballTeamInGame(
         name=name,
         coach=_text(raw, f"Coach{side}"),
@@ -67,6 +98,7 @@ def _team_from_cargo(raw: Dict, side: str, name: str | None) -> BasketballTeamIn
         quarters=tuple(raw.get(f"{period}QuarterPoints{side}") for period in _PERIODS),
         halves=tuple(raw.get(f"{period}HalfPoints{side}") for period in _PERIODS[:2]),
         overtimes=tuple(raw.get(f"{period}OvertimePoints{side}") for period in _PERIODS),
+        players=players,
     )
 
 
@@ -80,11 +112,17 @@ def competition_flags_from_cargo(raw: Dict) -> BasketballCompetitionFlags:
     )
 
 
-def game_from_cargo(raw: Dict, competitions: Dict[str, BasketballCompetitionFlags]) -> BasketballGameData:
+PlayersBySide = Dict[Tuple[str, int], List[BasketballPlayerInGame]]
+
+
+def game_from_cargo(raw: Dict, competitions: Dict[str, BasketballCompetitionFlags],
+                    players_by_side: PlayersBySide | None = None) -> BasketballGameData:
     """
     :param raw: One Basketball_Games row as the crawler yields it (no key for an empty value)
     :param competitions: The catalog, by the competition's name as game pages write it
+    :param players_by_side: The box scores, by (the game's page name, the Team column)
     """
+    players_by_side = players_by_side or {}
     competition = _text(raw, "Competition")
     opponent = _text(raw, "Opponent")
     return BasketballGameData(
@@ -109,14 +147,16 @@ def game_from_cargo(raw: Dict, competitions: Dict[str, BasketballCompetitionFlag
             full_game=_text(raw, "FullGameVideo"), full_game_2=_text(raw, "FullGameVideo2"),
             highlights=_text(raw, "HighlightsVideo"), highlights_2=_text(raw, "HighlightsVideo2"),
             fans=_text(raw, "FansVideo"), fans_2=_text(raw, "FansVideo2")),
-        maccabi=_team_from_cargo(raw, "Maccabi", MACCABI_NAME),
-        opponent_team=_team_from_cargo(raw, "Opponent", opponent),
+        maccabi=_team_from_cargo(raw, "Maccabi", MACCABI_NAME,
+                                 tuple(players_by_side.get((raw["_pageName"], _MACCABI_TEAM), ()))),
+        opponent_team=_team_from_cargo(raw, "Opponent", opponent,
+                                       tuple(players_by_side.get((raw["_pageName"], _OPPONENT_TEAM), ()))),
     )
 
 
-def _crawl(table: str, fields: str) -> List[Dict]:
+def _crawl(table: str, fields: str, order_by: str) -> List[Dict]:
     return list(MaccabiPediaCargoChunksCrawler(
-        tables_name=table, tables_fields=fields, limit=_ROWS_PER_REQUEST, order_by="_pageName",
+        tables_name=table, tables_fields=fields, limit=_ROWS_PER_REQUEST, order_by=order_by,
         unescape_all_strings=True, timeout=_REQUEST_TIMEOUT_SECONDS))
 
 
@@ -126,7 +166,7 @@ def _count_rows(table: str) -> int:
     return int(count_rows[0]["RowsCount"])
 
 
-def _crawl_whole_table(table: str, fields: str, unique_field: str) -> List[Dict]:
+def _crawl_whole_table(table: str, fields: str, unique_field: str, order_by: str = "_pageName") -> List[Dict]:
     """
     The crawler stops at the first request that returns fewer rows than asked, so a response cut
     short would end the crawl early with no error; and a page saved mid-crawl can move a row across
@@ -134,7 +174,7 @@ def _crawl_whole_table(table: str, fields: str, unique_field: str) -> List[Dict]
     So the crawl must match the table's row count and repeat no unique_field; it is tried twice.
     """
     for attempt in ("first", "second"):
-        rows = _crawl(table, fields)
+        rows = _crawl(table, fields, order_by)
         if not rows:
             raise RuntimeError(f"MaccabiPedia returned no rows for {table}")
 
@@ -160,11 +200,39 @@ def _crawl_competitions() -> Dict[str, BasketballCompetitionFlags]:
     return competitions
 
 
-def load_basketball_from_maccabipedia() -> BasketballGamesStats:
-    """Crawl every basketball game from MaccabiPedia. Nothing is saved; see serialize_basketball_games."""
-    competitions = _crawl_competitions()
-    games = [game_from_cargo(raw, competitions)
-             for raw in _crawl_whole_table(_GAMES_TABLE, _GAMES_FIELDS, unique_field="_pageName")]
+def _crawl_players() -> PlayersBySide:
+    """
+    The table is some 60,000 rows over many requests, and no column of its own is unique (a page can
+    list one player twice), so it is ordered by Cargo's row id. The id only orders this one crawl:
+    Cargo gives a page's rows new ids whenever the page is saved, so nothing keeps it.
+    """
+    rows = _crawl_whole_table(_PLAYERS_TABLE, _PLAYERS_FIELDS, unique_field="_ID", order_by="_ID")
+    players_by_side = defaultdict(list)
+    # Within a page the ids follow the page's own order of players
+    for raw in sorted(rows, key=lambda row: row["_ID"]):
+        players_by_side[(raw["_pageName"], raw.get("Team"))].append(player_from_cargo(raw))
+    return players_by_side
 
-    logger.info(f"Loaded {len(games)} basketball games and {len(competitions)} competitions from MaccabiPedia")
-    return BasketballGamesStats(games)
+
+def load_basketball_from_maccabipedia(with_players: bool = True) -> BasketballGamesStats:
+    """
+    Crawl every basketball game from MaccabiPedia. Nothing is saved; see serialize_basketball_games.
+
+    :param with_players: Also crawl the players' box scores, which is most of the requests.
+                         Without them every team's ``players`` is empty.
+    """
+    competitions = _crawl_competitions()
+    players_by_side = _crawl_players() if with_players else {}
+    games_rows = _crawl_whole_table(_GAMES_TABLE, _GAMES_FIELDS, unique_field="_pageName")
+    games = [game_from_cargo(raw, competitions, players_by_side) for raw in games_rows]
+
+    # Rows the games did not take: their page has no game row, or their Team is neither side
+    taken_sides = {(raw["_pageName"], team) for raw in games_rows for team in (_MACCABI_TEAM, _OPPONENT_TEAM)}
+    player_rows_without_game = [(page_name, team, player)
+                                for (page_name, team), players in players_by_side.items()
+                                if (page_name, team) not in taken_sides for player in players]
+
+    logger.info(f"Loaded {len(games)} basketball games, {len(competitions)} competitions and "
+                f"{sum(len(players) for players in players_by_side.values())} player rows from MaccabiPedia "
+                f"({len(player_rows_without_game)} player rows belong to no game)")
+    return BasketballGamesStats(games, player_rows_without_game)

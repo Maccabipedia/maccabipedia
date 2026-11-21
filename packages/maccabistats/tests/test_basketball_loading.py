@@ -8,7 +8,12 @@ import pytest
 
 from maccabistats.basketball import parse as basketball_parse
 from maccabistats.basketball import serialized as basketball_serialized
-from maccabistats.basketball.parse import game_from_cargo, competition_flags_from_cargo, load_basketball_from_maccabipedia
+from maccabistats.basketball.parse import (
+    competition_flags_from_cargo,
+    game_from_cargo,
+    load_basketball_from_maccabipedia,
+    player_from_cargo,
+)
 from maccabistats.basketball.serialized import get_basketball_stats, serialize_basketball_games
 from maccabistats.basketball.stats import BasketballGamesStats
 
@@ -40,6 +45,28 @@ BEER_SHEVA_2026 = {
     "HomeAway": "בית", "Stadium": "היכל מנורה מבטחים", "TotalPointsMaccabi": 106, "TotalPointsOpponent": 90,
     "ResultOpt": 1, "CoachMaccabi": "עודד קטש", "CoachOpponent": "יניב רבינס", "MainReferee": "עופר מנהיים",
     "AssistantReferees": ["כפיר מועלם", " ניר קרן"], "Crowd": 7939, "HasArticle": 1, "Date__precision": 1}
+BEER_SHEVA_PAGE = BEER_SHEVA_2026["_pageName"]
+# A modern line: every number recorded
+HOARD_2026 = {"_ID": 160002, "_pageName": BEER_SHEVA_PAGE, "PlayerName": "ג'יילן הורד", "PlayerNumber": 5,
+              "IsCaptain": 0, "IsStartingFive": 1, "IsPlayed": 1, "Team": 1, "TotalPoints": 19,
+              "ThreePointsAttempts": 4, "ThreePointsScored": 1, "FieldGoalsAttempts": 9, "FieldGoalsScored": 6,
+              "FreeThrowsAttempts": 5, "FreeThrowsScored": 4, "TotalRebounds": 7, "OffensiveRebounds": 2,
+              "DefensiveRebounds": 5, "MinutesPlayed": 27, "TotalPersonalFouls": 2, "Assists": 3, "Blocks": 1,
+              "Steals": 2, "Turnovers": 1}
+BLATT_2026 = {**HOARD_2026, "_ID": 160001, "PlayerName": "תמיר בלאט", "PlayerNumber": 45, "IsCaptain": 1,
+              "TotalPoints": 11, "Assists": 9}
+DID_NOT_PLAY_2026 = {"_ID": 160003, "_pageName": BEER_SHEVA_PAGE, "PlayerName": "עומר מאייר", "IsCaptain": 0,
+                     "IsStartingFive": 0, "IsPlayed": 0, "Team": 1, "TotalRebounds": 0}
+RIVAL_2026 = {**HOARD_2026, "_ID": 160004, "PlayerName": "שחקן היריבה", "Team": 0, "TotalPoints": 30}
+# An old line as the wiki stores it: the points, and 0 for everything nobody recorded
+TOR_1957 = {"_ID": 14339, "_pageName": ASHDOT_YAAKOV_1957["_pageName"], "PlayerName": "חיים תור", "PlayerNumber": 9,
+            "IsCaptain": 0, "IsStartingFive": 0, "IsPlayed": 1, "Team": 0, "TotalPoints": 6, "ThreePointsAttempts": 0,
+            "ThreePointsScored": 0, "FieldGoalsAttempts": 0, "FieldGoalsScored": 0, "FreeThrowsAttempts": 0,
+            "FreeThrowsScored": 0, "TotalRebounds": 0, "OffensiveRebounds": 0, "DefensiveRebounds": 0,
+            "MinutesPlayed": 0, "TotalPersonalFouls": 0, "Assists": 0, "Blocks": 0, "Steals": 0, "Turnovers": 0}
+ROW_OF_A_DELETED_GAME = {**TOR_1957, "_ID": 99, "_pageName": "כדורסל:משחק שנמחק"}
+PLAYER_ROWS = [HOARD_2026, BLATT_2026, DID_NOT_PLAY_2026, RIVAL_2026, TOR_1957, ROW_OF_A_DELETED_GAME]
+
 NO_RESULT_ENTERED = {"_pageName": "כדורסל:משחק בלי תוצאה", "TotalPointsMaccabi": 0, "TotalPointsOpponent": 0,
                      "AssistantReferees": [""]}
 
@@ -131,11 +158,16 @@ GAME_ROWS = [RYTAS_2006, ASHDOT_YAAKOV_1957, BEER_SHEVA_2026]
 COMPETITION_ROWS = [EUROLEAGUE_ROW, ARTZIT_ROW]
 
 
-def _patch_crawler(monkeypatch, game_crawls, game_counts):
+PLAYERS_TABLE = "Basketball_Player_Game_Events_Summary"
+
+
+def _patch_crawler(monkeypatch, game_crawls, game_counts, player_crawls=None, player_counts=None):
     calls = []
     monkeypatch.setattr(basketball_parse, "MaccabiPediaCargoChunksCrawler", _fake_crawler(
-        {"Basketball_Games": game_crawls, "Basketball_Competitions": [COMPETITION_ROWS]},
-        {"Basketball_Games": game_counts, "Basketball_Competitions": [2]}, calls))
+        {"Basketball_Games": game_crawls, "Basketball_Competitions": [COMPETITION_ROWS],
+         PLAYERS_TABLE: player_crawls or [PLAYER_ROWS]},
+        {"Basketball_Games": game_counts, "Basketball_Competitions": [2],
+         PLAYERS_TABLE: player_counts or [len(PLAYER_ROWS)]}, calls))
     return calls
 
 
@@ -189,9 +221,9 @@ def test_row_count_query_passes_the_real_crawler(monkeypatch):
 def test_catalog_row_with_no_name_is_skipped(monkeypatch):
     calls = []
     monkeypatch.setattr(basketball_parse, "MaccabiPediaCargoChunksCrawler", _fake_crawler(
-        {"Basketball_Games": [GAME_ROWS],
+        {"Basketball_Games": [GAME_ROWS], PLAYERS_TABLE: [PLAYER_ROWS],
          "Basketball_Competitions": [COMPETITION_ROWS + [{"_pageName": "הזנת מפעלי כדורסל", "League": 1}]]},
-        {"Basketball_Games": [3], "Basketball_Competitions": [3]}, calls))
+        {"Basketball_Games": [3], "Basketball_Competitions": [3], PLAYERS_TABLE: [len(PLAYER_ROWS)]}, calls))
 
     stats = load_basketball_from_maccabipedia()
 
@@ -226,6 +258,81 @@ def test_empty_crawl_fails(monkeypatch):
 
     with pytest.raises(RuntimeError, match="no rows for Basketball_Games"):
         load_basketball_from_maccabipedia()
+
+
+# --- players' box scores ------------------------------------------------------------
+
+def test_player_line_is_read_from_the_row():
+    player = player_from_cargo(HOARD_2026)
+
+    assert (player.name, player.number, str(player)) == ("ג'יילן הורד", 5, "ג'יילן הורד")
+    assert player.is_starting_five and player.is_played and not player.is_captain
+    assert (player.points, player.minutes, player.rebounds, player.assists) == (19, 27, 7, 3)
+    # The wiki's FieldGoals are the two-point shots
+    assert (player.two_points_scored, player.two_points_attempts) == (6, 9)
+    assert 2 * player.two_points_scored + 3 * player.three_points_scored + player.free_throws_scored == player.points
+    assert player.technical_fouls is None
+
+
+def test_player_who_did_not_play_keeps_empty_numbers_as_none():
+    player = player_from_cargo(DID_NOT_PLAY_2026)
+
+    assert not player.is_played
+    assert player.points is None and player.minutes is None and player.number is None
+
+
+def test_load_puts_each_player_on_his_side_in_the_page_order(monkeypatch):
+    _patch_crawler(monkeypatch, [GAME_ROWS], [3])
+
+    stats = load_basketball_from_maccabipedia()
+    beer_sheva_game = stats[-1]
+
+    # By Cargo's row id, whatever order the crawl returned
+    assert [player.name for player in beer_sheva_game.maccabi.players] == ["תמיר בלאט", "ג'יילן הורד", "עומר מאייר"]
+    assert [player.name for player in beer_sheva_game.maccabi.played_players] == ["תמיר בלאט", "ג'יילן הורד"]
+    assert [player.name for player in beer_sheva_game.opponent_team.players] == ["שחקן היריבה"]
+    assert stats[1].maccabi.players == ()
+
+
+def test_player_rows_of_no_game_are_kept_aside(monkeypatch):
+    _patch_crawler(monkeypatch, [GAME_ROWS], [3])
+
+    stats = load_basketball_from_maccabipedia()
+
+    assert [(page_name, team, player.name) for page_name, team, player in stats.player_rows_without_game] == [
+        ("כדורסל:משחק שנמחק", 0, "חיים תור")]
+
+
+def test_player_crawl_is_ordered_by_the_row_id_and_guarded(monkeypatch):
+    calls = _patch_crawler(monkeypatch, [GAME_ROWS], [3], player_crawls=[PLAYER_ROWS[:-1], PLAYER_ROWS],
+                           player_counts=[len(PLAYER_ROWS), len(PLAYER_ROWS)])
+
+    load_basketball_from_maccabipedia()
+
+    player_crawls = [kwargs for table, fields, kwargs in calls if table == PLAYERS_TABLE and not fields.startswith("COUNT(")]
+    assert len(player_crawls) == 2
+    assert player_crawls[0]["order_by"] == "_ID"
+
+
+def test_load_without_players_does_not_crawl_them(monkeypatch):
+    calls = _patch_crawler(monkeypatch, [GAME_ROWS], [3])
+
+    stats = load_basketball_from_maccabipedia(with_players=False)
+
+    assert all(table != PLAYERS_TABLE for table, _, _ in calls)
+    assert stats[-1].maccabi.players == () and stats.player_rows_without_game == []
+
+
+def test_old_box_score_that_stored_zeros_did_not_record_the_stat(monkeypatch):
+    _patch_crawler(monkeypatch, [GAME_ROWS], [3])
+    stats = load_basketball_from_maccabipedia()
+    old_side, modern_side = stats[0].opponent_team, stats[-1].maccabi
+
+    assert old_side.has_recorded("points") and not old_side.has_recorded("assists")
+    assert not old_side.has_recorded("minutes")
+    assert modern_side.has_recorded("assists") and modern_side.has_recorded("steals")
+    with pytest.raises(ValueError, match="Unknown player stat"):
+        modern_side.has_recorded("goals")
 
 
 # --- the pickle ---------------------------------------------------------------------

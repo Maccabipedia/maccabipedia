@@ -5,11 +5,18 @@ The basketball counterpart of the football ``ErrorsFinder``: every public
 what it finds is a separate, sourced job per game.
 """
 import re
-from collections import defaultdict
+from collections import Counter, defaultdict
 from dataclasses import dataclass
 from datetime import date
 
-from maccabistats.basketball.models import AWAY, HOME, MACCABI_NAME, BasketballGameData
+from maccabistats.basketball.models import (
+    AWAY,
+    HOME,
+    MACCABI_NAME,
+    PLAYER_STATS,
+    BasketballGameData,
+    BasketballPlayerInGame,
+)
 from maccabistats.basketball.titles import basketball_title_competition
 
 MACCABI = MACCABI_NAME
@@ -26,11 +33,26 @@ _SEASON_FIRST_DAY = (6, 1)
 _SEASON_LAST_DAY = (9, 30)
 
 
+_SHOTS = {"two-pointers": ("two_points_scored", "two_points_attempts"),
+          "three-pointers": ("three_points_scored", "three_points_attempts"),
+          "free throws": ("free_throws_scored", "free_throws_attempts")}
+
+
 @dataclass(frozen=True)
 class Finding:
     check: str
-    game: BasketballGameData
+    # None only for a box-score row that belongs to no game; page_name is then the row's page
+    game: BasketballGameData | None
     detail: str
+    page_name_without_game: str | None = None
+
+    @property
+    def page_name(self) -> str:
+        return self.game.page_name if self.game else self.page_name_without_game
+
+    @property
+    def season(self) -> str | None:
+        return self.game.season if self.game else None
 
 
 def _normalize_team(name: str) -> str:
@@ -64,8 +86,14 @@ def _season_window(season: str) -> tuple[date, date] | None:
 class BasketballErrorsFinder:
     """Each public ``get_*`` method is one check; ``find_all`` runs every one of them."""
 
-    def __init__(self, games: list[BasketballGameData]) -> None:
+    def __init__(self, games: list[BasketballGameData],
+                 player_rows_without_game: list[tuple[str, int, BasketballPlayerInGame]] = ()) -> None:
+        """
+        :param games: BasketballGamesStats.games
+        :param player_rows_without_game: BasketballGamesStats.player_rows_without_game
+        """
         self.games = games
+        self.player_rows_without_game = player_rows_without_game
         self._scored_games = [game for game in games if not game.is_technical and game.has_score]
 
     # --- Periods against the final score -------------------------------------------------
@@ -282,6 +310,100 @@ class BasketballErrorsFinder:
             if empty:
                 findings.append(Finding("empty_field", game, ", ".join(empty)))
         return findings
+
+    # --- The players' box scores -----------------------------------------------------------
+
+    def _sides(self):
+        for game in self.games:
+            for side_name, side in (("Maccabi", game.maccabi), ("Opponent", game.opponent_team)):
+                if side.players:
+                    yield game, side_name, side
+
+    def get_games_with_players_points_not_matching_total(self) -> list[Finding]:
+        """The players' points against the team's score.
+
+        Old box scores often leave a player's points empty, so a side is short only when every
+        player who played has points; more points than the score is wrong either way.
+        """
+        scored_games = {id(game) for game in self._scored_games}
+        findings = []
+        for game, side_name, side in self._sides():
+            known_points = [player.points for player in side.players if player.points is not None]
+            if id(game) not in scored_games or not known_points:
+                continue
+            players_points = sum(known_points)
+            every_player_has_points = all(player.points is not None for player in side.played_players)
+            if players_points > side.score or (every_player_has_points and players_points != side.score):
+                findings.append(Finding("players_points_vs_total", game,
+                                        f"{side_name}: players have {players_points}, total {side.score}"))
+        return findings
+
+    def get_players_with_more_scored_than_attempts(self) -> list[Finding]:
+        findings = []
+        for game, side_name, side in self._sides():
+            for player in side.players:
+                for shot, (scored_stat, attempts_stat) in _SHOTS.items():
+                    scored, attempts = getattr(player, scored_stat), getattr(player, attempts_stat)
+                    if scored is not None and attempts is not None and scored > attempts:
+                        findings.append(Finding("scored_more_than_attempts", game,
+                                                f"{side_name}: {player.name} {shot} {scored}/{attempts}"))
+        return findings
+
+    def get_players_with_rebounds_not_matching_total(self) -> list[Finding]:
+        """Offensive and defensive rebounds recorded, and they do not add up to the total."""
+        findings = []
+        for game, side_name, side in self._sides():
+            for player in side.players:
+                offensive, defensive = player.offensive_rebounds or 0, player.defensive_rebounds or 0
+                if (offensive or defensive) and offensive + defensive != player.rebounds:
+                    findings.append(Finding("rebounds_vs_total", game,
+                                            f"{side_name}: {player.name} {offensive} + {defensive}, total {player.rebounds}"))
+        return findings
+
+    def get_players_who_did_not_play_with_stats(self) -> list[Finding]:
+        findings = []
+        for game, side_name, side in self._sides():
+            for player in side.players:
+                stats = {stat: getattr(player, stat) for stat in PLAYER_STATS if getattr(player, stat)}
+                if not player.is_played and stats:
+                    findings.append(Finding("did_not_play_with_stats", game, f"{side_name}: {player.name} {stats}"))
+        return findings
+
+    def get_sides_with_starting_five_not_five(self) -> list[Finding]:
+        """A side that marks starters at all should mark five of them."""
+        findings = []
+        for game, side_name, side in self._sides():
+            starters = sum(player.is_starting_five for player in side.players)
+            if starters not in (0, 5):
+                findings.append(Finding("starting_five", game, f"{side_name}: {starters} starters"))
+        return findings
+
+    def get_sides_with_same_player_twice(self) -> list[Finding]:
+        findings = []
+        for game, side_name, side in self._sides():
+            repeated = sorted(name for name, times in Counter(player.name for player in side.players).items() if times > 1)
+            if repeated:
+                findings.append(Finding("same_player_twice", game, f"{side_name}: {', '.join(repeated)}"))
+        return findings
+
+    def get_games_with_same_player_on_both_sides(self) -> list[Finding]:
+        findings = []
+        for game in self.games:
+            on_both = sorted({player.name for player in game.maccabi.players}
+                             & {player.name for player in game.opponent_team.players})
+            if on_both:
+                findings.append(Finding("player_on_both_sides", game, ", ".join(on_both)))
+        return findings
+
+    def get_games_without_box_score(self) -> list[Finding]:
+        """A played game with no player listed on either side."""
+        return [Finding("no_box_score", game, "no players on either side")
+                for game in self._scored_games if not game.maccabi.players and not game.opponent_team.players]
+
+    def get_player_rows_without_game(self) -> list[Finding]:
+        """Box-score rows whose page has no game row, or whose Team is neither Maccabi (1) nor the opponent (0)."""
+        return [Finding("player_row_without_game", None, f"{player.name}, Team {team}", page_name_without_game=page_name)
+                for page_name, team, player in self.player_rows_without_game]
 
     # --- All of them -----------------------------------------------------------------------
 

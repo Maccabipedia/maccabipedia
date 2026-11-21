@@ -41,6 +41,49 @@ class BasketballGameVideos:
         return tuple(video for video in candidates if video)
 
 
+# The numbers of a player's line that a box score may or may not have recorded
+PLAYER_STATS = ("minutes", "points", "two_points_scored", "two_points_attempts", "three_points_scored",
+                "three_points_attempts", "free_throws_scored", "free_throws_attempts", "rebounds",
+                "offensive_rebounds", "defensive_rebounds", "assists", "steals", "blocks", "turnovers",
+                "personal_fouls", "technical_fouls")
+
+
+@dataclass(frozen=True)
+class BasketballPlayerInGame:
+    """One player's line in one game's box score.
+
+    Old box scores recorded little more than the points, and the wiki stores the numbers nobody
+    recorded as 0 as often as it leaves them empty. So a 0 here does not mean the player had none:
+    ask the team's ``has_recorded`` before counting a stat.
+    """
+    name: str
+    number: int | None
+    is_captain: bool
+    is_starting_five: bool
+    is_played: bool
+    minutes: int | None
+    points: int | None
+    # The wiki's FieldGoals columns are the two-point shots: points = 2 * two + 3 * three + free throws
+    two_points_scored: int | None
+    two_points_attempts: int | None
+    three_points_scored: int | None
+    three_points_attempts: int | None
+    free_throws_scored: int | None
+    free_throws_attempts: int | None
+    rebounds: int | None
+    offensive_rebounds: int | None
+    defensive_rebounds: int | None
+    assists: int | None
+    steals: int | None
+    blocks: int | None
+    turnovers: int | None
+    personal_fouls: int | None
+    technical_fouls: int | None
+
+    def __str__(self) -> str:
+        return self.name
+
+
 @dataclass(frozen=True)
 class BasketballTeamInGame:
     """One side of one game. A period nobody filled in is ``None``, not 0."""
@@ -50,10 +93,26 @@ class BasketballTeamInGame:
     quarters: tuple[int | None, int | None, int | None, int | None]
     halves: tuple[int | None, int | None]
     overtimes: tuple[int | None, int | None, int | None, int | None]
+    # The box score, in the page's order. Empty when the game has none. A player the page lists
+    # twice is here twice.
+    players: tuple[BasketballPlayerInGame, ...] = ()
 
     @property
     def overtime_points(self) -> int:
         return sum(points or 0 for points in self.overtimes)
+
+    @property
+    def played_players(self) -> tuple[BasketballPlayerInGame, ...]:
+        return tuple(player for player in self.players if player.is_played)
+
+    def has_recorded(self, stat: str) -> bool:
+        """Whether this side's box score recorded the stat at all: some player has more than 0 of it.
+
+        Unrecorded stats are stored as 0 or left empty, so "nobody has any" is read as "not recorded".
+        """
+        if stat not in PLAYER_STATS:
+            raise ValueError(f"Unknown player stat {stat!r}, expected one of {PLAYER_STATS}")
+        return any((getattr(player, stat) or 0) > 0 for player in self.players)
 
 
 @dataclass(frozen=True)

@@ -2,7 +2,7 @@
 from datetime import date
 
 from maccabistats.basketball.error_finder import BasketballErrorsFinder
-from maccabistats.basketball.parse import competition_flags_from_cargo, game_from_cargo
+from maccabistats.basketball.parse import competition_flags_from_cargo, game_from_cargo, player_from_cargo
 
 _PERIODS = ("First", "Second", "Third", "Fourth")
 _LEAGUE = competition_flags_from_cargo({"CurrentName": "ליגת העל", "League": 1, "Official": 1})
@@ -280,3 +280,100 @@ class TestResultOptAndCatalog:
         check = "get_games_with_competition_missing_from_catalog"
         assert self._found(check) == []
         assert self._found(check, Competition="גביע הפלא") == ["Competition 'גביע הפלא'"]
+
+
+class TestBoxScore:
+    PAGE = "כדורסל:01-06-2026 מכבי תל אביב נגד הפועל באר שבע - ליגת העל"
+
+    def _player(self, name: str, points=None, **fields) -> dict:
+        return {"PlayerName": name, "IsPlayed": 1, "IsStartingFive": 0, "IsCaptain": 0, "TotalPoints": points, **fields}
+
+    def _game(self, maccabi_players: list[dict], rival_players: list[dict] = (), **fields):
+        raw = {"_pageName": self.PAGE, "Date": "2026-06-01", "Season": "2025/26", "Competition": "ליגת העל",
+               "Opponent": "הפועל באר שבע", "HomeAway": "בית", "TotalPointsMaccabi": 30, "TotalPointsOpponent": 20,
+               "ResultOpt": 1, **fields}
+        players_by_side = {(self.PAGE, 1): [player_from_cargo(row) for row in maccabi_players],
+                           (self.PAGE, 0): [player_from_cargo(row) for row in rival_players]}
+        return game_from_cargo(raw, _CATALOG, players_by_side)
+
+    def _details(self, check: str, *args, **kwargs) -> list[str]:
+        return [finding.detail for finding in getattr(BasketballErrorsFinder([self._game(*args, **kwargs)]), check)()]
+
+    def test_players_points_that_add_up_to_the_total_are_fine(self):
+        players = [self._player("תמיר בלאט", 11), self._player("ג'יילן הורד", 19)]
+        assert self._details("get_games_with_players_points_not_matching_total", players) == []
+
+    def test_players_points_short_of_the_total_are_reported(self):
+        players = [self._player("תמיר בלאט", 11), self._player("ג'יילן הורד", 17)]
+        assert self._details("get_games_with_players_points_not_matching_total", players) == [
+            "Maccabi: players have 28, total 30"]
+
+    def test_side_with_a_player_whose_points_are_unknown_is_not_short(self):
+        players = [self._player("תמיר בלאט", 11), self._player("ג'יילן הורד")]
+        assert self._details("get_games_with_players_points_not_matching_total", players) == []
+
+    def test_more_points_than_the_total_is_reported_even_with_unknown_points(self):
+        players = [self._player("תמיר בלאט", 31), self._player("ג'יילן הורד")]
+        assert self._details("get_games_with_players_points_not_matching_total", players) == [
+            "Maccabi: players have 31, total 30"]
+
+    def test_player_who_did_not_play_does_not_hide_a_short_side(self):
+        players = [self._player("תמיר בלאט", 28), self._player("עומר מאייר", IsPlayed=0)]
+        assert self._details("get_games_with_players_points_not_matching_total", players) == [
+            "Maccabi: players have 28, total 30"]
+
+    def test_awarded_game_has_no_points_to_add_up(self):
+        players = [self._player("תמיר בלאט", 11)]
+        assert self._details("get_games_with_players_points_not_matching_total", players, Technical=1) == []
+
+    def test_more_scored_than_attempts_is_reported(self):
+        players = [self._player("תמיר בלאט", 30, ThreePointsScored=4, ThreePointsAttempts=3,
+                                FreeThrowsScored=2, FreeThrowsAttempts=2)]
+        assert self._details("get_players_with_more_scored_than_attempts", players) == [
+            "Maccabi: תמיר בלאט three-pointers 4/3"]
+
+    def test_rebounds_that_do_not_add_up_are_reported_only_when_split(self):
+        players = [self._player("תמיר בלאט", 30, TotalRebounds=7, OffensiveRebounds=2, DefensiveRebounds=4),
+                   self._player("ג'יילן הורד", 0, TotalRebounds=5, OffensiveRebounds=0, DefensiveRebounds=0)]
+        assert self._details("get_players_with_rebounds_not_matching_total", players) == [
+            "Maccabi: תמיר בלאט 2 + 4, total 7"]
+
+    def test_player_who_did_not_play_with_stats_is_reported(self):
+        players = [self._player("תמיר בלאט", 30), self._player("עומר מאייר", IsPlayed=0, MinutesPlayed=3),
+                   self._player("רומן סורקין", IsPlayed=0, TotalRebounds=0)]
+        assert self._details("get_players_who_did_not_play_with_stats", players) == [
+            "Maccabi: עומר מאייר {'minutes': 3}"]
+
+    def test_starting_five_of_four_is_reported_and_none_marked_is_fine(self):
+        four = [self._player(f"שחקן {number}", 0, IsStartingFive=1) for number in range(4)]
+        five = four + [self._player("שחקן 4", 30, IsStartingFive=1), self._player("שחקן 5", 0)]
+        assert self._details("get_sides_with_starting_five_not_five", four, rival_players=[self._player("יריב", 20)]) == [
+            "Maccabi: 4 starters"]
+        assert self._details("get_sides_with_starting_five_not_five", five) == []
+
+    def test_same_player_twice_on_a_side_is_reported(self):
+        players = [self._player("איציק כהן", 10), self._player("איציק כהן", 20)]
+        assert self._details("get_sides_with_same_player_twice", players) == ["Maccabi: איציק כהן"]
+
+    def test_same_name_on_both_sides_is_reported(self):
+        assert self._details("get_games_with_same_player_on_both_sides", [self._player("איציק כהן", 30)],
+                             rival_players=[self._player("איציק כהן", 20)]) == ["איציק כהן"]
+
+    def test_played_game_with_no_players_has_no_box_score(self):
+        assert self._details("get_games_without_box_score", []) == ["no players on either side"]
+        assert self._details("get_games_without_box_score", [self._player("תמיר בלאט", 30)]) == []
+        assert self._details("get_games_without_box_score", [], Technical=1) == []
+
+    def test_player_rows_of_no_game_are_reported_by_their_page(self):
+        orphan = player_from_cargo(self._player("חיים תור", 6))
+        finder = BasketballErrorsFinder([], [("כדורסל:משחק שנמחק", 0, orphan)])
+
+        (finding,) = finder.get_player_rows_without_game()
+
+        assert (finding.page_name, finding.season, finding.detail) == ("כדורסל:משחק שנמחק", None, "חיים תור, Team 0")
+
+    def test_find_all_runs_every_check(self):
+        results = BasketballErrorsFinder([self._game([self._player("תמיר בלאט", 30)])]).find_all()
+
+        assert len(results) == 28
+        assert all(name.startswith("get_") for name in results)
