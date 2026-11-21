@@ -1,0 +1,13 @@
+<noinclude><!--
+
+הכרזה על טבלת קארגו: שורה לכל תואר שנזקף לשחקן כדורגל (שחקן, עונה, מפעל).
+השורות נשמרות מהעמוד "הזנת תארי שחקני כדורגל".
+-->{{#cargo_declare:_table=Football_Player_Titles
+|Player = String
+|Season = String
+|Competition = String
+}}
+
+[[קטגוריה:שימושי לטבלאות קארגו]]
+[[קטגוריה:הגדרת טבלאות קארגו]]
+</noinclude>

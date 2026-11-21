@@ -1,0 +1,11 @@
+<noinclude>{{#cargo_attach:_table=Football_Player_Titles}}
+שורה אחת בטבלת Football_Player_Titles: <nowiki>{{תארי שחקני כדורגל/הזנה לקארגו |שחקן= |עונה= |מפעל=}}</nowiki>
+
+שורה שיש בה <nowiki>|הוסר=סיבה</nowiki> אינה נשמרת בטבלה.
+[[קטגוריה:שימושי לטבלאות קארגו]]
+</noinclude><includeonly>{{#if: {{{הוסר|}}} | |{{#cargo_store:
+_table=Football_Player_Titles
+|Player={{{שחקן|}}}
+|Season={{{עונה|}}}
+|Competition={{{מפעל|}}}
+}}}}</includeonly>
