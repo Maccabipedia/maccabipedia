@@ -8,8 +8,10 @@
     - BasketballGamesStats: chained filters (home/away/neutral, league/trophy/international,
       wins/losses, overtime, by season, opponent, coach, player, date), results, win and loss
       streaks, players' totals and best single games, and Maccabi's record by opponent, coach
-      and season. A player's total says in how many games that stat was recorded.
-    - BasketballErrorsFinder: 28 checks on the games and the box scores;
+      and season. wins_percentage is a 0-1 fraction, as in football. Points totals leave out
+      awarded (technical) games. A player's total says in how many of his games that stat is
+      known for him.
+    - BasketballErrorsFinder(basketball_games): 29 checks on the games and the box scores;
       github_actions_scripts/find_basketball_errors.py runs them and reports what is new since
       the previous run.
     - MaccabiPediaCargoChunksCrawler takes four optional keyword arguments: limit, order_by,

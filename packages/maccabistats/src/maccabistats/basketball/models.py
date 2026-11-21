@@ -1,6 +1,7 @@
 """A basketball game as maccabistats reads it from MaccabiPedia.
 
-These are read models. A value the wiki does not have stays ``None`` and never becomes 0 or "",
+These are read models. A value the wiki does not have stays ``None`` and never becomes 0 or ""
+(but for a player's name, which is "" when the row has none),
 so "nobody filled it in" is never mistaken for "zero points".
 """
 from dataclasses import dataclass

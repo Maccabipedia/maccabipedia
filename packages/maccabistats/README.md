@@ -192,9 +192,9 @@ basketball_games.streaks.get_longest_wins_streak_games()
 basketball_games.opponents  # Maccabi's record against each opponent; also .coaches and .seasons
 ```
 
-The names follow football's where the idea is the same (`played_before` and `played_after` include the day itself, `wins_percentage` is a fraction). What differs: competition filters read the wiki's competition flags, so football's `europe_games` is `international_games` here, and there is `neutral_games` and `overtime_games`.
+The names follow football's where the idea is the same, and `wins_percentage` is a 0 to 1 fraction as there. `played_before` and `played_after` include the day itself. What differs: competition filters read the wiki's competition flags, so football's `europe_games` is `international_games` here, and there is `neutral_games` and `overtime_games`.
 
-A streak is a run of consecutive games of the filtered collection, so `league_games.streaks` ignores the cup games in between. A game with no result neither breaks a streak nor adds to it.
+A streak is a run of consecutive games of the filtered collection, so `league_games.streaks` ignores the cup games in between. A game with no result neither breaks a streak nor adds to it, and a game with no date is left out.
 
 Points totals leave out awarded (technical) games: their score fields hold the official 20:0, not points from the court.
 
@@ -219,7 +219,7 @@ game.competition_flags  # The competition's flags (is_league, ...), or None when
 game.maccabi.players, game.maccabi.has_recorded("assists")
 ```
 
-A value the wiki does not have is `None` (never 0), and a game stored as 0:0 has no result. In an awarded (technical) game the technical flag decides the result, as on the wiki.
+A value the wiki does not have is `None` (never 0; only a player's missing name is `""`), and a game stored as 0:0 has no result. In an awarded (technical) game the technical flag decides the result, as on the wiki.
 
 ### Errors finder
 

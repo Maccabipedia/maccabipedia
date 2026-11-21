@@ -381,12 +381,12 @@ class BasketballGamesStats:
     # region date based. A game with no date is in none of them
 
     def played_before(self, date: DateLike) -> BasketballGamesStats:
-        """:param date: A date or text of one (2006-02-02). Games on that day are included, as in football."""
+        """:param date: A date or text of one (2006-02-02). Games on that day are included."""
         day = _as_date(date)
         return self._filter(lambda game: game.date is not None and game.date <= day, f"Played before: {day}")
 
     def played_after(self, date: DateLike) -> BasketballGamesStats:
-        """:param date: A date or text of one (2006-02-02). Games on that day are included, as in football."""
+        """:param date: A date or text of one (2006-02-02). Games on that day are included."""
         day = _as_date(date)
         return self._filter(lambda game: game.date is not None and game.date >= day, f"Played after: {day}")
 

@@ -80,6 +80,8 @@ def _flag(raw: Dict, field: str) -> bool:
 def player_from_cargo(raw: Dict) -> BasketballPlayerInGame:
     """:param raw: One Basketball_Player_Game_Events_Summary row as the crawler yields it"""
     return BasketballPlayerInGame(
+        # The one text that is "" and not None when empty: a player is known by his name
+        # everywhere, and the errors finder reports the row
         name=_text(raw, "PlayerName") or "",
         number=raw.get("PlayerNumber"),
         is_captain=_flag(raw, "IsCaptain"),
@@ -155,7 +157,8 @@ def game_from_cargo(raw: Dict, competitions: Dict[str, BasketballCompetitionFlag
 
 
 _CRAWL_ATTEMPTS = 3
-# Cargo's own row id, on every table. A page's rows get new ids whenever the page is saved.
+# Cargo's own row id, on every table. When a page is saved Cargo deletes its rows and stores them
+# again under ids above the table's highest, so the id does not outlive a save.
 _ROW_ID = "_ID"
 
 
@@ -167,8 +170,13 @@ def _crawl(table: str, fields: str, order_by: str) -> List[Dict]:
 
 def _table_state(table: str) -> Tuple[int, int]:
     """
-    (rows in the table, its highest row id). Saving, creating or deleting a page changes at least
-    one of the two, so an equal state before and after a crawl means the table stood still.
+    (rows in the table, its highest row id). Creating or deleting a page changes the first, and
+    saving one moves its rows above the highest id and changes the second, so an equal state
+    before and after a crawl means the table stood still.
+
+    One save gets through: the page that already holds the highest ids, saved again with the same
+    number of rows, gets the same ids back. Offsets do not move then, so no row is skipped or read
+    twice; the game and its players may be from either side of that one save.
     """
     state = list(MaccabiPediaCargoChunksCrawler(
         tables_name=table, tables_fields=f"COUNT(_pageName)=RowsCount,MAX({_ROW_ID})=LastRowId",

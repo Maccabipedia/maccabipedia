@@ -374,10 +374,19 @@ class BasketballErrorsFinder:
                 findings.append(Finding("starting_five", game, f"{side_name}: {starters} starters"))
         return findings
 
+    def get_sides_with_player_without_name(self) -> list[Finding]:
+        findings = []
+        for game, side_name, side in self._sides():
+            nameless = sum(not player.name for player in side.players)
+            if nameless:
+                findings.append(Finding("player_without_name", game, f"{side_name}: {nameless} players"))
+        return findings
+
     def get_sides_with_same_player_twice(self) -> list[Finding]:
         findings = []
         for game, side_name, side in self._sides():
-            repeated = sorted(name for name, times in Counter(player.name for player in side.players).items() if times > 1)
+            names = Counter(player.name for player in side.players if player.name)
+            repeated = sorted(name for name, times in names.items() if times > 1)
             if repeated:
                 findings.append(Finding("same_player_twice", game, f"{side_name}: {', '.join(repeated)}"))
         return findings
@@ -385,7 +394,7 @@ class BasketballErrorsFinder:
     def get_games_with_same_player_on_both_sides(self) -> list[Finding]:
         findings = []
         for game in self.games:
-            on_both = sorted({player.name for player in game.maccabi.players}
+            on_both = sorted({player.name for player in game.maccabi.players if player.name}
                              & {player.name for player in game.opponent_team.players})
             if on_both:
                 findings.append(Finding("player_on_both_sides", game, ", ".join(on_both)))

@@ -366,6 +366,14 @@ class TestBoxScore:
         players = [self._player("איציק כהן", 10), self._player("איציק כהן", 20)]
         assert self._details("get_sides_with_same_player_twice", players) == ["Maccabi: איציק כהן"]
 
+    def test_players_with_no_name_are_reported_once_and_not_as_one_repeated_player(self):
+        players = [self._player("", 10), self._player("", 20)]
+        rival = [self._player("", 20)]
+        assert self._details("get_sides_with_player_without_name", players, rival_players=rival) == [
+            "Maccabi: 2 players", "Opponent: 1 players"]
+        assert self._details("get_sides_with_same_player_twice", players) == []
+        assert self._details("get_games_with_same_player_on_both_sides", players, rival_players=rival) == []
+
     def test_same_name_on_both_sides_is_reported(self):
         assert self._details("get_games_with_same_player_on_both_sides", [self._player("איציק כהן", 30)],
                              rival_players=[self._player("איציק כהן", 20)]) == ["איציק כהן"]
@@ -386,5 +394,5 @@ class TestBoxScore:
     def test_find_all_runs_every_check(self):
         results = _finder([self._game([self._player("תמיר בלאט", 30)])]).find_all()
 
-        assert len(results) == 28
+        assert len(results) == 29
         assert all(name.startswith("get_") for name in results)
