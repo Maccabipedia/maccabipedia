@@ -11,6 +11,7 @@ import logging
 from pathlib import Path
 
 from maccabistats import BasketballErrorsFinder, load_basketball_from_maccabipedia
+from maccabistats.maccabilogging import remove_live_logging
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +21,8 @@ def main() -> None:
     parser.add_argument("--out", type=Path, default=Path("basketball_errors.tsv"))
     args = parser.parse_args()
     logging.basicConfig(format="%(message)s", level=logging.INFO)
+    # maccabistats logs to stderr by itself; without this every one of its lines shows twice
+    remove_live_logging()
 
     basketball_games = load_basketball_from_maccabipedia()
     results = BasketballErrorsFinder(basketball_games.games).find_all()
