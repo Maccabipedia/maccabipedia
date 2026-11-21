@@ -103,6 +103,18 @@ wikitext — no DB dump involved. Season-scoped queries (season page,
 "games this season") are complete; career/all-time queries only see the
 imported seasons.
 
+`basketball-edge-cases.manifest` is hand-kept rather than generated: a few
+basketball games from different eras, each with one data trap named in a
+comment (two overtimes, a missing overtime, overtime for one side only, a
+quarter in the overtime slot, an awarded game) plus a clean modern game.
+Use it when testing a basketball template or the error finder:
+
+```bash
+uv run python scripts/download_pages_from_prod.py pages scripts/content-manifests/basketball-edge-cases.manifest
+bash scripts/seed-content.sh basketball-edge-cases
+bash scripts/recreate-cargo-tables.sh
+```
+
 After seeding content, pull in the category pages it references (squad
 positions, game tracking categories, …) — derived from the local wiki's
 wanted/linked categories, filtered to pages prod actually has:
