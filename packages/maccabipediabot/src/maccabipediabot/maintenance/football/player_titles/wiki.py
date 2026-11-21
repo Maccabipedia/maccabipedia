@@ -30,6 +30,14 @@ class SaveResult(NamedTuple):
     seconds: float
 
 
+def logged_in_user(api: Api) -> str:
+    """The account this session writes as, spelled the way the wiki records an editor."""
+    user = api(action="query", meta="userinfo")["query"]["userinfo"]
+    if "anon" in user:
+        raise RuntimeError("the session is not logged in")
+    return user["name"]
+
+
 def read_page(api: Api, title: str = PAGE_TITLE) -> PageState:
     response = api(
         action="query", prop="revisions|info", titles=title,

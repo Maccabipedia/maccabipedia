@@ -6,7 +6,13 @@ import pytest
 
 from maccabipediabot.maintenance.football.player_titles.exports import ExportError
 from maccabipediabot.maintenance.football.player_titles.rule import Credit
-from maccabipediabot.maintenance.football.player_titles.wiki import PageState, read_page, save_page, table_credits
+from maccabipediabot.maintenance.football.player_titles.wiki import (
+    PageState,
+    logged_in_user,
+    read_page,
+    save_page,
+    table_credits,
+)
 
 from .fakes import FakeCargoApi
 
@@ -89,6 +95,21 @@ def test_a_save_the_wiki_did_not_accept_raises():
 
     with pytest.raises(RuntimeError, match="Failure"):
         save_page(api, "חדש", EXISTING, summary="בנייה")
+
+
+def test_logged_in_user_is_the_name_as_the_wiki_spells_it():
+    """The wiki capitalises user names; a page's last editor is compared with this spelling."""
+    api = RecordingApi({"query": {"userinfo": {"id": 1, "name": "Maccabi"}}})
+
+    assert logged_in_user(api) == "Maccabi"
+    assert api.calls[0] == {"action": "query", "meta": "userinfo"}
+
+
+def test_logged_in_user_refuses_an_anonymous_session():
+    api = RecordingApi({"query": {"userinfo": {"id": 0, "name": "127.0.0.1", "anon": ""}}})
+
+    with pytest.raises(RuntimeError, match="not logged in"):
+        logged_in_user(api)
 
 
 def test_table_credits_counts_every_row():

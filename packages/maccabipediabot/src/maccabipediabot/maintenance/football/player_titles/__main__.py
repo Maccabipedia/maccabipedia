@@ -38,13 +38,12 @@ import os
 import sys
 
 from maccabipediabot.common.logging_setup import setup_logging
-from maccabipediabot.common.wiki_login import get_site
 from maccabipediabot.maintenance.football.player_titles import gate, job
 from maccabipediabot.maintenance.football.player_titles.api import Api, local_api, production_api
 from maccabipediabot.maintenance.football.player_titles.exports import competition_kinds, seasons_played, won_titles
 from maccabipediabot.maintenance.football.player_titles.page import parse_page, render_page, stored_credits
 from maccabipediabot.maintenance.football.player_titles.rule import RULE
-from maccabipediabot.maintenance.football.player_titles.wiki import table_credits
+from maccabipediabot.maintenance.football.player_titles.wiki import logged_in_user, table_credits
 
 logger = logging.getLogger(__name__)
 
@@ -95,12 +94,10 @@ def main() -> int:
         return _gate(arguments, production_api())
 
     if arguments.local_api_url:
-        bot_user = os.environ["LOCAL_WIKI_USER"]
-        api = local_api(arguments.local_api_url, bot_user, os.environ["LOCAL_WIKI_PASSWORD"])
+        api = local_api(arguments.local_api_url, os.environ["LOCAL_WIKI_USER"], os.environ["LOCAL_WIKI_PASSWORD"])
         exports_api = production_api() if arguments.exports_from_production else api
     else:
         api = exports_api = production_api()
-        bot_user = get_site().username()
 
     if arguments.command == "verify":
         return job.verify(api)
@@ -109,7 +106,9 @@ def main() -> int:
             logger.info("[DRY-RUN] restore would save the page with its text unchanged; pass --live")
             return 0
         return job.restore(api)
-    return job.rebuild(api, exports_api, live=arguments.live, only_season=arguments.only_season, bot_user=bot_user)
+    return job.rebuild(
+        api, exports_api, live=arguments.live, only_season=arguments.only_season, bot_user=logged_in_user(api),
+    )
 
 
 if __name__ == "__main__":
