@@ -209,6 +209,13 @@ same params.
 - **`סיווג`:** the template accepts `טבלת ליגה`, `טבלת גביע`, `לקראת משחק`,
   `סיקור משחק`, `רגע ממשחק`, `סיקור מחזור`, `הגרלת גביע`, `אחר`. A match report is
   `סיקור משחק`; a preview is `לקראת משחק`.
+- **A piece about no single game** (the cup postponed, renewed or cancelled; a FIBA
+  ruling) is `אחר`, tied to the game it is closest to, with a description saying what it
+  is: `ידיעות אחרונות 04-09-1968 אחר כדורסל הפועל ניר דוד (12.07.1968) ביטול משחקי גביע
+  המדינה.jpg`; Maariv's 1976 FIBA rulings are tied to the games they decide the same way.
+  Don't upload it with no `שיוך משחק`: the template files it under
+  the tracking category `עיתוני כדורסל ללא שיוך למשחק`, which is empty and should stay
+  that way. It counts toward that game's cap.
 - **New scan:**
   `<paper> <publication DD-MM-YYYY> <סיווג> [<sport> ]<opponent> (<game DD.MM.YYYY>).jpg`.
   - **Basketball and volleyball** say the sport (`כדורסל`, `כדורעף`):
