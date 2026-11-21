@@ -1,3 +1,10 @@
+## Version 2.75 ##
+
+    MaccabiPediaCargoChunksCrawler takes four optional keyword arguments, for tables other than
+    football's: limit (rows per request), order_by (a stable order when a table takes many
+    requests), unescape_all_strings and timeout. With the defaults it sends the same requests
+    as before, so football loading is unchanged.
+
 ## Version 2.74 ##
 
     The MaccabiPedia crawler retries the wiki host's 508 "Resource Limit Is Reached"

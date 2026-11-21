@@ -116,3 +116,115 @@ def test_crawler_rides_over_one_508_and_returns_the_rows(monkeypatch):
     finally:
         server.server_close()
     assert rows == [{"_pageName": "x"}]
+
+
+
+# --- opt-in arguments for other sports' tables --------------------------------------
+# Basketball's player table is 57k wide rows: it needs a smaller page, a stable order across
+# its many requests, and every text field unescaped. Football must keep sending today's URL.
+
+def _legacy_url(crawler: MaccabiPediaCargoChunksCrawler) -> str:
+    return (f"{crawler.base_crawling_address}"
+            f"&tables={crawler.tables_name}"
+            f"&fields={crawler.tables_fields}"
+            f"&join_on={crawler.join_tables_on}"
+            f"&limit=5000"
+            f"&offset=0"
+            f"&where={crawler.where_condition}"
+            f"&group_by="
+            f"&order_by="
+            f"&having=")
+
+
+@pytest.mark.parametrize("factory", ["create_games_crawler", "create_opponents_crawler",
+                                     "create_games_events_crawler"])
+def test_football_crawlers_send_the_same_url_as_before(factory):
+    crawler = getattr(MaccabiPediaCargoChunksCrawler, factory)()
+
+    assert crawler.full_crawl_address == _legacy_url(crawler)
+    assert crawler.timeout == 30
+
+
+def test_order_by_is_url_encoded_and_limit_is_sent():
+    crawler = MaccabiPediaCargoChunksCrawler("Basketball_Games", "_pageName", limit=2500,
+                                             order_by="Date DESC,_pageName")
+
+    assert "&limit=2500&" in crawler.full_crawl_address
+    assert "&order_by=Date%20DESC,_pageName&" in crawler.full_crawl_address
+
+
+@pytest.mark.parametrize("limit", [0, -1, 5001])
+def test_limit_outside_cargo_range_is_refused(limit):
+    with pytest.raises(ValueError, match="limit must be between"):
+        MaccabiPediaCargoChunksCrawler("Basketball_Games", "_pageName", limit=limit)
+
+
+def _serve_pages(pages: list[bytes]):
+    requested_paths = []
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            requested_paths.append(self.path)
+            body = pages.pop(0)
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, *args):
+            pass
+
+    server = HTTPServer(("127.0.0.1", 0), Handler)
+    for _ in range(len(pages)):
+        threading.Thread(target=server.handle_request, daemon=True).start()
+    return server, requested_paths
+
+
+def test_small_limit_pages_by_that_limit_and_stops_at_the_short_page():
+    server, requested_paths = _serve_pages([
+        b'[{"_pageName": "a", "_ID": 1}, {"_pageName": "b", "_ID": 2}]',
+        b'[{"_pageName": "c", "_ID": 3}]'])
+    try:
+        crawler = MaccabiPediaCargoChunksCrawler("Basketball_Player_Game_Events_Summary", "_pageName,_ID",
+                                                 limit=2, order_by="_ID", timeout=5)
+        crawler.base_crawling_address = f"http://127.0.0.1:{server.server_port}/?format=json"
+        rows = list(crawler)
+    finally:
+        server.server_close()
+
+    assert sorted(row["_ID"] for row in rows) == [1, 2, 3]
+    assert len(requested_paths) == 2
+    assert "&limit=2&offset=0&" in requested_paths[0] and "&order_by=_ID&" in requested_paths[0]
+    assert "&limit=2&offset=2&" in requested_paths[1]
+
+
+def test_timeout_argument_reaches_the_request(monkeypatch):
+    crawler = MaccabiPediaCargoChunksCrawler("Basketball_Games", "_pageName", timeout=120)
+    seen = {}
+
+    def fake_get(url, timeout):
+        seen["timeout"] = timeout
+        return _response("[]")
+
+    monkeypatch.setattr(crawler._session, "get", fake_get)
+
+    assert list(crawler) == []
+    assert seen["timeout"] == 120
+
+
+_ESCAPED_ROW = '[{"_pageName": "x", "Opponent": "בית&quot;ר", "Coach": "צבי &quot;צביקה&quot; שרף", "Crowd": 7}]'
+
+
+def test_only_opponent_and_stadium_are_unescaped_by_default(monkeypatch):
+    crawler = MaccabiPediaCargoChunksCrawler("Games_Catalog", "_pageName")
+    monkeypatch.setattr(crawler._session, "get", lambda url, timeout: _response(_ESCAPED_ROW))
+
+    assert list(crawler) == [{"_pageName": "x", "Opponent": 'בית"ר', "Coach": "צבי &quot;צביקה&quot; שרף", "Crowd": 7}]
+
+
+def test_unescape_all_strings_unescapes_every_text_field(monkeypatch):
+    crawler = MaccabiPediaCargoChunksCrawler("Basketball_Games", "_pageName", unescape_all_strings=True)
+    monkeypatch.setattr(crawler._session, "get", lambda url, timeout: _response(_ESCAPED_ROW))
+
+    assert list(crawler) == [{"_pageName": "x", "Opponent": 'בית"ר', "Coach": 'צבי "צביקה" שרף', "Crowd": 7}]

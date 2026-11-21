@@ -4,6 +4,7 @@ from collections.abc import Iterator
 from collections import deque
 from typing import Dict, List
 import html
+from urllib.parse import quote
 
 import requests
 from requests.adapters import HTTPAdapter
@@ -14,6 +15,7 @@ from maccabistats.config import MaccabiStatsConfigSingleton
 logger = logging.getLogger(__name__)
 
 _MAX_LIMIT_PER_REQUEST = 5000  # mediawiki api hardcoded limit
+_DEFAULT_TIMEOUT_SECONDS = 30
 _MUST_HAVE_FIELDS = "_pageName"
 
 # MaccabiPedia's Imunify360 WAF returns HTTP 415 to requests whose Accept header is the default
@@ -55,7 +57,9 @@ def _build_session() -> requests.Session:
 
 
 class MaccabiPediaCargoChunksCrawler(Iterator):
-    def __init__(self, tables_name, tables_fields, join_tables_on="", where_condition="1=1"):
+    def __init__(self, tables_name, tables_fields, join_tables_on="", where_condition="1=1", *,
+                 limit=_MAX_LIMIT_PER_REQUEST, order_by="", unescape_all_strings=False,
+                 timeout=_DEFAULT_TIMEOUT_SECONDS):
         """
 
         :param tables_name: The table name to crawl
@@ -66,7 +70,19 @@ class MaccabiPediaCargoChunksCrawler(Iterator):
         :type join_tables_on: str
         :param where_condition: The condition of the query
         :type where_condition: str
+        :param limit: Rows per request. A smaller page is kinder to the host on wide tables
+        :type limit: int
+        :param order_by: Cargo ORDER BY. Without one, paging by offset has no stable order, so a
+                         table that takes many requests should pass a unique key here
+        :type order_by: str
+        :param unescape_all_strings: Cargo html-escapes text (a quote mark arrives as &quot;).
+                                     By default only Opponent and Stadium are unescaped
+        :type unescape_all_strings: bool
+        :param timeout: Seconds to wait for each request
+        :type timeout: float
         """
+        if not 0 < limit <= _MAX_LIMIT_PER_REQUEST:
+            raise ValueError(f"limit must be between 1 and {_MAX_LIMIT_PER_REQUEST}, got {limit}")
 
         self.base_crawling_address = MaccabiStatsConfigSingleton.maccabipedia.base_crawling_address
 
@@ -75,6 +91,10 @@ class MaccabiPediaCargoChunksCrawler(Iterator):
         self.tables_fields = tables_fields
         self.join_tables_on = join_tables_on
         self.where_condition = where_condition
+        self.limit = limit
+        self.order_by = order_by
+        self.unescape_all_strings = unescape_all_strings
+        self.timeout = timeout
 
         self._current_offset = 0
         self._finished_to_crawl = False
@@ -88,11 +108,11 @@ class MaccabiPediaCargoChunksCrawler(Iterator):
                f"&tables={self.tables_name}" \
                f"&fields={self.tables_fields}" \
                f"&join_on={self.join_tables_on}" \
-               f"&limit={_MAX_LIMIT_PER_REQUEST}" \
+               f"&limit={self.limit}" \
                f"&offset={self._current_offset}" \
                f"&where={self.where_condition}" \
                f"&group_by=" \
-               f"&order_by=" \
+               f"&order_by={quote(self.order_by, safe=',')}" \
                f"&having="
 
     def _request_more_data(self):
@@ -101,17 +121,17 @@ class MaccabiPediaCargoChunksCrawler(Iterator):
         """
 
         # Get data
-        request_result = self._session.get(self.full_crawl_address, timeout=30)
+        request_result = self._session.get(self.full_crawl_address, timeout=self.timeout)
         if request_result.status_code != 200:
             logging.exception(f"Error while fetching data from address: {self.full_crawl_address}, "
                               f"status code: {request_result.status_code}, text: {request_result.text}")
             raise ValueError(f"status code {request_result.status_code} while fetching data from maccabipedia")
 
         current_request_as_json = self._parse_cargo_rows(request_result)
-        self._current_offset += _MAX_LIMIT_PER_REQUEST
+        self._current_offset += self.limit
 
         # We have received smaller amount than the limit, that is the last query
-        if len(current_request_as_json) < _MAX_LIMIT_PER_REQUEST:
+        if len(current_request_as_json) < self.limit:
             self._finished_to_crawl = True
 
         # Add to queue for iteration
@@ -145,10 +165,13 @@ class MaccabiPediaCargoChunksCrawler(Iterator):
 
         return payload
 
-    @staticmethod
-    def _decode_maccabipedia_data_and_remove_nones(maccabipedia_data) -> Dict:
+    def _decode_maccabipedia_data_and_remove_nones(self, maccabipedia_data) -> Dict:
 
         maccabipedia_data_without_nulls = {k: v for k, v in maccabipedia_data.items() if v is not None}
+
+        if self.unescape_all_strings:
+            return {k: html.unescape(v) if isinstance(v, str) else v
+                    for k, v in maccabipedia_data_without_nulls.items()}
 
         if 'Opponent' in maccabipedia_data_without_nulls:
             maccabipedia_data_without_nulls['Opponent'] = html.unescape(maccabipedia_data_without_nulls['Opponent'])
