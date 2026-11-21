@@ -108,6 +108,13 @@ local Drive sync, so ask the Drive owner to add a shortcut to it under My Drive 
 - Scans come out small and blurry on the wiki. Crop the lineup box and upscale it
   4–6x (PIL, LANCZOS) before reading. Foreign names still come out garbled, so
   record them as printed and flag the unclear ones.
+- A hyphen (`־`) at the **end of a line** in a narrow column is a line break, not part
+  of the name: `פדה־` / `ארסט` on the next line is one player, פדהארסט; `סמו־` / `לר`
+  is סמולר. Join the two parts. But a real double-barrelled name (`בן־ארי`,
+  `בן־מרדכי`) uses the same hyphen, so a hyphen at a line end can be either. When
+  a scorer list does not add up, try joining the parts and summing again; when it
+  is still unclear, keep the hyphen as printed and check the name against the
+  season's squad.
 
 ## Known data problems
 
