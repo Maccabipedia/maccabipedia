@@ -16,7 +16,7 @@ raw name returns **zero rows and no error** (§15 table):
 
 | keeps `'` `"` | stripped at write time |
 |---|---|
-| `Football_Games.Competition` (`גביע מלצ'ט`), `.CoachMaccabi`, `.Refs` | `Football_Games.Opponent`, `.Stadium`, `.Season`, `.HomeAway` |
+| `Football_Games.Competition` keeps `'` only (`גביע מלצ'ט`; no value has `"`, the UEFA games are `גביע אופא`), `.CoachMaccabi`, `.Refs` | `Football_Games.Opponent`, `.Stadium`, `.Season`, `.HomeAway` |
 | `Games_Events.PlayerName` | `Competitions.OriginalName` / `CurrentName` |
 | `Opponents.OriginalName` (37 names with a quote) | `Stadiums.CanonicalName` |
 

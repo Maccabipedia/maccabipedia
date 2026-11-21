@@ -1017,12 +1017,28 @@ now guards against, each of which once produced a false pass or a false failure:
 - **`action=parse&page=` can answer from the parser cache.** Right after the
   candidates were written locally it returned the old render, and the "new"
   side matched the old byte for byte. The harness parses each page's wikitext
-  as `text=` and `diff --new-uses יחידה:FootballCompetition` requires the new
-  module in every new render.
+  as `text=`, and `diff` refuses to pass without a proof that the new side ran
+  the candidate: `--new-uses` (a page every new render transcludes and no old
+  one does), `--new-drops` (a page every old render that had it lost), or
+  `--expect-change` (one sandbox override applies to every parse, so a page
+  that must change proves it). The prod order gives every step one:
+
+  | step | proof |
+  |---|---|
+  | `הצגת סטטיסטיקה` (+ the new helper page first) | `--new-uses תבנית:מפעל כדורגל/שליפת מספרים`, Melchett changes |
+  | `/שליפת נתונים` | `--new-uses יחידה:FootballCompetition` (first user, so not on the old side) |
+  | `הצגת הניצחונות הגדולים`, then `ההפסדים` | Melchett changes |
+  | `הצגת מספרים עונתיים` (summary row) | `--new-drops תבנית:סטטיסטיקה/שליפות/מתקדמות/כמות נתוני משחק` - its last caller here |
 - **The records section is not stable between two identical renders.** Tied
   players come back in a different order (10 of 29 pages, new vs new), so diff
   blanks that one section, which this change does not touch. Everything else is
-  byte for byte.
+  byte for byte. Locally a page's image can also flip between the file and an
+  upload link (the local wiki asks prod for images on demand) - rerun the
+  capture before chasing a diff in `image-container`.
+- **Its own first margin check was vacuous.** It looked for
+  `id="הניצחונות הגדולים"`; MediaWiki writes `id="הניצחונות_הגדולים"`, so
+  the biggest-results margins were never compared until the selftest altered a
+  score and `check` passed it. A missing section is now a failure.
 
 `check` recomputes every page's box and its biggest-results margins from Cargo,
 matching names with quotes stripped on both sides, so it shares nothing with
@@ -1055,8 +1071,8 @@ primes, so sandboxed alone against the old box it raises "nothing primed".
      form: the caller's quotes are stripped and its own added.
   3. `מפעלים` no longer strips apostrophes, because
      `Football_Games.Competition` keeps them (it still drops `"` - the
-     `apostropheOnly` rule). Live on the competition pages: see "Competition
-     pages" below.
+     `apostropheOnly` rule). The competition pages are the first live
+     callers - see "Competition pages" above.
   4. **The opponent alias keeps the quote when looking a club up**, so
      `יריבה=בית"ר ירושלים` resolves where the template returns nothing. **This
      changes no published number** — the club pages do not call the lookup with

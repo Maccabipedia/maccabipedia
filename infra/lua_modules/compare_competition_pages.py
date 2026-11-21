@@ -57,9 +57,14 @@ def api(session, params: dict, post: bool = False) -> dict:
     params = {**params, 'format': 'json', 'formatversion': 2}
     for attempt in range(4):
         if post:
-            response = session.post(session.api, data=params, timeout=180)
+            # Multipart: the production firewall refuses a large urlencoded body
+            # (a 302 to its abuse page) and accepts the same bytes this way.
+            response = session.post(session.api, files={k: (None, str(v)) for k, v in params.items()},
+                                    timeout=180, allow_redirects=False)
         else:
-            response = session.get(session.api, params=params, timeout=180)
+            response = session.get(session.api, params=params, timeout=180, allow_redirects=False)
+        if response.status_code == 302:
+            raise SystemExit(f'redirected to {response.headers.get("Location")} - the firewall refused the request')
         if response.status_code == 508 and attempt < 3:
             time.sleep(10)
             continue
@@ -133,14 +138,31 @@ def comparable(page_html: str) -> str:
 
 
 def differences(old: dict[str, dict], new: dict[str, dict], expected: set[str],
-                new_uses: str | None = None) -> list[str]:
+                new_uses: list[str], new_drops: list[str] | None = None) -> list[str]:
     problems = []
     # Proof the new side ran the new code: without it two identical renders of
-    # the old templates pass as "no change".
-    if new_uses:
+    # the old templates pass as "no change". One is required: a page the new
+    # side uses and the old does not, one the new side dropped, or a page that
+    # must change (each sandbox parse carries the same override, so a change on
+    # one page shows it was applied to all).
+    new_drops = new_drops or []
+    if not (new_uses or new_drops or expected):
+        problems.append('no proof that the new side ran the candidate: give --new-uses, --new-drops '
+                        'or --expect-change')
+    for marker in new_drops:
+        had = [title for title, page in old.items() if marker in page['templates']]
+        if not had:
+            problems.append(f'no old render uses {marker}, so dropping it proves nothing')
+        for title in had:
+            if title in new and marker in new[title]['templates']:
+                problems.append(f'{title}: the new render still uses {marker}')
+    for marker in new_uses:
         for title, page in sorted(new.items()):
-            if new_uses not in page['templates']:
-                problems.append(f'{title}: the new render does not use {new_uses}')
+            if marker not in page['templates']:
+                problems.append(f'{title}: the new render does not use {marker}')
+        for title, page in sorted(old.items()):
+            if marker in page['templates']:
+                problems.append(f'{title}: the OLD render already uses {marker}, so it proves nothing')
     if set(old) != set(new):
         problems.append(f'different page sets: {sorted(set(old) ^ set(new))}')
     for title in sorted(set(old) & set(new)):
@@ -216,6 +238,8 @@ def numbers_for(names: list[str], data: dict) -> dict:
         'yellows': sum(int(c['n']) for c in cards if c['subtype'] == '71'),
         'reds': sum(int(c['n']) for c in cards if c['subtype'] in ('72', '73')),
         'biggestWins': margins_won[:10], 'biggestLosses': margins_lost[:10],
+        'summaryWins': len(wins), 'summaryDraws': sum(1 for g in games if g['result'] == '2'),
+        'summaryLosses': len(losses),
     }
 
 
@@ -225,7 +249,8 @@ def rendered_numbers(page_html: str) -> dict:
                                    page_html):
         if label in STATS_LABELS:
             found[STATS_LABELS[label]] = int(value.replace(',', ''))
-    for key, anchor in (('biggestWins', 'הניצחונות הגדולים'), ('biggestLosses', 'ההפסדים הגדולים')):
+    # MediaWiki writes the ids with underscores for spaces.
+    for key, anchor in (('biggestWins', 'הניצחונות_הגדולים'), ('biggestLosses', 'ההפסדים_הגדולים')):
         section = page_html.split(f'id="{anchor}"', 1)
         if len(section) < 2:
             continue
@@ -235,6 +260,13 @@ def rendered_numbers(page_html: str) -> dict:
             opponent, maccabi = int(score[0]), int(score[1])
             margins.append(maccabi - opponent if key == 'biggestWins' else opponent - maccabi)
         found[key] = margins
+    # The seasonal-numbers summary row (official competitions only), which now
+    # reads the numbers the stats box primed: סה"כ, trophies, then W, D, L.
+    summary = re.search(r'<div class="table-summary"><span>סה"כ</span><span class="win">[^<]*</span>'
+                        r'<span>([\d,]+)</span><span>([\d,]+)</span><span>([\d,]+)</span>', page_html)
+    if summary:
+        for key, value in zip(('summaryWins', 'summaryDraws', 'summaryLosses'), summary.groups()):
+            found[key] = int(value.replace(',', ''))
     return found
 
 
@@ -256,9 +288,9 @@ def check(directory: Path, wiki: str, pages: dict[str, dict] | None = None) -> l
         for key, value in shown.items():
             if expected[key] != value:
                 problems.append(f'{title}: {key} shows {value}, Cargo says {expected[key]}')
-        missing = set(STATS_LABELS.values()) - set(shown)
+        missing = (set(STATS_LABELS.values()) | {'biggestWins', 'biggestLosses'}) - set(shown)
         if missing:
-            problems.append(f'{title}: the stats box lacks {sorted(missing)}')
+            problems.append(f'{title}: the page lacks {sorted(missing)}')
         print(f'  {title}: ' + ', '.join(f'{k}={shown.get(k)}' for k in ('games', 'wins', 'draws', 'losses',
                                                                         'goalsFor', 'yellows')))
     return problems
@@ -275,22 +307,43 @@ def report(problems: list[str], what: str) -> None:
 def selftest(old_dir: Path, new_dir: Path) -> None:
     old, new = load_all(old_dir), load_all(new_dir)
     titles = sorted(old)
+    marker = 'יחידה:FootballCompetition'
     swapped = dict(new)
     swapped[titles[0]] = new[titles[1]]
-    if not differences(old, swapped, set()):
+    if not differences(old, swapped, set(), [marker]):
         raise SystemExit('selftest FAILED: diff passed a page rendered as another page')
-    if not differences(old, old, {titles[0]}):
+    if not differences(old, old, {titles[0]}, [marker]):
         raise SystemExit('selftest FAILED: diff passed an expected change that did not happen')
+    if not differences(new, new, set(), [marker]):
+        raise SystemExit('selftest FAILED: diff passed a marker the old side already had')
+    if not differences(old, old, set(), []):
+        raise SystemExit('selftest FAILED: diff passed with no proof at all')
+    if not differences(old, old, set(), [], ['תבנית:מפעל כדורגל/הצגת סטטיסטיקה']):
+        raise SystemExit('selftest FAILED: diff passed a dropped page the new side still uses')
+
+    def altered(title: str, find: str, replace: str) -> dict:
+        page = dict(new[title])
+        page['html'] = page['html'].replace(find, replace, 1)
+        if page['html'] == new[title]['html']:
+            raise SystemExit(f'selftest FAILED: "{find}" not on {title} - the markup changed?')
+        return {title: page}
+
     melchett = next(t for t in titles if 'מלצ' in t)
-    altered = {melchett: dict(new[melchett])}
-    altered[melchett]['html'] = new[melchett]['html'].replace(
-        '<span class="describe">ניצחונות</span>\n<span class="info">', '<span class="describe">ניצחונות</span>\n'
-        '<span class="info">1')
-    if altered[melchett]['html'] == new[melchett]['html']:
-        raise SystemExit('selftest FAILED: could not alter the wins number - the markup changed?')
-    if not check(new_dir, 'local', altered):
-        raise SystemExit('selftest FAILED: check passed an altered wins number')
-    print('selftest ok: diff caught a swapped page and a missing change, check caught an altered number')
+    official = next(t for t in titles if 'class="table-summary"' in new[t]['html'])
+    cases = {
+        'an altered wins number': altered(melchett, '<span class="describe">ניצחונות</span>\n<span class="info">',
+                                          '<span class="describe">ניצחונות</span>\n<span class="info">1'),
+        'an altered biggest-win score': altered(melchett, '<span>2:9</span>', '<span>2:8</span>'),
+    }
+    summary = re.search(r'(<span>סה"כ</span><span class="win">[^<]*</span><span>)(\d+)',
+                        new[official]['html'])
+    cases['an altered seasonal summary'] = altered(official, summary.group(0),
+                                                   summary.group(1) + str(int(summary.group(2)) + 1))
+    for label, pages in cases.items():
+        if not check(new_dir, 'local', pages):
+            raise SystemExit(f'selftest FAILED: check passed {label}')
+    print('selftest ok: diff caught a swapped page, a missing change, a stale and a missing marker; '
+          'check caught ' + ', '.join(cases))
 
 
 CANDIDATES = Path('infra/lua_modules/wiki_templates/football_competition')
@@ -338,7 +391,9 @@ def main() -> None:
     diff.add_argument('old', type=Path)
     diff.add_argument('new', type=Path)
     diff.add_argument('--expect-change', nargs='*', default=[])
-    diff.add_argument('--new-uses', help='a page every new render must transclude')
+    diff.add_argument('--new-drops', nargs='+', default=[], help='pages the new renders no longer transclude')
+    diff.add_argument('--new-uses', nargs='+', default=[],
+                      help='pages every new render must transclude and no old render does')
     checker = sub.add_parser('check')
     checker.add_argument('dir', type=Path)
     checker.add_argument('--wiki', choices=WIKIS, required=True)
@@ -360,7 +415,7 @@ def main() -> None:
         save_all(session_for('prod'), options.out, override)
     elif options.mode == 'diff':
         report(differences(load_all(options.old), load_all(options.new), set(options.expect_change),
-                           options.new_uses), 'diff')
+                           options.new_uses, options.new_drops), 'diff')
     elif options.mode == 'check':
         report(check(options.dir, options.wiki), 'check')
     else:
