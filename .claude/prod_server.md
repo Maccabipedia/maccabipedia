@@ -54,9 +54,12 @@ the count does. November 2026: ~221k used.
 | `images/thumb/` | ~162k | thumbnails, one folder per original + one file per size |
 | `images/[0-f]/` | ~19k | the originals (~18.5k current files) |
 | `images/deleted/` | ~5.5k | deleted files, kept for undelete |
-| `images/temp/` | ~4.1k | upload stash, last touched 2020 |
-| `images/cache/`, `images/archive/` | ~3k, ~2.7k | image cache; old versions of re-uploaded files |
-| MediaWiki core | ~11.5k | `includes`, `resources`, `vendor`, `tests` (2.7k), `docs` |
+| `images/temp/` | ~300 (folders) | the upload temp zone: every upload passes through it and core never empties it; files older than a few hours are dead |
+| `images/archive/` | ~2.7k | old versions of re-uploaded files |
+| MediaWiki core | ~9k | `includes`, `resources`, `vendor`, `docs`; `tests/` deleted (see the log) |
+
+`images/cache/` is where `$wgUseFileCache` writes pages; the setting is off, and the folder is
+deleted (see the log). If it ever comes back with new dates, someone turned the setting on.
 
 Counting through FTP (`lftp find`) takes over an hour for the whole account: one directory
 per request, and every original has its own thumb folder. A one-off DirectAdmin cron with
@@ -126,6 +129,9 @@ and kept forever. Every distinct width is another file.
 
 ## Cleanup log
 
+Every delete on prod gets a line here: what, how many, how it was proven unused, where the
+backup is.
+
 - 2026-11-14: deleted 13 old extension copies (`old_Cargo`, `old-Cargo`, `o_Cargo`, `old-*`,
   `new-EmbedVideo`, which needs PHP 8) and the unused skins `skins/Metrolook` and
   `skins/Maccabipedia_old`, ~2.3k files. Proof that nothing used them: the live
@@ -140,10 +146,22 @@ and kept forever. Every distinct width is another file.
   `StartProfiler.sample`, `serialized/`.
 - 2026-11-18 to 11-21: deleted 20,931 thumbs that were only a 1.5x copy, left over from before
   the 2x-only hook: a width W where a smaller width w in the same folder has round(1.5w) = W (+-1px) and w's 2x (2w +-1px, or the original when 2w reaches it)
-  2x exists, and W is not itself shown (no 2W or 1.5W file, not anyone's 2x, not one of the
+  exists, and W is not itself shown (no 2W or 1.5W file, not anyone's 2x, not one of the
   fixed sizes above). Rounds: 5, 997, 1,999, 5,977, 5,970, 5,983 (a few per round were already gone: MediaWiki clears an image's thumb folder when the file is re-uploaded). Each round had a check before and
   after (20 sampled files on up to 10 of their pages, logged out, logged in and fresh parse, all
   the image's thumbs answering 200; 60 File pages), then a folder listing after the delete, then the
   access-log check. Nothing broke. 37 paths with `"` in them were left, because the delete script quotes each path for lftp and refuses them; at 37 files they are not worth deleting by hand.
+- 2026-11-21: deleted about 9.4k more, none of it used by the site. A full copy was downloaded
+  first and compared with the server listing file by file (same paths, same sizes).
+  - `images/cache/` (2,957 files and folders): `$wgUseFileCache` output, all dated
+    2022-05-02/03; the setting is off (commented out in `shared.php`).
+  - `tests/` (2,664): core's test code. Runtime reads it only when `$wgEnableJavaScriptTest` is
+    on (`ServiceWiring` registers the QUnit modules); prod answers "No such special page" for
+    Special:JavaScriptTest, so it is off. `docs/` (52 files) was left.
+  - `images/temp/`: 3,820 files older than a month (2,891 from 2018), keeping the newest, the
+    folders, `.htaccess` and `index.html`.
+  - Proof that nothing used them: 5 days of nginx logs had no request into any of the three
+    (only 3 attack probes, answered 403); a few pages and their thumbs and `load.php` answered
+    200 before and after.
 - About 23 extensions sit in `extensions/` without being loaded (AbuseFilter, Math, OATHAuth,
   SpamBlacklist, ...). The owner chose to keep them.
