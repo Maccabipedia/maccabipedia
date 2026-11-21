@@ -165,6 +165,25 @@ Sometimes it's very useful to measure which player contribute the most in the "m
 >>> maccabi_games.important_goals.get_top_scorers_in_last_minutes(minimum_diff_for_maccabi=-1, maximum_diff_for_maccabi=1, from_minute=85)
 ```
 
+# Basketball
+
+Basketball is an addition next to football; football's API above is unchanged.
+For now it loads the games (no players' box scores and no stats yet).
+
+```python
+from maccabistats import load_basketball_from_maccabipedia, serialize_basketball_games, get_basketball_stats
+
+basketball_games = load_basketball_from_maccabipedia()  # Crawls MaccabiPedia
+serialize_basketball_games(basketball_games)  # To the home folder, under maccabistats/basketball
+basketball_games = get_basketball_stats()  # The newest pickle, refused if another version wrote it
+
+game = basketball_games[-1]
+game.maccabi.score, game.opponent_team.score, game.maccabi.quarters, game.overtimes_played
+game.is_maccabi_win, game.is_home, game.competition_flags.is_league
+```
+
+A value the wiki does not have is `None` (never 0), and a game stored as 0:0 has no result.
+
 # Export data
 If you want to export the current object MaccabiGamesStats you work on, use:
 ```

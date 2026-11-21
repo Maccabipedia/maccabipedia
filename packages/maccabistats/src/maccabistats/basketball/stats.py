@@ -1,0 +1,27 @@
+"""The basketball games collection, the way MaccabiGamesStats holds the football games."""
+from datetime import date
+from typing import Iterator, List
+
+from maccabistats.basketball.models import BasketballGameData
+from maccabistats.version import version
+
+
+class BasketballGamesStats:
+    def __init__(self, games: List[BasketballGameData]):
+        # Games with no date go last
+        self.games = sorted(games, key=lambda game: (game.date or date.max, game.page_name))
+        self.version = version
+
+    def __len__(self) -> int:
+        return len(self.games)
+
+    def __iter__(self) -> Iterator[BasketballGameData]:
+        return iter(self.games)
+
+    def __getitem__(self, item):
+        return self.games[item]
+
+    def __repr__(self) -> str:
+        if not self.games:
+            return "No basketball games"
+        return f"{len(self)} basketball games, from {self.games[0].date} to {self.games[-1].date}"

@@ -1,3 +1,11 @@
+## Version 2.76 ##
+
+    Basketball, first step: maccabistats.basketball loads every basketball game from MaccabiPedia
+    (load_basketball_from_maccabipedia) with its score, periods, overtimes, coaches, referees,
+    videos and the competition's flags, and keeps it in a pickle (serialize_basketball_games,
+    get_basketball_stats). An addition only: football's API is unchanged. Players' box scores,
+    the error finder and stats come next.
+
 ## Version 2.75 ##
 
     MaccabiPediaCargoChunksCrawler takes four optional keyword arguments, for tables other than
