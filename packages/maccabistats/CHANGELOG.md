@@ -1,25 +1,19 @@
-## Version 2.77 ##
-
-    Basketball error finder: BasketballErrorsFinder(games).find_all() runs 19 checks on the
-    basketball games - periods against the final score (with overtime), overtime that was never
-    filled in, ties, games with no result, the stored ResultOpt, the page title against the
-    game's fields, dates against the season, two games on one date, and competitions missing
-    from the catalog. github_actions_scripts/find_basketball_errors.py writes the findings to a TSV.
-
-## Version 2.76 ##
-
-    Basketball, first step: maccabistats.basketball loads every basketball game from MaccabiPedia
-    (load_basketball_from_maccabipedia) with its score, periods, overtimes, coaches, referees,
-    videos and the competition's flags, and keeps it in a pickle (serialize_basketball_games,
-    get_basketball_stats). An addition only: football's API is unchanged. Players' box scores,
-    the error finder and stats come next.
-
 ## Version 2.75 ##
 
-    MaccabiPediaCargoChunksCrawler takes four optional keyword arguments, for tables other than
-    football's: limit (rows per request), order_by (a stable order when a table takes many
-    requests), unescape_all_strings and timeout. With the defaults it sends the same requests
-    as before, so football loading is unchanged.
+    Basketball, next to football (football's API is unchanged): maccabistats.basketball.
+
+    - load_basketball_from_maccabipedia() loads every basketball game with its score, periods,
+      overtimes, coaches, referees, videos, the competition's flags and the players' box scores.
+      serialize_basketball_games() / get_basketball_stats() keep it in a pickle.
+    - BasketballGamesStats: chained filters (home/away/neutral, league/trophy/international,
+      wins/losses, overtime, by season, opponent, coach, player, date), results, win and loss
+      streaks, players' totals and best single games, and Maccabi's record by opponent, coach
+      and season. A player's total says in how many games that stat was recorded.
+    - BasketballErrorsFinder: 28 checks on the games and the box scores;
+      github_actions_scripts/find_basketball_errors.py runs them and reports what is new since
+      the previous run.
+    - MaccabiPediaCargoChunksCrawler takes four optional keyword arguments: limit, order_by,
+      unescape_all_strings and timeout. With the defaults it sends the same requests as before.
 
 ## Version 2.74 ##
 

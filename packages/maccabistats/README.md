@@ -167,29 +167,63 @@ Sometimes it's very useful to measure which player contribute the most in the "m
 
 # Basketball
 
-Basketball is an addition next to football; football's API above is unchanged.
-For now it loads the games (no players' box scores and no stats yet).
+Basketball sits next to football in `maccabistats.basketball`; football's API above is unchanged.
 
 ```python
 from maccabistats import load_basketball_from_maccabipedia, serialize_basketball_games, get_basketball_stats
 
-basketball_games = load_basketball_from_maccabipedia()  # Crawls MaccabiPedia
+basketball_games = load_basketball_from_maccabipedia()  # Crawls MaccabiPedia, with the players' box scores
 serialize_basketball_games(basketball_games)  # To the home folder, under maccabistats/basketball
-basketball_games = get_basketball_stats()  # The newest pickle, refused if another version wrote it
+basketball_games = get_basketball_stats()  # The newest pickle this maccabistats version wrote
+```
 
+### Filtering and results
+
+Filters return a new object, so they chain like the football ones.
+
+```python
+basketball_games.league_games.home_games.maccabi_wins
+basketball_games.international_games.get_games_against_team("ריאל מדריד").results.wins_percentage
+basketball_games.get_games_by_season("2003/04").get_games_by_played_player_name("טל בורשטיין")
+basketball_games.overtime_games.played_after("2000-01-01")
+
+basketball_games.results.biggest_wins(5)
+basketball_games.streaks.get_longest_wins_streak_games()
+basketball_games.opponents  # Maccabi's record against each opponent; also .coaches and .seasons
+```
+
+A streak is a run of consecutive games of the filtered collection, so `league_games.streaks` ignores the cup games in between. A game with no result neither breaks a streak nor adds to it.
+
+### Players
+
+```python
+basketball_games.players.most_played
+basketball_games.players.best_scorers  # Also best_rebounders, best_assisters
+basketball_games.players.get_players_total("steals")
+basketball_games.players.get_best_single_games("points", limit=10)
+```
+
+Every total comes with `games_with_data`: the number of the player's games whose box score recorded that stat. Old box scores have the points and little else, so read a total next to it.
+
+### A game
+
+```python
 game = basketball_games[-1]
 game.maccabi.score, game.opponent_team.score, game.maccabi.quarters, game.overtimes_played
 game.is_maccabi_win, game.is_home, game.competition_flags.is_league
+game.maccabi.players[0].points, game.maccabi.has_recorded("assists")
 ```
 
-A value the wiki does not have is `None` (never 0), and a game stored as 0:0 has no result.
+A value the wiki does not have is `None` (never 0), and a game stored as 0:0 has no result. In an awarded (technical) game the technical flag decides the result, as on the wiki.
 
-The basketball errors finder works like the football one: every `get_*` method is one check.
+### Errors finder
+
+Like the football one: every `get_*` method is one check.
 
 ```python
 from maccabistats import BasketballErrorsFinder
 
-finder = BasketballErrorsFinder(basketball_games.games)
+finder = BasketballErrorsFinder(basketball_games.games, basketball_games.player_rows_without_game)
 finder.get_games_missing_overtime()  # Periods tie, the final score does not, no overtime points
 finder.find_all()  # Every check, keyed by its name
 ```

@@ -19,6 +19,7 @@ name: Alert on workflow failure
 on:
   workflow_run:
     workflows:
+      - Find Basketball Errors
       - Find Broken Videos
       - Find Illegal Player Events
       - Find MaccabiPedia Errors

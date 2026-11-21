@@ -1,0 +1,60 @@
+name: Find Basketball Errors
+on:
+  schedule:
+    # An hour after Find MaccabiPedia Errors (football), so the two do not crawl the wiki together
+    - cron: "0 19 * * *"
+  workflow_dispatch:
+
+jobs:
+  basketball-errors:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: 3.11
+          architecture: x64
+      - uses: astral-sh/setup-uv@v7
+      - name: Install dependencies
+        run: uv sync
+      # The previous run's findings, so only newly-appeared ones are sent. Rolling key (run_id
+      # is always unique) => the exact key never hits, so the restore-keys prefix brings back the
+      # latest baseline and a fresh one is always saved at post-job. The prefix must not be a
+      # prefix of football's (maccabipedia-errors-baseline-v1-), or one would restore the other's.
+      # With no baseline (the first run, or a rare cache eviction) the script sends nothing and
+      # only records what is there.
+      - name: Restore previous findings baseline
+        uses: actions/cache@v5
+        with:
+          path: basketball-errors-baseline
+          key: basketball-errors-baseline-v1-${{ github.run_id }}
+          restore-keys: |
+            basketball-errors-baseline-v1-
+      - name: Find Errors
+        id: find
+        run: >
+          uv run python -m maccabistats.github_actions_scripts.find_basketball_errors
+          --out basketball_errors.tsv
+          --baseline basketball-errors-baseline/basketball_errors.tsv
+          --new-out new_basketball_errors.txt
+      - name: Send new errors to Telegram
+        if: steps.find.outputs.has_new == 'true'
+        uses: appleboy/telegram-action@v1.0.1
+        with:
+          to: ${{ secrets.MACCABIPEDIA_ERRORS_TELEGRAM_TO }}
+          token: ${{ secrets.MACCABIPEDIA_ERRORS_TELEGRAM_TOKEN }}
+          message: New MaccabiPedia basketball errors
+          document: new_basketball_errors.txt
+      # Advance the baseline ONLY after the send succeeds (if: success() => skipped when the
+      # send failed; a skipped send on a quiet day still counts as success), so a failed delivery
+      # is retried next run.
+      - name: Advance findings baseline
+        if: success()
+        run: mkdir -p basketball-errors-baseline && cp basketball_errors.tsv basketball-errors-baseline/basketball_errors.tsv
+  workflow-keepalive:
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - uses: liskin/gh-workflow-keepalive@v1
