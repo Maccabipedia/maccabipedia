@@ -31,6 +31,11 @@ _REQUIRED_FIELDS = {"date": "Date", "season": "Season", "competition": "Competit
 _SEASON_FIRST_DAY = (6, 1)
 _SEASON_LAST_DAY = (9, 30)
 
+# From this day on every game page should list its players: box scores are published for every
+# game since. Before it, most games' box scores were never published, so a page without one is
+# not an error. (The old European games can be filled from Linguasport, as a backfill.)
+_BOX_SCORE_EXPECTED_FROM = date(2000, 1, 1)
+
 
 _SHOTS = {"two-pointers": ("two_points_scored", "two_points_attempts"),
           "three-pointers": ("three_points_scored", "three_points_attempts"),
@@ -401,9 +406,11 @@ class BasketballErrorsFinder:
         return findings
 
     def get_games_without_box_score(self) -> list[Finding]:
-        """A played game with no player listed on either side."""
+        """A played game since 2000 with no player listed on either side."""
         return [Finding("no_box_score", game, "no players on either side")
-                for game in self._scored_games if not game.maccabi.players and not game.opponent_team.players]
+                for game in self._scored_games
+                if game.date is not None and game.date >= _BOX_SCORE_EXPECTED_FROM
+                and not game.maccabi.players and not game.opponent_team.players]
 
     def get_player_rows_without_game(self) -> list[Finding]:
         """Box-score rows whose page has no game row, or whose Team is neither Maccabi (1) nor the opponent (0)."""

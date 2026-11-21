@@ -84,14 +84,14 @@ def test_job_sends_nothing_on_its_first_run_and_only_the_new_finding_after(monke
     assert _run_main(monkeypatch, tmp_path, arguments) == "has_new=false\n"
     assert new_path.read_text(encoding="utf-8") == ""
     expected_checks = len(BasketballErrorsFinder(BasketballGamesStats([HAPOEL_1969])).find_all())
-    assert expected_checks == 29 and "no_box_score" in out_path.read_text(encoding="utf-8-sig")
+    assert expected_checks == 29 and "competition_not_in_catalog" in out_path.read_text(encoding="utf-8-sig")
 
     # The next day's baseline lacks one of today's findings
-    kept_lines = [line for line in out_path.read_text(encoding="utf-8-sig").splitlines() if "no_box_score" not in line]
+    kept_lines = [line for line in out_path.read_text(encoding="utf-8-sig").splitlines() if "competition_not_in_catalog" not in line]
     baseline_path.write_text("\n".join(kept_lines) + "\n", encoding="utf-8-sig")
 
     assert _run_main(monkeypatch, tmp_path, arguments).endswith("has_new=true\n")
-    assert new_path.read_text(encoding="utf-8") == f"get_games_without_box_score (1):\n    {PAGE}: no players on either side"
+    assert new_path.read_text(encoding="utf-8") == f"get_games_with_competition_missing_from_catalog (1):\n    {PAGE}: Competition 'הליגה הלאומית'"
 
 
 def test_baseline_without_new_out_is_refused(monkeypatch, tmp_path):

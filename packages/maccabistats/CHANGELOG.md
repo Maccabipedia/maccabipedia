@@ -1,3 +1,8 @@
+## Version 2.78 ##
+
+    BasketballErrorsFinder: get_games_without_box_score reports only games since 2000. Most
+    older games' box scores were never published, so a page without one is not an error.
+
 ## Version 2.77 ##
 
     Basketball, next to football (football's API is unchanged): maccabistats.basketball.
