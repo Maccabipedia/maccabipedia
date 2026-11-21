@@ -1,6 +1,6 @@
 """The competition is the plain name and the stage is written the way the wiki's editors write it.
 
-Values are the ones the bot wrote on real pages and the ones Oren then fixed them to, read from the
+Values are the ones the bot wrote on real pages and the ones an editor then fixed them to, read from the
 page histories (e.g. the 2026/27 Sheriff Tiraspol and 2025/26 Dinamo Kyiv qualifier pages).
 """
 import datetime

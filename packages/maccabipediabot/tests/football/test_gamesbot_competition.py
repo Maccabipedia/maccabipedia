@@ -1,7 +1,7 @@
 """A new European qualifier game: the title suffix and |מפעל= are the same plain competition.
 
 The raw values are what the club site gave for the 2026/27 Sheriff Tiraspol first leg, which the bot
-saved as מפעל=מוקדמות הליגה האירופית, שלב=סיבוב 2 before Oren fixed it by hand.
+saved as מפעל=מוקדמות הליגה האירופית, שלב=סיבוב 2 before an editor fixed it by hand.
 """
 import datetime
 
