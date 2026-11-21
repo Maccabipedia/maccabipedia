@@ -214,18 +214,21 @@ def test_timeout_argument_reaches_the_request(monkeypatch):
     assert seen["timeout"] == 120
 
 
-_ESCAPED_ROW = '[{"_pageName": "x", "Opponent": "בית&quot;ר", "Coach": "צבי &quot;צביקה&quot; שרף", "Crowd": 7}]'
+_ESCAPED_ROW = ('[{"_pageName": "x", "Opponent": "בית&quot;ר", "Coach": "צבי &quot;צביקה&quot; שרף", "Crowd": 7,'
+                ' "AssistantReferees": ["ג&#039;ורג&#039; סמית"]}]')
 
 
 def test_only_opponent_and_stadium_are_unescaped_by_default(monkeypatch):
     crawler = MaccabiPediaCargoChunksCrawler("Games_Catalog", "_pageName")
     monkeypatch.setattr(crawler._session, "get", lambda url, timeout: _response(_ESCAPED_ROW))
 
-    assert list(crawler) == [{"_pageName": "x", "Opponent": 'בית"ר', "Coach": "צבי &quot;צביקה&quot; שרף", "Crowd": 7}]
+    assert list(crawler) == [{"_pageName": "x", "Opponent": 'בית"ר', "Coach": "צבי &quot;צביקה&quot; שרף", "Crowd": 7,
+                              "AssistantReferees": ["ג&#039;ורג&#039; סמית"]}]
 
 
 def test_unescape_all_strings_unescapes_every_text_field(monkeypatch):
     crawler = MaccabiPediaCargoChunksCrawler("Basketball_Games", "_pageName", unescape_all_strings=True)
     monkeypatch.setattr(crawler._session, "get", lambda url, timeout: _response(_ESCAPED_ROW))
 
-    assert list(crawler) == [{"_pageName": "x", "Opponent": 'בית"ר', "Coach": 'צבי "צביקה" שרף', "Crowd": 7}]
+    assert list(crawler) == [{"_pageName": "x", "Opponent": 'בית"ר', "Coach": 'צבי "צביקה" שרף', "Crowd": 7,
+                              "AssistantReferees": ["ג'ורג' סמית"]}]

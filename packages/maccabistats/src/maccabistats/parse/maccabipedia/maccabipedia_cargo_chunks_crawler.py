@@ -77,7 +77,8 @@ class MaccabiPediaCargoChunksCrawler(Iterator):
                          iteration, because the rows of each request come out reversed
         :type order_by: str
         :param unescape_all_strings: Cargo html-escapes text (a quote mark arrives as &quot;).
-                                     By default only Opponent and Stadium are unescaped
+                                     By default only Opponent and Stadium are unescaped. With this,
+                                     every text value is, including the items of list columns
         :type unescape_all_strings: bool
         :param timeout: Seconds to wait for each request
         :type timeout: float
@@ -171,8 +172,7 @@ class MaccabiPediaCargoChunksCrawler(Iterator):
         maccabipedia_data_without_nulls = {k: v for k, v in maccabipedia_data.items() if v is not None}
 
         if self.unescape_all_strings:
-            return {k: html.unescape(v) if isinstance(v, str) else v
-                    for k, v in maccabipedia_data_without_nulls.items()}
+            return {k: self._unescape(v) for k, v in maccabipedia_data_without_nulls.items()}
 
         if 'Opponent' in maccabipedia_data_without_nulls:
             maccabipedia_data_without_nulls['Opponent'] = html.unescape(maccabipedia_data_without_nulls['Opponent'])
@@ -180,6 +180,15 @@ class MaccabiPediaCargoChunksCrawler(Iterator):
             maccabipedia_data_without_nulls['Stadium'] = html.unescape(maccabipedia_data_without_nulls['Stadium'])
 
         return maccabipedia_data_without_nulls
+
+    @staticmethod
+    def _unescape(value):
+        if isinstance(value, str):
+            return html.unescape(value)
+        # A Cargo "List of String" column arrives as a list
+        if isinstance(value, list):
+            return [html.unescape(item) if isinstance(item, str) else item for item in value]
+        return value
 
     def __next__(self):
         if not self._already_fetched_data_queue:
