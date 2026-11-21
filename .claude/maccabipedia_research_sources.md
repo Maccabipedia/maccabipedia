@@ -117,6 +117,7 @@ that misses items.
 - WorldFootball.net: https://www.worldfootball.net/teams/maccabi-tel-aviv/ — all results + all-time player list
 - Wikipedia — International Football: https://en.wikipedia.org/wiki/Maccabi_Tel_Aviv_F.C._in_international_football
 - Wikipedia — season category (partial, 1920–1923): https://en.wikipedia.org/wiki/Category:Maccabi_Tel_Aviv_F.C._seasons
+- American Soccer History Archives (ASHA): https://ussoccerhistory.org/ASHA/ASHA/ — one plain-HTML page per US season (`year/<YYYY>.html`, no search box) listing every foreign team's US tour: dates, opponents, scores, cities and a tour roster. To search, open the year page and look for `Maccabi`, `Palestine`, `Israel` and `Hapoel`. It lists Maccabi tours in 1927 ("Maccabi F.C. of Tel Aviv") and 1936, a US all-star game against "Maccabi" in Jaffa (19.10.1951), and Israeli teams in 1947–1970. It has no crowds or scorers, and it misses the fall 1956 tour. Its 1936 opponent names, dates and scores already changed the wiki: on 21.11.2026 the Detroit game title moved to אולסטארס מישיגן. The opponent-city pages it leads to carry the rest, e.g. Frank Dell'Apa's Boston Globe-based page (Boston crowd 25000 → 8000) and soccermadeinstlouis.com (the St. Louis line-up clipping). It is a secondary compilation and several of its 1936 dates differ from the wiki's, so treat it as a lead and settle each fact from the press of the day.
 
 **Squads & players:**
 - Transfer dates thread (X/Twitter): https://twitter.com/austurgi/status/1424947619260862468
