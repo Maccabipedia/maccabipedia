@@ -1,3 +1,4 @@
+from maccabistats.parse.maccabi_tlv_site.european_stages import fix_european_stages
 from maccabistats.parse.maccabi_tlv_site.fix_specific_games import fix_specific_games
 from maccabistats.parse.maccabi_tlv_site.main_parser import get_parsed_maccabi_games_from_maccabi_site
 from maccabistats.parse.maccabistats_source import MaccabiStatsSource
@@ -34,6 +35,9 @@ class MaccabiTlvSiteSource(MaccabiStatsSource):
 
         logger.info("Running fix specific games for maccabi-tlv site source")
         self.maccabi_games_stats = fix_specific_games(self.maccabi_games_stats)
+
+        logger.info("Writing European stages the way the wiki writes them")
+        self.maccabi_games_stats = fix_european_stages(self.maccabi_games_stats)
 
 
 
