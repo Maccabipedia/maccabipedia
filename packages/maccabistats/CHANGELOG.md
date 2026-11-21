@@ -1,3 +1,7 @@
+## Version 2.76 ##
+
+    Club-site Super Cup (אלוף האלופים) games with no round get the stage גמר, as the wiki writes it.
+
 ## Version 2.75 ##
 
     Competition names are the plain competition, never a stage: מוקדמות ליגת האלופות becomes

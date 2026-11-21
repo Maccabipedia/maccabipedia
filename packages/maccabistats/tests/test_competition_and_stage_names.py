@@ -117,3 +117,15 @@ def test_domestic_games_are_untouched():
     cup_game = _european_game("גביע המדינה", "סיבוב 2", datetime.datetime(2026, 1, 1), "הפועל עכו")
     fix_european_stages(_games(cup_game))
     assert cup_game.fixture == "סיבוב 2"
+
+
+@pytest.mark.parametrize("site_round, stage", [("No round found", "גמר"), ("", "גמר"), ("משחק ראשון", "משחק ראשון")])
+def test_club_site_super_cup_is_a_final(monkeypatch, site_round, stage):
+    from maccabistats.parse.maccabi_tlv_site import maccabi_tlv_site_source
+
+    monkeypatch.setattr(maccabi_tlv_site_source, "fix_specific_games", lambda games: games)
+    source = maccabi_tlv_site_source.MaccabiTlvSiteSource()
+    super_cup = _european_game("אלוף האלופים", site_round, datetime.datetime(2026, 7, 16), "הפועל באר שבע")
+    source.maccabi_games_stats = _games(super_cup)
+    source.run_specific_fixes()
+    assert super_cup.fixture == stage
