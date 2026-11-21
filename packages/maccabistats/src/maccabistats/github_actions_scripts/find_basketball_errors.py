@@ -24,6 +24,9 @@ from maccabistats.maccabilogging import remove_live_logging
 
 logger = logging.getLogger(__name__)
 
+# The daily job keeps a file of this shape in its cache as the baseline. Changing the columns makes
+# every cached baseline unreadable and the job fail each day: bump the cache key in
+# .github/workflows/show_basketball_errors.yaml (-v1- to -v2-) in the same change.
 _HEADER = ["check", "season", "page", "detail"]
 # What makes a finding the same finding the next day
 FindingKey = Tuple[str, str, str]
@@ -85,7 +88,7 @@ def main() -> None:
     remove_live_logging()
 
     basketball_games = load_basketball_from_maccabipedia()
-    results = BasketballErrorsFinder(basketball_games.games, basketball_games.player_rows_without_game).find_all()
+    results = BasketballErrorsFinder(basketball_games).find_all()
     write_findings(results, args.out)
 
     logger.info(f"{len(basketball_games)} games checked")

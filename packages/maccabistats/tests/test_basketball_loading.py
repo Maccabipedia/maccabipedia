@@ -140,90 +140,114 @@ def test_competition_missing_from_the_catalog_has_no_flags():
     assert game_from_cargo(BEER_SHEVA_2026, COMPETITIONS).competition_flags is None
 
 
-# --- the crawl and its row-count guard ----------------------------------------------
+# --- the crawl and its guard --------------------------------------------------------
 
-def _fake_crawler(crawls_by_table: dict, counts_by_table: dict, calls: list):
-    """Stands in for the Cargo crawler: each crawl of a table pops the next list of rows for it."""
-
-    def crawler(tables_name, tables_fields, **kwargs):
-        calls.append((tables_name, tables_fields, kwargs))
-        if tables_fields.startswith("COUNT("):
-            return iter([{"RowsCount": counts_by_table[tables_name].pop(0)}])
-        return iter(crawls_by_table[tables_name].pop(0))
-
-    return crawler
-
-
+GAMES_TABLE, COMPETITIONS_TABLE, PLAYERS_TABLE = ("Basketball_Games", "Basketball_Competitions",
+                                                  "Basketball_Player_Game_Events_Summary")
 GAME_ROWS = [RYTAS_2006, ASHDOT_YAAKOV_1957, BEER_SHEVA_2026]
 COMPETITION_ROWS = [EUROLEAGUE_ROW, ARTZIT_ROW]
 
 
-PLAYERS_TABLE = "Basketball_Player_Game_Events_Summary"
-
-
-def _patch_crawler(monkeypatch, game_crawls, game_counts, player_crawls=None, player_counts=None):
+def _patch_crawler(monkeypatch, crawls: dict | None = None, states: dict | None = None) -> list:
+    """
+    Stands in for the Cargo crawler. For each table, ``crawls`` is the rows each crawl of it returns
+    in turn and ``states`` the (row count, last row id) each state query returns in turn; the last
+    item of either repeats. A table left out behaves: one whole crawl, and a state that stands still.
+    """
+    whole = {GAMES_TABLE: GAME_ROWS, COMPETITIONS_TABLE: COMPETITION_ROWS, PLAYERS_TABLE: PLAYER_ROWS}
+    crawls = {table: [rows] for table, rows in whole.items()} | (crawls or {})
+    states = {table: [(len(rows), 500)] for table, rows in whole.items()} | (states or {})
     calls = []
-    monkeypatch.setattr(basketball_parse, "MaccabiPediaCargoChunksCrawler", _fake_crawler(
-        {"Basketball_Games": game_crawls, "Basketball_Competitions": [COMPETITION_ROWS],
-         PLAYERS_TABLE: player_crawls or [PLAYER_ROWS]},
-        {"Basketball_Games": game_counts, "Basketball_Competitions": [2],
-         PLAYERS_TABLE: player_counts or [len(PLAYER_ROWS)]}, calls))
+
+    def next_of(answers: list):
+        return answers.pop(0) if len(answers) > 1 else answers[0]
+
+    def crawler(tables_name, tables_fields, **kwargs):
+        is_state_query = tables_fields.startswith("COUNT(")
+        calls.append((tables_name, "state" if is_state_query else "crawl", kwargs))
+        if is_state_query:
+            rows_count, last_row_id = next_of(states[tables_name])
+            return iter([{"RowsCount": rows_count, "LastRowId": last_row_id}])
+        return iter(next_of(crawls[tables_name]))
+
+    monkeypatch.setattr(basketball_parse, "MaccabiPediaCargoChunksCrawler", crawler)
     return calls
 
 
+def _crawls_of(calls: list, table: str) -> list:
+    return [kwargs for called_table, kind, kwargs in calls if called_table == table and kind == "crawl"]
+
+
 def test_load_returns_the_games_by_date_with_their_flags(monkeypatch):
-    calls = _patch_crawler(monkeypatch, [GAME_ROWS], [3])
+    calls = _patch_crawler(monkeypatch)
 
     stats = load_basketball_from_maccabipedia()
 
     assert [game.date.year for game in stats] == [1957, 2006, 2026]
     assert stats[0].competition_flags.is_league
     assert len(stats) == 3
+    assert _crawls_of(calls, GAMES_TABLE) == [
+        {"limit": 2500, "order_by": "_pageName", "unescape_all_strings": True, "timeout": 120}]
+    assert _crawls_of(calls, PLAYERS_TABLE)[0]["order_by"] == "_ID"
 
-    games_crawl = next(kwargs for table, fields, kwargs in calls
-                       if table == "Basketball_Games" and not fields.startswith("COUNT("))
-    assert games_crawl == {"limit": 2500, "order_by": "_pageName", "unescape_all_strings": True, "timeout": 120}
 
-
-def test_crawl_that_misses_a_row_is_repeated_once(monkeypatch):
-    calls = _patch_crawler(monkeypatch, [GAME_ROWS[:2], GAME_ROWS], [3, 3])
+def test_crawl_that_misses_a_row_is_repeated(monkeypatch):
+    calls = _patch_crawler(monkeypatch, crawls={GAMES_TABLE: [GAME_ROWS[:2], GAME_ROWS]})
 
     assert len(load_basketball_from_maccabipedia()) == 3
-    assert sum(table == "Basketball_Games" for table, _, _ in calls) == 4
+    # Every table is crawled again, so the games and their players come from one moment
+    assert len(_crawls_of(calls, GAMES_TABLE)) == len(_crawls_of(calls, PLAYERS_TABLE)) == 2
 
 
-def test_crawl_that_misses_a_row_twice_fails(monkeypatch):
-    _patch_crawler(monkeypatch, [GAME_ROWS[:2], GAME_ROWS[:2]], [3, 3])
+def test_crawl_that_keeps_missing_a_row_fails(monkeypatch):
+    calls = _patch_crawler(monkeypatch, crawls={GAMES_TABLE: [GAME_ROWS[:2]]})
 
-    with pytest.raises(RuntimeError, match="crawled 2 rows .* twice, but the wiki counts 3"):
+    with pytest.raises(RuntimeError, match="not whole in 3 attempts: Basketball_Games: crawled 2 rows, the wiki counts 3"):
         load_basketball_from_maccabipedia()
+    assert len(_crawls_of(calls, GAMES_TABLE)) == 3
 
 
 def test_crawl_with_the_right_count_but_a_game_read_twice_is_repeated(monkeypatch):
-    # A page saved mid-crawl: one game is read twice, another is skipped, and the total still adds up
-    calls = _patch_crawler(monkeypatch, [[RYTAS_2006, RYTAS_2006, BEER_SHEVA_2026], GAME_ROWS], [3, 3])
+    calls = _patch_crawler(monkeypatch, crawls={GAMES_TABLE: [[RYTAS_2006, RYTAS_2006, BEER_SHEVA_2026], GAME_ROWS]})
 
     stats = load_basketball_from_maccabipedia()
 
     assert sorted(game.date.year for game in stats) == [1957, 2006, 2026]
-    assert sum(table == "Basketball_Games" for table, _, _ in calls) == 4
+    assert len(_crawls_of(calls, GAMES_TABLE)) == 2
 
 
-def test_row_count_query_passes_the_real_crawler(monkeypatch):
-    # The real crawler refuses fields with no _pageName in them; the count query must get through it
+def test_page_saved_during_the_crawl_makes_it_start_over(monkeypatch):
+    # A saved page gets new row ids: the players table has the same number of rows, all distinct,
+    # and still is not the table the crawl started on
+    moved_state = (len(PLAYER_ROWS), 512)
+    calls = _patch_crawler(monkeypatch, states={PLAYERS_TABLE: [(len(PLAYER_ROWS), 500), moved_state]})
+
+    load_basketball_from_maccabipedia()
+
+    assert len(_crawls_of(calls, PLAYERS_TABLE)) == len(_crawls_of(calls, GAMES_TABLE)) == 2
+
+
+def test_table_that_never_stands_still_fails(monkeypatch):
+    ever_moving = [(3, last_row_id) for last_row_id in range(500, 520)]
+    _patch_crawler(monkeypatch, states={GAMES_TABLE: ever_moving})
+
+    with pytest.raises(RuntimeError, match="Basketball_Games changed during the crawl"):
+        load_basketball_from_maccabipedia()
+
+
+def test_state_query_passes_the_real_crawler(monkeypatch):
+    # The real crawler refuses fields with no _pageName in them; the state query must get through it
     real_crawler = basketball_parse.MaccabiPediaCargoChunksCrawler
     monkeypatch.setattr(real_crawler, "_request_more_data", lambda self: (
-        self._already_fetched_data_queue.append({"RowsCount": 3576}), setattr(self, "_finished_to_crawl", True)))
+        self._already_fetched_data_queue.append({"RowsCount": 3576, "LastRowId": 12727}),
+        setattr(self, "_finished_to_crawl", True)))
 
-    assert basketball_parse._count_rows("Basketball_Games") == 3576
+    assert basketball_parse._table_state("Basketball_Games") == (3576, 12727)
 
 
-def test_catalog_row_with_no_name_is_skipped(monkeypatch):
-    calls = []
-    monkeypatch.setattr(basketball_parse, "MaccabiPediaCargoChunksCrawler", _fake_crawler(
-        {"Basketball_Games": [GAME_ROWS], PLAYERS_TABLE: [PLAYER_ROWS],
-         "Basketball_Competitions": [COMPETITION_ROWS + [{"_pageName": "הזנת מפעלי כדורסל", "League": 1}]]},
-        {"Basketball_Games": [3], "Basketball_Competitions": [3], PLAYERS_TABLE: [len(PLAYER_ROWS)]}, calls))
+def test_catalog_row_with_no_name_is_skipped_and_a_repeated_one_does_not_fail_the_load(monkeypatch):
+    catalog = COMPETITION_ROWS + [{"_pageName": "הזנת מפעלי כדורסל", "League": 1}, ARTZIT_ROW]
+    _patch_crawler(monkeypatch, crawls={COMPETITIONS_TABLE: [catalog]}, states={COMPETITIONS_TABLE: [(4, 500)]})
 
     stats = load_basketball_from_maccabipedia()
 
@@ -254,7 +278,7 @@ def test_technical_value_other_than_one_or_two_is_not_an_awarded_game():
 
 
 def test_empty_crawl_fails(monkeypatch):
-    _patch_crawler(monkeypatch, [[]], [3])
+    _patch_crawler(monkeypatch, crawls={GAMES_TABLE: [[]]})
 
     with pytest.raises(RuntimeError, match="no rows for Basketball_Games"):
         load_basketball_from_maccabipedia()
@@ -282,7 +306,7 @@ def test_player_who_did_not_play_keeps_empty_numbers_as_none():
 
 
 def test_load_puts_each_player_on_his_side_in_the_page_order(monkeypatch):
-    _patch_crawler(monkeypatch, [GAME_ROWS], [3])
+    _patch_crawler(monkeypatch)
 
     stats = load_basketball_from_maccabipedia()
     beer_sheva_game = stats[-1]
@@ -295,7 +319,7 @@ def test_load_puts_each_player_on_his_side_in_the_page_order(monkeypatch):
 
 
 def test_player_rows_of_no_game_are_kept_aside(monkeypatch):
-    _patch_crawler(monkeypatch, [GAME_ROWS], [3])
+    _patch_crawler(monkeypatch)
 
     stats = load_basketball_from_maccabipedia()
 
@@ -303,19 +327,12 @@ def test_player_rows_of_no_game_are_kept_aside(monkeypatch):
         ("כדורסל:משחק שנמחק", 0, "חיים תור")]
 
 
-def test_player_crawl_is_ordered_by_the_row_id_and_guarded(monkeypatch):
-    calls = _patch_crawler(monkeypatch, [GAME_ROWS], [3], player_crawls=[PLAYER_ROWS[:-1], PLAYER_ROWS],
-                           player_counts=[len(PLAYER_ROWS), len(PLAYER_ROWS)])
-
-    load_basketball_from_maccabipedia()
-
-    player_crawls = [kwargs for table, fields, kwargs in calls if table == PLAYERS_TABLE and not fields.startswith("COUNT(")]
-    assert len(player_crawls) == 2
-    assert player_crawls[0]["order_by"] == "_ID"
+def test_player_with_no_name_gets_an_empty_one():
+    assert player_from_cargo({**DID_NOT_PLAY_2026, "PlayerName": None}).name == ""
 
 
 def test_load_without_players_does_not_crawl_them(monkeypatch):
-    calls = _patch_crawler(monkeypatch, [GAME_ROWS], [3])
+    calls = _patch_crawler(monkeypatch)
 
     stats = load_basketball_from_maccabipedia(with_players=False)
 
@@ -324,7 +341,7 @@ def test_load_without_players_does_not_crawl_them(monkeypatch):
 
 
 def test_old_box_score_that_stored_zeros_did_not_record_the_stat(monkeypatch):
-    _patch_crawler(monkeypatch, [GAME_ROWS], [3])
+    _patch_crawler(monkeypatch)
     stats = load_basketball_from_maccabipedia()
     old_side, modern_side = stats[0].opponent_team, stats[-1].maccabi
 

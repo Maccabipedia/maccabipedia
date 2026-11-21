@@ -3,8 +3,15 @@ from datetime import date
 
 from maccabistats.basketball.error_finder import BasketballErrorsFinder
 from maccabistats.basketball.parse import competition_flags_from_cargo, game_from_cargo, player_from_cargo
+from maccabistats.basketball.stats import BasketballGamesStats
 
 _PERIODS = ("First", "Second", "Third", "Fourth")
+
+
+def _finder(games, player_rows_without_game=None) -> BasketballErrorsFinder:
+    return BasketballErrorsFinder(BasketballGamesStats(games, player_rows_without_game))
+
+
 _LEAGUE = competition_flags_from_cargo({"CurrentName": "ליגת העל", "League": 1, "Official": 1})
 _KNOWN_COMPETITIONS = ("הליגה הלאומית", "הליגה הארצית", "ליגת העל", "יורוליג", "גביע המדינה", "גביע ווינר סל")
 _CATALOG = {competition: _LEAGUE for competition in _KNOWN_COMPETITIONS}
@@ -34,7 +41,7 @@ def _game(page: str, *, season: str, opponent: str, home_away: str, competition:
 
 
 def _found(games, check: str) -> list[str]:
-    return [finding.game.page_name for finding in getattr(BasketballErrorsFinder(games), check)()]
+    return [finding.game.page_name for finding in getattr(_finder(games), check)()]
 
 
 # 1969: tied 60:60 after the halves, 65:67 at the end, overtime never filled in.
@@ -68,13 +75,13 @@ class TestPeriodsAgainstTotal:
         assert _found(games, "get_games_with_quarters_not_matching_total") == []
 
     def test_stored_overtimes_count_towards_the_total(self):
-        finder = BasketballErrorsFinder([HAIFA_1955])
+        finder = _finder([HAIFA_1955])
         assert finder.get_games_missing_overtime() == []
         assert finder.get_games_with_halves_not_matching_total() == []
         assert finder.get_games_with_overtime_after_untied_regulation() == []
 
     def test_one_side_off_is_a_halves_mismatch(self):
-        findings = BasketballErrorsFinder([GAN_SHMUEL_1984]).get_games_with_halves_not_matching_total()
+        findings = _finder([GAN_SHMUEL_1984]).get_games_with_halves_not_matching_total()
         assert [finding.detail for finding in findings] == ["Maccabi: halves [47, 44] + overtime 0 = 91, total 89"]
 
     def test_a_half_left_empty_is_a_mismatch(self):
@@ -88,7 +95,7 @@ class TestPeriodsAgainstTotal:
         half_each = _game("כדורסל:25-10-1998 מכבי תל אביב נגד גבעת שמואל - ליגה לאומית א", season="1998/99",
                           opponent="גבעת שמואל", home_away="בית",
                           maccabi={"total": 80, "halves": (None, 30)}, rival={"total": 75, "halves": (None, 30)})
-        finder = BasketballErrorsFinder([half_each])
+        finder = _finder([half_each])
         assert finder.get_games_missing_overtime() == []
         assert [f.check for f in finder.get_games_with_halves_not_matching_total()] == ["halves_vs_total"]
 
@@ -98,7 +105,7 @@ class TestPeriodsAgainstTotal:
                        opponent="אלאן שאלון", home_away="חוץ",
                        maccabi={"total": 90, "quarters": (24, 29, 24, 13)},
                        rival={"total": 61, "quarters": (12, 16, 21, None), "overtimes": (12,)})
-        finder = BasketballErrorsFinder([chalon, HAIFA_1955])
+        finder = _finder([chalon, HAIFA_1955])
         assert finder.get_games_with_quarters_not_matching_total() == []
         assert [f.detail for f in finder.get_games_with_partly_filled_periods()] == [
             "Opponent: quarters [12, 16, 21, '-']"]
@@ -106,7 +113,7 @@ class TestPeriodsAgainstTotal:
     def test_games_without_periods_are_not_checked(self):
         no_periods = _game("כדורסל:14-08-1953 מכבי דרום תל אביב נגד מכבי תל אביב - הליגה הארצית", season="1953/54",
                            opponent="מכבי דרום תל אביב", home_away="חוץ")
-        finder = BasketballErrorsFinder([no_periods])
+        finder = _finder([no_periods])
         assert finder.get_games_with_halves_not_matching_total() == []
         assert finder.get_games_with_quarters_not_matching_total() == []
         assert finder.get_games_missing_overtime() == []
@@ -116,7 +123,7 @@ class TestPeriodsAgainstTotal:
                      opponent="ציבונה זאגרב", home_away="בית",
                      maccabi={"total": 82, "quarters": (21, 19, 30, 12), "halves": (41, 41)},
                      rival={"total": 70, "quarters": (20, 15, 20, 15), "halves": (35, 35)})
-        findings = BasketballErrorsFinder([game, HAIFA_1955]).get_games_with_halves_not_matching_quarters()
+        findings = _finder([game, HAIFA_1955]).get_games_with_halves_not_matching_quarters()
         assert [finding.detail for finding in findings] == ["Maccabi: halves [41, 41], quarters give [40, 42]"]
 
     def test_overtime_after_an_untied_regulation(self):
@@ -133,14 +140,14 @@ class TestResult:
                      maccabi={"total": 85}, rival={"total": 85})
 
     def test_a_tie_is_reported_with_its_leg(self):
-        findings = BasketballErrorsFinder([self.CUP_1991, HAPOEL_1969]).get_games_with_tie_result()
+        findings = _finder([self.CUP_1991, HAPOEL_1969]).get_games_with_tie_result()
         assert [finding.detail for finding in findings] == ["85:85, leg 'רבע גמר - משחק 1'"]
 
     def test_technical_games_are_skipped(self):
         technical = _game("כדורסל:28-09-2023 הפועל תל אביב נגד מכבי תל אביב - גביע ווינר", season="2023/24",
                           competition="גביע ווינר סל", opponent="הפועל תל אביב", home_away="חוץ", technical=1,
                           maccabi={"total": None}, rival={"total": None})
-        finder = BasketballErrorsFinder([technical])
+        finder = _finder([technical])
         assert finder.get_games_with_tie_result() == []
         assert finder.get_games_without_result() == []
 
@@ -154,7 +161,7 @@ class TestResult:
         placeholder = _game("כדורסל:28-09-2023 הפועל תל אביב נגד מכבי תל אביב - גביע ווינר", season="2023/24",
                             competition="גביע ווינר סל", opponent="הפועל תל אביב", home_away="חוץ",
                             maccabi={"total": 0}, rival={"total": 0})
-        finder = BasketballErrorsFinder([placeholder])
+        finder = _finder([placeholder])
         assert finder.get_games_with_tie_result() == []
         assert [f.detail for f in finder.get_games_without_result()] == ["TotalPoints 0:0"]
 
@@ -163,7 +170,7 @@ class TestTitle:
     def test_a_differently_spelled_opponent_is_reported(self):
         beitar = _game("כדורסל:15-10-1971 ביתר י-ם נגד מכבי תל אביב - הליגה הלאומית", season="1971/72",
                        opponent='בית"ר ירושלים', home_away="חוץ")
-        findings = BasketballErrorsFinder([beitar]).get_games_with_title_opponent_not_matching_opponent()
+        findings = _finder([beitar]).get_games_with_title_opponent_not_matching_opponent()
         assert [finding.detail for finding in findings] == ["title 'ביתר י-ם', Opponent 'בית\"ר ירושלים'"]
 
     def test_quoted_name_in_title_and_field_is_the_same_name(self):
@@ -195,7 +202,7 @@ class TestTitle:
     def test_titles_that_do_not_parse_or_lack_maccabi(self):
         no_maccabi = _game("כדורסל:21-10-1955 מכבי ת\"א נגד הפועל חיפה - הליגה הארצית", season="1955",
                            opponent="הפועל חיפה", home_away="בית")
-        finder = BasketballErrorsFinder([no_maccabi])
+        finder = _finder([no_maccabi])
         assert [f.game for f in finder.get_games_without_maccabi_in_title()] == [no_maccabi]
         assert finder.get_games_with_bad_title_format() == []
         broken = game_from_cargo({"_pageName": "כדורסל:מכבי תל אביב נגד הפועל חיפה", "Date": "1955-10-21",
@@ -225,7 +232,7 @@ class TestDatesAndSeasons:
 
     def test_an_unreadable_season(self):
         odd = self._in_season("21-10-1955", "1955-56")
-        assert [f.check for f in BasketballErrorsFinder([odd]).get_games_with_date_outside_season()] == ["season_format"]
+        assert [f.check for f in _finder([odd]).get_games_with_date_outside_season()] == ["season_format"]
 
     def test_two_games_on_one_date(self):
         games = [_game("כדורסל:16-03-1971 מכבי תל אביב נגד הפועל ניר דוד - הליגה הלאומית", season="1970/71",
@@ -238,13 +245,13 @@ class TestDatesAndSeasons:
     def test_empty_fields(self):
         game = _game("כדורסל:16-03-1971 מכבי תל אביב נגד הפועל ניר דוד - הליגה הלאומית", season="",
                      opponent="", home_away="בית")
-        findings = BasketballErrorsFinder([game]).get_games_with_empty_fields()
+        findings = _finder([game]).get_games_with_empty_fields()
         assert [finding.detail for finding in findings] == ["Season, Opponent"]
         assert game.date == date(1971, 3, 16)
 
 
 def test_find_all_runs_every_check():
-    results = BasketballErrorsFinder([HAPOEL_1969]).find_all()
+    results = _finder([HAPOEL_1969]).find_all()
     checks = {name for name in dir(BasketballErrorsFinder) if name.startswith("get_")}
     assert set(results) == checks
     assert len(results["get_games_missing_overtime"]) == 1
@@ -257,7 +264,7 @@ class TestResultOptAndCatalog:
                 "TotalPointsMaccabi": 106, "TotalPointsOpponent": 90, "ResultOpt": 1, **fields}
 
     def _found(self, check: str, **fields) -> list[str]:
-        finder = BasketballErrorsFinder([game_from_cargo(self._raw(**fields), _CATALOG)])
+        finder = _finder([game_from_cargo(self._raw(**fields), _CATALOG)])
         return [finding.detail for finding in getattr(finder, check)()]
 
     def test_result_opt_that_agrees_with_the_score_is_fine(self):
@@ -297,7 +304,7 @@ class TestBoxScore:
         return game_from_cargo(raw, _CATALOG, players_by_side)
 
     def _details(self, check: str, *args, **kwargs) -> list[str]:
-        return [finding.detail for finding in getattr(BasketballErrorsFinder([self._game(*args, **kwargs)]), check)()]
+        return [finding.detail for finding in getattr(_finder([self._game(*args, **kwargs)]), check)()]
 
     def test_players_points_that_add_up_to_the_total_are_fine(self):
         players = [self._player("תמיר בלאט", 11), self._player("ג'יילן הורד", 19)]
@@ -321,6 +328,10 @@ class TestBoxScore:
         players = [self._player("תמיר בלאט", 28), self._player("עומר מאייר", IsPlayed=0)]
         assert self._details("get_games_with_players_points_not_matching_total", players) == [
             "Maccabi: players have 28, total 30"]
+
+    def test_side_whose_points_are_all_stored_as_zero_did_not_record_them(self):
+        players = [self._player("תמיר בלאט", 0), self._player("ג'יילן הורד", 0)]
+        assert self._details("get_games_with_players_points_not_matching_total", players) == []
 
     def test_awarded_game_has_no_points_to_add_up(self):
         players = [self._player("תמיר בלאט", 11)]
@@ -366,14 +377,14 @@ class TestBoxScore:
 
     def test_player_rows_of_no_game_are_reported_by_their_page(self):
         orphan = player_from_cargo(self._player("חיים תור", 6))
-        finder = BasketballErrorsFinder([], [("כדורסל:משחק שנמחק", 0, orphan)])
+        finder = _finder([], [("כדורסל:משחק שנמחק", 0, orphan)])
 
         (finding,) = finder.get_player_rows_without_game()
 
         assert (finding.page_name, finding.season, finding.detail) == ("כדורסל:משחק שנמחק", None, "חיים תור, Team 0")
 
     def test_find_all_runs_every_check(self):
-        results = BasketballErrorsFinder([self._game([self._player("תמיר בלאט", 30)])]).find_all()
+        results = _finder([self._game([self._player("תמיר בלאט", 30)])]).find_all()
 
         assert len(results) == 28
         assert all(name.startswith("get_") for name in results)

@@ -183,7 +183,7 @@ Filters return a new object, so they chain like the football ones.
 
 ```python
 basketball_games.league_games.home_games.maccabi_wins
-basketball_games.international_games.get_games_against_team("ריאל מדריד").results.wins_percentage
+basketball_games.international_games.get_games_against_team("ריאל מדריד").results.wins_percentage  # 0 to 1
 basketball_games.get_games_by_season("2003/04").get_games_by_played_player_name("טל בורשטיין")
 basketball_games.overtime_games.played_after("2000-01-01")
 
@@ -192,7 +192,11 @@ basketball_games.streaks.get_longest_wins_streak_games()
 basketball_games.opponents  # Maccabi's record against each opponent; also .coaches and .seasons
 ```
 
+The names follow football's where the idea is the same (`played_before` and `played_after` include the day itself, `wins_percentage` is a fraction). What differs: competition filters read the wiki's competition flags, so football's `europe_games` is `international_games` here, and there is `neutral_games` and `overtime_games`.
+
 A streak is a run of consecutive games of the filtered collection, so `league_games.streaks` ignores the cup games in between. A game with no result neither breaks a streak nor adds to it.
+
+Points totals leave out awarded (technical) games: their score fields hold the official 20:0, not points from the court.
 
 ### Players
 
@@ -203,15 +207,16 @@ basketball_games.players.get_players_total("steals")
 basketball_games.players.get_best_single_games("points", limit=10)
 ```
 
-Every total comes with `games_with_data`: the number of the player's games whose box score recorded that stat. Old box scores have the points and little else, so read a total next to it.
+Every total is `(name, value, games_with_data)`: `games_with_data` is the number of the player's games in which that stat is known for him. Old box scores have the points and little else, so read a total next to it.
 
 ### A game
 
 ```python
-game = basketball_games[-1]
+game = basketball_games.played_at("2004-05-01")[0]  # Games are sorted by date; one with no date is last
 game.maccabi.score, game.opponent_team.score, game.maccabi.quarters, game.overtimes_played
-game.is_maccabi_win, game.is_home, game.competition_flags.is_league
-game.maccabi.players[0].points, game.maccabi.has_recorded("assists")
+game.is_maccabi_win, game.is_home
+game.competition_flags  # The competition's flags (is_league, ...), or None when it has no catalog row
+game.maccabi.players, game.maccabi.has_recorded("assists")
 ```
 
 A value the wiki does not have is `None` (never 0), and a game stored as 0:0 has no result. In an awarded (technical) game the technical flag decides the result, as on the wiki.
@@ -223,7 +228,7 @@ Like the football one: every `get_*` method is one check.
 ```python
 from maccabistats import BasketballErrorsFinder
 
-finder = BasketballErrorsFinder(basketball_games.games, basketball_games.player_rows_without_game)
+finder = BasketballErrorsFinder(basketball_games)
 finder.get_games_missing_overtime()  # Periods tie, the final score does not, no overtime points
 finder.find_all()  # Every check, keyed by its name
 ```

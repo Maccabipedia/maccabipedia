@@ -79,13 +79,32 @@ def test_filters_chain_and_describe_themselves(stats):
 
     assert _days(chained) == ["2025-10-09"]
     assert chained.description == "League games -> Away games -> Maccabi losses"
-    assert repr(stats.get_games_by_season("1900")) == "Season: 1900: no basketball games"
+    assert repr(stats.get_games_by_season("1900")) == "Season: 1900 | 0 basketball games"
+    assert repr(chained) == ("League games -> Away games -> Maccabi losses | 1 basketball games "
+                             "| (from 09-10-2025 to 09-10-2025)")
 
 
-def test_date_filters_exclude_the_day_itself_and_accept_text(stats):
-    assert _days(stats.played_before("2025-10-05")) == ["1972-10-06", "2025-10-01"]
-    assert _days(stats.played_after(datetime.date(2025, 10, 15))) == ["2026-10-20"]
+def test_date_filters_include_the_day_itself_and_accept_text_like_football(stats):
+    assert _days(stats.played_before("2025-10-05")) == ["1972-10-06", "2025-10-01", "2025-10-05"]
+    assert _days(stats.played_after(datetime.date(2025, 10, 15))) == ["2025-10-15", "2026-10-20"]
+    assert _days(stats.played_after(datetime.datetime(2026, 10, 20, 21, 5))) == ["2026-10-20"]
     assert _days(stats.played_at("2025-10-05")) == ["2025-10-05"]
+    assert len(stats.played_before("2000")) == 1
+    assert (stats.first_game_date, stats.last_game_date) == ("06-10-1972", "20-10-2026")
+
+
+def test_game_with_no_date_is_last_and_in_no_date_filter_or_streak():
+    no_date_loss = game_from_cargo({"_pageName": "כדורסל:משחק בלי תאריך", "TotalPointsMaccabi": 60,
+                                    "TotalPointsOpponent": 70}, CATALOG)
+    stats = BasketballGamesStats([no_date_loss, WIN_1, WIN_2])
+
+    assert stats[-1] is no_date_loss
+    assert len(stats.played_before("2030-01-01")) == 2
+    assert (stats.first_game_date, stats.last_game_date) == ("01-10-2025", "05-10-2025")
+    # It has no place in the order, so it does not end the current run of wins
+    assert len(stats.streaks.get_current_wins_streak()) == 2
+    assert len(stats.streaks.get_longest_losses_streak_games()) == 0
+    assert BasketballGamesStats([no_date_loss]).first_game_date is None
 
 
 def test_free_style_filters(stats):
@@ -108,9 +127,11 @@ def test_results_count_an_awarded_game_as_a_win_and_skip_the_game_with_no_result
     results = stats.results
 
     assert (results.total_games_count, results.wins_count, results.losses_count) == (7, 5, 1)
-    assert results.wins_percentage == 83.333 and results.losses_percentage == 16.667
-    assert results.total_points_for_maccabi == 90 + 100 + 70 + 88 + 20 + 95
-    assert results.total_points_diff_for_maccabi == results.total_points_for_maccabi - (80 + 70 + 75 + 60 + 0 + 60)
+    # A fraction like football's, out of the six games that have a winner
+    assert results.wins_percentage == 0.833 and results.losses_percentage == 0.167
+    # The awarded game's official 20:0 is not points from the court
+    assert results.total_points_for_maccabi == 90 + 100 + 70 + 88 + 95
+    assert results.total_points_diff_for_maccabi == results.total_points_for_maccabi - (80 + 70 + 75 + 60 + 60)
 
 
 def test_biggest_games_leave_out_awarded_scores(stats):
@@ -151,7 +172,7 @@ def test_streak_follows_the_filter(stats):
 def test_most_played_counts_only_games_played(stats):
     assert stats.players.most_played == [("תמיר בלאט", 4), ("רומן סורקין", 2), ("טל ברודי", 1)]
     assert stats.players.most_starting_five == [("תמיר בלאט", 2)]
-    assert dict(stats.players.most_captain) == {"תמיר בלאט": 1, "טל ברודי": 1}
+    assert dict(stats.players.most_captains) == {"תמיר בלאט": 1, "טל ברודי": 1}
 
 
 def test_points_total_says_how_many_games_had_data(stats):
@@ -169,6 +190,40 @@ def test_stat_the_old_box_score_did_not_record_is_not_counted_as_zero(stats):
     assert [(total.name, total.value, total.games_with_data) for total in assisters] == [
         ("תמיר בלאט", 20, 2), ("רומן סורקין", 1, 1)]
     assert stats.players.best_rebounders == []
+
+
+def test_played_player_with_no_points_typed_in_is_not_counted_as_a_game_with_points():
+    game = _game("1975-01-01", "הפועל רמת גן", (80, 70), players=[_player("טל ברודי", 30), _player("מיקי ברקוביץ'")])
+    totals = BasketballGamesStats([game]).players.best_scorers
+
+    assert totals == [("טל ברודי", 30, 1)]
+
+
+def test_player_total_unpacks_like_a_tuple(stats):
+    name, value, games_with_data = stats.players.best_scorers[0]
+
+    assert (name, value, games_with_data) == ("תמיר בלאט", 60, 4)
+
+
+def test_filtered_games_keep_the_player_rows_of_no_game():
+    orphan = ("כדורסל:משחק שנמחק", 0, player_from_cargo(_player("חיים תור", 6)))
+    stats = BasketballGamesStats(ALL_GAMES, [orphan])
+
+    assert stats.league_games.home_games.player_rows_without_game == [orphan]
+    assert stats.streaks.get_longest_wins_streak_games().player_rows_without_game == [orphan]
+
+
+def test_referees_and_non_official_games():
+    friendly_flags = competition_flags_from_cargo({"CurrentName": "משחק ידידות"})
+    refereed = game_from_cargo({"_pageName": "כדורסל:משחק ידידות", "Date": "2025-09-01", "Competition": "ידידות",
+                                "MainReferee": "עופר מנהיים", "AssistantReferees": ["כפיר מועלם"],
+                                "TotalPointsMaccabi": 80, "TotalPointsOpponent": 70}, {"ידידות": friendly_flags})
+    stats = BasketballGamesStats([refereed, WIN_1])
+
+    assert stats.available_referees == ["כפיר מועלם", "עופר מנהיים"]
+    assert len(stats.get_games_by_referee("כפיר מועלם")) == 1
+    assert _days(stats.non_official_games) == ["2025-09-01"]
+    assert _days(stats.official_games) == ["2025-10-01"]
 
 
 def test_best_single_games(stats):
@@ -196,11 +251,15 @@ def test_player_listed_twice_in_a_game_counts_the_game_once_and_both_lines():
 def test_records_by_opponent_coach_and_season(stats):
     hapoel = stats.opponents[0]
     assert (hapoel.name, hapoel.games_count, hapoel.wins_count, hapoel.losses_count) == ("הפועל תל אביב", 2, 1, 1)
-    assert (hapoel.points_for_maccabi, hapoel.points_against_maccabi, hapoel.wins_percentage) == (160, 155, 50.0)
+    assert (hapoel.points_for_maccabi, hapoel.points_against_maccabi, hapoel.wins_percentage) == (160, 155, 0.5)
 
     katash = stats.coaches[0]
     assert (katash.name, katash.games_count, katash.wins_count, katash.losses_count) == ("עודד קטש", 5, 3, 1)
-    assert katash.wins_percentage == 75.0
+    assert katash.wins_percentage == 0.75
+
+    blatt = stats.coaches[-1]
+    # His only game was awarded: a win, and no points from the court
+    assert (blatt.name, blatt.wins_count, blatt.points_for_maccabi) == ("דייוויד בלאט", 1, 0)
 
     assert [(record.name, record.games_count) for record in stats.seasons] == [
         ("1972/73", 1), ("2025/26", 5), ("2026/27", 1)]

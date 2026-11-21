@@ -7,20 +7,28 @@ from __future__ import annotations
 import datetime
 from collections import defaultdict
 from dataclasses import dataclass
-from typing import Callable, Dict, Iterator, List, Optional, Tuple, Union
+from typing import Callable, Dict, Iterator, List, NamedTuple, Optional, Tuple, Union
+
+from dateutil.parser import parse as datetime_parser
 
 from maccabistats.basketball.models import PLAYER_STATS, BasketballGameData, BasketballPlayerInGame
 from maccabistats.version import version
 
-DateLike = Union[datetime.date, str]
+DateLike = Union[datetime.datetime, datetime.date, str]
 
 
 def _as_date(value: DateLike) -> datetime.date:
+    # Text is read the way the football filters read it
+    if isinstance(value, str):
+        value = datetime_parser(value)
     if isinstance(value, datetime.datetime):
         return value.date()
-    if isinstance(value, datetime.date):
-        return value
-    return datetime.date.fromisoformat(value)
+    return value
+
+
+def _wins_fraction(wins_count: int, losses_count: int) -> float:
+    decided = wins_count + losses_count
+    return round(wins_count / decided, 3) if decided else 0.0
 
 
 @dataclass(frozen=True)
@@ -35,16 +43,17 @@ class BasketballRecord:
 
     @property
     def wins_percentage(self) -> float:
-        decided = self.wins_count + self.losses_count
-        return round(self.wins_count * 100 / decided, 3) if decided else 0.0
+        """A fraction between 0 and 1, like football's, out of the games that have a winner."""
+        return _wins_fraction(self.wins_count, self.losses_count)
 
 
-@dataclass(frozen=True)
-class BasketballPlayerTotal:
+class BasketballPlayerTotal(NamedTuple):
     """
-    A player's total of one stat. games_with_data is the number of his games whose box score
-    recorded that stat at all - old box scores have points and little else, so a total over
-    10 games with data out of 300 played is not a career total.
+    A player's total of one stat. games_with_data is the number of his games in which that stat
+    is known for him: his side's box score recorded it at all, and his own line has a value.
+    Old box scores have points and little else, so a total over 10 games with data out of 300
+    played is not a career total. A stat nobody on the side had in a game (a modern game with no
+    blocks) reads as not recorded, so games_with_data can be a little low for rare stats.
     """
     name: str
     value: int
@@ -54,7 +63,9 @@ class BasketballPlayerTotal:
 class BasketballResultsStats:
     def __init__(self, basketball_games_stats: BasketballGamesStats):
         self.games = basketball_games_stats.games
-        self._with_score = [game for game in self.games if game.has_score]
+        # Points are counted from games played on the court: an awarded game's score fields hold
+        # the official 20:0 (or 2:0), not points anyone scored
+        self._played_games = [game for game in self.games if game.has_score and not game.is_technical]
 
     @property
     def total_games_count(self) -> int:
@@ -70,58 +81,57 @@ class BasketballResultsStats:
 
     @property
     def wins_percentage(self) -> float:
-        """Out of the games that have a winner."""
-        decided = self.wins_count + self.losses_count
-        return round(self.wins_count * 100 / decided, 3) if decided else 0.0
+        """
+        A fraction between 0 and 1, like football's. Out of the games that have a winner, so a game
+        with no result typed in does not lower it; 0.0 when there is no such game.
+        """
+        return _wins_fraction(self.wins_count, self.losses_count)
 
     @property
     def losses_percentage(self) -> float:
-        decided = self.wins_count + self.losses_count
-        return round(self.losses_count * 100 / decided, 3) if decided else 0.0
+        return _wins_fraction(self.losses_count, self.wins_count)
 
     @property
     def total_points_for_maccabi(self) -> int:
-        return sum(game.maccabi.score for game in self._with_score)
+        """Awarded (technical) games are not counted in any of the points numbers."""
+        return sum(game.maccabi.score for game in self._played_games)
 
     @property
     def total_points_against_maccabi(self) -> int:
-        return sum(game.opponent_team.score for game in self._with_score)
+        return sum(game.opponent_team.score for game in self._played_games)
 
     @property
     def total_points_diff_for_maccabi(self) -> int:
         return self.total_points_for_maccabi - self.total_points_against_maccabi
 
-    def _played(self) -> List[BasketballGameData]:
-        # An awarded game's score is the official 20:0 (or 2:0), not a score from the court
-        return [game for game in self._with_score if not game.is_technical]
-
     def biggest_wins(self, limit: int = 10) -> List[BasketballGameData]:
-        wins = [game for game in self._played() if game.is_maccabi_win]
+        wins = [game for game in self._played_games if game.is_maccabi_win]
         return sorted(wins, key=lambda game: game.score_diff, reverse=True)[:limit]
 
     def biggest_losses(self, limit: int = 10) -> List[BasketballGameData]:
-        losses = [game for game in self._played() if game.is_maccabi_loss]
+        losses = [game for game in self._played_games if game.is_maccabi_loss]
         return sorted(losses, key=lambda game: game.score_diff)[:limit]
 
     def highest_scoring_games(self, limit: int = 10) -> List[BasketballGameData]:
         """By both teams' points together."""
-        return sorted(self._played(), key=lambda game: game.maccabi.score + game.opponent_team.score, reverse=True)[:limit]
+        return sorted(self._played_games, key=lambda game: game.maccabi.score + game.opponent_team.score, reverse=True)[:limit]
 
     def most_points_for_maccabi_games(self, limit: int = 10) -> List[BasketballGameData]:
-        return sorted(self._played(), key=lambda game: game.maccabi.score, reverse=True)[:limit]
+        return sorted(self._played_games, key=lambda game: game.maccabi.score, reverse=True)[:limit]
 
 
 class BasketballStreaksStats:
     """
     A streak is a run of consecutive games of this collection, in date order, that all meet the
-    condition. Only games with a result take part: a game with no result neither breaks a streak
-    nor adds to it. So the streak follows the filter - ``league_games.streaks`` ignores the cup
-    games played in between. The current streak is the one that ends at the last game.
+    condition. Only games with a result and a date take part: a game with no result neither breaks
+    a streak nor adds to it, and a game with no date has no place in the order. So the streak
+    follows the filter - ``league_games.streaks`` ignores the cup games played in between. The
+    current streak is the one that ends at the last game.
     """
 
     def __init__(self, basketball_games_stats: BasketballGamesStats):
         self._stats = basketball_games_stats
-        self._games = [game for game in basketball_games_stats.games if game.has_result]
+        self._games = [game for game in basketball_games_stats.games if game.has_result and game.date is not None]
 
     def _longest(self, condition: Callable[[BasketballGameData], bool]) -> BasketballGamesStats:
         longest, current = [], []
@@ -177,13 +187,13 @@ class BasketballPlayersStats:
         return self._count(lambda player: player.is_starting_five)
 
     @property
-    def most_captain(self) -> List[Tuple[str, int]]:
+    def most_captains(self) -> List[Tuple[str, int]]:
         return self._count(lambda player: player.is_captain)
 
     def get_players_total(self, stat: str) -> List[BasketballPlayerTotal]:
         """
         Every player's total of one stat (see models.PLAYER_STATS), highest first, over the games
-        whose box score recorded that stat for Maccabi.
+        in which that stat is known for him (see BasketballPlayerTotal).
         """
         if stat not in PLAYER_STATS:
             raise ValueError(f"Unknown player stat {stat!r}, expected one of {PLAYER_STATS}")
@@ -193,10 +203,13 @@ class BasketballPlayersStats:
         for game in self.games:
             if not game.maccabi.has_recorded(stat):
                 continue
-            for name in {player.name for player in game.maccabi.played_players}:
+            # A player with an empty value is not known to have 0: the game is not counted for him.
+            # A page that lists one player twice splits his line, so both lines are summed
+            lines = [player for player in game.maccabi.played_players if getattr(player, stat) is not None]
+            for name in {player.name for player in lines}:
                 games_with_data[name] += 1
-            for player in game.maccabi.played_players:
-                values[player.name] += getattr(player, stat) or 0
+            for player in lines:
+                values[player.name] += getattr(player, stat)
 
         totals = [BasketballPlayerTotal(name, values[name], games) for name, games in games_with_data.items()]
         return sorted(totals, key=lambda total: total.value, reverse=True)
@@ -240,9 +253,11 @@ class BasketballGamesStats:
         self.version = version
 
     def _filtered(self, games: List[BasketballGameData], description: str) -> BasketballGamesStats:
-        if self.description == self._DEFAULT_DESCRIPTION:
-            return BasketballGamesStats(games, description=description)
-        return BasketballGamesStats(games, description=f"{self.description} -> {description}")
+        if self.description != self._DEFAULT_DESCRIPTION:
+            description = f"{self.description} -> {description}"
+        # The rows of no game belong to no filter either; they are passed on as they are, so the
+        # errors finder reports them from any collection
+        return BasketballGamesStats(games, self.player_rows_without_game, description)
 
     def _filter(self, condition: Callable[[BasketballGameData], bool], description: str) -> BasketballGamesStats:
         return self._filtered([game for game in self.games if condition(game)], description)
@@ -267,12 +282,14 @@ class BasketballGamesStats:
             if key(game) is not None:
                 games_by_key[key(game)].append(game)
 
-        return [BasketballRecord(name=name, games_count=len(games),
-                                 wins_count=sum(game.is_maccabi_win for game in games),
-                                 losses_count=sum(game.is_maccabi_loss for game in games),
-                                 points_for_maccabi=sum(game.maccabi.score for game in games if game.has_score),
-                                 points_against_maccabi=sum(game.opponent_team.score for game in games if game.has_score))
-                for name, games in games_by_key.items()]
+        records = []
+        for name, games in games_by_key.items():
+            results = BasketballResultsStats(self._filtered(games, name))
+            records.append(BasketballRecord(name=name, games_count=len(games), wins_count=results.wins_count,
+                                            losses_count=results.losses_count,
+                                            points_for_maccabi=results.total_points_for_maccabi,
+                                            points_against_maccabi=results.total_points_against_maccabi))
+        return records
 
     @property
     def opponents(self) -> List[BasketballRecord]:
@@ -329,6 +346,12 @@ class BasketballGamesStats:
     def official_games(self) -> BasketballGamesStats:
         return self._filter_by_flag("is_official", "Official games")
 
+    @property
+    def non_official_games(self) -> BasketballGamesStats:
+        """Games of a competition the catalog marks as not official. A competition with no catalog row is in neither."""
+        return self._filter(lambda game: game.competition_flags is not None and not game.competition_flags.is_official,
+                            "Non-official games")
+
     # endregion
 
     # region results
@@ -358,18 +381,29 @@ class BasketballGamesStats:
     # region date based. A game with no date is in none of them
 
     def played_before(self, date: DateLike) -> BasketballGamesStats:
-        """:param date: A date, or its ISO text (2006-02-02). Games on that day are not included."""
+        """:param date: A date or text of one (2006-02-02). Games on that day are included, as in football."""
         day = _as_date(date)
-        return self._filter(lambda game: game.date is not None and game.date < day, f"Played before: {day}")
+        return self._filter(lambda game: game.date is not None and game.date <= day, f"Played before: {day}")
 
     def played_after(self, date: DateLike) -> BasketballGamesStats:
-        """:param date: A date, or its ISO text (2006-02-02). Games on that day are not included."""
+        """:param date: A date or text of one (2006-02-02). Games on that day are included, as in football."""
         day = _as_date(date)
-        return self._filter(lambda game: game.date is not None and game.date > day, f"Played after: {day}")
+        return self._filter(lambda game: game.date is not None and game.date >= day, f"Played after: {day}")
 
     def played_at(self, date: DateLike) -> BasketballGamesStats:
         day = _as_date(date)
         return self._filter(lambda game: game.date == day, f"Played at: {day}")
+
+    @property
+    def first_game_date(self) -> Optional[str]:
+        """Of the games that have a date, as DD-MM-YYYY like football's; None when there is none."""
+        dates = [game.date for game in self.games if game.date is not None]
+        return dates[0].strftime("%d-%m-%Y") if dates else None
+
+    @property
+    def last_game_date(self) -> Optional[str]:
+        dates = [game.date for game in self.games if game.date is not None]
+        return dates[-1].strftime("%d-%m-%Y") if dates else None
 
     # endregion
 
@@ -435,6 +469,11 @@ class BasketballGamesStats:
         return self._available(lambda game: game.stadium)
 
     @property
+    def available_referees(self) -> List[str]:
+        return sorted({referee for game in self.games
+                       for referee in (game.main_referee, *game.assistant_referees) if referee is not None})
+
+    @property
     def available_players_names(self) -> List[str]:
         return sorted({player.name for game in self.games for player in game.maccabi.players})
 
@@ -450,6 +489,6 @@ class BasketballGamesStats:
         return self.games[item]
 
     def __repr__(self) -> str:
-        if not self.games:
-            return f"{self.description}: no basketball games"
-        return f"{self.description}: {len(self)} basketball games, from {self.games[0].date} to {self.games[-1].date}"
+        if self.first_game_date is None:
+            return f"{self.description} | {len(self)} basketball games"
+        return f"{self.description} | {len(self)} basketball games | (from {self.first_game_date} to {self.last_game_date})"

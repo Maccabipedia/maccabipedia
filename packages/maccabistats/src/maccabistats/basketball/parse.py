@@ -2,7 +2,7 @@
 import logging
 from datetime import date
 from collections import defaultdict
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
 from maccabistats.basketball.models import (
     MACCABI_NAME,
@@ -80,7 +80,7 @@ def _flag(raw: Dict, field: str) -> bool:
 def player_from_cargo(raw: Dict) -> BasketballPlayerInGame:
     """:param raw: One Basketball_Player_Game_Events_Summary row as the crawler yields it"""
     return BasketballPlayerInGame(
-        name=_text(raw, "PlayerName"),
+        name=_text(raw, "PlayerName") or "",
         number=raw.get("PlayerNumber"),
         is_captain=_flag(raw, "IsCaptain"),
         is_starting_five=_flag(raw, "IsStartingFive"),
@@ -154,62 +154,83 @@ def game_from_cargo(raw: Dict, competitions: Dict[str, BasketballCompetitionFlag
     )
 
 
+_CRAWL_ATTEMPTS = 3
+# Cargo's own row id, on every table. A page's rows get new ids whenever the page is saved.
+_ROW_ID = "_ID"
+
+
 def _crawl(table: str, fields: str, order_by: str) -> List[Dict]:
     return list(MaccabiPediaCargoChunksCrawler(
         tables_name=table, tables_fields=fields, limit=_ROWS_PER_REQUEST, order_by=order_by,
         unescape_all_strings=True, timeout=_REQUEST_TIMEOUT_SECONDS))
 
 
-def _count_rows(table: str) -> int:
-    count_rows = list(MaccabiPediaCargoChunksCrawler(
-        tables_name=table, tables_fields="COUNT(_pageName)=RowsCount", timeout=_REQUEST_TIMEOUT_SECONDS))
-    return int(count_rows[0]["RowsCount"])
-
-
-def _crawl_whole_table(table: str, fields: str, unique_field: str, order_by: str = "_pageName") -> List[Dict]:
+def _table_state(table: str) -> Tuple[int, int]:
     """
-    The crawler stops at the first request that returns fewer rows than asked, so a response cut
-    short would end the crawl early with no error; and a page saved mid-crawl can move a row across
-    a request's edge, so one row is read twice and another is skipped while the total still adds up.
-    So the crawl must match the table's row count and repeat no unique_field; it is tried twice.
+    (rows in the table, its highest row id). Saving, creating or deleting a page changes at least
+    one of the two, so an equal state before and after a crawl means the table stood still.
     """
-    for attempt in ("first", "second"):
-        rows = _crawl(table, fields, order_by)
-        if not rows:
-            raise RuntimeError(f"MaccabiPedia returned no rows for {table}")
-
-        rows_on_wiki = _count_rows(table)
-        distinct_rows = len({row.get(unique_field) for row in rows})
-        if len(rows) == rows_on_wiki and distinct_rows == len(rows):
-            return rows
-        logger.warning(f"{table}: the {attempt} crawl returned {len(rows)} rows ({distinct_rows} distinct "
-                       f"{unique_field}), the wiki counts {rows_on_wiki}")
-
-    raise RuntimeError(f"{table}: crawled {len(rows)} rows ({distinct_rows} distinct {unique_field}) twice, "
-                       f"but the wiki counts {rows_on_wiki}")
+    state = list(MaccabiPediaCargoChunksCrawler(
+        tables_name=table, tables_fields=f"COUNT(_pageName)=RowsCount,MAX({_ROW_ID})=LastRowId",
+        timeout=_REQUEST_TIMEOUT_SECONDS))[0]
+    return int(state.get("RowsCount", 0)), int(state.get("LastRowId", 0))
 
 
-def _crawl_competitions() -> Dict[str, BasketballCompetitionFlags]:
+def _crawl_tables(tables: Dict[str, Tuple[str, str, Optional[str]]]) -> Dict[str, List[Dict]]:
+    """
+    Crawl the tables together and accept the crawl only when it is whole.
+
+    :param tables: For each table: (its fields, what to order it by, a field no two rows share or None)
+
+    Two things can make a crawl wrong with no error. The crawler stops at the first request that
+    returns fewer rows than asked, so a response cut short ends it early. And a page saved in the
+    middle moves its rows to the end of the id order and its game to another offset, so rows are
+    skipped or read twice while the total still adds up - and a game's players would be read from
+    before the save and the game from after it. So every table must be in the same state after the
+    crawl as before it, and return exactly its row count with no row twice. Otherwise all of them
+    are crawled again.
+    """
+    for attempt in range(1, _CRAWL_ATTEMPTS + 1):
+        states_before = {table: _table_state(table) for table in tables}
+        rows_by_table = {table: _crawl(table, fields, order_by) for table, (fields, order_by, _unique) in tables.items()}
+        states_after = {table: _table_state(table) for table in tables}
+
+        problems = []
+        for table, (_fields, _order_by, unique_field) in tables.items():
+            rows, (rows_on_wiki, _last_row_id) = rows_by_table[table], states_after[table]
+            if not rows:
+                raise RuntimeError(f"MaccabiPedia returned no rows for {table}")
+            if states_before[table] != states_after[table]:
+                problems.append(f"{table} changed during the crawl ({states_before[table]} -> {states_after[table]})")
+            elif len(rows) != rows_on_wiki:
+                problems.append(f"{table}: crawled {len(rows)} rows, the wiki counts {rows_on_wiki}")
+            elif unique_field and len({row.get(unique_field) for row in rows}) != len(rows):
+                problems.append(f"{table}: a row was read twice (by {unique_field})")
+        if not problems:
+            return rows_by_table
+        logger.warning(f"Basketball crawl attempt {attempt} of {_CRAWL_ATTEMPTS} is not whole: {'; '.join(problems)}")
+
+    raise RuntimeError(f"Basketball crawl was not whole in {_CRAWL_ATTEMPTS} attempts: {'; '.join(problems)}")
+
+
+def _competitions_from_rows(rows: List[Dict]) -> Dict[str, BasketballCompetitionFlags]:
     competitions = {}
-    for raw in _crawl_whole_table(_COMPETITIONS_TABLE, _COMPETITIONS_FIELDS, unique_field="OriginalName"):
+    for raw in rows:
         name = _text(raw, "OriginalName")
         if name is None:
             logger.warning(f"A {_COMPETITIONS_TABLE} row has no OriginalName, skipping it: {raw}")
             continue
+        if name in competitions:
+            logger.warning(f"{_COMPETITIONS_TABLE} has more than one row for {name}, the last one is used")
         competitions[name] = competition_flags_from_cargo(raw)
     return competitions
 
 
-def _crawl_players() -> PlayersBySide:
-    """
-    The table is some 60,000 rows over many requests, and no column of its own is unique (a page can
-    list one player twice), so it is ordered by Cargo's row id. The id only orders this one crawl:
-    Cargo gives a page's rows new ids whenever the page is saved, so nothing keeps it.
-    """
-    rows = _crawl_whole_table(_PLAYERS_TABLE, _PLAYERS_FIELDS, unique_field="_ID", order_by="_ID")
+def _players_by_side_from_rows(rows: List[Dict]) -> PlayersBySide:
     players_by_side = defaultdict(list)
-    # Within a page the ids follow the page's own order of players
-    for raw in sorted(rows, key=lambda row: row["_ID"]):
+    # Within a page the row ids follow the page's own order of players. The id is used here and
+    # dropped: it does not survive the page's next save.
+    for raw in sorted(rows, key=lambda row: row[_ROW_ID]):
         players_by_side[(raw["_pageName"], raw.get("Team"))].append(player_from_cargo(raw))
     return players_by_side
 
@@ -221,9 +242,20 @@ def load_basketball_from_maccabipedia(with_players: bool = True) -> BasketballGa
     :param with_players: Also crawl the players' box scores, which is most of the requests.
                          Without them every team's ``players`` is empty.
     """
-    competitions = _crawl_competitions()
-    players_by_side = _crawl_players() if with_players else {}
-    games_rows = _crawl_whole_table(_GAMES_TABLE, _GAMES_FIELDS, unique_field="_pageName")
+    tables = {
+        # Every catalog row is stored from one page, so no column is promised to be unique
+        _COMPETITIONS_TABLE: (_COMPETITIONS_FIELDS, "_pageName", None),
+        _GAMES_TABLE: (_GAMES_FIELDS, "_pageName", "_pageName"),
+    }
+    if with_players:
+        # Some 60,000 rows over many requests, and no column of its own is unique (a page can list
+        # one player twice), so it is ordered by the row id
+        tables[_PLAYERS_TABLE] = (_PLAYERS_FIELDS, _ROW_ID, _ROW_ID)
+    rows_by_table = _crawl_tables(tables)
+
+    competitions = _competitions_from_rows(rows_by_table[_COMPETITIONS_TABLE])
+    players_by_side = _players_by_side_from_rows(rows_by_table.get(_PLAYERS_TABLE, []))
+    games_rows = rows_by_table[_GAMES_TABLE]
     games = [game_from_cargo(raw, competitions, players_by_side) for raw in games_rows]
 
     # Rows the games did not take: their page has no game row, or their Team is neither side

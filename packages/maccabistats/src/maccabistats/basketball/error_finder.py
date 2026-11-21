@@ -15,11 +15,10 @@ from maccabistats.basketball.models import (
     MACCABI_NAME,
     PLAYER_STATS,
     BasketballGameData,
-    BasketballPlayerInGame,
 )
+from maccabistats.basketball.stats import BasketballGamesStats
 from maccabistats.basketball.titles import basketball_title_competition
 
-MACCABI = MACCABI_NAME
 _TITLE = re.compile(r"^כדורסל:(\d\d)-(\d\d)-(\d{4}) (.+?) נגד (.+?) - (.+)$")
 _SPLIT_SEASON = re.compile(r"^(\d{4})/(\d{2})$")
 _CALENDAR_SEASON = re.compile(r"^\d{4}$")
@@ -86,14 +85,10 @@ def _season_window(season: str) -> tuple[date, date] | None:
 class BasketballErrorsFinder:
     """Each public ``get_*`` method is one check; ``find_all`` runs every one of them."""
 
-    def __init__(self, games: list[BasketballGameData],
-                 player_rows_without_game: list[tuple[str, int, BasketballPlayerInGame]] = ()) -> None:
-        """
-        :param games: BasketballGamesStats.games
-        :param player_rows_without_game: BasketballGamesStats.player_rows_without_game
-        """
-        self.games = games
-        self.player_rows_without_game = player_rows_without_game
+    def __init__(self, basketball_games_stats: BasketballGamesStats) -> None:
+        self.basketball_games_stats = basketball_games_stats
+        games = self.games = basketball_games_stats.games
+        self.player_rows_without_game = basketball_games_stats.player_rows_without_game
         self._scored_games = [game for game in games if not game.is_technical and game.has_score]
 
     # --- Periods against the final score -------------------------------------------------
@@ -255,14 +250,14 @@ class BasketballErrorsFinder:
     def get_games_without_maccabi_in_title(self) -> list[Finding]:
         return [Finding("title_no_maccabi", game, f"'{first}' / '{second}'")
                 for game, (_d, _m, _y, first, second, _c) in self._titled_games()
-                if MACCABI not in (first, second)]
+                if MACCABI_NAME not in (first, second)]
 
     def get_games_with_title_opponent_not_matching_opponent(self) -> list[Finding]:
         findings = []
         for game, (_d, _m, _y, first, second, _c) in self._titled_games():
-            if MACCABI not in (first, second) or first == second:
+            if MACCABI_NAME not in (first, second) or first == second:
                 continue
-            title_opponent = second if first == MACCABI else first
+            title_opponent = second if first == MACCABI_NAME else first
             if _normalize_team(title_opponent) != _normalize_team(game.opponent or ""):
                 findings.append(Finding("title_opponent", game,
                                         f"title '{title_opponent}', Opponent '{game.opponent or ''}'"))
@@ -272,9 +267,9 @@ class BasketballErrorsFinder:
         """Titles name the home team first: a home game starts with Maccabi, an away game ends with it."""
         findings = []
         for game, (_d, _m, _y, first, second, _c) in self._titled_games():
-            if MACCABI not in (first, second):
+            if MACCABI_NAME not in (first, second):
                 continue
-            maccabi_first = first == MACCABI
+            maccabi_first = first == MACCABI_NAME
             if (game.home_away == HOME and not maccabi_first) or (game.home_away == AWAY and maccabi_first):
                 findings.append(Finding("title_order_vs_home_away", game,
                                         f"HomeAway '{game.home_away}', Maccabi named {'first' if maccabi_first else 'second'}"))
@@ -329,7 +324,8 @@ class BasketballErrorsFinder:
         findings = []
         for game, side_name, side in self._sides():
             known_points = [player.points for player in side.players if player.points is not None]
-            if id(game) not in scored_games or not known_points:
+            # A side whose points are all 0 did not record them (old box scores store 0 for that)
+            if id(game) not in scored_games or not side.has_recorded("points"):
                 continue
             players_points = sum(known_points)
             every_player_has_points = all(player.points is not None for player in side.played_players)
