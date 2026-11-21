@@ -96,7 +96,9 @@ def render_page(credits_by_title: dict[Title, list[str]], removed: dict[Credit, 
         for player in sorted(players_by_title[title]):
             credit = Credit(player, title.season, title.competition)
             parts.append(_render_line(credit, removed.get(credit)))
-    return "".join(parts)
+    # MediaWiki strips trailing whitespace on save; the render has to be the text the wiki
+    # keeps, or "is the page already up to date" could never be answered yes.
+    return "".join(parts).rstrip()
 
 
 def _argument(template: Template, name: str) -> str | None:

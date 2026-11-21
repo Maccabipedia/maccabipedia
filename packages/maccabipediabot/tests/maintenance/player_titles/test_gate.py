@@ -140,6 +140,11 @@ def test_gate_fails_on_a_live_error():
     assert run_gate(api, [NIMNI], [], KINDS) == 1
 
 
+def test_gate_fails_when_there_is_no_profile_to_compare():
+    """A renamed or empty category must not read as "everything is equal"."""
+    assert run_gate(ExpandApi({}), [], NIMNI_CREDITS, KINDS) == 1
+
+
 def test_gate_looks_up_credits_by_the_display_name():
     renamed = Profile("אבי נמני (כדורגלן)", display_name="אבי נמני", add={}, remove={})
     api = ExpandApi(expansion_of(NIMNI_OUTPUTS))

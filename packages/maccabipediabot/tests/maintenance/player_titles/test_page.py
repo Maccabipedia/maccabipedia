@@ -42,8 +42,16 @@ def test_render_orders_seasons_titles_and_players():
         "{{תארי שחקני כדורגל/הזנה לקארגו |שחקן=אבי נמני |עונה=2000/01 |מפעל=גביע הטוטו}}\n"
         "=== גביע המדינה ===\n"
         "{{תארי שחקני כדורגל/הזנה לקארגו |שחקן=אבי נמני |עונה=2000/01 |מפעל=גביע המדינה}}\n"
-        "{{תארי שחקני כדורגל/הזנה לקארגו |שחקן=כפיר אדרי |עונה=2000/01 |מפעל=גביע המדינה}}\n"
+        "{{תארי שחקני כדורגל/הזנה לקארגו |שחקן=כפיר אדרי |עונה=2000/01 |מפעל=גביע המדינה}}"
     )
+
+
+def test_rendered_text_is_the_text_the_wiki_keeps():
+    """MediaWiki strips trailing whitespace on save. A render that ended with a newline
+    would never equal the saved page, and every rebuild would save and re-store again."""
+    text = render_page({LEAGUE_1996: ["אבי נמני"], STATE_CUP_2001: []}, removed={})
+
+    assert text == text.rstrip()
 
 
 def test_the_header_keeps_the_page_out_of_search_engines_and_says_who_writes_it():
@@ -59,7 +67,7 @@ def test_a_title_with_no_players_still_gets_its_heading():
 
     text = render_page({state_cup_1967: []}, removed={})
 
-    assert "=== גביע המדינה ===\n" in text
+    assert "=== גביע המדינה ===" in text
     assert parse_page(text).blocks == [state_cup_1967]
     assert stored_credits(parse_page(text)) == Counter()
 
@@ -74,7 +82,7 @@ def test_removed_credit_is_rendered_with_its_reason_and_not_stored():
 
     assert (
         "{{תארי שחקני כדורגל/הזנה לקארגו |שחקן=אסטר סוקלר |עונה=2026/27 |מפעל=אלוף האלופים"
-        " |הוסר=הגיע אחרי הזכייה}}\n"
+        " |הוסר=הגיע אחרי הזכייה}}"
     ) in text
     assert stored_credits(parse_page(text)) == Counter([Credit("דור פרץ", "2026/27", "אלוף האלופים")])
 

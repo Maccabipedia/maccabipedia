@@ -17,6 +17,7 @@ from maccabipediabot.maintenance.football.player_titles.exports import seasons_p
 from maccabipediabot.maintenance.football.player_titles.page import (
     HEADER_MARKER,
     PAGE_TITLE,
+    ParsedPage,
     parse_page,
     render_page,
     stored_credits,
@@ -29,6 +30,10 @@ logger = logging.getLogger(__name__)
 # Saving the page empties the table and fills it again row by row, so for a while after any
 # save the table is short. Nothing is saved or judged on top of a revision younger than this.
 QUIET_PERIOD = timedelta(minutes=5)
+
+# A rebuild that would lose a larger share of the page's lines than this is refused: a
+# corrected game sheet removes a line or two, lost source data removes many.
+MAX_LINES_LOST_SHARE = 0.05
 
 # The table is read a second time, this much later, before it is called wrong.
 VERIFY_WAIT_SECONDS = 60
@@ -65,6 +70,24 @@ def _refusal_to_overwrite(state: PageState, bot_user: str) -> str | None:
     return None
 
 
+def _refusal_to_shrink(current: ParsedPage, rebuilt: ParsedPage) -> str | None:
+    """Why the rebuilt page looks like lost data rather than a correction, or None.
+
+    A title block that disappears, or many lines gone at once, is what a one-season run
+    over the full page, or a game table that is only partly filled, would produce - and
+    the page would still "verify", because the table follows whatever is saved.
+    """
+    dropped = sorted(set(current.blocks) - set(rebuilt.blocks))
+    if dropped:
+        shown = ", ".join(f"{title.season} {title.competition}" for title in dropped[:5])
+        return f"{len(dropped)} titles on the page are not in the rebuilt text ({shown}); pass --allow-shrink if that is intended"
+
+    lines_now, lines_rebuilt = len(current.lines), len(rebuilt.lines)
+    if lines_rebuilt < lines_now * (1 - MAX_LINES_LOST_SHARE):
+        return f"the page has {lines_now} lines and the rebuilt text {lines_rebuilt}; pass --allow-shrink if that is intended"
+    return None
+
+
 def rebuild(
     api: Api,
     exports_api: Api,
@@ -72,6 +95,7 @@ def rebuild(
     live: bool,
     only_season: str | None,
     bot_user: str,
+    allow_shrink: bool = False,
     now: datetime | None = None,
     verify_wait_seconds: float = VERIFY_WAIT_SECONDS,
     sleep: Callable[[float], None] = time.sleep,
@@ -90,6 +114,8 @@ def rebuild(
     text = render_page(credits_by_title, removed)
     state = read_page(api)
     refusal = _refusal_to_overwrite(state, bot_user)
+    if not refusal and not allow_shrink:
+        refusal = _refusal_to_shrink(parse_page(state.text), parse_page(text))
     if refusal:
         logger.error("Not rebuilding %s: %s", PAGE_TITLE, refusal)
         return 1

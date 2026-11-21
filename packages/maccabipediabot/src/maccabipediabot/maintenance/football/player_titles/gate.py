@@ -182,6 +182,10 @@ def run_gate(
     for credit in credits:
         credits_by_player[credit.player].append(credit)
 
+    if not profiles_to_check:
+        logger.error("Gate: no profile to compare - an empty list proves nothing")
+        return 1
+
     equal = 0
     failed: list[str] = []
     for start in range(0, len(profiles_to_check), _PROFILES_PER_EXPANSION):

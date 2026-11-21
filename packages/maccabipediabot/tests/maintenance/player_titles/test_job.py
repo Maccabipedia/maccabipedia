@@ -112,6 +112,47 @@ def test_only_season_with_no_title_in_it_saves_nothing(wiki):
     wiki.save_page.assert_not_called()
 
 
+def test_rebuild_refuses_to_drop_a_title_already_on_the_page(wiki):
+    """The canary command run again over the full page would leave one season."""
+    wiki.read_page.return_value = existing(FULL_TEXT)
+
+    assert run_rebuild(only_season="1995/96") == 1
+    wiki.save_page.assert_not_called()
+
+
+def test_rebuild_refuses_to_lose_many_lines(wiki):
+    """A source table that is only partly filled gives a smaller page with every title still there."""
+    many_players = [SeasonPlayed(f"שחקן {number}", "2000/01") for number in range(40)]
+    wiki.read_page.return_value = existing(render_page(job.RULE(TITLES, PLAYED + many_players), {}))
+
+    assert run_rebuild() == 1
+    wiki.save_page.assert_not_called()
+
+
+def test_allow_shrink_lets_a_smaller_page_through(wiki):
+    wiki.read_page.side_effect = [existing(FULL_TEXT), existing("נשמר")]
+    wiki.table_credits.return_value = Counter()
+
+    job.rebuild(
+        MagicMock(), MagicMock(), live=True, only_season="1995/96", bot_user=BOT, allow_shrink=True,
+        now=NOW, verify_wait_seconds=0, sleep=lambda seconds: None,
+    )
+
+    wiki.save_page.assert_called_once()
+
+
+def test_a_page_that_loses_one_line_of_many_is_rebuilt(wiki):
+    """A corrected game sheet removes a credit; that is not a shrink to refuse."""
+    many_players = [SeasonPlayed(f"שחקן {number}", "2000/01") for number in range(40)]
+    full_page = render_page(job.RULE(TITLES, PLAYED + many_players), {})
+    wiki.read_page.side_effect = [existing(full_page), existing("נשמר")]
+    wiki.table_credits.return_value = Counter()
+    with patch(f"{MODULE}.seasons_played", return_value=PLAYED + many_players[1:]):
+        run_rebuild()
+
+    wiki.save_page.assert_called_once()
+
+
 def test_profile_removals_are_written_as_removed_lines(wiki):
     removal = {Credit("כפיר אדרי", "2000/01", "גביע המדינה"): "עזב לפני הגביע"}
     with patch(f"{MODULE}.PROFILE_REMOVALS", removal):

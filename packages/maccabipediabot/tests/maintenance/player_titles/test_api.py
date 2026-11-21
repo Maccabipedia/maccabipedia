@@ -3,6 +3,7 @@ from unittest.mock import MagicMock
 
 import pytest
 from pywikibot.exceptions import APIError
+from pywikibot.exceptions import TimeoutError as PwbTimeoutError
 
 from maccabipediabot.maintenance.football.player_titles.api import ApiError, local_api, production_api
 
@@ -112,6 +113,28 @@ def test_production_read_keeps_pywikibot_retries_and_pauses_less_than_a_write():
     assert "token" not in site.simple_request.call_args_list[0].kwargs
     assert request.max_retries == 0 and retries_before != 0
     assert pauses == [1, 3]
+
+
+def test_production_edit_is_sent_as_multipart():
+    """The host's firewall has refused urlencoded edits; the repo's other writers send multipart."""
+    site, request = production_site({"edit": {"result": "Success"}})
+    api = production_api(site=site, pause=lambda seconds: None)
+
+    api(action="edit", title="עמוד", text="טקסט")
+
+    assert request.mime == {}
+
+
+def test_production_save_that_gets_no_answer_becomes_an_api_error():
+    """A timeout, a 5xx or a block page ends in pywikibot's TimeoutError, not an APIError.
+    The caller must hear "the save may have gone through", not die with a traceback."""
+    site, _ = production_site(submit_error=PwbTimeoutError("Maximum retries attempted without success."))
+    api = production_api(site=site, pause=lambda seconds: None)
+
+    with pytest.raises(ApiError) as raised:
+        api(action="edit", title="עמוד", text="טקסט")
+
+    assert raised.value.code == "no-answer"
 
 
 def test_production_api_error_becomes_an_api_error_with_its_code():

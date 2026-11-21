@@ -11,6 +11,7 @@ from collections.abc import Callable
 import pywikibot
 import requests
 from pywikibot.exceptions import APIError
+from pywikibot.exceptions import Error as PywikibotError
 
 from maccabipediabot.common.wiki_login import get_site
 
@@ -57,10 +58,17 @@ def production_api(site: pywikibot.Site | None = None, pause: Callable[[float], 
         request = site.simple_request(**params)
         if is_write:
             request.max_retries = 0
+            # Multipart, like the repo's other writers: the host's firewall has refused
+            # urlencoded edit bodies. An empty dict means "every parameter as a form part".
+            request.mime = {}
         try:
             return request.submit()
         except APIError as error:
             raise ApiError(error.code, error.info) from error
+        except PywikibotError as error:
+            # With no retries, a timeout, a 5xx and a block page all end here. For a write
+            # that means "unknown": the save may have gone through.
+            raise ApiError("no-answer", f"{type(error).__name__}: {error}") from error
         finally:
             pause(WRITE_PAUSE_SECONDS if is_write else READ_PAUSE_SECONDS)
 

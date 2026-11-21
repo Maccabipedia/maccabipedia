@@ -59,6 +59,10 @@ def _parse_arguments() -> argparse.Namespace:
     )
     parser.add_argument("--only-season", help="rebuild: write only this season (the canary), e.g. 1925")
     parser.add_argument(
+        "--allow-shrink", action="store_true",
+        help="rebuild: allow a text that drops a title or many lines the page holds now",
+    )
+    parser.add_argument(
         "--credits-from", choices=("rule", "table"), default="rule",
         help="gate: compare the live lists with what the rule would write, or with the table as it is",
     )
@@ -108,6 +112,7 @@ def main() -> int:
         return job.restore(api)
     return job.rebuild(
         api, exports_api, live=arguments.live, only_season=arguments.only_season, bot_user=logged_in_user(api),
+        allow_shrink=arguments.allow_shrink,
     )
 
 
