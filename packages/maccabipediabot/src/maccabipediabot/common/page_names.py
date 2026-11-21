@@ -28,7 +28,12 @@ _BASKETBALL_TITLE_COMPETITION = {
 }
 
 
+def basketball_title_competition(competition: str) -> str:
+    """The competition as a basketball game-page title names it."""
+    return _BASKETBALL_TITLE_COMPETITION.get(competition, competition)
+
+
 def build_basketball_game_page_name(game_date: date, home_team: str,
                                     away_team: str, competition: str) -> str:
-    title_competition = _BASKETBALL_TITLE_COMPETITION.get(competition, competition)
+    title_competition = basketball_title_competition(competition)
     return build_game_page_name(_BASKETBALL_PREFIX, game_date, home_team, away_team, title_competition)
