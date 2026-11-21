@@ -93,6 +93,26 @@ def test_same_round_in_another_season_or_competition_is_a_separate_tie():
     assert other_competition.fixture == "סיבוב שני - משחק 1"
 
 
+def test_running_again_on_numbered_stages_changes_nothing():
+    first_leg = _european_game("הליגה האירופית", "סיבוב 2", datetime.datetime(2026, 7, 23), "שריף טירספול")
+    second_leg = _european_game("הליגה האירופית", "סיבוב 2", datetime.datetime(2026, 7, 30), "שריף טירספול")
+    games = _games(first_leg, second_leg)
+    fix_european_stages(games)
+    fix_european_stages(games)
+    assert [first_leg.fixture, second_leg.fixture] == ["סיבוב שני - משחק 1", "סיבוב שני - משחק 2"]
+
+
+def test_club_site_source_writes_european_stages(monkeypatch):
+    from maccabistats.parse.maccabi_tlv_site import maccabi_tlv_site_source
+
+    monkeypatch.setattr(maccabi_tlv_site_source, "fix_specific_games", lambda games: games)
+    source = maccabi_tlv_site_source.MaccabiTlvSiteSource()
+    first_leg = _european_game("הליגה האירופית", "סיבוב 2", datetime.datetime(2026, 7, 23), "שריף טירספול")
+    source.maccabi_games_stats = _games(first_leg)
+    source.run_specific_fixes()
+    assert first_leg.fixture == "סיבוב שני - משחק 1"
+
+
 def test_domestic_games_are_untouched():
     cup_game = _european_game("גביע המדינה", "סיבוב 2", datetime.datetime(2026, 1, 1), "הפועל עכו")
     fix_european_stages(_games(cup_game))

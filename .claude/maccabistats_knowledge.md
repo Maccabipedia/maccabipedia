@@ -313,7 +313,9 @@ PlayerEvent.from_maccabistats_event_type(name, number, time_occur,
 If a game page comes out wrong (names, stadiums, competitions, events), fix it in maccabistats' own fix layers, not in `gamesbot.py` before upload. They run while the data is parsed and saved, so every consumer gets the fix:
 - `parse/name_normalization.py` → `normalize_name()`: every name from the club site passes through it (spaces, RTL marks, geresh → apostrophe).
 - `parse/general_fixes.py` → `run_general_fixes()`: source-independent maps (`_stadiums_name_fixes`, `_players_name_fixes`, `_referees_name_fixes`, `_competitions_name_fixes`), team renames (`teams_names_changer.py`), season/fixture formats.
+  A best competition name is the plain competition, never a stage (`הליגה האירופית`, not `מוקדמות הליגה האירופית`): the game page title suffix and `|מפעל=` are both this value.
 - `parse/maccabi_tlv_site/fix_specific_games.py`: fixes for the club-site source and for single games.
+- `parse/maccabi_tlv_site/european_stages.py`: club-site source only, after the specific fixes. Writes European stages as editors do (`סיבוב 2` → `סיבוב שני - משחק 1`); the leg is the date order within season + competition + round, so it needs the whole crawled season.
 - `parse/maccabi_tlv_site/team_parser.py` / `game_events_parser.py`: how club-site squads and events become `GameEventTypes`.
 - `error_finder/`: `ErrorsFinder` for manually finding inconsistent data.
 
