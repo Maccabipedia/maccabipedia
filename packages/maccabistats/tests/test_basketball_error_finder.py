@@ -383,6 +383,10 @@ class TestBoxScore:
         assert self._details("get_games_without_box_score", [self._player("תמיר בלאט", 30)]) == []
         assert self._details("get_games_without_box_score", [], Technical=1) == []
 
+    def test_game_before_2000_with_no_players_is_not_reported(self):
+        assert self._details("get_games_without_box_score", [], Date="1999-12-31") == []
+        assert self._details("get_games_without_box_score", [], Date="2000-01-01") == ["no players on either side"]
+
     def test_player_rows_of_no_game_are_reported_by_their_page(self):
         orphan = player_from_cargo(self._player("חיים תור", 6))
         finder = _finder([], [("כדורסל:משחק שנמחק", 0, orphan)])
