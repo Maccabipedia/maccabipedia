@@ -46,12 +46,14 @@ _players_name_fixes = [("מיקו בלו", ["מנחם 'מיקו' בלו"]),
                        ]
 
 # The format is like players above.
+# A best name is the plain competition, never a stage: the game page title suffix and |מפעל= are both this
+# value, and the stage ("סיבוב 2", "פלייאוף") belongs in the fixture (|שלב במפעל=).
 _competitions_name_fixes = [("גביע אירופה למחזיקות גביע", ["גביע אירופה למחזיקות"]),
-                            ("מוקדמות הליגה האירופית", ["מוקדמות ליגה אירופית"]),
                             ("גביע אסיה לאלופות", ["גביע אסיה"]),
-                            ("פלייאוף הליגה האירופית", ["פלייאוף אירופה ליג"]),
                             ("גביע אופא", ['גביע אופ"א']),
-                            ("הליגה האירופית", ["ליגה אירופית"]),
+                            ("הליגה האירופית", ["ליגה אירופית", "מוקדמות הליגה האירופית", "מוקדמות ליגה אירופית",
+                                                "פלייאוף הליגה האירופית", "פלייאוף אירופה ליג"]),
+                            ("ליגת האלופות", ["מוקדמות ליגת האלופות"]),
                             ("ליגת העל",
                              ["ליגת Winner", "ליגת הבורסה לניירות ערך", "ליגת ג׳פניקה", "ליגת one zero הבנק הדיגיטלי",
                               "ליגת WINNER"]),
@@ -147,11 +149,18 @@ def __fix_referees_names(game):
             game.referee = referee_best_name
 
 
+_PLAYOFF_STAGE = "פלייאוף"
+_NO_ROUND_FOUND = "No round found"
+
+
 def __fix_competitions_names(game):
     for competition_best_name, competition_similar_name in _competitions_name_fixes:
         if game.competition in competition_similar_name:
             logger.info(
                 "Changing competition name from :{old}-->{new}".format(old=game.competition, new=competition_best_name))
+            # "פלייאוף הליגה האירופית" carries the stage in its name; keep it when the round itself is unknown
+            if game.competition.startswith(_PLAYOFF_STAGE) and game.fixture in ("", _NO_ROUND_FOUND, None):
+                game.fixture = _PLAYOFF_STAGE
             game.competition = competition_best_name
 
 

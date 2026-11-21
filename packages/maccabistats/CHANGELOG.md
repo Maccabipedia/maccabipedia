@@ -1,3 +1,10 @@
+## Version 2.75 ##
+
+    Competition names are the plain competition, never a stage: מוקדמות ליגת האלופות becomes
+    ליגת האלופות, and מוקדמות/פלייאוף הליגה האירופית become הליגה האירופית (a playoff with no
+    round keeps פלייאוף as its fixture). Club-site European games get the stage in the wiki's
+    wording: "סיבוב 2" becomes "סיבוב שני - משחק 1", and two-legged rounds get the leg number.
+
 ## Version 2.74 ##
 
     The MaccabiPedia crawler retries the wiki host's 508 "Resource Limit Is Reached"
