@@ -21,7 +21,7 @@ _NUMBERED_ROUND = re.compile(r"^סיבוב (\d+)$")
 _LEG_SEPARATOR = " - "
 _LEAGUE_PHASE_ROUND = "מחזור"
 _SINGLE_GAME_STAGES = frozenset(["גמר"])
-_NO_ROUND_FOUND = "No round found"
+NO_ROUND_FOUND = "No round found"
 
 
 def _stage_with_round_as_word(stage: str) -> str:
@@ -33,7 +33,7 @@ def _stage_with_round_as_word(stage: str) -> str:
 
 
 def _is_two_legged_stage(stage: str) -> bool:
-    if stage in ("", _NO_ROUND_FOUND) or stage in _SINGLE_GAME_STAGES:
+    if stage in ("", NO_ROUND_FOUND) or stage in _SINGLE_GAME_STAGES:
         return False
     if stage.startswith(_LEAGUE_PHASE_ROUND) or _LEG_SEPARATOR in stage:
         return False

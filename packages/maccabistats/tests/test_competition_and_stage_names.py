@@ -117,3 +117,36 @@ def test_domestic_games_are_untouched():
     cup_game = _european_game("גביע המדינה", "סיבוב 2", datetime.datetime(2026, 1, 1), "הפועל עכו")
     fix_european_stages(_games(cup_game))
     assert cup_game.fixture == "סיבוב 2"
+
+
+def _run_club_site_fixes(monkeypatch, *games):
+    from maccabistats.parse.maccabi_tlv_site import maccabi_tlv_site_source
+
+    monkeypatch.setattr(maccabi_tlv_site_source, "fix_specific_games", lambda stats: stats)
+    source = maccabi_tlv_site_source.MaccabiTlvSiteSource()
+    source.maccabi_games_stats = _games(*games)
+    source.run_specific_fixes()
+    source.run_specific_fixes()
+
+
+@pytest.mark.parametrize("site_round, stage", [("No round found", "גמר"), ("", "גמר"), ("אלוף האלופים", "גמר"),
+                                               ("משחק ראשון", "משחק ראשון")])
+def test_club_site_one_game_super_cup_is_a_final(monkeypatch, site_round, stage):
+    super_cup = _european_game("אלוף האלופים", site_round, datetime.datetime(2026, 7, 16), "הפועל באר שבע")
+    _run_club_site_fixes(monkeypatch, super_cup)
+    assert super_cup.fixture == stage
+
+
+def test_club_site_two_legged_super_cup_gets_the_leg(monkeypatch):
+    second_leg = _european_game("אלוף האלופים", "No round found", datetime.datetime(1966, 5, 1), "הכח רמת גן",
+                                "1965/66")
+    first_leg = _european_game("אלוף האלופים", "No round found", datetime.datetime(1965, 9, 22), "הכח רמת גן",
+                               "1965/66")
+    _run_club_site_fixes(monkeypatch, second_leg, first_leg)
+    assert [first_leg.fixture, second_leg.fixture] == ["גמר - משחק 1", "גמר - משחק 2"]
+
+
+def test_club_site_game_of_another_competition_without_a_round_keeps_it(monkeypatch):
+    toto_cup = _european_game("גביע הטוטו", "No round found", datetime.datetime(2026, 8, 2), "מכבי נתניה")
+    _run_club_site_fixes(monkeypatch, toto_cup)
+    assert toto_cup.fixture == "No round found"
