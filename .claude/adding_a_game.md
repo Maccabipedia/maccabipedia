@@ -99,8 +99,15 @@ opponent name, a player's identity.
   to its games table, `Team=1`, over the season's date range. Surname → full name
   only when the squad confirms it.
 - Guests / loanees: the same events table wiki-wide, `PlayerName LIKE '%<surname>%'`.
+  One match there is a lead, not a name: write the full name only when a source
+  ties that player to this game. Otherwise write the surname as printed and tell the
+  maintainer about the candidate. A guest only "fits" (one Rehovot player named ליטבק,
+  1956) is a guess, and the maintainer took it out.
 - Referee: the games table's referee column (see the table) `LIKE '%<surname>%'`.
-  Maccabi coach: a nearby game's `CoachMaccabi` (same column in all three sports).
+- Maccabi coach: only when the press of that game names him (`CoachMaccabi`, same
+  column in all three sports). The coach of the league games before and after is a
+  lead to check, not a value. On the 1956 tour, "המאמן מ. בית-הלוי" in the report
+  plus `שם מלא=ג'רי משה בית הלוי` on his page settled it.
 - Opponent players: the same events table joined to the games table, `Team=0`,
   same season and same opponent. Surname → full name only when exactly one rostered
   player matches; the press spells foreign names loosely (מדרמן = דן פדרמן,
@@ -138,6 +145,15 @@ opponent name, a player's identity.
   number. Valid types are in `.claude/maccabipedia_structure_knowledge.md`. A
   substitute gets `ספסל` plus `מחליף`, and the player he replaced gets `מוחלף`;
   minute `0` when unknown. A goal from a rebound off the crossbar has no assist.
+- **Identical event lines collapse into one Cargo row.** Three unknown-minute goals by
+  one player (`שייע גלזר::אין-מספר::גול-רגל::0::מכבי` ×3) store as one goal, and so do
+  three `לא ידוע` opponent goals. Number the unknown minutes `0`, `1`, `2`, as the 1936
+  tour pages do. After saving, count goals per team in `Games_Events`
+  (`EventType=3`, grouped by `Date, Team`) against the score.
+- A competition is "official" to the game template unless it is exactly `ידידות`:
+  a named unofficial tour (`מחנה האימונים ב…`) lands in `קטגוריה:משחקים רשמיים`
+  although its `Competitions` row says `Official=לא`. A new tour competition needs its
+  own page (`{{מפעל כדורגל}}`, `מפעל לא רשמי=כן`) plus a row in `הזנת מפעלי כדורגל`.
 - **Part of a tie or series?** Link it both ways: fill the series parameters (table above) on
   the new page *and* on every sibling game that exists. A link to a missing page puts the
   game in a "bad entry" category, but a missing link back is caught by nothing. Details
