@@ -1,6 +1,13 @@
 # MaccabiPedia Research Sources
 
-Wiki page with full list: `https://www.maccabipedia.co.il/מקורות_שימושיים`
+**This list and the live wiki page [`מקורות שימושיים`](https://www.maccabipedia.co.il/מקורות_שימושיים) are one list in two places.**
+Every source sits in both. Add or remove a source in one, and do the same in the other in the same change.
+- **Wiki side:** a terse Hebrew line in the right `{{קופסת עיצוב}}` box (כללי / כדורגל / כדורסל / כדורעף / כדוריד) and sub-group. The page is an outward-facing edit, so reproduce the rest of it unchanged.
+- **Repo side:** the matching section below.
+- **What only the doc carries:** how-to detail (APIs, query tricks, traps). It does not carry sources the wiki lacks.
+- **Check they still match** before the PR:
+  `uv run python .claude/scripts/research_sources_sync.py`
+  It compares the two lists by source and prints whatever is on one side only.
 
 ## Tips for searching a source for MaccabiPedia
 
@@ -42,7 +49,7 @@ that misses items.
 
 **National archives:**
 - Israel State Archives: https://catalog.archives.gov.il/
-- NLI — JPress (Hebrew press by year): https://jpress.org.il/Olive/APA/NLI_heb/
+- NLI — JPress (historical Jewish press): http://web.nli.org.il/sites/jpress/Hebrew/pages/default.aspx — browse by year: https://jpress.org.il/Olive/APA/NLI_heb/
 - NLI — Jrayed (enhanced search, Arabic+Hebrew): https://jrayed.org/en/newspapers/home
 - NLI — Ephemera/posters: http://primo.nli.org.il/primo-explore/search?query=any,contains,%D7%9E%D7%9B%D7%91%D7%99%20%D7%AA%22%D7%90&tab=default_tab&search_scope=Ephemera1&vid=NNL_Ephemera&sortby=rank&lang=iw_IL
 - NLI — Hadashot newspaper (color): https://www.nli.org.il/he/newspapers/
@@ -51,12 +58,16 @@ that misses items.
 - Israeli Film Archive: https://jfc.org.il/
 - GPO National Photo Collection: https://gpophoto.gov.il/ — 160K+ digitized photos since pre-1948
 - Maccabi World Union Archive: https://www.maccabi.org/who-we-are/archive — ~30K photos, posters, films from early 20th century
+- Israel State Archives on YouTube: https://www.youtube.com/user/israelarchive/search
+- Kan (public broadcaster) sports archive: https://www.kan.org.il/lobby/kan_sport/
 - Vanished heritage stadiums of Tel Aviv-Jaffa (PDF, Avnei Moreshet / Prof. Eliyahu Stern, 2026): https://hamoreshet.org.il/viewer.php?file=/wp-content/pdf/present-based-past/Tel_Aviv_Disappeared_Stadiums.pdf — visual essay on the football & basketball grounds that disappeared from the city, incl. Maccabi TLV historical home grounds, with photos and dates
 
 **Press:**
 - Ynet archive: https://www.ynet.co.il/home/0,7340,L-4269-77-57,00.html
 - Walla Sports: https://sports.walla.co.il/
 - Pendel magazines: http://www.pendelmag.com/index.html
+- HaOlam HaZeh (weekly magazine archive): https://thisworld.online/
+- Children's reading booklets (hpt.co.il): https://www.hpt.co.il/?Reading=1
 - Trove (Australian newspapers — Maccabi tours): https://trove.nla.gov.au/
 - Newspapers.com (US — Maccabi tours): https://www.newspapers.com/
 - British Newspaper Archive (UK — Mandate-era + European matches): https://www.britishnewspaperarchive.co.uk/
@@ -79,10 +90,18 @@ that misses items.
 - Retro blog 2: https://lagaleriadelfutbol.blogspot.com/2015/07/maccabitelaviv.html
 - Alamy (including B&W historical): https://www.alamy.com/stock-photo/maccabi-tel-aviv.html
 - Yoash Alroei blog: https://yoashtvblog.co.il/ — personal Israeli sport/history archive (research, vintage photos, first-hand recollections), incl. Maccabi TLV history posts
+- 12p forum thread of old photos, mostly 1980s: https://forum.12p.co.il/index.php?app=forums&module=forums&controller=topic&id=175399
+- Maccabiah exhibition photo (Ben Gurion airport): https://www.maccabiah.com/he/maccabiah/%D7%AA%D7%A2%D7%A8%D7%95%D7%9B%D7%AA-%D7%94%D7%9E%D7%9B%D7%91%D7%99%D7%94-%D7%91%D7%A0%D7%AA%D7%91%D7%92/%D7%9C%D7%90-%D7%A8%D7%A7-%D7%91%D7%A1%D7%A4%D7%95%D7%A8%D7%98-%D7%91%D7%94%D7%9B%D7%9C
 
 **Forums:**
 - 12p forum (songs, tifos, photos, all sports): https://forum.12p.co.il/
+- 12p tifos page: https://12p.co.il/%D7%AA%D7%A4%D7%90%D7%95%D7%A8%D7%95%D7%AA/ (an older copy on the Wayback Machine: https://web.archive.org/web/20140803090116/http://www.12p.co.il/%D7%AA%D7%A4%D7%90%D7%95%D7%A8%D7%95%D7%AA)
+- 12p gallery on YouTube (songs, tifos, atmosphere): https://www.youtube.com/@12pgallery
 - **12p offline archive**: Full dump (98K topics, 3.7M posts) as SQLite DB + raw HTML on MaccabiPedia shared Google Drive. See `README.md` next to the DB for schema and queries. Searchable offline without accessing the forum.
+
+**Tools:**
+- List of club wikis and official sites worldwide: https://docs.ufpr.br/~mmsabino/sstatistics/fontes_pesquisa.html
+- Ironi Ashdod's page on Maccabi: http://ironi-ashdod.co.il/team/%D7%9E%D7%9B%D7%91%D7%99-%D7%AA%D7%9C-%D7%90%D7%91%D7%99%D7%91
 
 ## Football
 
@@ -97,20 +116,50 @@ that misses items.
 - FBref: https://fbref.com/en/squads/04c011d8/history/Maccabi-Tel-Aviv-FC-Stats-and-History — advanced stats (xG etc.) from 1992-93
 - WorldFootball.net: https://www.worldfootball.net/teams/maccabi-tel-aviv/ — all results + all-time player list
 - Wikipedia — International Football: https://en.wikipedia.org/wiki/Maccabi_Tel_Aviv_F.C._in_international_football
+- Wikipedia — season category (partial, 1920–1923): https://en.wikipedia.org/wiki/Category:Maccabi_Tel_Aviv_F.C._seasons
+
+**Squads & players:**
+- Transfer dates thread (X/Twitter): https://twitter.com/austurgi/status/1424947619260862468
 
 **External club-history archives (opponent POV):**
 - Scored catalog of ~130 per-club archives / meta-league databases — see [external_club_history_sites.md](./external_club_history_sites.md). Use these to find Maccabi TLV match details from the opponent's side (lineups, attendance, reports).
 
-**Video (primary channels):**
+**Video:**
 - maccabi-videos Vimeo: https://vimeo.com/428829885
 - maccabi-videos YouTube: https://www.youtube.com/channel/UCxnAYpW-2OJUXbrSil5EeQQ
 - maccabifullgame: https://www.youtube.com/channel/UCD5xM1VeIT7VaMhqv3xOZVw
 - mtaarchive: https://m.youtube.com/user/mtaarchive
 - oren211180: https://www.youtube.com/@oren211180 — mostly basketball (see the Basketball **Video** section), plus short football clips, mainly 1955–1995: goals, cup finals and derbies
-- ~25 more channels listed on the wiki sources page
+- Fan and archive channels (YouTube unless noted):
+  - NirHoori: https://www.youtube.com/@NirHoori-ii2vk
+  - Old VHS tapes: https://www.youtube.com/@old-vhs-cassettes
+  - Maccabi Netanya museum: https://www.youtube.com/channel/UCYU6tubzlzCofhIyV6gtPbw
+  - Rak Maccabi: https://www.youtube.com/user/talhollander/videos
+  - RAFI457 (Dailymotion): https://www.dailymotion.com/RAFI457/videos
+  - Moshiko8: https://www.youtube.com/user/moshiko8/videos
+  - Igal3232: https://www.youtube.com/user/IGAL3232
+  - Unnamed channel: https://www.youtube.com/channel/UCGASJb2eN4q3myh8X3puSlg
+  - King12: https://www.youtube.com/channel/UChNvpb-46shCJ46HpGcrpKw
+  - Ultras 96 gallery: https://www.youtube.com/user/ULTRAS96Gallery/videos
+  - MTAGold: https://www.youtube.com/user/eman12b/videos
+  - 12p (השחקן ה-12): https://www.youtube.com/channel/UC_99ZaTojdch76HejJUkcVw
+  - history0811: https://www.youtube.com/user/history0811/search?query=%D7%9E%D7%9B%D7%91%D7%99
+  - YellowEmpire: https://www.youtube.com/channel/UCV0hd-MvTxjvWGik_O0emuQ/videos
+  - Sport archive 1: https://www.youtube.com/channel/UC3fmhtLpKrJ525atoWJ4CCA
+  - Sport archive 2: https://www.youtube.com/user/GamesSportsHD
+  - arikezra: https://www.youtube.com/user/arikez/
+  - maccabi videos (Dailymotion): https://www.dailymotion.com/maccabivid
+  - pizz: https://www.youtube.com/user/pizz121987
+  - "מלכת השכונה": https://www.youtube.com/channel/UCN2Sg4EFuIoxqcsN9gR1vqA
+  - roei91g11: https://www.youtube.com/@roei91g11/videos
+  - takzirim: https://www.youtube.com/@takzirim-f6b
+- Maccabi TLV in Europe blog: https://mtainuefa.weebly.com/
 
 **Songs:**
 - 12p forum threads (2003–2014): https://forum.12p.co.il/index.php?showtopic=157350
+- 12p player songs 2013/14: https://forum.12p.co.il/index.php?showtopic=151107
+- 12p new songs 2009: https://forum.12p.co.il/index.php?showtopic=111646
+- 12p old songs (2003): https://forum.12p.co.il/index.php?app=forums&module=forums&controller=topic&id=1224
 
 ## Basketball
 
@@ -126,7 +175,11 @@ that misses items.
   - National League historic records: https://www.safsal.co.il/h2576
 - EuroLeague Official: https://www.euroleaguebasketball.net/en/euroleague/teams/maccabi-rapyd-tel-aviv/tel/ — stats, rosters, results, records
 - EuroLeague data API (plain JSON, no Vercel challenge, works for old seasons back to at least `E2003`): `https://api-live.euroleague.net/v2/competitions/E/seasons/E<start-year>/games/<gameCode>` gives `localDate` (tip-off in local time), `audience`, `referee1..3` (1 = main) and quarter partials; `.../v3/competitions/E/seasons/E<start-year>/games/<gameCode>/stats` gives the full box score per player. The `gameCode` is the number at the end of the game-center URL (e.g. the 2004 final is `E2003/220`). The old `live.euroleague.net/api/Boxscore` returns an empty body for old seasons.
-- basket.co.il (Israeli Basketball Association): https://basket.co.il/team.asp?TeamId=1096&lang=en — official league stats per season (~2000-01+)
+- basket.co.il (Israeli Basketball Association): https://basket.co.il/team.asp?TeamId=1096&lang=en — official league stats per season (~2000-01+). The team page's games table lists the league and the Winner Cup (`גביע ווינר סל`, the league cup) but **never the State Cup**. Decode pages as UTF-8 yourself (`resp.content.decode("utf-8")`); `requests` guesses Latin-1 and the Hebrew comes out as mojibake.
+- ibasketball.co.il (IBBA, the association's WordPress/SportsPress site): https://ibasketball.co.il/ — **the State Cup source from 2022/23**: each game has a match page with quarter scores (`table.sp-event-results`) and both full box scores (`table.sp-event-performance`), and links its league (`/league/<year>-900-גביע-המדינה-לגברים/`, year = season start). The site has no match pages for the 2020/21 and 2021/22 State Cups; for those, the association's own game reports (`/news/YYYY/MM/...`) give the score, half-time and scorers.
+  - Finding a past game is not obvious: `wp-json/sportspress/v2/events` lists only the current season (its league/season/team filters return nothing for older ones), league pages and their RSS feeds list teams rather than games, and the `sp_event` sitemaps hold number-only URLs. What works: `wp-json/wp/v2/search?search=<text>&subtype=sp_event` reaches every season and returns post ids, then `wp-json/sportspress/v2/events/<post id>` gives the event's `leagues`, so keep the ones in a State Cup league. Event titles carry the team's current name, so search the senior team by its sponsor text (`פלייטיקה`, `Rapyd`); plain "מכבי תל אביב" matches thousands of youth games. A match's post id differs from the number in its URL.
+  - State Cup league ids (`sp_league`): 2017→17426, 2018→17425, 2019→17421, 2020→14454, 2021→18037, 2022→18501, 2023→18905, 2024→19224, 2025→119809, 2026→120223.
+  - Reports and previews (`wp-json/wp/v2/posts?search=גביע המדינה&after=…&before=…`) give dates, halls and the draw. A preview's referees are the planned ones, not proof of who officiated.
 - linguasport (Wayback only; the bare domain is now a gambling spam site, never link it): every European club game with scores, half-time scores, round dates and footnotes (neutral venues, forfeits, replays, played-on dates). Covers Maccabi's Champions Cup / EuroLeague seasons 1958–2022/23, the Cup Winners' Cup (1966/67, 1969/70) and the Korać Cup (1993/94). The only 2023/24 capture is from September 2023, before the season, so it has no games. Finals overview: https://web.archive.org/web/20160519102508/http://linguasport.com/baloncesto/internacional/clubes/c1/palmares.htm ; season example: https://web.archive.org/web/20220123223023/http://www.linguasport.com:80/baloncesto/internacional/clubes/c1/C1_81.htm
   - Folders: `c1/C1_YY.htm` Champions Cup / European League / FIBA EuroLeague / SuproLeague (to 2000/01), `c2/C2_YY.htm` Cup Winners' Cup, `c3/C3_YY.htm` Korać, `EL/EL_YY.htm` EuroLeague from 2000/01 (`YY` = ending year; English Wikipedia does not link these, so find them through CDX). Find a working snapshot with the CDX API (`web.archive.org/cdx/search/cdx?url=...&filter=statuscode:200&output=json`), and fetch it before linking.
   - Scores are home team first: in `A - B | s1 | s2`, s1 was played at A. Checked against Yedioth scans in October 2026 (card #597), it was right in all 12 games where it disagreed with the wiki.
@@ -145,6 +198,13 @@ that misses items.
 - oren211180 YouTube: https://www.youtube.com/@oren211180 (`UCELBvjBJUq3utCLzDXUoyQA`) — about 1,000 videos from Israeli TV broadcasts, mostly Maccabi basketball 1967–2005: full European Cup / Euroleague games, cup finals, playoff series, and league games from the 1980s–90s. It also has exhibition games and preseason tournaments the wiki has no page for. Uploads from 2025 on follow one format: `<competition> <season> <stage>: <home> - <away> <score>`. **The Hebrew score reads right to left**, as on the club channel, so the first team named takes the second number. The description starts with an English line whose score reads in order, then `<venue>, D/M/YY` and the scorers. That date is the strongest match key, but in the early-1980s finals it is often a few days away from the date on the game page, then the stage in the title or description decides (rules in `.claude/basketball_videos.md`, "Deciding a match the matcher calls uncertain"). Older uploads are short clips with free-form titles (`מכבי ת"א-בני השרון 92:94 בהרצליה, 2007`) and name the home team in no fixed order. The same game is sometimes uploaded twice, once as an old clip and once as a new full broadcast. Also has player features, news items and national-team games, which are not Maccabi game videos.
 - The club and EuroLeague channels are matched to game pages automatically by `basketball/videosbot_basketball.py`; see `.claude/basketball_videos.md`.
 
+**Songs:**
+- Old songs, Gate 11 forum (Wayback): https://web.archive.org/web/20151129024227/https://www.gate11.co.il/forum/index.php?showtopic=11217
+
+**Photos, posters & tickets:**
+- Tickets vs Maccabi Haifa, 1990s (archive.org item): https://archive.org/details/11-ISRAEL-MACCABI-HAIFA-BASKETBALL-TICKETS-STUBS-PC-80-90s-HAPOEL-TEL-AVIV-moka18
+- Programmes and tickets in the `historicalbasketballguides` collection: https://archive.org/details/historicalbasketballguides?query=maccabi — about 34 programmes, 1988–2004
+
 **Books:**
 - "The Israeli Basketball Book" by Eliyahu Shochat: https://www.yumpu.com/ar/document/read/61848121/-
 
@@ -160,6 +220,8 @@ that misses items.
 - Maccabi TLV VC Official YouTube: https://www.youtube.com/@maccabitelavivvc
 - Israel Volleyball Association YouTube: https://www.youtube.com/@israelvolleyballassociation — full match broadcasts
 - CEV (European Volleyball) YouTube: https://www.youtube.com/@CEVolleyball — Champions League highlights
+- Josh Ayzenberg (Maccabi player) YouTube: https://www.youtube.com/@joshayzenberg2259
+- Eliezer Kagan YouTube: https://www.youtube.com/@lotemk/videos
 
 **History:**
 - Wincol PDF (pre-establishment): https://www.wincol.ac.il/wincol.ac.il/originals/netunim-caduraf.pdf
@@ -167,15 +229,16 @@ that misses items.
 
 ## Handball
 
-Almost no dedicated sources. Only fan songs:
-- 12p forum 2009/10: https://forum.12p.co.il/index.php?app=forums&module=forums&controller=topic&id=107974
-- 12p forum 2010/11: https://forum.12p.co.il/index.php?app=forums&module=forums&controller=topic&id=126273
+Few dedicated sources.
+- Fan songs, 12p forum 2009/10: https://forum.12p.co.il/index.php?app=forums&module=forums&controller=topic&id=107974
+- Fan songs, 12p forum 2010/11: https://forum.12p.co.il/index.php?app=forums&module=forums&controller=topic&id=126273
+- Handball association roster page (2025/26, with a few earlier seasons): https://handballisr.co.il/team.asp?TId=5&cYear=2026
 
-For rosters/players, try maccabita.co.il and maccabifans via Wayback Machine (see cross-sport section).
+For older rosters/players, try maccabita.co.il and maccabifans via Wayback Machine (see cross-sport section).
 
 ## Key coverage gaps
 
-- **Handball**: no stats, no rosters, no video — only fan songs
+- **Handball**: no stats or video; rosters only for recent seasons
 - **Volleyball 1960s–2010**: IVA starts at 2010/11, Wincol PDF covers pre-establishment — middle decades undocumented
 - **Football pre-1950s**: RSSSF has tables but no lineups/match details; JPress is the best bet
 - **Basketball video pre-1980**: the club's channel starts at 1979/80, so the 1950s-1970s have no known video source. Later decades are covered — see the Basketball **Video** section above.
