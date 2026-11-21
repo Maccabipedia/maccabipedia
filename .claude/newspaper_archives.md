@@ -12,7 +12,7 @@ game dates, scores and venues against primary press coverage. The folder is
 | `ארכיון ידיעות אחרונות/עמודים בודדים/<year>/` | 1939–4.2.2021 (last file `2021-02-04_p25.pdf`), near-daily | **Single pre-selected pages** (`YYYY-MM-DD_p<N>.pdf`, usually the sports pages) | Yes (pdftotext works, bidi-mangled) |
 | `ארכיון ידיעות אחרונות/עיתונים מלאים/<year>/` | 1940–2019 | **Full issues** (`YYYY-MM-DD.pdf`, ~9 pages) | Yes — search this when the single-page folder lacks the day |
 | `ארכיון חדשות הספורט/<year>/` | 10-1954–1984, near-daily (1954 starts 10-10) | **Full issues** (`MM-DD-YYYY.pdf`, 4–6 pages, daily sports paper) | **No** — image-only scans |
-| `ארכיון ספורט הבקר/<year>/` | 1936–1946 | issues | unverified |
+| `ארכיון ספורט הבקר/<year>/` | 1936, 1939–1946 (**no 1937–38**) | **Full weekly issues** (`MM-DD-YYYY.pdf`, Sunday) | **No** — image-only; search with OCR (see "How to search") |
 | `ארכיון אספקלריה של הספורט/<year>/` | 1947–1948 | issues | unverified |
 | `ארכיון ספורט ישראל/<year>/` | 1949–1950 | issues | unverified |
 | `ארכיון מעריב/` | 1994 only | issues | unverified |
@@ -65,6 +65,18 @@ local Drive sync, so ask the Drive owner to add a shortcut to it under My Drive 
 3. **Hadashot HaSport is visual-only.** pdftotext returns nothing (not "no hits" —
    nothing), so every page must be rendered. Check the front page first, then page 3.
    Tesseract OCR on these scans is slow and unreliable; visual reading is faster.
+4. **Sport HaBoker (1936–46) is image-only too, but OCR works for finding a term across
+   years.** A weekly paper is too much to read by eye when you don't know the date. Render
+   each page (`pdftoppm -r 200 -gray`), run `tesseract <png> - -l heb`, and regex-match
+   the text, allowing for OCR noise (e.g. `מל.?צ.?ט|מלציט|מלצט` for מלצ'ט). Set
+   `OMP_THREAD_LIMIT=1` and run one process per year in parallel, because a single
+   multi-threaded run over the whole archive is far slower. Then read every hit's page
+   by eye: OCR finds the page, but names and digits must come from the image. For
+   example, this found every Melchett Cup report (the 1939 and 1940 first-team editions,
+   and the youth cup from 1942).
+5. **Yedioth's 1990s text layer replaces some spaces with junk characters** (`בת ים`
+   extracts as `בת‪Î‬ים`), so a search for the literal phrase misses. Match the two
+   words with a gap instead: `בת.{0,8}ים`.
 
 ## Reading the papers to date a game
 
