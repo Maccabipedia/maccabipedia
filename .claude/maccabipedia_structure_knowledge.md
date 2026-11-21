@@ -289,6 +289,29 @@ use. The club that played as Kingston in 1985/86 and 1990/91 stays `גילפור
 - **Yedioth Ahronoth** scans (`.claude/newspaper_archives.md`), searched by exact score in the days
   after the game: the primary source, and the one that settles a disagreement between the other two.
 
+### Volleyball playoff series that carried regular-season results
+
+In some late-1990s and early-2000s seasons, a playoff series counted the two teams' regular-season
+meetings as its first games. The press then called the first playoff game "משחק 3". The owner
+decided on 2026-11-21, after asking a volleyball editor, to number the way the press did:
+
+- The regular-season meetings keep their league label (`מחזור N`, or `פלייאוף - מחזור N`).
+- The playoff games start at `משחק 3`: `פלייאוף - חצי גמר משחק 3`, `4`, `5`.
+- The season page carries the marker in `|הערת משחקים ליגה=` (shown under the league games list),
+  not in `|סיכום העונה=`:
+  `משחקי הפלייאוף גררו את תוצאות משחקי הליגה הסדירה, ולכן הסדרות התחילו במשחק מספר 3.`
+
+Seasons numbered this way: 1997/98 (semi-final and final), 1998/99, 1999/00, 2002/03 (semi-finals
+against Mateh Asher). Before you renumber a season, confirm in the press that the series counted
+the earlier meetings: the paper's series score after a playoff game must equal the carried games
+plus the playoff games. A series played in full from game 1 (1991/92's semi-final and third-place
+series) keeps `משחק 1` onward.
+
+**Home, away or neutral in European tournaments played at one venue:** go by where the game was
+played. A game against the host is `חוץ`, and a game against another visiting team is `נייטרלי`.
+For example: the CEV Cup tournaments in Moers (1997) and Lausanne (1999), and both CSKA Sofia
+qualifiers in Sofia (2001). The game title is not reordered.
+
 ## 8. Non-Game Entities
 
 **Fan Songs** (`שיר:` namespace, template `{{שיר}}`):
