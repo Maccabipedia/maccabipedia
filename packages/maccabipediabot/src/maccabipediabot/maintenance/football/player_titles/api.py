@@ -10,9 +10,10 @@ from collections.abc import Callable
 
 import pywikibot
 import requests
+from pywikibot.comms import http as pywikibot_http
 from pywikibot.exceptions import APIError
-from pywikibot.exceptions import Error as PywikibotError
 
+from maccabipediabot.common.maccabipedia_http import MACCABIPEDIA_JSON_HEADERS
 from maccabipediabot.common.wiki_login import get_site
 
 Api = Callable[..., dict]
@@ -26,14 +27,17 @@ WRITE_PAUSE_SECONDS = 3
 
 # Saving the data page stores every row again and takes far longer than pywikibot's
 # default 45 s read timeout allows.
-CONNECT_TIMEOUT_SECONDS = 6.05
 WRITE_TIMEOUT_SECONDS = 300
 
 _ERROR_SNIPPET_LIMIT = 500
 
 
 class ApiError(RuntimeError):
-    """The wiki refused the request, or answered with something that is not its API."""
+    """The wiki refused the request, or answered with something that is not its API.
+
+    The code `no-answer` on a write means "unknown": the save may have gone through, and
+    the page has to be read back before anything is sent again.
+    """
 
     def __init__(self, code: str, info: str):
         super().__init__(f"{code}: {info}")
@@ -41,34 +45,57 @@ class ApiError(RuntimeError):
         self.info = info
 
 
-def production_api(site: pywikibot.Site | None = None, pause: Callable[[float], None] = time.sleep) -> Api:
-    """The production wiki, through pywikibot's logged-in session.
+def _decoded(response: requests.Response) -> dict:
+    """The API's JSON object, or an ApiError for anything else."""
+    content_type = response.headers.get("Content-Type", "")
+    if response.status_code != 200 or "application/json" not in content_type:
+        raise ApiError(
+            "no-answer",
+            f"HTTP {response.status_code} ({content_type}): {response.text[:_ERROR_SNIPPET_LIMIT]}",
+        )
+    payload = response.json()
+    if "error" in payload:
+        raise ApiError(payload["error"].get("code", "unknown"), payload["error"].get("info", ""))
+    return payload
 
-    A write is sent once. pywikibot would otherwise send a timed-out save again while the
-    first one may still be storing rows; the caller reads the page back instead.
+
+def production_api(
+    site: pywikibot.Site | None = None,
+    pause: Callable[[float], None] = time.sleep,
+    post: Callable[..., requests.Response] | None = None,
+) -> Api:
+    """The production wiki. Reads go through pywikibot; a write is one multipart POST.
+
+    A write does not go through pywikibot's request. Its urlencoded edit bodies have been
+    refused by the host's firewall, its own multipart encoding is answered with HTTP 400,
+    and it re-sends a request whose answer it could not read - while the first save may
+    still be storing rows. So the edit is posted once, over pywikibot's logged-in session,
+    with `files=`, which makes requests encode it as multipart/form-data.
     """
-    if site is None:
-        pywikibot.config.socket_timeout = (CONNECT_TIMEOUT_SECONDS, WRITE_TIMEOUT_SECONDS)
-        site = get_site()
+    site = site or get_site()
+    post = post or pywikibot_http.session.post
+
+    def write(params: dict) -> dict:
+        fields = {**params, "token": site.tokens["csrf"], "format": "json"}
+        try:
+            response = post(
+                site.base_url("/api.php"),
+                files={name: (None, str(value)) for name, value in fields.items()},
+                headers=MACCABIPEDIA_JSON_HEADERS,
+                timeout=WRITE_TIMEOUT_SECONDS,
+            )
+        except requests.RequestException as error:
+            raise ApiError("no-answer", f"{type(error).__name__}: {error}") from error
+        return _decoded(response)
 
     def call(**params) -> dict:
         is_write = params.get("action") in WRITE_ACTIONS
-        if is_write:
-            params["token"] = site.tokens["csrf"]
-        request = site.simple_request(**params)
-        if is_write:
-            request.max_retries = 0
-            # Multipart, like the repo's other writers: the host's firewall has refused
-            # urlencoded edit bodies. An empty dict means "every parameter as a form part".
-            request.mime = {}
         try:
-            return request.submit()
+            if is_write:
+                return write(params)
+            return site.simple_request(**params).submit()
         except APIError as error:
             raise ApiError(error.code, error.info) from error
-        except PywikibotError as error:
-            # With no retries, a timeout, a 5xx and a block page all end here. For a write
-            # that means "unknown": the save may have gone through.
-            raise ApiError("no-answer", f"{type(error).__name__}: {error}") from error
         finally:
             pause(WRITE_PAUSE_SECONDS if is_write else READ_PAUSE_SECONDS)
 
@@ -80,17 +107,7 @@ def local_api(api_url: str, user: str, password: str, session: requests.Session 
     session = session or requests.Session()
 
     def post(**params) -> dict:
-        response = session.post(api_url, data={"format": "json", **params}, timeout=WRITE_TIMEOUT_SECONDS)
-        content_type = response.headers.get("Content-Type", "")
-        if response.status_code != 200 or "application/json" not in content_type:
-            raise ApiError(
-                f"http-{response.status_code}",
-                f"not an API answer ({content_type}): {response.text[:_ERROR_SNIPPET_LIMIT]}",
-            )
-        payload = response.json()
-        if "error" in payload:
-            raise ApiError(payload["error"].get("code", "unknown"), payload["error"].get("info", ""))
-        return payload
+        return _decoded(session.post(api_url, data={"format": "json", **params}, timeout=WRITE_TIMEOUT_SECONDS))
 
     login_token = post(action="query", meta="tokens", type="login")["query"]["tokens"]["logintoken"]
     login = post(action="login", lgname=user, lgpassword=password, lgtoken=login_token)["login"]
