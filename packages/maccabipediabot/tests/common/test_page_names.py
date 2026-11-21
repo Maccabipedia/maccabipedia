@@ -46,3 +46,13 @@ def test_build_volleyball_game_page_name():
         competition='ליגת העל בכדורעף',
     )
     assert result == 'כדורעף:20-11-1999 מכבי תל אביב נגד הפועל תל אביב - ליגת העל בכדורעף'
+
+
+def test_title_competition_map_is_the_same_one_the_basketball_error_finder_reads():
+    # The builder writes titles with this map and maccabistats' finder checks titles with its own;
+    # if they drift, the finder reports every page the builder names.
+    from maccabistats.basketball.titles import TITLE_COMPETITION
+
+    from maccabipediabot.common import page_names
+
+    assert page_names._BASKETBALL_TITLE_COMPETITION == TITLE_COMPETITION

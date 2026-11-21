@@ -1,3 +1,21 @@
+## Version 2.77 ##
+
+    Basketball, next to football (football's API is unchanged): maccabistats.basketball.
+
+    - load_basketball_from_maccabipedia() loads every basketball game with its score, periods,
+      overtimes, coaches, referees, videos, the competition's flags and the players' box scores.
+      serialize_basketball_games() / get_basketball_stats() keep it in a pickle.
+    - BasketballGamesStats: chained filters (home/away/neutral, league/trophy/international,
+      wins/losses, overtime, by season, opponent, coach, player, date), results, win and loss
+      streaks, players' totals and best single games, and Maccabi's record by opponent, coach
+      and season. wins_percentage is a 0-1 fraction, as in football. Points totals leave out
+      awarded (technical) games. A player's total says in how many of his games that stat is
+      known for him.
+    - BasketballErrorsFinder(basketball_games): 29 checks on the games and the box scores;
+      github_actions_scripts/find_basketball_errors.py runs them and reports what is new since
+      the previous run.
+    - MaccabiPediaCargoChunksCrawler takes four optional keyword arguments: limit, order_by,
+      unescape_all_strings and timeout. With the defaults it sends the same requests as before.
 ## Version 2.76 ##
 
     Club-site Super Cup (אלוף האלופים) games with no round get the stage as the wiki writes it:
