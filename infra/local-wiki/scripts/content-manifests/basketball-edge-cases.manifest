@@ -1,0 +1,22 @@
+# Basketball games that each carry one data trap, for testing basketball templates and the error finder
+# on the local wiki. The export brings the templates each page uses (תבנית:משחק כדורסל and its
+# subtemplates) along with it. Hand-kept: add a game with a comment naming its trap.
+#
+# Two overtimes, 4:4 then 5:0
+כדורסל:21-10-1955 מכבי תל אביב נגד הפועל חיפה - הליגה הארצית
+# Tied after the halves, overtime never filled in
+כדורסל:01-04-1969 הפועל תל אביב נגד מכבי תל אביב - הליגה הלאומית
+# Overtime points for Maccabi only
+כדורסל:23-10-2020 חימקי מוסקבה נגד מכבי תל אביב - יורוליג
+# A quarter typed into the overtime slot of one side
+כדורסל:25-10-2012 אלאן שאלון נגד מכבי תל אביב - יורוליג
+# Awarded (technical) game
+כדורסל:08-02-1957 מכבי תל אביב נגד הפועל אשדות יעקב - הליגה הארצית
+# A normal modern game, a clean base to copy for made-up cases
+כדורסל:01-06-2026 מכבי תל אביב נגד הפועל באר שבע - ליגת העל
+# The table template, which declares Basketball_Games
+תבנית:טבלאות מידע/משחקי כדורסל
+# The uniforms tag: called only when a page sets |מדים=, so no exported game brings it along
+תבנית:משחק כדורסל/תיוג מדים
+# Filled by the game template from the overtime points
+קטגוריה:משחקי כדורסל שהוכרעו בהארכה
