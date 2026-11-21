@@ -1,4 +1,4 @@
-## Version 2.75 ##
+## Version 2.77 ##
 
     Basketball, next to football (football's API is unchanged): maccabistats.basketball.
 
@@ -16,6 +16,17 @@
       the previous run.
     - MaccabiPediaCargoChunksCrawler takes four optional keyword arguments: limit, order_by,
       unescape_all_strings and timeout. With the defaults it sends the same requests as before.
+## Version 2.76 ##
+
+    Club-site Super Cup (אלוף האלופים) games with no round get the stage as the wiki writes it:
+    גמר, or גמר - משחק 1 / 2 in a season with two Super Cup games (1965/66, 2020/21).
+
+## Version 2.75 ##
+
+    Competition names are the plain competition, never a stage: מוקדמות ליגת האלופות becomes
+    ליגת האלופות, and מוקדמות/פלייאוף הליגה האירופית become הליגה האירופית (a playoff with no
+    round keeps פלייאוף as its fixture). Club-site European games get the stage in the wiki's
+    wording: "סיבוב 2" becomes "סיבוב שני - משחק 1", and two-legged rounds get the leg number.
 
 ## Version 2.74 ##
 
