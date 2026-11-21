@@ -80,6 +80,26 @@ class TestPeriodsAgainstTotal:
                              maccabi={"total": 90, "halves": (45, 45)}, rival={"total": 58, "halves": (None, 27)})
         assert _found([givat_shmuel], "get_games_with_halves_not_matching_total") == [givat_shmuel.page_name]
 
+    def test_the_same_half_missing_on_both_sides_is_not_a_tie(self):
+        """30:30 from the one half each side has says nothing about how regulation ended."""
+        half_each = _game("כדורסל:25-10-1998 מכבי תל אביב נגד גבעת שמואל - ליגה לאומית א", season="1998/99",
+                          opponent="גבעת שמואל", home_away="בית",
+                          maccabi={"total": 80, "halves": (None, 30)}, rival={"total": 75, "halves": (None, 30)})
+        finder = BasketballErrorsFinder([half_each])
+        assert finder.get_games_missing_overtime() == []
+        assert [f.check for f in finder.get_games_with_halves_not_matching_total()] == ["halves_vs_total"]
+
+    def test_a_quarter_typed_into_the_overtime_slot(self):
+        """Chalon 2012 as stored: 49 + 12 'overtime' = 61 adds up, the empty fourth quarter does not."""
+        chalon = _game("כדורסל:25-10-2012 אלאן שאלון נגד מכבי תל אביב - יורוליג", season="2012/13",
+                       opponent="אלאן שאלון", home_away="חוץ",
+                       maccabi={"total": 90, "quarters": (24, 29, 24, 13)},
+                       rival={"total": 61, "quarters": (12, 16, 21, None), "overtimes": (12,)})
+        finder = BasketballErrorsFinder([chalon, HAIFA_1955])
+        assert finder.get_games_with_quarters_not_matching_total() == []
+        assert [f.detail for f in finder.get_games_with_partly_filled_periods()] == [
+            "Opponent: quarters [12, 16, 21, '-']"]
+
     def test_games_without_periods_are_not_checked(self):
         no_periods = _game("כדורסל:14-08-1953 מכבי דרום תל אביב נגד מכבי תל אביב - הליגה הארצית", season="1953/54",
                            opponent="מכבי דרום תל אביב", home_away="חוץ")
@@ -125,6 +145,15 @@ class TestResult:
         no_score = _game("כדורסל:16-03-1971 מכבי תל אביב נגד הפועל ניר דוד - הליגה הלאומית", season="1970/71",
                          opponent="הפועל ניר דוד", home_away="בית", maccabi={"total": None})
         assert _found([no_score], "get_games_without_result") == [no_score.page_name]
+
+    def test_zero_zero_is_a_result_nobody_entered_not_a_tie(self):
+        """The 2023 Winner Cup semi-final page stores |תוצאת משחק מכבי=0 and no periods."""
+        placeholder = _game("כדורסל:28-09-2023 הפועל תל אביב נגד מכבי תל אביב - גביע ווינר", season="2023/24",
+                            competition="גביע ווינר סל", opponent="הפועל תל אביב", home_away="חוץ",
+                            maccabi={"total": 0}, rival={"total": 0})
+        finder = BasketballErrorsFinder([placeholder])
+        assert finder.get_games_with_tie_result() == []
+        assert [f.detail for f in finder.get_games_without_result()] == ["TotalPoints 0:0"]
 
 
 class TestTitle:

@@ -42,6 +42,17 @@ def _filled(points: tuple[int | None, ...]) -> bool:
     return any(value for value in points)
 
 
+def _complete(points: tuple[int | None, ...]) -> bool:
+    """Every period filled in. Only then can a sum say how regulation ended."""
+    return None not in points and _filled(points)
+
+
+def _has_score(game: BasketballGameRecord) -> bool:
+    """A 0:0 is how a page with no result entered stores itself (|תוצאת משחק מכבי=0), not a tie."""
+    totals = (game.maccabi.total, game.opponent_points.total)
+    return None not in totals and totals != (0, 0)
+
+
 def _season_window(season: str) -> tuple[date, date] | None:
     if _CALENDAR_SEASON.match(season):
         year = int(season)
@@ -61,15 +72,14 @@ class BasketballErrorsFinder:
 
     def __init__(self, games: list[BasketballGameRecord]) -> None:
         self.games = games
-        self._scored_games = [game for game in games if not game.technical
-                              and game.maccabi.total is not None and game.opponent_points.total is not None]
+        self._scored_games = [game for game in games if not game.technical and _has_score(game)]
 
     # --- Periods against the final score -------------------------------------------------
 
     def _missing_overtime(self, game: BasketballGameRecord, periods: str) -> bool:
         """Tied after regulation, both teams scored more than that, and no overtime points stored."""
         maccabi, opponent = getattr(game.maccabi, periods), getattr(game.opponent_points, periods)
-        if not (_filled(maccabi) and _filled(opponent)):
+        if not (_complete(maccabi) and _complete(opponent)):
             return False
         regulation = sum(value or 0 for value in maccabi)
         return (regulation == sum(value or 0 for value in opponent)
@@ -114,6 +124,24 @@ class BasketballErrorsFinder:
     def get_games_with_halves_not_matching_total(self) -> list[Finding]:
         return self._periods_against_total("halves")
 
+    def get_games_with_partly_filled_periods(self) -> list[Finding]:
+        """Some quarters (or halves) of a side filled in and others left empty.
+
+        Catches a period's points typed into the wrong slot even when the total still adds up:
+        Chalon 2012 has the opponent's fourth quarter empty and its 12 points in the first overtime.
+        """
+        findings = []
+        for game in self._scored_games:
+            gaps = []
+            for side_name, side in (("Maccabi", game.maccabi), ("Opponent", game.opponent_points)):
+                for periods in ("quarters", "halves"):
+                    points = getattr(side, periods)
+                    if _filled(points) and None in points:
+                        gaps.append(f"{side_name}: {periods} {[v if v is not None else '-' for v in points]}")
+            if gaps:
+                findings.append(Finding("partly_filled_periods", game, "; ".join(gaps)))
+        return findings
+
     def get_games_with_halves_not_matching_quarters(self) -> list[Finding]:
         """Both halves and quarters are filled in, and a half is not the sum of its two quarters."""
         findings = []
@@ -137,7 +165,7 @@ class BasketballErrorsFinder:
                 continue
             for periods in ("quarters", "halves"):
                 maccabi, opponent = getattr(game.maccabi, periods), getattr(game.opponent_points, periods)
-                if not (_filled(maccabi) and _filled(opponent)):
+                if not (_complete(maccabi) and _complete(opponent)):
                     continue
                 maccabi_sum, opponent_sum = sum(v or 0 for v in maccabi), sum(v or 0 for v in opponent)
                 if maccabi_sum != opponent_sum:
@@ -155,8 +183,9 @@ class BasketballErrorsFinder:
                 for game in self._scored_games if game.maccabi.total == game.opponent_points.total]
 
     def get_games_without_result(self) -> list[Finding]:
-        return [Finding("no_result", game, "TotalPoints empty") for game in self.games
-                if not game.technical and (game.maccabi.total is None or game.opponent_points.total is None)]
+        """No final score, or the 0:0 a page stores when nobody entered one."""
+        return [Finding("no_result", game, f"TotalPoints {game.maccabi.total}:{game.opponent_points.total}")
+                for game in self.games if not game.technical and not _has_score(game)]
 
     # --- The title against the fields ------------------------------------------------------
 

@@ -80,6 +80,16 @@ Totals: **3,506** football games (2026-09-22).
 Counts of games and events are dated 2026-09-13 in `lua_modules.md`
 except the totals and blanks above.
 
+Basketball (`Basketball_Games`, measured 2026-11-21 on all 3,576 rows):
+
+| case | count | what it breaks |
+|---|---|---|
+| `IsOvertime` empty | every row | `משחק כדורסל/שמירת משחק לקארגו` never stores the page's `\|הארכה=`, so a filter on it finds no overtime game. Judge overtime from the `…OvertimePoints…` columns |
+| a result nobody entered | 1 (stored `0:0`, no periods) | a tie count. The page has `\|תוצאת משחק מכבי=0`; treat 0:0 as no result |
+| `Technical` | 1 or 2, 13 rows | a check of `=1` misses the 2s |
+
+`maccabipediabot.basketball.error_finder` runs the basketball data checks.
+
 ## 3. Players and shirt numbers
 
 **A missing shirt number is the norm in old games.** Of 78,886 Maccabi event
