@@ -103,7 +103,22 @@ and kept forever. Every distinct width is another file.
   page shows a broken image (`maccabipedia_structure_knowledge.md` §7, the 338px case). This is
   on purpose: a handler would let anyone create thumbnails at any width. So before deleting
   thumbnails in bulk, wait out the parser cache (`$wgParserCacheExpireTime`, 24h by default),
-  or pages still pointing at them break.
+  or pages still pointing at them break. A page that renders afresh writes any thumb it needs
+  again, so only cached HTML and thumb URLs typed by hand (into pages or other sites) can break; browsers never keep a copy of the page
+  (`cache-control: private, must-revalidate, max-age=0`).
+- **Not every size comes from articles.** Pages render thumbs at fixed boxes of their own, and a
+  delete list built from widths alone hits them: the File page (800x600 preview, its 2x
+  1600x1200, the "other resolution" 2560x2048, whose fit for a tall scan can equal a 1.5x: 1536px for a 2998x3997 original, 1.5x of 1024),
+  Special:ListFiles (180x360), file history, search results and Special:FileDuplicateSearch
+  (120x120). Fit each box to the original's dimensions (`list=allimages`) and keep those widths.
+  A fresh `action=parse` does not render the File page's image section; only a real view of the
+  File page (logged out and logged in) shows what it links.
+- **Thumb URLs typed by hand into pages:** `list=exturlusage` with
+  `euquery=*.maccabipedia.co.il` (the plain `www.` form returns nothing).
+- **The next-day check is the nginx access log** (FTP `logs/nginx.<Mon>-<year>.tar.gz`, the
+  newest is the previous day, written about 00:14). On normal days 0-1 thumb requests get 404
+  and 60-110 get 301 (cause not looked into; compare against these days, not against zero); a 404 with a wiki page as referer is a broken image. Crawlers (bingbot)
+  keep requesting deleted thumbs from their old index, with no referer; that is harmless.
 - The thumbnails were wiped once, around 2026-04-24, and grew back to more than before.
   Deleting without a setting change only buys time.
 - Every File page also writes the largest "other resolutions" size (2560px) from
@@ -123,5 +138,12 @@ and kept forever. Every distinct width is another file.
   (`testing.maccabipedia.co.il` resolves, so it may be a subdomain's folder), `export.zip`, the
   two Brothers 1906 campaign pages, and the 1.31-era leftovers `profileinfo.php`, `Gruntfile.js`,
   `StartProfiler.sample`, `serialized/`.
+- 2026-11-18 to 11-21: deleted 20,931 thumbs that were only a 1.5x copy, left over from before
+  the 2x-only hook: a width W where a smaller width w in the same folder has round(1.5w) = W (+-1px) and w's 2x (2w +-1px, or the original when 2w reaches it)
+  2x exists, and W is not itself shown (no 2W or 1.5W file, not anyone's 2x, not one of the
+  fixed sizes above). Rounds: 5, 997, 1,999, 5,977, 5,970, 5,983 (a few per round were already gone: MediaWiki clears an image's thumb folder when the file is re-uploaded). Each round had a check before and
+  after (20 sampled files on up to 10 of their pages, logged out, logged in and fresh parse, all
+  the image's thumbs answering 200; 60 File pages), then a folder listing after the delete, then the
+  access-log check. Nothing broke. 37 paths with `"` in them were left, because the delete script quotes each path for lftp and refuses them; at 37 files they are not worth deleting by hand.
 - About 23 extensions sit in `extensions/` without being loaded (AbuseFilter, Math, OATHAuth,
   SpamBlacklist, ...). The owner chose to keep them.
