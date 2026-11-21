@@ -169,7 +169,8 @@ constrain `Team` - a career total hides the leak, a per-side count shows it.
   page, and a LIMIT inside a tie takes arbitrary members: a Lua ranking that
   breaks ties by name can never be byte-identical to a template's.
 - **When Cargo stores a page's rows** (measured on the local wiki, Cargo 3.2,
-  2026-11-21, with a page of 2,284 `#cargo_store` calls):
+  2026-11-21, with a page of 2,284 `#cargo_store` calls; production runs
+  Cargo 3.7.1, so measure there before relying on any of these):
   - Only a save stores. A purge (plain or `forcelinkupdate`), a page view and
     a preview-style `action=parse` store nothing; `cargorecreatedata` only
     queues jobs, and production's job queue does not drain by itself.
