@@ -53,6 +53,8 @@ local PAGES = {
 		'infra/lua_modules/Module_FootballPlayerStats.lua',
 	['Module:SeasonTrophies'] =
 		'infra/lua_modules/Module_SeasonTrophies.lua',
+	['Module:FootballCompetition'] =
+		'infra/lua_modules/Module_FootballCompetition.lua',
 	['Module:FootballDate'] =
 		'infra/lua_modules/Module_FootballDate.lua',
 }

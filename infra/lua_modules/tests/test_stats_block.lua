@@ -872,6 +872,62 @@ check('season cards: Maccabi yellows and reds, one query', function(Blocks)
 		'the league tab reads its own reds')
 end)
 
+-- The competition stats box: the season cells keyed by the competition list,
+-- in ONE tab with no category, because the box counts every game.
+local MELCHETT = "גביע מלצ'ט"
+
+local function primeCompetition(Blocks, block, competitions, row)
+	stub.willReturn({ row })
+	Blocks.prime(stub.newFrame({ ['מפעלים'] = competitions }, { ['בלוק'] = block }))
+end
+
+local function competitionValue(Blocks, block, competitions, cell)
+	return Blocks.value(stub.newFrameKeepingVariables({}, {
+		['בלוק'] = block, ['תא'] = cell, ['קטגוריית מפעל'] = '',
+		['מפעלים'] = competitions }))
+end
+
+check('competition results: every game of the competition, apostrophe kept', function(Blocks)
+	primeCompetition(Blocks, 'competition-results', MELCHETT,
+		{ c1 = '3', c2 = '0', c3 = '1', c4 = '16', c5 = '7', c6 = '0' })
+	equals(#stub.calls, 1, 'one query')
+	equals(stub.calls[1].options.where,
+		'Football_Games.Competition IN ("גביע מלצ\'ט")', 'the name as stored, nothing else')
+	equals(stub.calls[1].tables, 'Football_Games',
+		'no Competitions join: no category, so a competition with no row still counts')
+	local cell = fieldsByAlias(stub.calls[1].fields)
+	contains(cell.c1, 'Football_Games.ResultOpt = 1 THEN', 'wins')
+	contains(cell.c2, 'Football_Games.ResultOpt = 2 THEN', 'draws')
+	contains(cell.c3, 'Football_Games.ResultOpt = 3 THEN', 'losses')
+	contains(cell.c4, 'THEN Football_Games.ResultMaccabi ELSE NULL', 'goals for: a sum')
+	contains(cell.c5, 'THEN Football_Games.ResultOpponent ELSE NULL', 'goals against')
+	contains(cell.c6, 'Football_Games.ResultOpponent = 0 THEN', 'clean sheets')
+	equals(cell.c7, nil, 'six cells, one tab')
+	equals(competitionValue(Blocks, 'competition-results', MELCHETT, 'wins'), '3', 'wins')
+	equals(competitionValue(Blocks, 'competition-results', MELCHETT, 'losses'), '1', 'losses')
+	equals(competitionValue(Blocks, 'competition-results', MELCHETT, 'goalsFor'), '16', 'goals')
+end)
+
+check('competition results: a list of names from a concentrated page', function(Blocks)
+	primeCompetition(Blocks, 'competition-results',
+		'גביע אופ"א, גביע האינטרטוטו, הליגה האירופית', { c1 = '1' })
+	equals(stub.calls[1].options.where, 'Football_Games.Competition IN '
+		.. '("גביע אופא", "גביע האינטרטוטו", "הליגה האירופית")', 'all three, gershayim dropped')
+end)
+
+check('competition cards: Maccabi yellows and reds of the competition', function(Blocks)
+	primeCompetition(Blocks, 'competition-cards', MELCHETT, { c1 = '4', c2 = '1' })
+	equals(#stub.calls, 1, 'one query')
+	contains(stub.calls[1].options.where, 'Football_Games.Competition IN ("גביע מלצ\'ט")',
+		'the competition')
+	local cell = fieldsByAlias(stub.calls[1].fields)
+	contains(cell.c1, 'Games_Events.SubType IN (71) THEN', 'yellows are subtype 71')
+	contains(cell.c2, 'Games_Events.SubType IN (72, 73) THEN', 'reds are 72 and 73')
+	contains(cell.c1, 'Games_Events.Team = 1', 'Maccabi\'s yellows')
+	equals(cell.c3, nil, 'two cells, one tab')
+	equals(competitionValue(Blocks, 'competition-cards', MELCHETT, 'reds'), '1', 'reds')
+end)
+
 check('a block without rows cannot be shown with tab', function(Blocks)
 	primeSeason(Blocks, 'season-cards', seasonRow({ 'yellows', 'reds' },
 		{ yellows = 1, reds = 0 }))

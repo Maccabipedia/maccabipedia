@@ -339,4 +339,27 @@ blocks['players-goals-assists'] = portalBlock(
 blocks['players-appearances-cards'] = portalBlock(
 	{ 'appearances', 'cards' }, { 'שיאני הופעות', 'שיאני מוצהבים' })
 
+-- The stats box of a competition page (תבנית:מפעל כדורגל/הצגת סטטיסטיקה),
+-- whose eight query-template calls stripped the apostrophe from the names and
+-- so found no game of גביע מלצ'ט. The season pair's cells - the same eight
+-- numbers - keyed by the competition list instead of the season.
+--
+-- ONE tab, named '': the box counts every game of the competitions, in no
+-- category, and an empty category is "not provided" to the query layer. So
+-- the numbers are read with an empty קטגוריית מפעל:
+--   {{#invoke:FootballStatsBlock|value|בלוק=competition-results|תא=wins
+--     |קטגוריית מפעל=|מפעלים=…}}
+-- A category here would be wrong, not just different: גביע מלצ'ט has no
+-- Competitions row, so even רשמי would count none of its games.
+blocks['competition-results'] = {
+	entity = 'מפעלים',
+	tabs = { '' },
+	cells = blocks['season-results'].cells,
+}
+blocks['competition-cards'] = {
+	entity = 'מפעלים',
+	tabs = { '' },
+	cells = blocks['season-cards'].cells,
+}
+
 return blocks

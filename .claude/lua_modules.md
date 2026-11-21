@@ -324,7 +324,7 @@ template's own parameters:
 
   | keeps `'` | stripped |
   |---|---|
-  | `Football_Games.Competition` (`גביע מלצ'ט`) | `Football_Games.Opponent` |
+  | `Football_Games.Competition` (`גביע מלצ'ט`) - the apostrophe only, see below | `Football_Games.Opponent` |
   | `Football_Games.CoachMaccabi` (`ג'ורדי קרויף`) | `Football_Games.Stadium` |
   | `Football_Games.Refs` | `Competitions.OriginalName` / `CurrentName` |
   | `Games_Events.PlayerName` | `Stadiums.CanonicalName` |
@@ -333,6 +333,12 @@ template's own parameters:
   Querying a stripped column with the raw name returns **zero rows and no
   error**, so every column a filter touches needs a declared rule and a missing
   one raises rather than guesses.
+
+  `Football_Games.Competition` has its own rule, `apostropheOnly`: it keeps
+  `'` and never stores `"`. `גביע מלצ'ט` is the one value with a quote
+  character of either kind, while the UEFA competition pages pass `גביע אופ"א`
+  for the 22 games stored as `גביע אופא`. Under plain `keep` those games vanish
+  from `גביע אופ"א` and `הליגה האירופית (מרכז)`; under `strip` Melchett does.
 - **`תוצאה` in words maps to `ResultOpt`** as ניצחון=1, תיקו=2, הפסד=3, read
   from the `Games_Results` table. `תבנית:המרות/תוצאת משחק למספר` spends a Cargo
   query on those three constant rows; this layer does not.
@@ -982,6 +988,55 @@ up front.
 The verification scripts were one-offs and are not in the repo; the above is
 enough to rebuild them.
 
+## Competition pages (`תבנית:מפעל כדורגל`, 29 pages)
+
+The subpages built their own `Competition IN (…)` with
+`{{המרות/שם ללא גרש וגרשיים}}`, so `גביע מלצ'ט` (4 games) showed none.
+Candidates live in `infra/lua_modules/wiki_templates/football_competition/`:
+
+- `הצגת סטטיסטיקה`: 8 query-template calls become two queries. The new helper
+  `מפעל כדורגל/שליפת מספרים` primes the blocks `competition-results` and
+  `competition-cards` (the season cells, ONE tab named `''`, so no category is
+  applied; a category would drop Melchett, which has no `Competitions` row),
+  and the box reads them with `value|…|קטגוריית מפעל=|מפעלים=…`. The helper
+  exists because `prime` reads its PARENT's arguments, and the box's parent
+  passes `מפעלים לשליפה`, which is no filter.
+- `הצגת מספרים עונתיים` reads the same primed numbers for its summary row
+  (rendered after the box on every page, so no third query), and its
+  `/שליפת נתונים` and the two biggest-results tables call
+  `Module:FootballCompetition` (`seasons`, `biggest`). Its WHERE comes from
+  `FootballQueries.build`, so the quote rule lives in one place.
+- Not moved: `הצגת שיאנים` (it goes through the shared
+  `שיאני כמות אירועי שחקן/עיצוב חדש`, and unofficial competitions such as
+  Melchett hide that section) and `הצגת הישגים` (it reads `Achievements`, which
+  has no quote-bearing row to measure a rule on).
+
+Gate: `compare_competition_pages.py` (modes in its docstring). Two traps it
+now guards against, each of which once produced a false pass or a false failure:
+
+- **`action=parse&page=` can answer from the parser cache.** Right after the
+  candidates were written locally it returned the old render, and the "new"
+  side matched the old byte for byte. The harness parses each page's wikitext
+  as `text=` and `diff --new-uses יחידה:FootballCompetition` requires the new
+  module in every new render.
+- **The records section is not stable between two identical renders.** Tied
+  players come back in a different order (10 of 29 pages, new vs new), so diff
+  blanks that one section, which this change does not touch. Everything else is
+  byte for byte.
+
+`check` recomputes every page's box and its biggest-results margins from Cargo,
+matching names with quotes stripped on both sides, so it shares nothing with
+the module. Run against the old render, it fails on Melchett (0 shown, 4 in
+Cargo), so it can fail on real data.
+
+Prod order: the modules first (`deploy_modules_prod.py`, gated by
+`compare_module_swap.py`), then the helper page (no callers yet), then each
+template through `sandbox` + `diff` + `check` and `switch_template_prod.py`.
+TemplateSandbox overrides ONE page per parse, which is why the modules have to
+be live before the templates can be parsed against them - and why
+`הצגת מספרים עונתיים` goes after `הצגת סטטיסטיקה`: it reads what the box
+primes, so sandboxed alone against the old box it raises "nothing primed".
+
 ## Not done yet
 
 - Departures from the templates, which will show as real diffs against the
@@ -999,7 +1054,9 @@ enough to rebuild them.
      `Football_Games.Date` is a strip-rule column the layer accepts either
      form: the caller's quotes are stripped and its own added.
   3. `מפעלים` no longer strips apostrophes, because
-     `Football_Games.Competition` keeps them.
+     `Football_Games.Competition` keeps them (it still drops `"` - the
+     `apostropheOnly` rule). Live on the competition pages: see "Competition
+     pages" below.
   4. **The opponent alias keeps the quote when looking a club up**, so
      `יריבה=בית"ר ירושלים` resolves where the template returns nothing. **This
      changes no published number** — the club pages do not call the lookup with

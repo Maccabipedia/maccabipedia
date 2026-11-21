@@ -1,0 +1,82 @@
+<includeonly><!--
+
+הגדרת משתנים
+-->{{#vardefine: שם מפעל |{{{שם מפעל|}}} }}<!--
+-->{{#arraydefine: מפעלים לשליפה |{{{מפעלים לשליפה|}}} }}<!--
+
+שתי שליפות לכל המספרים בתיבה (Module:FootballStatsBlock, הבלוקים competition-results ו-competition-cards), שומרות גרש בשם המפעל
+-->{{מפעל כדורגל/שליפת מספרים |מפעלים={{#arrayprint: מפעלים לשליפה}} }}<!--
+-->{{#vardefine: כמות ניצחונות במפעל |{{#invoke:FootballStatsBlock|value|בלוק=competition-results|תא=wins|קטגוריית מפעל=|מפעלים={{#arrayprint: מפעלים לשליפה}} }} }}<!--
+-->{{#vardefine: כמות תיקו במפעל |{{#invoke:FootballStatsBlock|value|בלוק=competition-results|תא=draws|קטגוריית מפעל=|מפעלים={{#arrayprint: מפעלים לשליפה}} }} }}<!--
+-->{{#vardefine: כמות הפסדים במפעל |{{#invoke:FootballStatsBlock|value|בלוק=competition-results|תא=losses|קטגוריית מפעל=|מפעלים={{#arrayprint: מפעלים לשליפה}} }} }}<!--
+-->{{#vardefine: כמות משחקים|{{#expr: {{#var: כמות ניצחונות במפעל}} + {{#var: כמות תיקו במפעל}} + {{#var: כמות הפסדים במפעל}} }} }}<!--
+-->{{#vardefine: אחוז ניצחונות במפעל |{{#number_format:{{#expr: {{#var: כמות ניצחונות במפעל}} * 100 / {{#var: כמות משחקים}} }} }} }}<!--
+-->{{#vardefine: אחוז תיקו במפעל |{{#number_format:{{#expr: {{#var: כמות תיקו במפעל}} * 100 / {{#var: כמות משחקים}} }} }} }}<!--
+-->{{#vardefine: אחוז הפסדים במפעל |{{#number_format:{{#expr: {{#var: כמות הפסדים במפעל}} * 100 / {{#var: כמות משחקים}} }} }} }}<!--
+
+-->{{#vardefine: כמות שערים |{{#invoke:FootballStatsBlock|value|בלוק=competition-results|תא=goalsFor|קטגוריית מפעל=|מפעלים={{#arrayprint: מפעלים לשליפה}} }} }}<!--
+-->{{#תנאי: {{#var: כמות שערים}} ||{{#vardefine: כמות שערים |0}} }}<!--
+-->{{#vardefine: כמות ספיגות |{{#invoke:FootballStatsBlock|value|בלוק=competition-results|תא=goalsAgainst|קטגוריית מפעל=|מפעלים={{#arrayprint: מפעלים לשליפה}} }} }}<!--
+-->{{#תנאי: {{#var: כמות ספיגות}} ||{{#vardefine: כמות ספיגות |0}} }}<!--
+-->{{#vardefine: כמות שער נקי |{{#invoke:FootballStatsBlock|value|בלוק=competition-results|תא=cleanSheets|קטגוריית מפעל=|מפעלים={{#arrayprint: מפעלים לשליפה}} }} }}<!--
+-->{{#vardefine: כמות שערים למשחק |{{#number_format: {{#expr: {{#var: כמות שערים}} / {{#var: כמות משחקים}} }} |2}} }}<!--
+-->{{#vardefine: כמות ספיגות למשחק |{{#number_format: {{#expr: {{#var: כמות ספיגות}} / {{#var: כמות משחקים}} }} |2}} }}<!--
+-->{{#vardefine: אחוז שער נקי |{{#number_format: {{סטטיסטיקה/אחוזים |{{#var: כמות שער נקי}} |{{#var: כמות משחקים}} }} |2}} }}<!--
+
+-->{{#vardefine: כמות צהובים |{{#invoke:FootballStatsBlock|value|בלוק=competition-cards|תא=yellows|קטגוריית מפעל=|מפעלים={{#arrayprint: מפעלים לשליפה}} }} }}<!--
+-->{{#vardefine: כמות אדומים |{{#invoke:FootballStatsBlock|value|בלוק=competition-cards|תא=reds|קטגוריית מפעל=|מפעלים={{#arrayprint: מפעלים לשליפה}} }} }}<!--
+-->{{#vardefine: כמות צהובים למשחק |{{#number_format: {{#expr: {{#var: כמות צהובים}} / {{#var: כמות משחקים}} }} |2}} }}<!--
+-->{{#vardefine: כמות אדומים למשחק |{{#number_format: {{#expr: {{#var: כמות אדומים}} / {{#var: כמות משחקים}} }} |2}} }}<!--
+
+תצוגת העמוד
+--><div class="banner-text-container">
+<div class="title"><i class="fas fa-chart-pie"></i>סטטיסטיקה</div>
+<div class="content">
+<div>
+<span class="describe">משחקים</span>
+<span class="info">{{#number_format: {{#var: כמות משחקים}} }}</span>
+</div>
+
+<div>
+<span class="describe">ניצחונות</span>
+<span class="info">{{#number_format: {{#var: כמות ניצחונות במפעל}} }} {{#ifexpr: {{#var: כמות משחקים}} > 0 |<span class="small">{{#var: אחוז ניצחונות במפעל}}%</span>}}</span>
+</div>
+
+<div>
+<span class="describe">תיקו</span>
+<span class="info">{{#number_format: {{#var: כמות תיקו במפעל}} }} {{#ifexpr: {{#var: כמות משחקים}} > 0 |<span class="small">{{#var: אחוז תיקו במפעל}}%</span>}}</span>
+</div>
+
+<div>
+<span class="describe">הפסדים</span>
+<span class="info">{{#number_format: {{#var: כמות הפסדים במפעל}} }} {{#ifexpr: {{#var: כמות משחקים}} > 0 |<span class="small">{{#var: אחוז הפסדים במפעל}}%</span>}}</span>
+</div>
+
+<div>
+<span class="describe">שערים</span>
+<span class="info">{{#number_format: {{#var: כמות שערים}} }} {{#ifexpr: {{#var: כמות משחקים}} > 0 |<span class="small">{{#var: כמות שערים למשחק}} למשחק</span>}}</span>
+</div>
+
+<div>
+<span class="describe">ספיגות</span>
+<span class="info">{{#number_format: {{#var: כמות ספיגות}} }} {{#ifexpr: {{#var: כמות משחקים}} > 0 |<span class="small">{{#var: כמות ספיגות למשחק}} למשחק</span>}}</span>
+</div>
+
+<div>
+<span class="describe">שער נקי</span>
+<span class="info">{{#number_format: {{#var: כמות שער נקי}} }} {{#ifexpr: {{#var: כמות משחקים}} > 0 |<span class="small">{{#var: אחוז שער נקי}}%</span>}}</span>
+</div>
+
+<div>
+<span class="describe">צהובים</span>
+<span class="info">{{#number_format: {{#var: כמות צהובים}} }} {{#ifexpr: {{#var: כמות משחקים}} > 0 |<span class="small">{{#var: כמות צהובים למשחק}} למשחק</span>}}</span>
+</div>
+
+<div>
+<span class="describe">אדומים</span>
+<span class="info">{{#number_format: {{#var: כמות אדומים}} }} {{#ifexpr: {{#var: כמות משחקים}} > 0 |<span class="small">{{#var: כמות אדומים למשחק}} למשחק</span>}}</span>
+</div>
+
+</div>
+</div>
+</includeonly>

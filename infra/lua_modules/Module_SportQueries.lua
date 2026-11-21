@@ -112,6 +112,12 @@ function SportQueries.new(Fields)
 			-- No stored value in this column contains a quote character, so a name
 			-- carrying one must be stripped to match.
 			value = value:gsub('"', ''):gsub("'", '')
+		elseif rule == 'apostropheOnly' then
+			-- The column keeps an apostrophe but never a double quote, so only the
+			-- double quote goes. Football_Games.Competition stores גביע מלצ'ט with
+			-- its apostrophe and גביע אופא without the gershayim the competition
+			-- page passes (גביע אופ"א).
+			value = value:gsub('"', '')
 		end
 
 		-- Escape rather than refuse. Opponents.OriginalName really does store a

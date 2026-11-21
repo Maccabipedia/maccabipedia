@@ -1,0 +1,23 @@
+<includeonly><!--
+
+הגדרת משתנים
+--><!--
+
+
+תצוגה
+--><div class="section" id="הניצחונות הגדולים">
+<div class="title">הניצחונות הגדולים</div>
+<div class="content table five-columns-second-third-grow">
+<div class="table-header"><!--
+--><span>עונה</span><!--
+--><span>יריבה</span><!--
+--><span>שלב</span><!--
+--><span>תוצאה</span><!--
+--><span>קישור</span>
+</div><!--
+
+--><div class="table-content">{{#invoke:FootballCompetition|biggest|תוצאה=ניצחון|מפעלים={{{מפעלים לשליפה|}}}}}</div><!--
+
+--></div>
+</div>
+</includeonly>
