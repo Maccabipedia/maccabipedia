@@ -306,8 +306,8 @@ A separate subpackage beside football; it shares only the Cargo crawler, and foo
 
 - **Load**: `load_basketball_from_maccabipedia()` → `BasketballGamesStats` (iterable, sorted by date). `serialize_basketball_games(stats)` writes `~/maccabistats/basketball/basketball-{version}-{date}.games`; `get_basketball_stats()` reads the newest and refuses a pickle written by another maccabistats version.
 - **Model** (`basketball/models.py`, frozen dataclasses): `BasketballGameData` holds the game's fields, `competition_flags` (from `Basketball_Competitions`, joined in Python on `Competition = OriginalName`; `None` when there is no catalog row), and two `BasketballTeamInGame` sides, `maccabi` and `opponent_team` (coach, score, quarters, halves, overtimes).
-- **Empty stays `None`**, never 0 or `""`. `has_result` is False for 0:0 (a page with no result typed in). Wins, losses and overtime are judged from the points; `result_opt` and `technical` are kept as stored.
-- **Crawl guard** (`basketball/parse.py`): each table's crawl is compared with the table's `COUNT`, repeated once on a mismatch, then the load fails. The crawler stops at the first short response, so a cut response would otherwise lose rows with no error.
+- **Empty stays `None`**, never 0 or `""`. `has_result` is False for 0:0 (a page with no result typed in). Wins and losses follow the wiki: in an awarded game the technical flag alone decides (1 Maccabi, 2 the opponent), otherwise the score. Overtime is judged from the overtime points. `result_opt` and `technical` are kept as stored.
+- **Crawl guard** (`basketball/parse.py`): each table's crawl is compared with the table's `COUNT` and checked for a row read twice, repeated once on a mismatch, then the load fails. The crawler stops at the first short response, so a cut response would otherwise lose rows with no error.
 - **Row shape traps**: a numeric-looking `Season` (1957) arrives as a number; `AssistantReferees` is a list column and arrives as a list (`[""]` when empty).
 - Not there yet: players' box scores, the error finder (still in `maccabipediabot.basketball.error_finder`), stats.
 

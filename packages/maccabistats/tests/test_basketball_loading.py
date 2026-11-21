@@ -163,8 +163,62 @@ def test_crawl_that_misses_a_row_is_repeated_once(monkeypatch):
 def test_crawl_that_misses_a_row_twice_fails(monkeypatch):
     _patch_crawler(monkeypatch, [GAME_ROWS[:2], GAME_ROWS[:2]], [3, 3])
 
-    with pytest.raises(RuntimeError, match="crawled 2 rows twice, but the wiki counts 3"):
+    with pytest.raises(RuntimeError, match="crawled 2 rows .* twice, but the wiki counts 3"):
         load_basketball_from_maccabipedia()
+
+
+def test_crawl_with_the_right_count_but_a_game_read_twice_is_repeated(monkeypatch):
+    # A page saved mid-crawl: one game is read twice, another is skipped, and the total still adds up
+    calls = _patch_crawler(monkeypatch, [[RYTAS_2006, RYTAS_2006, BEER_SHEVA_2026], GAME_ROWS], [3, 3])
+
+    stats = load_basketball_from_maccabipedia()
+
+    assert sorted(game.date.year for game in stats) == [1957, 2006, 2026]
+    assert sum(table == "Basketball_Games" for table, _, _ in calls) == 4
+
+
+def test_row_count_query_passes_the_real_crawler(monkeypatch):
+    # The real crawler refuses fields with no _pageName in them; the count query must get through it
+    real_crawler = basketball_parse.MaccabiPediaCargoChunksCrawler
+    monkeypatch.setattr(real_crawler, "_request_more_data", lambda self: (
+        self._already_fetched_data_queue.append({"RowsCount": 3576}), setattr(self, "_finished_to_crawl", True)))
+
+    assert basketball_parse._count_rows("Basketball_Games") == 3576
+
+
+def test_catalog_row_with_no_name_is_skipped(monkeypatch):
+    calls = []
+    monkeypatch.setattr(basketball_parse, "MaccabiPediaCargoChunksCrawler", _fake_crawler(
+        {"Basketball_Games": [GAME_ROWS],
+         "Basketball_Competitions": [COMPETITION_ROWS + [{"_pageName": "הזנת מפעלי כדורסל", "League": 1}]]},
+        {"Basketball_Games": [3], "Basketball_Competitions": [3]}, calls))
+
+    stats = load_basketball_from_maccabipedia()
+
+    assert stats[0].competition_flags.current_name == "ליגת העל"
+
+
+def test_unreadable_date_keeps_the_game_with_no_date():
+    game = game_from_cargo({**ASHDOT_YAAKOV_1957, "Date": 1957}, COMPETITIONS)
+
+    assert game.date is None
+    assert game.is_maccabi_win
+
+
+def test_awarded_game_is_decided_by_the_technical_flag_alone():
+    # The wiki's rule for basketball: the flag decides, even against the score fields
+    awarded_to_maccabi_with_no_score = game_from_cargo(
+        {**ASHDOT_YAAKOV_1957, "TotalPointsMaccabi": 0, "TotalPointsOpponent": 0}, COMPETITIONS)
+    awarded_to_opponent_against_the_score = game_from_cargo({**ASHDOT_YAAKOV_1957, "Technical": 2}, COMPETITIONS)
+
+    assert awarded_to_maccabi_with_no_score.has_result and awarded_to_maccabi_with_no_score.is_maccabi_win
+    assert awarded_to_maccabi_with_no_score.score_diff is None
+    assert awarded_to_opponent_against_the_score.is_maccabi_loss
+    assert not awarded_to_opponent_against_the_score.is_maccabi_win
+
+
+def test_technical_value_other_than_one_or_two_is_not_an_awarded_game():
+    assert not game_from_cargo({**BEER_SHEVA_2026, "Technical": -1}, COMPETITIONS).is_technical
 
 
 def test_empty_crawl_fails(monkeypatch):
@@ -196,12 +250,30 @@ def test_serialized_games_load_back_equal(tmp_path):
 
 def test_newest_file_in_the_default_folder_is_loaded(tmp_path, monkeypatch):
     monkeypatch.setattr(basketball_serialized, "_serialized_basketball_games_folder_path", tmp_path)
-    with pytest.raises(RuntimeError, match="No basketball-\\*.games"):
+    with pytest.raises(RuntimeError, match="No basketball-.*games"):
         get_basketball_stats()
 
+    older = serialize_basketball_games(BasketballGamesStats([]), tmp_path)
+    older.rename(tmp_path / older.name.replace(str(datetime.date.today()), "2020-01-01"))
     serialize_basketball_games(_stats(), tmp_path)
 
     assert len(get_basketball_stats()) == 3
+
+
+def test_file_of_another_version_in_the_default_folder_is_not_picked(tmp_path, monkeypatch):
+    monkeypatch.setattr(basketball_serialized, "_serialized_basketball_games_folder_path", tmp_path)
+    (tmp_path / "basketball-2.60-2030-01-01.games").write_bytes(pickle.dumps(_stats()))
+
+    with pytest.raises(RuntimeError, match="No basketball-.*games"):
+        get_basketball_stats()
+
+
+def test_file_that_is_not_basketball_games_is_refused(tmp_path):
+    file_path = tmp_path / "maccabi-2.60-2025-01-01.games"
+    file_path.write_bytes(pickle.dumps({"football": True}))
+
+    with pytest.raises(RuntimeError, match="does not hold basketball games"):
+        get_basketball_stats(file_path)
 
 
 def test_pickle_from_another_version_is_refused(tmp_path):

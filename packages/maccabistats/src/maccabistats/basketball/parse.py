@@ -44,6 +44,18 @@ def _text(raw: Dict, field: str) -> str | None:
     return str(value).strip()
 
 
+def _date(raw: Dict) -> date | None:
+    raw_date = _text(raw, "Date")
+    if raw_date is None:
+        return None
+    try:
+        return date.fromisoformat(raw_date[:10])
+    except ValueError:
+        # One unreadable date should not fail the load of every game; the game is kept with no date
+        logger.warning(f"Unreadable date {raw_date!r} on {raw.get('_pageName')}")
+        return None
+
+
 def _flag(raw: Dict, field: str) -> bool:
     return raw.get(field) in (1, "1", True)
 
@@ -74,12 +86,11 @@ def game_from_cargo(raw: Dict, competitions: Dict[str, BasketballCompetitionFlag
     :param raw: One Basketball_Games row as the crawler yields it (no key for an empty value)
     :param competitions: The catalog, by the competition's name as game pages write it
     """
-    raw_date = _text(raw, "Date")
     competition = _text(raw, "Competition")
     opponent = _text(raw, "Opponent")
     return BasketballGameData(
         page_name=raw["_pageName"],
-        date=date.fromisoformat(raw_date[:10]) if raw_date else None,
+        date=_date(raw),
         hour=_text(raw, "Hour"),
         season=_text(raw, "Season"),
         competition=competition,
@@ -116,11 +127,12 @@ def _count_rows(table: str) -> int:
     return int(count_rows[0]["RowsCount"])
 
 
-def _crawl_whole_table(table: str, fields: str) -> List[Dict]:
+def _crawl_whole_table(table: str, fields: str, unique_field: str) -> List[Dict]:
     """
     The crawler stops at the first request that returns fewer rows than asked, so a response cut
     short would end the crawl early with no error; and a page saved mid-crawl can move a row across
-    a request's edge. So the crawl is checked against the table's row count, and repeated once.
+    a request's edge, so one row is read twice and another is skipped while the total still adds up.
+    So the crawl must match the table's row count and repeat no unique_field; it is tried twice.
     """
     for attempt in ("first", "second"):
         rows = _crawl(table, fields)
@@ -128,18 +140,32 @@ def _crawl_whole_table(table: str, fields: str) -> List[Dict]:
             raise RuntimeError(f"MaccabiPedia returned no rows for {table}")
 
         rows_on_wiki = _count_rows(table)
-        if len(rows) == rows_on_wiki:
+        distinct_rows = len({row.get(unique_field) for row in rows})
+        if len(rows) == rows_on_wiki and distinct_rows == len(rows):
             return rows
-        logger.warning(f"{table}: the {attempt} crawl returned {len(rows)} rows, the wiki counts {rows_on_wiki}")
+        logger.warning(f"{table}: the {attempt} crawl returned {len(rows)} rows ({distinct_rows} distinct "
+                       f"{unique_field}), the wiki counts {rows_on_wiki}")
 
-    raise RuntimeError(f"{table}: crawled {len(rows)} rows twice, but the wiki counts {rows_on_wiki}")
+    raise RuntimeError(f"{table}: crawled {len(rows)} rows ({distinct_rows} distinct {unique_field}) twice, "
+                       f"but the wiki counts {rows_on_wiki}")
+
+
+def _crawl_competitions() -> Dict[str, BasketballCompetitionFlags]:
+    competitions = {}
+    for raw in _crawl_whole_table(_COMPETITIONS_TABLE, _COMPETITIONS_FIELDS, unique_field="OriginalName"):
+        name = _text(raw, "OriginalName")
+        if name is None:
+            logger.warning(f"A {_COMPETITIONS_TABLE} row has no OriginalName, skipping it: {raw}")
+            continue
+        competitions[name] = competition_flags_from_cargo(raw)
+    return competitions
 
 
 def load_basketball_from_maccabipedia() -> BasketballGamesStats:
     """Crawl every basketball game from MaccabiPedia. Nothing is saved; see serialize_basketball_games."""
-    competitions = {raw["OriginalName"]: competition_flags_from_cargo(raw)
-                    for raw in _crawl_whole_table(_COMPETITIONS_TABLE, _COMPETITIONS_FIELDS)}
-    games = [game_from_cargo(raw, competitions) for raw in _crawl_whole_table(_GAMES_TABLE, _GAMES_FIELDS)]
+    competitions = _crawl_competitions()
+    games = [game_from_cargo(raw, competitions)
+             for raw in _crawl_whole_table(_GAMES_TABLE, _GAMES_FIELDS, unique_field="_pageName")]
 
     logger.info(f"Loaded {len(games)} basketball games and {len(competitions)} competitions from MaccabiPedia")
     return BasketballGamesStats(games)

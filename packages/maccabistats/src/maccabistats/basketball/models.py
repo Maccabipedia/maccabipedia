@@ -10,6 +10,9 @@ HOME = "בית"
 AWAY = "חוץ"
 NEUTRAL = "נייטרלי"
 
+TECHNICAL_WIN = 1
+TECHNICAL_LOSS = 2
+
 
 @dataclass(frozen=True)
 class BasketballCompetitionFlags:
@@ -64,9 +67,9 @@ class BasketballGameData:
     stadium: str | None
     # None when the competition has no row in the wiki's catalog
     competition_flags: BasketballCompetitionFlags | None
-    # As stored: None, 1 or 2
+    # As stored: None, 1 (awarded to Maccabi) or 2 (awarded to the opponent)
     technical: int | None
-    # As stored: 1 Maccabi won, 2 tie, 3 Maccabi lost. Wins and losses below are judged from the score
+    # As stored: 1 Maccabi won, 2 tie, 3 Maccabi lost. Not used for wins and losses below
     result_opt: int | None
     main_referee: str | None
     assistant_referees: tuple[str, ...]
@@ -93,28 +96,38 @@ class BasketballGameData:
 
     @property
     def is_technical(self) -> bool:
-        return bool(self.technical)
+        return self.technical in (TECHNICAL_WIN, TECHNICAL_LOSS)
 
     @property
-    def has_result(self) -> bool:
-        """A game page with no result typed in is stored as 0:0, so 0:0 is not a result."""
+    def _has_score(self) -> bool:
+        # A game page with no result typed in is stored as 0:0, so 0:0 is not a score
         scores = (self.maccabi.score, self.opponent_team.score)
         return None not in scores and scores != (0, 0)
 
     @property
+    def has_result(self) -> bool:
+        """An awarded (technical) game has a result whatever its score fields hold."""
+        return self.is_technical or self._has_score
+
+    @property
     def score_diff(self) -> int | None:
-        """Maccabi's points minus the opponent's; None when the game has no result."""
-        if not self.has_result:
+        """Maccabi's points minus the opponent's; None when no score was typed in."""
+        if not self._has_score:
             return None
         return self.maccabi.score - self.opponent_team.score
 
     @property
     def is_maccabi_win(self) -> bool:
-        return self.has_result and self.score_diff > 0
+        """As on the wiki: in an awarded game the technical flag alone decides, otherwise the score."""
+        if self.is_technical:
+            return self.technical == TECHNICAL_WIN
+        return self._has_score and self.score_diff > 0
 
     @property
     def is_maccabi_loss(self) -> bool:
-        return self.has_result and self.score_diff < 0
+        if self.is_technical:
+            return self.technical == TECHNICAL_LOSS
+        return self._has_score and self.score_diff < 0
 
     @property
     def overtimes_played(self) -> int:
