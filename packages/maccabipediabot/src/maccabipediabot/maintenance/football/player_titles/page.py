@@ -28,7 +28,6 @@ PLAYER_PARAM = "שחקן"
 SEASON_PARAM = "עונה"
 COMPETITION_PARAM = "מפעל"
 REMOVED_PARAM = "הוסר"
-APPROVED_PARAM = "אושר"
 
 # What PHP's trim() removes, which is what MediaWiki strips from a named template argument.
 # Python's str.strip() also removes no-break spaces and other Unicode spaces, and a name
@@ -47,12 +46,9 @@ class Line(NamedTuple):
     """One store-template call on the page."""
     credit: Credit
     removed: str | None
-    approved: str | None
-    block: Title | None
 
 
 class ParsedPage(NamedTuple):
-    has_header_marker: bool
     blocks: list[Title]
     lines: list[Line]
 
@@ -112,16 +108,14 @@ def parse_page(text: str) -> ParsedPage:
     blocks: list[Title] = []
     lines: list[Line] = []
     season: str | None = None
-    block: Title | None = None
 
     for node in mwparserfromhell.parse(text).nodes:
         if isinstance(node, Heading):
             heading = str(node.title).strip(_PHP_TRIM_CHARACTERS)
             if node.level == 2:
-                season, block = heading, None
+                season = heading
             elif node.level == 3 and season is not None:
-                block = Title(season, heading)
-                blocks.append(block)
+                blocks.append(Title(season, heading))
             continue
 
         if not isinstance(node, Template) or str(node.name).strip(_PHP_TRIM_CHARACTERS) != STORE_TEMPLATE:
@@ -135,11 +129,9 @@ def parse_page(text: str) -> ParsedPage:
         lines.append(Line(
             credit=credit,
             removed=_argument(node, REMOVED_PARAM) or None,
-            approved=_argument(node, APPROVED_PARAM) or None,
-            block=block,
         ))
 
-    return ParsedPage(has_header_marker=HEADER_MARKER in text, blocks=blocks, lines=lines)
+    return ParsedPage(blocks=blocks, lines=lines)
 
 
 def stored_credits(parsed: ParsedPage) -> Counter[Credit]:

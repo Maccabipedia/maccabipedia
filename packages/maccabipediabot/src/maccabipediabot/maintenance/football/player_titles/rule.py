@@ -41,6 +41,5 @@ def todays_rule(
     return {title: sorted(players_by_season[title.season]) for title in titles}
 
 
-# The rule the job runs. A rule change is a change of this constant, made only after a
-# maintainer approved the list of credits it adds and removes.
+# The rule the job runs: the one the player profiles use today.
 RULE = todays_rule

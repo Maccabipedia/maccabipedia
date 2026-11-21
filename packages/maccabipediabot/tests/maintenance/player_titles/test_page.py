@@ -119,16 +119,15 @@ def test_an_unsafe_season_or_competition_stops_the_render():
         render_page({Title("1995=96", "ליגה לאומית"): ["אבי נמני"]}, removed={})
 
 
-def test_parse_reads_a_hand_edited_line():
+def test_parse_reads_a_line_with_spaces_and_its_params_in_another_order():
     text = (
         "== 2000/01 ==\n=== גביע המדינה ===\n"
-        "{{ תארי שחקני כדורגל/הזנה לקארגו | מפעל = גביע המדינה | עונה = 2000/01 | שחקן = כפיר אדרי | אושר = היה בסגל }}\n"
+        "{{ תארי שחקני כדורגל/הזנה לקארגו | מפעל = גביע המדינה | עונה = 2000/01 | שחקן = כפיר אדרי }}\n"
     )
 
     parsed = parse_page(text)
 
     assert [line.credit for line in parsed.lines] == [Credit("כפיר אדרי", "2000/01", "גביע המדינה")]
-    assert parsed.lines[0].approved == "היה בסגל"
     assert parsed.lines[0].removed is None
     assert stored_credits(parsed) == Counter([Credit("כפיר אדרי", "2000/01", "גביע המדינה")])
 
@@ -139,17 +138,14 @@ def test_an_empty_removal_reason_does_not_remove():
     assert stored_credits(parse_page(text)) == Counter([Credit("כפיר אדרי", "2000/01", "גביע המדינה")])
 
 
-def test_parse_reports_the_block_a_line_sits_under():
+def test_parse_lists_the_title_blocks_under_a_season_heading():
     text = (
-        "{{תארי שחקני כדורגל/הזנה לקארגו |שחקן=לפני הכותרות |עונה=2000/01 |מפעל=גביע המדינה}}\n"
+        "=== לפני כל עונה ===\n"
         "== 2000/01 ==\n=== גביע הטוטו ===\n"
         "{{תארי שחקני כדורגל/הזנה לקארגו |שחקן=כפיר אדרי |עונה=2000/01 |מפעל=גביע המדינה}}\n"
     )
 
-    parsed = parse_page(text)
-
-    assert [line.block for line in parsed.lines] == [None, TOTO_CUP_2001]
-    assert parsed.blocks == [TOTO_CUP_2001]
+    assert parse_page(text).blocks == [TOTO_CUP_2001]
 
 
 def test_a_line_inside_a_comment_or_another_template_is_not_a_line():
@@ -159,8 +155,3 @@ def test_a_line_inside_a_comment_or_another_template_is_not_a_line():
     )
 
     assert parse_page(text).lines == []
-
-
-def test_header_marker_is_detected():
-    assert parse_page(render_page({LEAGUE_1996: ["אבי נמני"]}, removed={})).has_header_marker is True
-    assert parse_page("").has_header_marker is False
