@@ -10,6 +10,8 @@ HOME = "בית"
 AWAY = "חוץ"
 NEUTRAL = "נייטרלי"
 
+MACCABI_NAME = "מכבי תל אביב"
+
 TECHNICAL_WIN = 1
 TECHNICAL_LOSS = 2
 
@@ -99,20 +101,20 @@ class BasketballGameData:
         return self.technical in (TECHNICAL_WIN, TECHNICAL_LOSS)
 
     @property
-    def _has_score(self) -> bool:
-        # A game page with no result typed in is stored as 0:0, so 0:0 is not a score
+    def has_score(self) -> bool:
+        """A game page with no result typed in is stored as 0:0, so 0:0 is not a score."""
         scores = (self.maccabi.score, self.opponent_team.score)
         return None not in scores and scores != (0, 0)
 
     @property
     def has_result(self) -> bool:
         """An awarded (technical) game has a result whatever its score fields hold."""
-        return self.is_technical or self._has_score
+        return self.is_technical or self.has_score
 
     @property
     def score_diff(self) -> int | None:
         """Maccabi's points minus the opponent's; None when no score was typed in."""
-        if not self._has_score:
+        if not self.has_score:
             return None
         return self.maccabi.score - self.opponent_team.score
 
@@ -121,13 +123,13 @@ class BasketballGameData:
         """As on the wiki: in an awarded game the technical flag alone decides, otherwise the score."""
         if self.is_technical:
             return self.technical == TECHNICAL_WIN
-        return self._has_score and self.score_diff > 0
+        return self.has_score and self.score_diff > 0
 
     @property
     def is_maccabi_loss(self) -> bool:
         if self.is_technical:
             return self.technical == TECHNICAL_LOSS
-        return self._has_score and self.score_diff < 0
+        return self.has_score and self.score_diff < 0
 
     @property
     def overtimes_played(self) -> int:

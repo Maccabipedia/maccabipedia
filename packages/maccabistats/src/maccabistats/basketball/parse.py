@@ -4,6 +4,7 @@ from datetime import date
 from typing import Dict, List
 
 from maccabistats.basketball.models import (
+    MACCABI_NAME,
     BasketballCompetitionFlags,
     BasketballGameData,
     BasketballGameVideos,
@@ -13,8 +14,6 @@ from maccabistats.basketball.stats import BasketballGamesStats
 from maccabistats.parse.maccabipedia.maccabipedia_cargo_chunks_crawler import MaccabiPediaCargoChunksCrawler
 
 logger = logging.getLogger(__name__)
-
-MACCABI_NAME = "מכבי תל אביב"
 
 _GAMES_TABLE = "Basketball_Games"
 _COMPETITIONS_TABLE = "Basketball_Competitions"

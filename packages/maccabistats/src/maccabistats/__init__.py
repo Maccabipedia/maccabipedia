@@ -11,4 +11,4 @@ from .parse.general_fixes import run_general_fixes
 from .maccabilogging import faster_logging
 from .error_finder import ErrorsFinder
 from .basketball import load_basketball_from_maccabipedia, get_basketball_stats, serialize_basketball_games, \
-    BasketballGamesStats
+    BasketballGamesStats, BasketballErrorsFinder

@@ -1,3 +1,11 @@
+## Version 2.77 ##
+
+    Basketball error finder: BasketballErrorsFinder(games).find_all() runs 19 checks on the
+    basketball games - periods against the final score (with overtime), overtime that was never
+    filled in, ties, games with no result, the stored ResultOpt, the page title against the
+    game's fields, dates against the season, two games on one date, and competitions missing
+    from the catalog. github_actions_scripts/find_basketball_errors.py writes the findings to a TSV.
+
 ## Version 2.76 ##
 
     Basketball, first step: maccabistats.basketball loads every basketball game from MaccabiPedia

@@ -184,6 +184,18 @@ game.is_maccabi_win, game.is_home, game.competition_flags.is_league
 
 A value the wiki does not have is `None` (never 0), and a game stored as 0:0 has no result.
 
+The basketball errors finder works like the football one: every `get_*` method is one check.
+
+```python
+from maccabistats import BasketballErrorsFinder
+
+finder = BasketballErrorsFinder(basketball_games.games)
+finder.get_games_missing_overtime()  # Periods tie, the final score does not, no overtime points
+finder.find_all()  # Every check, keyed by its name
+```
+
+`python -m maccabistats.github_actions_scripts.find_basketball_errors --out errors.tsv` runs them all on MaccabiPedia.
+
 # Export data
 If you want to export the current object MaccabiGamesStats you work on, use:
 ```
