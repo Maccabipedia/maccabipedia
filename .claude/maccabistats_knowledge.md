@@ -316,7 +316,7 @@ If a game page comes out wrong (names, stadiums, competitions, events), fix it i
   A best competition name is the plain competition, never a stage (`הליגה האירופית`, not `מוקדמות הליגה האירופית`): the game page title suffix and `|מפעל=` are both this value.
 - `parse/maccabi_tlv_site/fix_specific_games.py`: fixes for the club-site source and for single games.
 - `parse/maccabi_tlv_site/european_stages.py`: club-site source only, after the specific fixes. Writes European stages as editors do (`סיבוב 2` → `סיבוב שני - משחק 1`); the leg is the date order within season + competition + round, so it needs the whole crawled season.
-- `parse/maccabi_tlv_site/super_cup_stage.py`: club-site source only; a Super Cup (`אלוף האלופים`) game with no round gets the stage `גמר`.
+- `parse/maccabi_tlv_site/super_cup_stage.py`: club-site source only; a Super Cup (`אלוף האלופים`) game with no round (or the competition name as its round) gets `גמר`, or `גמר - משחק N` by date in a season with two Super Cup games.
 - `parse/maccabi_tlv_site/team_parser.py` / `game_events_parser.py`: how club-site squads and events become `GameEventTypes`.
 - `error_finder/`: `ErrorsFinder` for manually finding inconsistent data.
 

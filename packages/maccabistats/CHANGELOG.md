@@ -1,6 +1,7 @@
 ## Version 2.76 ##
 
-    Club-site Super Cup (אלוף האלופים) games with no round get the stage גמר, as the wiki writes it.
+    Club-site Super Cup (אלוף האלופים) games with no round get the stage as the wiki writes it:
+    גמר, or גמר - משחק 1 / 2 in a season with two Super Cup games (1965/66, 2020/21).
 
 ## Version 2.75 ##
 
