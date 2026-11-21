@@ -4,7 +4,6 @@ from collections.abc import Iterator
 from collections import deque
 from typing import Dict, List
 import html
-from urllib.parse import quote
 
 import requests
 from requests.adapters import HTTPAdapter
@@ -72,8 +71,10 @@ class MaccabiPediaCargoChunksCrawler(Iterator):
         :type where_condition: str
         :param limit: Rows per request. A smaller page is kinder to the host on wide tables
         :type limit: int
-        :param order_by: Cargo ORDER BY. Without one, paging by offset has no stable order, so a
-                         table that takes many requests should pass a unique key here
+        :param order_by: Cargo ORDER BY as plain SQL (not URL-encoded). Without one, paging by
+                         offset has no stable order, so a table that takes many requests should
+                         pass a unique key here. It makes the paging stable; it does not order the
+                         iteration, because the rows of each request come out reversed
         :type order_by: str
         :param unescape_all_strings: Cargo html-escapes text (a quote mark arrives as &quot;).
                                      By default only Opponent and Stadium are unescaped
@@ -81,7 +82,7 @@ class MaccabiPediaCargoChunksCrawler(Iterator):
         :param timeout: Seconds to wait for each request
         :type timeout: float
         """
-        if not 0 < limit <= _MAX_LIMIT_PER_REQUEST:
+        if not isinstance(limit, int) or not 0 < limit <= _MAX_LIMIT_PER_REQUEST:
             raise ValueError(f"limit must be between 1 and {_MAX_LIMIT_PER_REQUEST}, got {limit}")
 
         self.base_crawling_address = MaccabiStatsConfigSingleton.maccabipedia.base_crawling_address
@@ -112,7 +113,7 @@ class MaccabiPediaCargoChunksCrawler(Iterator):
                f"&offset={self._current_offset}" \
                f"&where={self.where_condition}" \
                f"&group_by=" \
-               f"&order_by={quote(self.order_by, safe=',')}" \
+               f"&order_by={self.order_by}" \
                f"&having="
 
     def _request_more_data(self):

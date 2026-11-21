@@ -145,15 +145,15 @@ def test_football_crawlers_send_the_same_url_as_before(factory):
     assert crawler.timeout == 30
 
 
-def test_order_by_is_url_encoded_and_limit_is_sent():
+def test_limit_and_order_by_are_sent():
     crawler = MaccabiPediaCargoChunksCrawler("Basketball_Games", "_pageName", limit=2500,
                                              order_by="Date DESC,_pageName")
 
     assert "&limit=2500&" in crawler.full_crawl_address
-    assert "&order_by=Date%20DESC,_pageName&" in crawler.full_crawl_address
+    assert "&order_by=Date DESC,_pageName&" in crawler.full_crawl_address
 
 
-@pytest.mark.parametrize("limit", [0, -1, 5001])
+@pytest.mark.parametrize("limit", [0, -1, 5001, 2.5, "2500", None])
 def test_limit_outside_cargo_range_is_refused(limit):
     with pytest.raises(ValueError, match="limit must be between"):
         MaccabiPediaCargoChunksCrawler("Basketball_Games", "_pageName", limit=limit)
@@ -187,15 +187,16 @@ def test_small_limit_pages_by_that_limit_and_stops_at_the_short_page():
         b'[{"_pageName": "c", "_ID": 3}]'])
     try:
         crawler = MaccabiPediaCargoChunksCrawler("Basketball_Player_Game_Events_Summary", "_pageName,_ID",
-                                                 limit=2, order_by="_ID", timeout=5)
+                                                 limit=2, order_by="_ID DESC", timeout=5)
         crawler.base_crawling_address = f"http://127.0.0.1:{server.server_port}/?format=json"
         rows = list(crawler)
     finally:
         server.server_close()
 
-    assert sorted(row["_ID"] for row in rows) == [1, 2, 3]
+    # Each request's rows come out reversed: order_by keeps the paging stable, not the iteration.
+    assert [row["_ID"] for row in rows] == [2, 1, 3]
     assert len(requested_paths) == 2
-    assert "&limit=2&offset=0&" in requested_paths[0] and "&order_by=_ID&" in requested_paths[0]
+    assert "&limit=2&offset=0&" in requested_paths[0] and "&order_by=_ID%20DESC&" in requested_paths[0]
     assert "&limit=2&offset=2&" in requested_paths[1]
 
 

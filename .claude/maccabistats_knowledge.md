@@ -296,7 +296,7 @@ The package queries MaccabiPedia's MediaWiki Cargo extension:
   - `Opponents` — `OriginalName` only, for the name lookup above
   - `Games_Events` — player events (goals, cards, subs, lineup) with fields: `_pageName, Date, PlayerName, PlayerNumber, Minute, EventType, SubType, Team, Part`
   - `Profiles` — player metadata (DoB, HomePlayer flag)
-- **Crawler class**: `MaccabiPediaCargoChunksCrawler(tables_name, tables_fields, join_tables_on, where_condition)`
+- **Crawler class**: `MaccabiPediaCargoChunksCrawler(tables_name, tables_fields, join_tables_on, where_condition, *, limit, order_by, unescape_all_strings, timeout)`. The four keyword arguments are opt-in, for tables other than football's; with the defaults football's requests are unchanged. `order_by` makes offset paging stable but does not order the iteration (each request's rows come out reversed)
 
 ---
 
