@@ -84,7 +84,9 @@ Basketball (`Basketball_Games`):
 
 | case | how common | what it breaks |
 |---|---|---|
-| `IsOvertime` empty | every row | `משחק כדורסל/שמירת משחק לקארגו` never stores the page's `\|הארכה=`, so a filter on it finds no overtime game. Judge overtime from the `…OvertimePoints…` columns |
+| `IsOvertime` is derived, not typed | every row | `תבנית:משחק כדורסל` computes it: the eight overtime fields joined into one number, `> 0`. One value that is not a number makes the whole game `0`, while the `…OvertimePoints…` columns (and maccabistats) read each field on its own. A page's own `\|הארכה=` is ignored. A quarter typed into an overtime slot counts as overtime |
+| `FansVideo2` | stored, but no page fills `\|וידאו אוהדים2=` yet | a check for "has a second fans video" finds nothing |
+| a store-template change | — | old rows keep old values until each page is saved again. A purge re-renders a page (its categories) but writes no Cargo rows; a null edit does. Ask before a full Recreate data on prod: on the shared host it runs at about 7 pages a minute |
 | a result nobody entered | rare (stored `0:0`, no periods) | a tie count. The page has `\|תוצאת משחק מכבי=0`; treat 0:0 as no result |
 | `Technical` | 1 or 2, a handful of rows | a check of `=1` misses the 2s. The flag alone decides the result of an awarded game |
 | a numeric-looking `Season` (1957) | the calendar-year seasons | Cargo Export sends it as a number, not text |
