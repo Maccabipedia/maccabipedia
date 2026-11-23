@@ -1,0 +1,33 @@
+<includeonly><!--
+
+-->{{#arraydefine:עונות |{{#if: {{{עונות|}}} |{{{עונות|}}} |{{סטטיסטיקה/שליפות/מתקדמות/עונות שבהן שיחק שחקן |שחקן={{{שם|}}} |שלוף לספירה=כן}} }} }}<!--
+
+-->{{#arraydefine: עונות עם זכיה משליפה |{{#cargo_query:
+tables=Achievements=a, Competitions=c
+|join on= a.Competition=c.OriginalName 
+|where=1=1 AND a.Achievement IN ("זכיה", "מקום 1") AND a.Season IN ({{#arrayprint: עונות |, |@@@@ |"@@@@"}})<!--
+-->{{#בחר: {{{קטגוריית מפעל|}}}
+|רשמי = AND c.Official=true
+|ליגה = AND c.League=true
+|גביע = AND c.Trophy=true
+|אירופה = AND c.International=true
+}}<!--
+-->{{#if: {{{שם מפעל|}}} | AND (c.OriginalName="{{{שם מפעל|}}}" OR c.CurrentName="{{{שם מפעל|}}}")}}
+|fields=a.Season
+|default=
+|no html
+}} }}<!--
+
+-->{{#arraydefine: זכיות להוספה |{{{זכיות להוספה|}}} }}<!--
+
+-->{{#arraydefine: זכיות להסרה |{{{זכיות להסרה|}}} }}<!--
+
+-->{{#arrayunion: עונות עם זכיה מאוחד |עונות עם זכיה משליפה | זכיות להוספה}}<!--
+-->{{#arraydiff: עונות עם זכיה סופי |עונות עם זכיה מאוחד | זכיות להסרה}}<!--
+
+-->{{#arrayunique: עונות עם זכיה סופי}}<!--
+-->{{#arraysort: עונות עם זכיה סופי |asc}}<!--
+
+-->{{#arrayprint: עונות עם זכיה סופי}}<!--
+
+--></includeonly>
