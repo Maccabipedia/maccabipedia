@@ -38,6 +38,16 @@ doesn't have.
   page is its own file; sub-headlines under the article's own headline stay with it. A box
   score, a table or a photo caption stays with its report. Keep the group table, but
   blank the items about other games in the group.
+- **Pick the `--classification` for each file on its own, from what that file shows**
+  (`rules.md`, "`סיווג`"). Don't copy it from the report that ran beside it:
+  - Article text about the game, published after it: `סיקור משחק`.
+  - Only photos and their captions, no article text, published after the game:
+    **`רגע ממשחק`**. That holds even when it ran next to the report, and for several photos
+    joined into one file.
+  - Anything published before the game, a photo too: `לקראת משחק`.
+  - If you're about to describe a file as `תמונה - …`, it is a `רגע ממשחק`, not a
+    `סיקור משחק`. In basketball 1976/77, 108 photos went up as `סיקור משחק` because this
+    step was skipped.
 
 ## 3. Crop by eye, into a spec
 
@@ -69,6 +79,10 @@ uv run python -m maccabipediabot.maintenance.papers.upload_newspaper \
 
 - The main report has no `--description`. Every other piece from the same paper and day
   gets a short Hebrew description of what it is, never a number.
+- Set `--classification` again on every run; the example above is a report. A photo from
+  the same paper and day keeps the paper and dates but changes the classification:
+  `--classification "רגע ממשחק" --description "לו סילבר חוסם את סטיב קפלן"`. The
+  classification already says it is a photo, so the description doesn't start with `תמונה`.
 - **REFUSED** means fix the spec or a param, then run again. Don't silence a check:
   - `--accept-edge` is only for an edge that really is a rule, a frame line or a seam.
   - `--blanks-read <edge>`, one per edge, is only after you've zoomed into what that blank covers.

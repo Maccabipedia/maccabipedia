@@ -99,10 +99,12 @@ same params.
       the cropped item; only the marker is added) and a `--comment` saying a marker was
       added, since the default comment says it was re-cropped.
   - **A table:** the table and its header only (`טבלת ליגה`, `טבלה לאחר משחק …`).
-  - **A photo:** the photo with its caption (`רגע ממשחק`). A game photo that stands
-    apart from the article (another spot on the page, or another library clip) is its
-    own file, even when the article went up from the same paper and day (Maariv
-    8.11.1976, uploaded that way by `אורן המתעפץ`).
+  - **A photo:** the photo with its caption, classified `רגע ממשחק` (see "`סיווג`"). A
+    game photo that stands apart from the article (another spot on the page, or another
+    library clip) is its own file, even when the article went up from the same paper and
+    day (Maariv 8.11.1976, uploaded that way by `אורן המתעפץ`). A photo that sits inside
+    the article's block and was cropped with it stays in the report's file, which is
+    `סיקור משחק`.
   - **The only time a whole page is right:** a page or spread that is entirely the
     game's coverage under one frame or banner (and even then a separately headlined
     piece inside it can still go up on its own when the cap allows), of any era: a
@@ -207,8 +209,16 @@ same params.
 - **Existing scan:** add `סיווג` and `שיוך משחק` inside the template, and keep the
   rest of the page unchanged.
 - **`סיווג`:** the template accepts `טבלת ליגה`, `טבלת גביע`, `לקראת משחק`,
-  `סיקור משחק`, `רגע ממשחק`, `סיקור מחזור`, `הגרלת גביע`, `אחר`. A match report is
-  `סיקור משחק`; a preview is `לקראת משחק`.
+  `סיקור משחק`, `רגע ממשחק`, `סיקור מחזור`, `הגרלת גביע`, `אחר`. Classify each file by
+  what that file shows, not by the piece it ran next to:
+  - A match report (article text, after the game): `סיקור משחק`.
+  - A preview (anything before the game, a photo included): `לקראת משחק`.
+  - **A game photo** (one or more photos with their captions, no article text, after the
+    game): **`רגע ממשחק`**, even when the report from the same paper and day went up as
+    `סיקור משחק`. The tool accepts either, so this is on you. In the basketball 1976/77
+    bulk upload (2026-11), 108 photos went up as `סיקור משחק` with descriptions starting
+    `תמונה - …`. The step 4 example command was reused with only `--description` changed.
+    A description starting with `תמונה` is the sign the classification is wrong.
 - **A piece about no single game** (the cup postponed, renewed or cancelled; a FIBA
   ruling) is `אחר`, tied to the game it is closest to, with a description saying what it
   is: `ידיעות אחרונות 04-09-1968 אחר כדורסל הפועל ניר דוד (12.07.1968) ביטול משחקי גביע
