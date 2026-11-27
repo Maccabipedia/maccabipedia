@@ -992,7 +992,8 @@ enough to rebuild them.
 
 The subpages built their own `Competition IN (…)` with
 `{{המרות/שם ללא גרש וגרשיים}}`, so `גביע מלצ'ט` (4 games) showed none.
-Candidates live in `infra/lua_modules/wiki_templates/football_competition/`:
+**Live since 2026-11-28**; the switched templates' text is in
+`infra/lua_modules/wiki_templates/football_competition/`:
 
 - `הצגת סטטיסטיקה`: 8 query-template calls become two queries. The new helper
   `מפעל כדורגל/שליפת מספרים` primes the blocks `competition-results` and
@@ -1011,7 +1012,13 @@ Candidates live in `infra/lua_modules/wiki_templates/football_competition/`:
   Melchett hide that section) and `הצגת הישגים` (it reads `Achievements`, which
   has no quote-bearing row to measure a rule on).
 
-Gate: `compare_competition_pages.py` (modes in its docstring). Two traps it
+Gate: `compare_competition_pages.py`, removed after the rollout (it is in the
+history of PR #320 if these templates are rewritten again). Its `check` is the
+part worth rebuilding: every page's box, biggest-results margins and seasonal
+summary recomputed from Cargo with quote-blind matching. The records section
+needs its own comparison: lists that end on a tie name a different player
+between two renders of the SAME template (11 of 21 pages, old vs old), so
+compare it with player names masked - counts and labels must match. Two traps it
 now guards against, each of which once produced a false pass or a false failure:
 
 - **`action=parse&page=` can answer from the parser cache.** Right after the
@@ -1029,6 +1036,11 @@ now guards against, each of which once produced a false pass or a false failure:
   | `/שליפת נתונים` | `--new-uses יחידה:FootballCompetition` (first user, so not on the old side) |
   | `הצגת הניצחונות הגדולים`, then `ההפסדים` | Melchett changes |
   | `הצגת מספרים עונתיים` (summary row) | `--new-drops תבנית:סטטיסטיקה/שליפות/מתקדמות/כמות נתוני משחק` - its last caller here |
+
+  At step 2 on prod the 8 unofficial competitions failed `--new-uses`: they
+  hide the seasonal section, so they never call `/שליפת נתונים` (locally the
+  marker came from the biggest-results tables, swapped in the same run). The
+  other 21 used it and no page changed, which is the proof.
 - **The records section is not stable between two identical renders.** Tied
   players come back in a different order (10 of 29 pages, new vs new), so diff
   blanks that one section, which this change does not touch. Everything else is

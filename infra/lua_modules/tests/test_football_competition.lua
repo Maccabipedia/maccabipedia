@@ -1,8 +1,9 @@
 --[[
 Tests for Module:FootballCompetition - the game tables of a competition page.
 
-What the old templates rendered is compared page by page by
-compare_competition_pages.py; these pin the SQL and the guards.
+The switch from the old templates was gated page by page on all 29 competition
+pages (see "Competition pages" in .claude/lua_modules.md); these pin the SQL and
+the guards.
 
 Run from the repository root:
     lua5.1 infra/lua_modules/tests/test_football_competition.lua
