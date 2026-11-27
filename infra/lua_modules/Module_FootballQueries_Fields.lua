@@ -98,9 +98,13 @@ return {
 	-- Measured against production per column, which corrects
 	-- maccabipedia_structure_knowledge.md §16: Football_Games.Competition
 	-- KEEPS quotes (גביע מלצ'ט), and so does CoachMaccabi (ג'ורדי קרויף).
+	-- Competition keeps the apostrophe only: no stored value carries a double
+	-- quote (2026-11-21: גביע מלצ'ט is the one value with a quote character of
+	-- either kind), while the competition pages pass גביע אופ"א for the 22 games
+	-- stored as גביע אופא. 'keep' would drop those games from the UEFA page group.
 	columns = {
 		['Football_Games.Season'] = 'strip',
-		['Football_Games.Competition'] = 'keep',
+		['Football_Games.Competition'] = 'apostropheOnly',
 		['Football_Games.Opponent'] = 'strip',
 		['Football_Games.Stadium'] = 'strip',
 		['Football_Games.HomeAway'] = 'strip',

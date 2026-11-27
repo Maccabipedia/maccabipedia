@@ -1,0 +1,7 @@
+<includeonly><!--
+
+--><!--
+
+-->{{#תנאי: {{{מפעלים|}}} |{{#invoke:FootballCompetition|seasons|מפעלים={{{מפעלים|}}}}}
+}}
+</includeonly>

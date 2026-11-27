@@ -28,6 +28,7 @@ SUITES = [
     'infra/lua_modules/tests/test_player_stats.lua',
     'infra/lua_modules/tests/test_date.lua',
     'infra/lua_modules/tests/test_season_trophies.lua',
+    'infra/lua_modules/tests/test_football_competition.lua',
     'infra/lua_modules/tests/test_perplayer_schema.lua',
     'infra/lua_modules/tests/test_basketball.lua',
     'infra/lua_modules/tests/test_basketball_season_table.lua',
@@ -42,6 +43,7 @@ SEASON_TABLE_BB = Path('infra/lua_modules/Module_BasketballSeasonTable.lua')
 PLAYER_STATS = Path('infra/lua_modules/Module_FootballPlayerStats.lua')
 DATE = Path('infra/lua_modules/Module_FootballDate.lua')
 TROPHIES = Path('infra/lua_modules/Module_SeasonTrophies.lua')
+COMPETITION = Path('infra/lua_modules/Module_FootballCompetition.lua')
 FIELDS_BB = Path('infra/lua_modules/Module_BasketballQueries_Fields.lua')
 BLOCKS_BB = Path('infra/lua_modules/Module_BasketballStatsBlocks.lua')
 
@@ -212,6 +214,33 @@ MUTATIONS = [
     ('shared logic: the error prefix ignores the schema name', LOGIC,
      '\tlocal NAME = Fields.name', "\tlocal NAME = 'SportQueries'"),
     # Module:SeasonTrophies - each sport's tables, the order, the guards, the cache.
+    # The competition page: its stats box blocks and its game tables.
+    ('competition box: counted in a category', BLOCKS,
+     "blocks['competition-results'] = {\n\tentity = 'מפעלים',\n\ttabs = { '' },",
+     "blocks['competition-results'] = {\n\tentity = 'מפעלים',\n\ttabs = { 'רשמי' },"),
+    ('competition cards: counted in a category', BLOCKS,
+     "blocks['competition-cards'] = {\n\tentity = 'מפעלים',\n\ttabs = { '' },",
+     "blocks['competition-cards'] = {\n\tentity = 'מפעלים',\n\ttabs = { 'רשמי' },"),
+    ('competition cards: the results cells', BLOCKS,
+     "\tcells = blocks['season-cards'].cells,", "\tcells = blocks['season-results'].cells,"),
+    ('competition: biggest losses ranked like wins', COMPETITION,
+     "orderBy = '(Football_Games.ResultOpponent-Football_Games.ResultMaccabi) DESC',",
+     "orderBy = '(Football_Games.ResultMaccabi-Football_Games.ResultOpponent) DESC',"),
+    ('competition: losses through the wins row', COMPETITION,
+     "rowTemplate = 'מפעל כדורגל/הצגת ההפסדים הגדולים/הצגת משחק',",
+     "rowTemplate = 'מפעל כדורגל/הצגת הניצחונות הגדולים/הצגת משחק',"),
+    ('competition: the result filter dropped', COMPETITION,
+     "gamesQuery(args['מפעלים'], { ['תוצאה'] = args['תוצאה'] })", "gamesQuery(args['מפעלים'])"),
+    ('competition: no names queries every game', COMPETITION,
+     "\tif (args['מפעלים'] or '') == '' then\n\t\treturn ''\n\tend\n\n\tlocal query = gamesQuery(args['מפעלים'], {",
+     "\tif false then\n\t\treturn ''\n\tend\n\n\tlocal query = gamesQuery(args['מפעלים'], {"),
+    ('competition: an unknown argument accepted', COMPETITION,
+     '\t\tif not allowed[name] then', '\t\tif false then'),
+    ('competition: seasons joined on the season only', COMPETITION,
+     "\t\t'Football_Games.Competition=Achievements.Competition' }",
+     "\t\t}"),
+    ('competition: a full seasons table accepted', COMPETITION,
+     'if #rows >= SEASONS_LIMIT then', 'if false then'),
     ('trophies: football reads the basketball tables', TROPHIES,
      "['כדורגל'] = { achievements = 'Achievements', competitions = 'Competitions' }",
      "['כדורגל'] = { achievements = 'Basketball_Achievements', competitions = 'Basketball_Competitions' }"),
@@ -418,9 +447,15 @@ MUTATIONS = [
     ('Opponent strip to keep', FIELDS,
      "['Football_Games.Opponent'] = 'strip'",
      "['Football_Games.Opponent'] = 'keep'"),
-    ('Competition keep to strip', FIELDS,
-     "['Football_Games.Competition'] = 'keep'",
+    ('Competition apostrophe to strip', FIELDS,
+     "['Football_Games.Competition'] = 'apostropheOnly'",
      "['Football_Games.Competition'] = 'strip'"),
+    ('Competition apostrophe to keep', FIELDS,
+     "['Football_Games.Competition'] = 'apostropheOnly'",
+     "['Football_Games.Competition'] = 'keep'"),
+    ('apostropheOnly strips the apostrophe too', LOGIC,
+     "\t\t\tvalue = value:gsub('\"', '')\n\t\tend",
+     "\t\t\tvalue = value:gsub('\"', ''):gsub(\"'\", '')\n\t\tend"),
     ('תיקו and הפסד swapped', FIELDS,
      "['תיקו'] = 'Football_Games.ResultOpt = 2',", "['תיקו'] = 'Football_Games.ResultOpt = 3',"),
     ('the no-rows guard is removed', LOGIC,

@@ -811,7 +811,7 @@ raw name returns zero rows and no error:
 
 | keeps `'` and `"` | stripped |
 |---|---|
-| `Football_Games.Competition` (`גביע מלצ'ט`) | `Football_Games.Opponent` |
+| `Football_Games.Competition` (`גביע מלצ'ט`) - `'` only: no value has `"` (`גביע אופא`) | `Football_Games.Opponent` |
 | `Football_Games.CoachMaccabi` (`ג'ורדי קרויף`) | `Football_Games.Stadium` |
 | `Football_Games.Refs` | `Competitions.OriginalName` / `CurrentName` |
 | `Games_Events.PlayerName` (14 rows) | `Stadiums.CanonicalName` |

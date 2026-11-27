@@ -177,6 +177,17 @@ check('a competition name keeps its apostrophe', function(FootballQueries)
 		'Football_Games.Competition IN ("גביע מלצ\'ט")', 'kept')
 end)
 
+-- But it never stores a double quote: the UEFA page group passes גביע אופ"א
+-- (raw from its wikitext, or &quot; through #arrayprint) for the games stored
+-- as גביע אופא, and keeping the quote would match none of them.
+check('a competition name loses its double quote', function(FootballQueries)
+	local expected = 'Football_Games.Competition IN ("גביע אופא", "גביע מלצ\'ט")'
+	equals(FootballQueries.build({ ['מפעלים'] = 'גביע אופ"א, גביע מלצ\'ט' }).where,
+		expected, 'raw')
+	equals(FootballQueries.build({ ['מפעלים'] = 'גביע אופ&quot;א, גביע מלצ&#39;ט' }).where,
+		expected, 'entities')
+end)
+
 check('a quote-bearing stadium name is stripped for the games column',
 	function(FootballQueries)
 		stub.willReturn({ { name = 'אצטדיון בלומ"פילד' } })

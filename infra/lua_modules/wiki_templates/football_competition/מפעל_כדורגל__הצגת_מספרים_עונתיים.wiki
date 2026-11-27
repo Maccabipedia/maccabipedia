@@ -1,0 +1,36 @@
+<includeonly><!--
+
+הגדרת משתנים
+-->{{#vardefine: שם מפעל |{{{שם מפעל|}}} }}<!--
+-->{{#arraydefine: רשימת זכיות |{{כדורגל/שליפות/מפעל/רשימת זכיות |מפעלים={{{מפעלים לשליפה|}}} }} }}<!--
+המספרים שתיבת הסטטיסטיקה כבר שלפה (מפעל כדורגל/שליפת מספרים), בלי שליפה נוספת
+-->{{#vardefine: כמות ניצחונות |{{#invoke:FootballStatsBlock|value|בלוק=competition-results|תא=wins|קטגוריית מפעל=|מפעלים={{{מפעלים לשליפה|}}} }} }}<!--
+-->{{#vardefine: כמות תיקו |{{#invoke:FootballStatsBlock|value|בלוק=competition-results|תא=draws|קטגוריית מפעל=|מפעלים={{{מפעלים לשליפה|}}} }} }}<!--
+-->{{#vardefine: כמות הפסדים |{{#invoke:FootballStatsBlock|value|בלוק=competition-results|תא=losses|קטגוריית מפעל=|מפעלים={{{מפעלים לשליפה|}}} }} }}<!--
+
+
+תצוגה
+--><div class="section" id="מספרים עונתיים">
+<div class="title">מספרים עונתיים</div>
+<div class="content table five-columns-second-grow with-summary">
+<div class="table-header"><!--
+--><span>עונה</span><!--
+--><span>הישג</span><!--
+--><span>נצ'</span><!--
+--><span>ת'</span><!--
+--><span>הפ'</span>
+</div><!--
+
+--><div class="table-content">{{מפעל כדורגל/הצגת מספרים עונתיים/שליפת נתונים |מפעלים={{{מפעלים לשליפה|}}} }}</div><!--
+
+--><div class="table-summary"><!--
+--><span>סה"כ</span><!--
+--><span class="win">{{#תנאי: {{{מספר זכיות|}}} |{{{מספר זכיות|}}} |{{#arraysize: רשימת זכיות}} }} זכיות</span><!--
+--><span>{{#number_format: {{#var: כמות ניצחונות}} }}</span><!--
+--><span>{{#number_format: {{#var: כמות תיקו}} }}</span><!--
+--><span>{{#number_format: {{#var: כמות הפסדים}} }}</span>
+</div><!--
+
+--></div>
+</div>
+</includeonly>
