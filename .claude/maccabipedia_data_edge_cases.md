@@ -182,6 +182,24 @@ constrain `Team` - a career total hides the leak, a per-side count shows it.
 - MySQL's tie order is arbitrary and differs between two renders of the same
   page, and a LIMIT inside a tie takes arbitrary members: a Lua ranking that
   breaks ties by name can never be byte-identical to a template's.
+- **When Cargo stores a page's rows** (measured on the local wiki, Cargo 3.2,
+  2026-11-21, with a page of 2,284 `#cargo_store` calls; production runs
+  Cargo 3.7.1, so measure there before relying on any of these):
+  - Only a save stores. A purge (plain or `forcelinkupdate`), a page view and
+    a preview-style `action=parse` store nothing; `cargorecreatedata` only
+    queues jobs, and production's job queue does not drain by itself.
+  - Every save, `appendtext` and section edits included, deletes all of the
+    page's rows and stores them again one by one. While it runs the table is
+    short: for about 11 of 19 s the big page had 165 to 2,160 of its rows. A
+    page that reads the table in that window caches the short answer.
+  - A save with **unchanged text** (`nochange`, no new revision) still deletes
+    and stores the rows again. That is the way to refill an emptied table
+    without touching history.
+  - Two saves at the same moment: one gets `editconflict`; no duplicate rows.
+  - A deleted page loses its rows. A moved page keeps them under the old
+    `_pageName` until its next save.
+- `action=cargoquery` accepts `COUNT(DISTINCT CONCAT(a, "@@", b))` as a field:
+  the row count of a grouped query, to check a paged export against.
 
 ## Adding to this file
 
