@@ -137,7 +137,7 @@ Every tool call result stays in context forever. Keep all outputs small:
 - **Knowledge files** (`.claude/*.md`): never Read the whole file. Use Grep to find the relevant section, then Read only those lines.
 
 ## 7. Reference Files
-- `.claude/maccabipedia_structure_knowledge.md` — Game pages, player pages, templates, Cargo API
+- `.claude/maccabipedia_structure_knowledge.md` — Game pages, player pages, templates, Cargo API, and (§16) what looks unused but is not: read before any cleanup
 - `.claude/tracking_categories.md` — the tracking system under `קטגוריה:קטגוריות תפעוליות`: tracking pages (a query editors read, never transcluded, so "unused" lists show them by mistake) and the error categories templates fill. Read before calling any page or category unused or deleting one
 - `.claude/maccabipedia_research_sources.md` — External data sources: rosters, match results, historical records, photos, video. **Starts with tips for searching any source** (search broad and filter by eye, open items instead of trusting titles, proof before a data fix) — read them before any hunt for missing items
 - `.claude/skills/upload-newspaper/` (skill; rules in `rules.md`) — uploading newspaper scans in every sport: crop to the Maccabi article (never a whole page), cut along the page's rules, the edge review, the per-game cap, file names for one or several pieces (a Hebrew description, never `(2)`), the tagging template. Read before any newspaper upload

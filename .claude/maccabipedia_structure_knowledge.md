@@ -869,3 +869,39 @@ So dropping an unused join changes nothing for the first three, and joining
 `Games_Events` when you only wanted games multiplies every count.
 
 See `.claude/lua_modules.md` for the Lua layer built on these facts.
+
+## 16. What Looks Unused But Isn't (before any cleanup)
+
+MediaWiki's `Special:UnusedTemplates` / `UnusedImages` / `UnusedCategories` and `Special:Lonelypages` only see
+links and transclusions. These pages are on those lists but are in use. Never delete one of them for being on a list.
+
+- **Tracking pages and tracking categories**: see `.claude/tracking_categories.md`. A tracking page is read, not
+  transcluded. An empty tracking category means nothing is broken today.
+- **Cargo declaration templates** (`תבנית:טבלאות מידע/*`) are never transcluded; some hold mapping-table rows.
+- **Files the skin loads by URL** from its LESS/CSS: no wiki page links them.
+- **Icons in a `#switch` branch no page uses today**, often written lowercase (`fb-…`): the branch fires the
+  day its value appears.
+- **Names built at render time**: `{{דגל|country}}` flags, `<name> - פרופיל.png` profile photos,
+  `<name> מפעלים.jpg` portal images. Each is used the day its page or item exists.
+- **A `#cargo_query` whose second `format=` overrides `template=`**: the named template looks called but never
+  runs. The reverse trap also exists, so read the whole query.
+- **Categories checked by `#קיים`/`#ifexist`**: the check shows on `linkshere`, and deleting the page changes
+  what the checking page renders.
+- **Pages filed in any category by a person**: decide together with that category, not alone.
+- **Unused archive files** (press scans, league-table clippings, programs, game videos): attach them to their
+  game or season page; don't delete them.
+
+What *is* safe, once checked live page by page:
+
+- **Empty categories holding only the AutoCreateCategoryPages stub.** The extension recreates the same stub the
+  moment a page joins again. It does *not* restore `__HIDDENCAT__` or a parent link, so a hidden or
+  tracking category is not in this group.
+- **Empty categories in an old naming format**: every category of that format is empty (3 or more), e.g.
+  `כדורסל/שחקנים שלבשו מספר N`, now `שחקני כדורסל שלבשו מספר N`. Treat months as a variable too, word-bounded
+  (`יוני` sits inside `אצטדיונים`).
+- **Tracking categories a template renamed**: the old name is empty and no template emits it. Retarget the
+  pages that name it (e.g. project pages) first.
+
+To check that nothing names a page, search the raw text of every page (what `Special:ReplaceText` finds), and
+match a *reference* (`[:=|]\s*NAME\s*(?=[\]|}\n]|$)`), not a substring: a substring search hits longer names
+that start with this one (`מספר 1` inside `מספר 14`) and prose.
