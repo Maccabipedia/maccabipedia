@@ -35,9 +35,11 @@ Only template parser functions add them: `#תנאי` / `#if`, `#קיים` on a m
 
 ## Outside the tree
 
-- **Detached roots.** Several `עמודי מעקב ל…` pages are bare AutoCreateCategoryPages stubs with no parent link,
-  so their whole subtree is missing from a walk from the root. Examples: `עמודי מעקב למשחקי כדורסל`, which the
-  basketball game template's categories name as their parent, and `עמודי מעקב לאתר` → `עמודי מעקב לעמוד ראשי`.
+- **Detached roots.** A tracking category whose page is only the AutoCreateCategoryPages stub has no parent
+  link, so its whole subtree is missing from a walk from the root. This happened to `עמודי מעקב למשחקי כדורסל`
+  (30 basketball tracking categories under it) and `עמודי מעקב לאתר`, both re-parented since. To find more:
+  category pages that are just the stub sentence while other category pages name them as parent. Give each one
+  the parent its twin has (e.g. the volleyball version of a basketball page).
 - **Categories with no page at all.** Some categories a template adds were never created (e.g. several
   `פרופילים ללא …`, `שחקנים ללא מספר חולצה במכבי`). See also `maccabipedia_structure_knowledge.md` on red-link
   categories.
