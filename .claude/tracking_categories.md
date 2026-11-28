@@ -8,8 +8,8 @@ empty or safe to delete.
 
 | Branch | What it holds | How it fills |
 |---|---|---|
-| `קטגוריה:עמודי מעקב` (tracking pages), split by area: `עמודי מעקב לכדורגל`, `…לכדורסל`, `…לכדורעף`, `…לתבניות`, `…לאוסף שירים`, `…לכרטיסים ומנויים`, `…לעמודי יום`, … | **Tracking pages.** Each holds a `#cargo_query` (or DPL) that lists the items needing a look, e.g. `תבנית:משחקים עם כמות קהל נמוכה` lists football games with 0 < Crowd < 500. It also holds **tracking categories** that templates fill, e.g. `משחקים המכילים אירוע לא תקין`. | A person writes the tracking page and files it under its area's category, e.g. `קטגוריה:עמודי מעקב למשחקים` under `עמודי מעקב לכדורגל`. A template adds a page to a tracking category when its data is missing or wrong. |
-| `קטגוריה:עמודי מעקב לשגיאות` | Categories for **wrong template input**: an image that doesn't exist, a design box with no title, a league table naming a missing team, a page-navigation strip with no links, … | The template adds the category in its error branch (`#if`/`#switch` default). |
+| `קטגוריה:עמודי מעקב` (tracking pages), split by area: `עמודי מעקב לכדורגל`, `…לכדורסל`, `…לכדורעף`, `…לתבניות`, `…לאוסף שירים`, `…לכרטיסים ומנויים`, `…לעמודי יום`, … | **Tracking pages.** Each holds a `#cargo_query` (or DPL) that lists the items needing a look, e.g. `תבנית:משחקים עם כמות קהל נמוכה` lists football games with 0 < Crowd < 500. It also holds **tracking categories** that templates fill, e.g. `משחקים המכילים אירוע לא תקין`. Wrong template input is tracked here too: `עמודי מעקב לתבניות` holds categories such as `טבלת ליגת כדורסל עם הפניה ליריבה ללא עמוד`. | A person writes the tracking page and files it under its area's category, e.g. `קטגוריה:עמודי מעקב למשחקים` under `עמודי מעקב לכדורגל`. A template adds a page to a tracking category when its data is missing or wrong. |
+| `קטגוריה:עמודי מעקב לשגיאות` | More categories for **wrong template input**: an image that doesn't exist, a design box with no title, a league table naming a missing team, a page-navigation strip with no links, … Input errors are split between this branch and `עמודי מעקב לתבניות`, so search both. | The template adds the category when its input is missing or wrong. |
 
 ## Rules that follow from it
 
@@ -31,5 +31,5 @@ empty or safe to delete.
 ## Listing the tree
 
 Walk `list=categorymembers` from the root with `cmlimit=max`, queueing every member in namespace 14, and read
-each category's `prop=pageprops` (`hiddencat`) and `categoryinfo`. For `prop=categories` over many titles, use
-batches of about 15 titles: Hebrew titles URL-encode to six bytes per letter, and 50 of them get a 414 from nginx.
+each category's `prop=pageprops` (`hiddencat`) and `categoryinfo`. Send batched `titles=` queries by POST
+(see `maccabipedia_structure_knowledge.md`), because a GET of 50 Hebrew titles is too long and returns a 414.
