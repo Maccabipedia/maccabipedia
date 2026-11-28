@@ -138,6 +138,7 @@ Every tool call result stays in context forever. Keep all outputs small:
 
 ## 7. Reference Files
 - `.claude/maccabipedia_structure_knowledge.md` — Game pages, player pages, templates, Cargo API
+- `.claude/tracking_categories.md` — the tracking system under `קטגוריה:קטגוריות תפעוליות`: tracking pages (a query editors read, never transcluded, so "unused" lists show them by mistake) and the error categories templates fill. Read before calling any page or category unused or deleting one
 - `.claude/maccabipedia_research_sources.md` — External data sources: rosters, match results, historical records, photos, video. **Starts with tips for searching any source** (search broad and filter by eye, open items instead of trusting titles, proof before a data fix) — read them before any hunt for missing items
 - `.claude/skills/upload-newspaper/` (skill; rules in `rules.md`) — uploading newspaper scans in every sport: crop to the Maccabi article (never a whole page), cut along the page's rules, the edge review, the per-game cap, file names for one or several pieces (a Hebrew description, never `(2)`), the tagging template. Read before any newspaper upload
 - `.claude/newspaper_archives.md` — Scanned newspapers on the shared Google Drive: which archives exist (Yedioth single pages vs Hadashot HaSport full issues), the text-layer search script (`maintenance/papers/search_newspaper_archive.py`), and how to date a game from the press
