@@ -12,6 +12,10 @@ still goes through the template's row template.
 
     {{#invoke:FootballCompetition|biggest|תוצאה=ניצחון|מפעלים={{{מפעלים לשליפה|}}}}}
     {{#invoke:FootballCompetition|seasons|מפעלים={{{מפעלים|}}}}}
+    {{#invoke:FootballCompetition|achievementSeasons|סוג=זכיות|מפעלים={{{מפעלים|}}}}}
+
+The records boxes are not here: they are the shared leaderboard
+(Module:FootballStatsBlock, block competition-records).
 ]]
 
 local Queries = require('Module:FootballQueries')
@@ -118,6 +122,46 @@ function p.seasons(frame)
 		error(string.format('FootballCompetition: %d season rows reached the limit', #rows), 0)
 	end
 	return rowsOf(frame, rows, 'מפעל כדורגל/הצגת מספרים עונתיים/הצגת נתונים')
+end
+
+--- The three Achievements lists, each the template's own query with only the
+--- competition list quoted by the layer.
+local ACHIEVEMENTS = {
+	['השתתפויות'] = { groupBy = 'Season' },
+	['זכיות'] = { where = 'Achievement="זכיה"' },
+	['סגנויות'] = { where = 'Achievement IN ("גמר", "מקום 2")' },
+}
+
+--- The seasons of one achievement list, comma-separated as the template's
+--- Cargo list printed them:
+---   {{#invoke:FootballCompetition|achievementSeasons|סוג=זכיות|מפעלים={{{מפעלים|}}}}}
+--- No order is passed, so Cargo applies its default order, as the templates
+--- did - the competition page reads the first and last season by position.
+function p.achievementSeasons(frame)
+	local args = argumentsOf(frame, { ['סוג'] = true, ['מפעלים'] = true })
+	local kind = ACHIEVEMENTS[args['סוג'] or '']
+	if not kind then
+		error(string.format(
+			'FootballCompetition: achievementSeasons needs סוג=השתתפויות, זכיות or סגנויות, got "%s"',
+			tostring(args['סוג'])), 0)
+	end
+	if (args['מפעלים'] or '') == '' then
+		return ''
+	end
+	local where = Queries.inList('Achievements.Competition', args['מפעלים'])
+	if kind.where then
+		where = where .. ' AND ' .. kind.where
+	end
+	local rows = mw.ext.cargo.query('Achievements', 'Season',
+		{ where = where, groupBy = kind.groupBy, limit = SEASONS_LIMIT })
+	if #rows >= SEASONS_LIMIT then
+		error(string.format('FootballCompetition: %d achievement rows reached the limit', #rows), 0)
+	end
+	local seasons = {}
+	for index, row in ipairs(rows) do
+		seasons[index] = row.Season
+	end
+	return table.concat(seasons, ', ')
 end
 
 return p
