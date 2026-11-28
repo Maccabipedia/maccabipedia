@@ -939,5 +939,58 @@ check('a block without rows cannot be shown with tab', function(Blocks)
 	contains(tostring(message), 'no rows to show', 'refused, not "primed" printed')
 end)
 
+-- The competition records boxes: the template keeps its box markup and asks
+-- leaderboardTab for each box's rows, one tab (official games).
+local function recordsFrame(box, keep)
+	local direct = { ['בלוק'] = 'competition-records', ['תיבה'] = box, ['קטגוריית מפעל'] = 'רשמי',
+		['כמות'] = '10', ['מפעלים'] = 'גביע אופ"א, ' .. MELCHETT }
+	return keep and stub.newFrameKeepingVariables({}, direct) or stub.newFrame({}, direct)
+end
+
+check('competition records: ONE query for the four boxes, names as stored', function(Blocks)
+	stub.willReturn({ { g = 'שרן ייני', c1 = '12', c2 = '3', c3 = '1', c4 = '2' } })
+	Blocks.leaderboardTab(recordsFrame('הופעות'))
+	for _, box in ipairs({ 'כיבושים', 'בישולים', 'צהובים' }) do
+		Blocks.leaderboardTab(recordsFrame(box, true))
+	end
+	equals(#stub.calls, 1, 'one query for all four boxes')
+	local call = stub.calls[1]
+	contains(call.options.where, 'Football_Games.Competition IN ("גביע אופא", "גביע מלצ\'ט")',
+		'the apostrophe kept, the gershayim dropped')
+	equals(call.options.groupBy, 'Games_Events.PlayerName', 'per player')
+	local _, columns = call.fields:gsub('=c%d+', '')
+	equals(columns, 4, 'four boxes, one tab each')
+	contains(call.fields, 'Competitions.Official = 1', 'official games only')
+end)
+
+check('competition records: rows by position, and a more link past ten', function(Blocks)
+	local rows = {}
+	for index = 1, 11 do
+		rows[index] = { g = 'שחקן ' .. index, c1 = tostring(100 - index) }
+	end
+	stub.willReturn(rows)
+	local html = Blocks.leaderboardTab(recordsFrame('הופעות'))
+	equals(stub.expanded[1].title, 'סטטיסטיקות/הצגת שיאנים/הצגת שחקן/כדורגל', 'the football row')
+	equals(stub.expanded[1].args[1], 'שחקן 1', 'the name first, by position')
+	equals(stub.expanded[1].args[2], 99, 'the count second')
+	equals(#stub.expanded, 10, 'ten rows')
+	contains(html, 'עוד', 'the more link')
+	contains(html, 'fields=Games_Events.PlayerName, COUNT(*)&', 'link fields by position: name, count')
+	contains(html, 'order_by=COUNT(*) DESC, Games_Events.PlayerName&', 'ties by name, as the box')
+	contains(html, 'offset=10&', 'from the eleventh player')
+	equals(html:sub(-#' עוד]'), ' עוד]', 'the link ends the rows with no newline, so the box closes on its line')
+end)
+
+check('competition records: an unknown box or category is refused', function(Blocks)
+	local ok, message = pcall(Blocks.leaderboardTab, recordsFrame('מוצהבים'))
+	equals(ok, false, 'refused')
+	contains(tostring(message), 'has no box "מוצהבים"', 'names the box')
+	local frame = recordsFrame('הופעות')
+	frame.args['קטגוריית מפעל'] = 'ליגה'
+	ok, message = pcall(Blocks.leaderboardTab, frame)
+	equals(ok, false, 'refused')
+	contains(tostring(message), 'declares no category "ליגה"', 'names the category')
+end)
+
 print(string.format('\n%d passed, %d failed', passed, failed))
 os.exit(failed > 0 and 1 or 0)

@@ -1007,10 +1007,28 @@ The subpages built their own `Competition IN (…)` with
   `/שליפת נתונים` and the two biggest-results tables call
   `Module:FootballCompetition` (`seasons`, `biggest`). Its WHERE comes from
   `FootballQueries.build`, so the quote rule lives in one place.
-- Not moved: `הצגת שיאנים` (it goes through the shared
-  `שיאני כמות אירועי שחקן/עיצוב חדש`, and unofficial competitions such as
-  Melchett hide that section) and `הצגת הישגים` (it reads `Achievements`, which
-  has no quote-bearing row to measure a rule on).
+- `הצגת שיאנים` (records, PR #325): the four boxes keep the template's own
+  markup and each asks `leaderboardTab` (block `competition-records`, ONE tab
+  `רשמי`, the season page's boxes) for its rows - the shared leaderboard, so
+  one query for the four instead of four through the 128-caller
+  `שיאני כמות אירועי שחקן/עיצוב חדש`, which is untouched. Two settings make it
+  render as the old boxes did: the football row template takes positional
+  arguments (the "עוד" link's ViewData URL is built for that), and
+  `moreSharesLine` drops the newline after the link - the old box closed on
+  the link's line, so no `<p>` wrapped it; a newline adds one and its margin.
+  Deliberate departures: players tied at the last row are cut by name (the
+  old `ORDER BY COUNT(*)` cut them arbitrarily, and differed between two
+  renders of the same template on 11 of 21 pages), and the "עוד" URL is the
+  layer's. Kept as it was: a box with exactly ten players shows "עוד" (Cargo's
+  rule; the link opens an empty page).
+- `הצגת הישגים` (achievements, PR #325): its three lists
+  (`כדורגל/שליפות/מפעל/רשימת השתתפויות|זכיות|סגנויות`, also used by
+  פורטל מפעלים, קטגוריה:מפעלי כדורגל and תארים (כדורגל)) call
+  `FootballCompetition|achievementSeasons` - the template's query with only
+  the list quoted, by `Queries.inList('Achievements.Competition', …)` and the
+  rule `apostropheOnly` (measured 2026-11-28: the column stores גביע אופא, no
+  quote character anywhere). No order is passed: the page reads the first and
+  last season by position, from Cargo's default order, as before.
 
 Gate: `compare_competition_pages.py`, removed after the rollout (it is in the
 history of PR #320 if these templates are rewritten again). Its `check` is the
@@ -1018,7 +1036,14 @@ part worth rebuilding: every page's box, biggest-results margins and seasonal
 summary recomputed from Cargo with quote-blind matching. The records section
 needs its own comparison: lists that end on a tie name a different player
 between two renders of the SAME template (11 of 21 pages, old vs old), so
-compare it with player names masked - counts and labels must match. Two traps it
+compare it with player names masked - counts and labels must match. PR #325
+ran a scratch copy (not in the repo) with two additions: records old vs new per
+box - the markup around the rows byte for byte (the "עוד" URL aside), the same
+count at every rank, the same players at every count except the last count of
+a box cut at ten - and records + achievements against Cargo (the top ten counts,
+each player's own count, the link rule; each list's size, first and last
+season). A planted wrong filter in the module failed the check, which proved
+the pages ran the new code where old and new render the same. Two traps it
 now guards against, each of which once produced a false pass or a false failure:
 
 - **`action=parse&page=` can answer from the parser cache.** Right after the

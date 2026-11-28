@@ -188,6 +188,19 @@ check('a competition name loses its double quote', function(FootballQueries)
 		expected, 'entities')
 end)
 
+-- inList quotes a table no filter reaches (Achievements) by its declared rule,
+-- and refuses what would be IN () or a guess.
+check('inList: the column rule, entities decoded, empty and undeclared refused', function(FootballQueries)
+	equals(FootballQueries.inList('Achievements.Competition', 'גביע אופ&quot;א, גביע מלצ&#39;ט'),
+		'Achievements.Competition IN ("גביע אופא", "גביע מלצ\'ט")', 'as stored')
+	expectError('no values to match for Achievements.Competition', function()
+		FootballQueries.inList('Achievements.Competition', ' , ')
+	end)
+	expectError('no quote rule declared', function()
+		FootballQueries.inList('Achievements.Season', '1999/00')
+	end)
+end)
+
 check('a quote-bearing stadium name is stripped for the games column',
 	function(FootballQueries)
 		stub.willReturn({ { name = 'אצטדיון בלומ"פילד' } })

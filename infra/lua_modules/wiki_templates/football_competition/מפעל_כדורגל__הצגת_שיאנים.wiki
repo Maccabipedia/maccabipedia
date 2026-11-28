@@ -1,0 +1,26 @@
+<includeonly><!--
+
+--><div class="records-list-container" id="שיאנים">
+<div class="record-container">
+<div class="title">שיאני הופעות</div>
+<div class="content">{{#invoke:FootballStatsBlock|leaderboardTab|בלוק=competition-records|תיבה=הופעות|קטגוריית מפעל=רשמי|כמות=10|מפעלים={{{מפעלים לשליפה|}}}}}</div>
+</div><!--
+
+--><div class="record-container">
+<div class="title">שיאני כיבושים</div>
+<div class="content">{{#invoke:FootballStatsBlock|leaderboardTab|בלוק=competition-records|תיבה=כיבושים|קטגוריית מפעל=רשמי|כמות=10|מפעלים={{{מפעלים לשליפה|}}}}}</div>
+</div><!--
+
+--><div class="record-container">
+<div class="title">שיאני בישולים</div>
+<div class="content">{{#invoke:FootballStatsBlock|leaderboardTab|בלוק=competition-records|תיבה=בישולים|קטגוריית מפעל=רשמי|כמות=10|מפעלים={{{מפעלים לשליפה|}}}}}</div>
+</div><!--
+
+--><div class="record-container">
+<div class="title">שיאני צהובים</div>
+<div class="content">{{#invoke:FootballStatsBlock|leaderboardTab|בלוק=competition-records|תיבה=צהובים|קטגוריית מפעל=רשמי|כמות=10|מפעלים={{{מפעלים לשליפה|}}}}}</div>
+</div><!--
+
+--></div><!--
+
+--></includeonly>

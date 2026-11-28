@@ -356,6 +356,27 @@ blocks['competition-results'] = {
 	tabs = { '' },
 	cells = blocks['season-results'].cells,
 }
+-- The four records boxes of a competition page (תבנית:מפעל כדורגל/הצגת שיאנים),
+-- one tab each, official games only. The template keeps its own box markup and
+-- asks for each box's rows with leaderboardTab, so ONE query feeds all four
+-- (the shared template it replaces ran one each) and the names are quoted by
+-- the layer's rule instead of being stripped. Same boxes as the season page;
+-- the cards box is titled צהובים here, but titles live in the template.
+blocks['competition-records'] = {
+	categories = { 'רשמי' },
+	groupBy = 'player',
+	rowTemplate = blocks['season'].rowTemplate,
+	moreText = 'עוד',
+	-- The template's box closes right after the link (`…עוד</a></div>`), so no
+	-- paragraph wraps it; a newline after the link would add one, and a margin.
+	moreSharesLine = true,
+	boxes = {},
+}
+local recordWords = { appearances = 'הופעות', goals = 'כיבושים', assists = 'בישולים', cards = 'צהובים' }
+for index, box in ipairs(blocks['season'].boxes) do
+	blocks['competition-records'].boxes[index] = { key = box.key, word = recordWords[box.key], filters = box.filters }
+end
+
 blocks['competition-cards'] = {
 	entity = 'מפעלים',
 	tabs = { '' },

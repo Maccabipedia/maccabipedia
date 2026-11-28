@@ -784,8 +784,11 @@ function StatsBlock.new(Queries, blocksData, name)
 		end
 		if moreUrl then
 			-- On its own line, so the parser wraps it in a paragraph as it did
-			-- the template's Cargo link.
-			lines[#lines + 1] = string.format('[%s %s]\n', moreUrl, declaration.moreText)
+			-- the template's Cargo link. A block whose template closed its box on
+			-- the link's line (moreSharesLine: the competition records) had no
+			-- paragraph there, so the newline goes and the box's </div> follows.
+			lines[#lines + 1] = string.format('[%s %s]%s', moreUrl, declaration.moreText,
+				declaration.moreSharesLine and '' or '\n')
 		end
 		return table.concat(lines, '')
 	end
@@ -796,20 +799,28 @@ function StatsBlock.new(Queries, blocksData, name)
 		local query = FootballQueries.leaderboardColumnQuery(shared, columns, box.key .. '/' .. category)
 		local key = FootballQueries.groupKeyColumn(declaration.groupBy)
 		local record = box.sum and ('SUM(' .. FootballQueries.sumColumn(box.sum) .. ')') or 'COUNT(*)'
-		return tostring(mw.uri.fullUrl('מיוחד:ViewData', {
+		local parameters = {
 			tables = query.tables,
 			join_on = query.join,
 			where = query.where,
-			fields = record .. '=' .. declaration.rowArgs[2] .. ', ' .. key .. '=' .. declaration.rowArgs[1],
 			group_by = key,
-			order_by = declaration.rowArgs[2] .. ' DESC',
 			format = 'template',
 			template = declaration.rowTemplate,
-			['named args'] = 'yes',
 			default = declaration.emptyText or '',
 			offset = tostring(top),
 			limit = '100',
-		}))
+		}
+		if declaration.rowArgs then
+			parameters.fields = record .. '=' .. declaration.rowArgs[2] .. ', ' .. key .. '=' .. declaration.rowArgs[1]
+			parameters.order_by = declaration.rowArgs[2] .. ' DESC'
+			parameters['named args'] = 'yes'
+		else
+			-- A row template that reads its arguments by position (football's):
+			-- name first, record second, ties by name as the box orders them.
+			parameters.fields = key .. ', ' .. record
+			parameters.order_by = record .. ' DESC, ' .. key
+		end
+		return tostring(mw.uri.fullUrl('מיוחד:ViewData', parameters))
 	end
 
 	--- Run ONE query for every box in every category worth priming with this one,

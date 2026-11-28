@@ -102,9 +102,13 @@ return {
 	-- quote (2026-11-21: גביע מלצ'ט is the one value with a quote character of
 	-- either kind), while the competition pages pass גביע אופ"א for the 22 games
 	-- stored as גביע אופא. 'keep' would drop those games from the UEFA page group.
+	-- Achievements.Competition is joined to it on equality and stores the same
+	-- names (2026-11-28: גביע אופא, no value with a quote character), so it gets
+	-- the same rule. No filter reaches it; Queries.inList quotes it.
 	columns = {
 		['Football_Games.Season'] = 'strip',
 		['Football_Games.Competition'] = 'apostropheOnly',
+		['Achievements.Competition'] = 'apostropheOnly',
 		['Football_Games.Opponent'] = 'strip',
 		['Football_Games.Stadium'] = 'strip',
 		['Football_Games.HomeAway'] = 'strip',

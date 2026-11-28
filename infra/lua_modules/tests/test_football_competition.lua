@@ -124,5 +124,50 @@ check('seasons: a full page of rows is an error, not a short table', function(Co
 	end)
 end)
 
+check('achievements: wins of the names as stored, seasons comma-separated in Cargo order', function(Competition)
+	stub.willReturn({ { Season = '1999/00' }, { Season = '1939' } })
+	local out = invoke(Competition, 'achievementSeasons', { ['סוג'] = 'זכיות', ['מפעלים'] = 'גביע אופ"א, ' .. MELCHETT })
+	local call = stub.calls[1]
+	equals(call.tables, 'Achievements', 'the achievements table only')
+	equals(call.fields, 'Season', 'the season alone')
+	equals(call.options.where, 'Achievements.Competition IN ("גביע אופא", "גביע מלצ\'ט") AND Achievement="זכיה"',
+		'the apostrophe kept, the gershayim dropped, wins only')
+	equals(call.options.orderBy, nil, 'no order: Cargo default, as the template had')
+	equals(call.options.groupBy, nil, 'every win row')
+	equals(out, '1999/00, 1939', 'as the template printed them, order untouched')
+end)
+
+check('achievements: participations once per season, runner-up as final or 2nd place', function(Competition)
+	stub.willReturn({})
+	invoke(Competition, 'achievementSeasons', { ['סוג'] = 'השתתפויות', ['מפעלים'] = MELCHETT })
+	equals(stub.calls[1].options.where, 'Achievements.Competition IN ("גביע מלצ\'ט")', 'any achievement')
+	equals(stub.calls[1].options.groupBy, 'Season', 'one row per season')
+	invoke(Competition, 'achievementSeasons', { ['סוג'] = 'סגנויות', ['מפעלים'] = MELCHETT })
+	equals(stub.calls[2].options.where,
+		'Achievements.Competition IN ("גביע מלצ\'ט") AND Achievement IN ("גמר", "מקום 2")', 'runner-up')
+end)
+
+check('achievements: unknown kind or argument refused, no names means no query', function(Competition)
+	expectError('סוג=השתתפויות, זכיות or סגנויות', function()
+		invoke(Competition, 'achievementSeasons', { ['סוג'] = 'גמר', ['מפעלים'] = MELCHETT })
+	end)
+	expectError('unknown argument "מפעל"', function()
+		invoke(Competition, 'achievementSeasons', { ['סוג'] = 'זכיות', ['מפעל'] = MELCHETT })
+	end)
+	equals(invoke(Competition, 'achievementSeasons', { ['סוג'] = 'זכיות', ['מפעלים'] = '' }), '', 'empty')
+	equals(#stub.calls, 0, 'nothing queried')
+end)
+
+check('achievements: a full page of rows is an error, not a short list', function(Competition)
+	local rows = {}
+	for index = 1, 500 do
+		rows[index] = { Season = tostring(index) }
+	end
+	stub.willReturn(rows)
+	expectError('reached the limit', function()
+		invoke(Competition, 'achievementSeasons', { ['סוג'] = 'השתתפויות', ['מפעלים'] = MELCHETT })
+	end)
+end)
+
 print(string.format('\n%d passed, %d failed', passed, failed))
 os.exit(failed > 0 and 1 or 0)

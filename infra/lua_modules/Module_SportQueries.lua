@@ -526,6 +526,22 @@ function SportQueries.new(Fields)
 		return { tables = tables, join = join, where = whereOf(builder) }
 	end
 
+	--- `column IN (...)` for a comma-separated list, every item quoted by the
+	--- column's declared rule. For a table no filter reaches - the Achievements
+	--- lists of a competition page - so its names are quoted by the measured rule
+	--- instead of a template's own stripping. An empty list is refused: IN () is
+	--- a SQL error, and no condition at all would match every row.
+	function Queries.inList(column, list)
+		local literals = {}
+		for index, item in ipairs(splitList(list or '')) do
+			literals[index] = literal(column, item)
+		end
+		if #literals == 0 then
+			error(string.format(NAME .. ': no values to match for %s', column), 0)
+		end
+		return string.format('%s IN (%s)', column, table.concat(literals, ', '))
+	end
+
 	--- Every cell of a block from ONE query.
 	---
 	--- `shared` are the filters the whole block has in common (the player, the
