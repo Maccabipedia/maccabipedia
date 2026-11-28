@@ -1007,7 +1007,7 @@ The subpages built their own `Competition IN (…)` with
   `/שליפת נתונים` and the two biggest-results tables call
   `Module:FootballCompetition` (`seasons`, `biggest`). Its WHERE comes from
   `FootballQueries.build`, so the quote rule lives in one place.
-- `הצגת שיאנים` (records, PR #321): the four boxes keep the template's own
+- `הצגת שיאנים` (records, PR #325): the four boxes keep the template's own
   markup and each asks `leaderboardTab` (block `competition-records`, ONE tab
   `רשמי`, the season page's boxes) for its rows - the shared leaderboard, so
   one query for the four instead of four through the 128-caller
@@ -1021,7 +1021,7 @@ The subpages built their own `Competition IN (…)` with
   renders of the same template on 11 of 21 pages), and the "עוד" URL is the
   layer's. Kept as it was: a box with exactly ten players shows "עוד" (Cargo's
   rule; the link opens an empty page).
-- `הצגת הישגים` (achievements, PR #321): its three lists
+- `הצגת הישגים` (achievements, PR #325): its three lists
   (`כדורגל/שליפות/מפעל/רשימת השתתפויות|זכיות|סגנויות`, also used by
   פורטל מפעלים, קטגוריה:מפעלי כדורגל and תארים (כדורגל)) call
   `FootballCompetition|achievementSeasons` - the template's query with only
@@ -1036,7 +1036,7 @@ part worth rebuilding: every page's box, biggest-results margins and seasonal
 summary recomputed from Cargo with quote-blind matching. The records section
 needs its own comparison: lists that end on a tie name a different player
 between two renders of the SAME template (11 of 21 pages, old vs old), so
-compare it with player names masked - counts and labels must match. PR #321
+compare it with player names masked - counts and labels must match. PR #325
 ran a scratch copy (not in the repo) with two additions: records old vs new per
 box - the markup around the rows byte for byte (the "עוד" URL aside), the same
 count at every rank, the same players at every count except the last count of
